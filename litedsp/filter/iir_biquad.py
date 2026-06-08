@@ -1,0 +1,95 @@
+#
+# This file is part of LiteDSP.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+"""IIR biquad sections (Direct-Form II Transposed) and cascades, for I/Q streams.
+
+DF2T is chosen for its good fixed-point numerics and minimal state (2 registers/section). The
+output and the two state registers are round+saturated each sample for stability. The
+recursive loop is a single combinational pass per sample (no pipelining across feedback), so
+one section evaluates per cycle — document the resulting fmax when cascading many sections.
+Coefficients come from ``litedsp.filter.design.biquad_sos_quantize`` (Q?.frac_bits).
+"""
+
+from migen import *
+
+from litex.gen import *
+
+from litex.soc.interconnect.csr import *
+from litex.soc.interconnect     import stream
+
+from litedsp.common import iq_layout, scaled, saturated
+
+# IIR Biquad (single section, complex) -------------------------------------------------------------
+
+@ResetInserter()
+class IIRBiquad(LiteXModule):
+    """One DF2T biquad section applied to I and Q with shared coefficients.
+
+    ``coeffs`` is a dict ``{b0,b1,b2,a1,a2}`` of signed integers in Q?.``frac_bits`` (a1,a2 are
+    the *denominator* taps; a0 is normalized to 1).
+    """
+    def __init__(self, data_width=16, coeffs=None, frac_bits=14, with_csr=True):
+        if coeffs is None:
+            coeffs = {"b0": 1 << frac_bits, "b1": 0, "b2": 0, "a1": 0, "a2": 0}  # Passthrough.
+        self.data_width = data_width
+        self.frac_bits  = frac_bits
+        self.coeffs     = coeffs
+        self.state_width = data_width + frac_bits + 4
+        self.latency    = 1
+        self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.source = stream.Endpoint(iq_layout(data_width))
+
+        # # #
+
+        b0, b1, b2 = coeffs["b0"], coeffs["b1"], coeffs["b2"]
+        a1, a2     = coeffs["a1"], coeffs["a2"]
+        SW         = self.state_width
+
+        adv  = Signal()
+        xfer = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            self.sink.ready.eq(adv),
+            xfer.eq(self.sink.valid & adv),
+        ]
+
+        for field in ["i", "q"]:
+            x  = getattr(self.sink, field)
+            s1 = Signal((SW, True))
+            s2 = Signal((SW, True))
+            y  = Signal((data_width, True))
+            self.comb += y.eq(scaled(b0*x + s1, frac_bits, data_width)[0])
+            self.sync += If(xfer,
+                s1.eq(saturated(b1*x + s2 - a1*y, SW)),
+                s2.eq(saturated(b2*x - a2*y, SW)),
+            )
+            self.sync += If(adv, getattr(self.source, field).eq(y))
+
+        valid_pipe = Signal()
+        self.sync += If(adv, valid_pipe.eq(self.sink.valid))
+        self.comb += self.source.valid.eq(valid_pipe)
+
+# IIR Biquad cascade -------------------------------------------------------------------------------
+
+class IIRBiquadCascade(LiteXModule):
+    """Cascade of DF2T biquad sections (``sections`` = list of coeff dicts)."""
+    def __init__(self, data_width=16, sections=None, frac_bits=14, with_csr=True):
+        assert sections, "Provide at least one biquad section."
+        self.sections = []
+        self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.source = stream.Endpoint(iq_layout(data_width))
+
+        # # #
+
+        last = self.sink
+        for n, sec in enumerate(sections):
+            bq = IIRBiquad(data_width=data_width, coeffs=sec, frac_bits=frac_bits, with_csr=False)
+            self.add_module(name=f"section{n}", module=bq)
+            self.comb += last.connect(bq.sink)
+            self.sections.append(bq)
+            last = bq.source
+        self.comb += last.connect(self.source)
+        self.latency = len(sections)
