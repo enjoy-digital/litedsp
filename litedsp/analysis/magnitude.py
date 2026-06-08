@@ -11,29 +11,46 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, real_layout
+from litedsp.common            import iq_layout, real_layout
+from litedsp.generation.cordic import CORDIC
 
 # Magnitude ----------------------------------------------------------------------------------------
 
 @ResetInserter()
 class Magnitude(LiteXModule):
-    """Approximate complex magnitude ``|I + jQ|`` via alpha-max-beta-min.
+    """Complex magnitude ``|I + jQ|``.
 
-    ``|z| ~= max(|I|, |Q|) + (min(|I|, |Q|) >> beta_shift)``. Cheap (no multiplier, no
-    iteration); with the default ``beta_shift = 2`` (beta = 1/4) the error is within about
-    -12%..0% of the true magnitude. For an exact magnitude use the CORDIC block in vectoring
-    mode. The output is one bit wider than the input (magnitude can reach ~1.41x full scale).
+    ``method="approx"`` (default): alpha-max-beta-min,
+    ``|z| ~= max(|I|, |Q|) + (min(|I|, |Q|) >> beta_shift)`` — cheap (no multiplier), error
+    within about -12%..+3% of true. ``method="cordic"``: exact (CORDIC vectoring). The output
+    is one bit wider than the input (magnitude can reach ~1.41x full scale).
     """
-    def __init__(self, data_width=16, beta_shift=2, with_csr=True):
+    def __init__(self, data_width=16, beta_shift=2, method="approx", with_csr=True):
+        assert method in ["approx", "cordic"]
         self.data_width = data_width
         self.out_width  = data_width + 1
         self.beta_shift = beta_shift
-        self.latency    = 1
+        self.method     = method
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(real_layout(self.out_width))
 
         # # #
 
+        if method == "cordic":
+            self.cordic = CORDIC(data_width=data_width, mode="vectoring", with_csr=False)
+            self.latency = self.cordic.latency
+            self.comb += [
+                self.cordic.sink.valid.eq(self.sink.valid),
+                self.cordic.sink.x.eq(self.sink.i),
+                self.cordic.sink.y.eq(self.sink.q),
+                self.sink.ready.eq(self.cordic.sink.ready),
+                self.source.valid.eq(self.cordic.source.valid),
+                self.source.data.eq(self.cordic.source.mag),
+                self.cordic.source.ready.eq(self.source.ready),
+            ]
+            return
+
+        self.latency = 1
         adv = Signal()
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
