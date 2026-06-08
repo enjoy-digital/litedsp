@@ -41,25 +41,27 @@ from for client-specific requirements.
 [> Modules
 ----------
 
-- **generation/** : `NCO` (DDS), `CORDIC` (rotation: sin/cos & vector rotate; vectoring:
-                     magnitude & atan2).
+- **generation/** : `NCO` (DDS), `CORDIC`, `Chirp` (linear FM), `NoiseSource` (AWGN), `Replay`.
 - **mixing/**     : `Mixer` (complex, runtime up/down), `DDC`, `DUC`.
 - **filter/**     : `FIRFilter`/`FIRFilterComplex` (direct & symmetric), `FIRDecimator`/
                      `FIRInterpolator` (polyphase, single-MAC), `CICDecimator`/`CICInterpolator`,
                      `HalfbandDecimator`/`HalfbandInterpolator`, `IIRBiquad`/`IIRBiquadCascade`
                      (DF2T), `DCBlocker`, `MovingAverage`, `Hilbert`, `PulseShaper` (RRC),
-                     `FarrowInterpolator`, `RationalResampler`, `design.py` (coefficients).
+                     `FarrowInterpolator`, `RationalResampler`, `ArbResampler`, `Notch`,
+                     `CombFilter`, `Allpass`, `design.py` (coefficients).
 - **rate/**       : `Downsampler`, `Upsampler` (naive), `Decimator`, `Interpolator` (CIC/FIR).
 - **level/**      : `Gain`, `Power`, `Saturate`, `Clipper`, `EnvelopeDetector`, `Squelch`,
                      `AGC`, `RMS`, `Log2`/`LogPower` (dB).
 - **correction/** : `DCOffset`, `IQBalance`, `Derotator` (CFO).
-- **comm/**       : `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `DifferentialEncoder`/
-                     `Decoder`, `Correlator`, `PLL`/`Costas` (`TimingRecovery` = WIP).
-- **stream/**     : `Combine` (saturating sum), `Split`, `Delay`, `ChannelMux`/`ChannelDemux`,
-                     `Conjugate`/`SwapIQ`/`Negate`, `OffsetBinaryToTwos`/`TwosToOffsetBinary`,
-                     `IQClockDomainCrossing`.
-- **analysis/**   : `Window`, `FFT` (radix-2 SDF, `inverse=` for IFFT), `FFTIter` (compact),
-                     `PSD`, `Magnitude`, `Goertzel`, `Stats`, `Histogram`, `PeakBin`.
+- **comm/**       : `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `SymbolMapper`,
+                     `DifferentialEncoder`/`Decoder`, `Scrambler`/`Descrambler`, `CRC`,
+                     `ConvEncoder`, `Correlator`, `PLL`/`Costas` (`TimingRecovery` = WIP).
+- **stream/**     : `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`,
+                     `Conjugate`/`SwapIQ`/`Negate`, offset-binary converters,
+                     `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope).
+- **analysis/**   : `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`,
+                     `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`,
+                     `EnergyDetector`, `FrequencyEstimator`.
 - **numeric/control** : `ISqrt`, `PILoop`.
 - **examples/**   : `ddc_chain.py`, `spectrum_analyzer.py`.
 
