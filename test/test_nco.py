@@ -18,8 +18,9 @@ def _to_signed(values, width):
     return np.where(values >= (1 << (width-1)), values - (1 << width), values)
 
 class TestNCO(unittest.TestCase):
-    def nco_case(self, phase_inc, phase_bits=32, data_width=16, lut_depth=1024, n=200):
-        dut = NCO(phase_bits=phase_bits, data_width=data_width, lut_depth=lut_depth, with_csr=False)
+    def nco_case(self, phase_inc, phase_bits=32, data_width=16, lut_depth=1024, n=200, quarter_wave=False):
+        dut = NCO(phase_bits=phase_bits, data_width=data_width, lut_depth=lut_depth,
+            quarter_wave=quarter_wave, with_csr=False)
         dut.phase_inc.reset = phase_inc  # Stable from cycle 0 (mirrors a CSR set before streaming).
 
         captured = run_stream(dut,
@@ -40,6 +41,13 @@ class TestNCO(unittest.TestCase):
             got_i, got_q, ref_i, ref_q = self.nco_case(phase_inc)
             self.assertTrue(np.array_equal(got_i, ref_i), f"I mismatch @inc={phase_inc:#x}")
             self.assertTrue(np.array_equal(got_q, ref_q), f"Q mismatch @inc={phase_inc:#x}")
+
+    def test_quarter_wave_bit_exact(self):
+        # Quarter-wave reconstruction must be bit-identical to the full-LUT model.
+        for phase_inc in [(1 << 32)//1024, 0x01234567, 0x0fffffff]:
+            got_i, got_q, ref_i, ref_q = self.nco_case(phase_inc, quarter_wave=True)
+            self.assertTrue(np.array_equal(got_i, ref_i), f"QW I mismatch @inc={phase_inc:#x}")
+            self.assertTrue(np.array_equal(got_q, ref_q), f"QW Q mismatch @inc={phase_inc:#x}")
 
     def test_spectral_purity(self):
         # Bin-aligned tone (coherent sampling, no window): the worst spur must be well down.
