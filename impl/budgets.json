@@ -115,6 +115,22 @@
       "lut": 68
     }
   },
+  "csr_sink": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 64,
+      "lut": 64
+    }
+  },
+  "csr_source": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 33,
+      "lut": 1
+    }
+  },
   "dc_blocker": {
     "ecp5": {
       "bram": 0,
@@ -157,6 +173,14 @@
       "dsp": 6,
       "ff": 100,
       "lut": 386
+    }
+  },
+  "error_counter": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 64,
+      "lut": 97
     }
   },
   "farrow": {
@@ -263,6 +287,14 @@
       "lut": 264
     }
   },
+  "framer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 16,
+      "lut": 102
+    }
+  },
   "gain": {
     "ecp5": {
       "bram": 0,
@@ -333,6 +365,22 @@
       "ff": 35,
       "fmax_min": 83.5,
       "lut": 218
+    }
+  },
+  "iq_pack": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 133,
+      "lut": 21
+    }
+  },
+  "iq_unpack": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 2,
+      "lut": 134
     }
   },
   "lms_equalizer": {
@@ -437,6 +485,22 @@
       "lut": 222
     }
   },
+  "null_sink": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 32,
+      "lut": 65
+    }
+  },
+  "pattern_source": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 65,
+      "lut": 114
+    }
+  },
   "power": {
     "ecp5": {
       "bram": 0,
@@ -505,6 +569,14 @@
       "dsp": 3,
       "ff": 114,
       "lut": 92
+    }
+  },
+  "stream_fifo": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 14,
+      "lut": 32
     }
   },
   "timing_recovery": {

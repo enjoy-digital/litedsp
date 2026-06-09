@@ -105,6 +105,15 @@ LUT = LUT4 + 2·CCU2C (carry); FF = TRELLIS_FF; BRAM = DP16KD; DSP = MULT18X18D.
 | timing_recovery | 883 | 182 | 0 | 16 |
 | fm_demod | 1720 | 790 | 0 | 4 |
 | correlator | 927 | 710 | 0 | 14 |
+| stream_fifo | 32 | 14 | 0 | 0 |
+| iq_pack | 21 | 133 | 0 | 0 |
+| iq_unpack | 134 | 2 | 0 | 0 |
+| csr_source | 1 | 33 | 0 | 0 |
+| csr_sink | 64 | 64 | 0 | 0 |
+| null_sink | 65 | 32 | 0 | 0 |
+| pattern_source | 114 | 65 | 0 | 0 |
+| error_counter | 97 | 64 | 0 | 0 |
+| framer | 102 | 16 | 0 | 0 |
 
 ## Place & route — fmax (subset)
 
