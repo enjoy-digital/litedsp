@@ -9,3 +9,7 @@ dist/
 *.v
 *.init
 sim/build/
+impl/build/
+*.jou
+*.rpt
+.Xil/

@@ -1,0 +1,370 @@
+{
+  "agc": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 8,
+      "ff": 57,
+      "lut": 385
+    }
+  },
+  "channelizer": {
+    "ecp5": {
+      "bram": 6,
+      "dsp": 24,
+      "ff": 1086,
+      "lut": 2786
+    }
+  },
+  "cic_decimator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 484,
+      "fmax_min": 71.0,
+      "lut": 566
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 484,
+      "fmax_min": 82.6,
+      "lut": 806
+    }
+  },
+  "cic_interpolator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 438,
+      "lut": 580
+    }
+  },
+  "combine": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 33,
+      "lut": 371
+    }
+  },
+  "cordic_rot": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 907,
+      "lut": 1943
+    }
+  },
+  "cordic_vec": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 849,
+      "fmax_min": 162.0,
+      "lut": 1839
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 827,
+      "fmax_min": 186.4,
+      "lut": 733
+    }
+  },
+  "correlator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 14,
+      "ff": 710,
+      "lut": 927
+    }
+  },
+  "dc_blocker": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 97,
+      "lut": 224
+    }
+  },
+  "ddc": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 6,
+      "ff": 317,
+      "fmax_min": 82.7,
+      "lut": 890
+    },
+    "xilinx": {
+      "bram": 1,
+      "dsp": 6,
+      "ff": 122,
+      "fmax_min": 107.4,
+      "lut": 384
+    }
+  },
+  "duc": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 7,
+      "ff": 302,
+      "lut": 643
+    }
+  },
+  "farrow": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 14,
+      "ff": 145,
+      "lut": 650
+    }
+  },
+  "fft": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 28,
+      "ff": 360,
+      "fmax_min": 57.1,
+      "lut": 2987
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 35,
+      "ff": 367,
+      "fmax_min": 73.2,
+      "lut": 1475
+    }
+  },
+  "fft_iter": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 8212,
+      "lut": 36165
+    }
+  },
+  "fir_complex": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 106,
+      "fmax_min": 181.6,
+      "lut": 181
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 8,
+      "ff": 38,
+      "fmax_min": 117.7,
+      "lut": 84
+    }
+  },
+  "fir_decimator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 104,
+      "fmax_min": 88.2,
+      "lut": 471
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 78,
+      "fmax_min": 121.8,
+      "lut": 184
+    }
+  },
+  "fir_interpolator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 86,
+      "lut": 338
+    }
+  },
+  "fm_demod": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 790,
+      "lut": 1720
+    }
+  },
+  "gain": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 33,
+      "lut": 59
+    }
+  },
+  "goertzel": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 17,
+      "ff": 143,
+      "lut": 1086
+    }
+  },
+  "halfband": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 94,
+      "lut": 394
+    }
+  },
+  "histogram": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 22,
+      "lut": 389
+    }
+  },
+  "iir_biquad": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 24,
+      "ff": 495,
+      "fmax_min": 46.2,
+      "lut": 1614
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 36,
+      "ff": 35,
+      "fmax_min": 83.5,
+      "lut": 167
+    }
+  },
+  "lms_equalizer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 84,
+      "ff": 645,
+      "lut": 3750
+    }
+  },
+  "magnitude": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 18,
+      "lut": 157
+    }
+  },
+  "magnitude_cordic": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 601,
+      "lut": 1618
+    }
+  },
+  "mixer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 296,
+      "fmax_min": 272.5,
+      "lut": 351
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 130,
+      "fmax_min": 226.3,
+      "lut": 107
+    }
+  },
+  "moving_average": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 87,
+      "lut": 246
+    }
+  },
+  "nco": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 43,
+      "fmax_min": 237.2,
+      "lut": 43
+    },
+    "xilinx": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 33,
+      "fmax_min": 264.8,
+      "lut": 65
+    }
+  },
+  "nco_qw": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 52,
+      "lut": 674
+    }
+  },
+  "power": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 0,
+      "lut": 0
+    }
+  },
+  "psd": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 31,
+      "lut": 855
+    }
+  },
+  "rms": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 123,
+      "lut": 1310
+    }
+  },
+  "saturate": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 33,
+      "lut": 67
+    }
+  },
+  "stats": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 186,
+      "lut": 289
+    }
+  },
+  "timing_recovery": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 16,
+      "ff": 182,
+      "lut": 883
+    }
+  },
+  "window": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 15,
+      "lut": 341
+    }
+  }
+}

@@ -68,6 +68,9 @@ from for client-specific requirements.
                      recovery -> slicer, recovers QPSK at SER 0).
 - **sim/**        : Verilator (real HDL) co-simulation of blocks vs the NumPy models
                      (`python3 sim/run_nco.py`, `sim/run_fir.py`).
+- **impl/**       : FPGA implementation tests — Yosys/nextpnr (ECP5) + Vivado (xc7a200t)
+                     synth/P&R with resource + fmax budgets (`python3 impl/run.py`). See
+                     `doc/implementation.md`.
 
 [> Tests
 --------
