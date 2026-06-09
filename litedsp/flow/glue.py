@@ -1,0 +1,143 @@
+#
+# This file is part of LiteDSP.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+"""Connection rules for auto-assembled chains.
+
+A hand-wired chain is correct by construction; an auto-assembler is not, so this enforces the
+stream contract:
+
+- **Fan-out** (one source → many sinks) is illegal raw (a single ``ready``), so a
+  :class:`~litedsp.stream.split.Split` is inserted automatically.
+- **Raw fan-in** (many sources → one sink) is rejected by netlist validation (route through a
+  ``combine``/``mixer`` block, which has distinct sink ports).
+- **Combinational loops** are rejected: v1 targets feed-forward chains, so any cycle in the block
+  graph is an error.
+- **Latency balancing** on reconvergent paths is *reported* (not auto-mutated): the assembler warns
+  when the branches feeding a multi-input block have unequal cumulative latency, and the user
+  inserts an explicit ``delay`` block. Keeping insertion explicit keeps generated chains
+  predictable and bit-identical to hand-wired equivalents.
+"""
+
+from litedsp.stream.split import Split
+from litedsp.flow.netlist import split_ref, NetlistError
+
+# Cycle detection ----------------------------------------------------------------------------------
+
+def _block_edges(nl):
+    """Directed edges block_id -> block_id implied by the connections (top-level I/O excluded)."""
+    edges = {}
+    for c in nl.connections:
+        s, _ = split_ref(c.src)
+        d, _ = split_ref(c.dst)
+        if nl.block(s) is not None and nl.block(d) is not None:
+            edges.setdefault(s, set()).add(d)
+    return edges
+
+def _check_acyclic(nl):
+    edges = _block_edges(nl)
+    WHITE, GREY, BLACK = 0, 1, 2
+    color = {b.id: WHITE for b in nl.blocks}
+    stack = []
+    def visit(u):
+        color[u] = GREY
+        stack.append(u)
+        for v in edges.get(u, ()):
+            if color[v] == GREY:
+                cycle = stack[stack.index(v):] + [v]
+                raise NetlistError(f"combinational/feedback loop not supported in v1: "
+                                   f"{' -> '.join(cycle)}")
+            if color[v] == WHITE:
+                visit(v)
+        stack.pop()
+        color[u] = BLACK
+    for b in nl.blocks:
+        if color[b.id] == WHITE:
+            visit(b.id)
+
+# Latency analysis (report only) -------------------------------------------------------------------
+
+def latency_warnings(parent, nl, reg):
+    """Warn when branches feeding a multi-sink block have unequal cumulative latency."""
+    warns = []
+    lat = {}   # block_id -> cumulative latency from any input (best effort, longest path).
+    edges = _block_edges(nl)
+    order = _topo(nl, edges)
+    incoming = {}
+    for c in nl.connections:
+        s, _ = split_ref(c.src)
+        d, dport = split_ref(c.dst)
+        incoming.setdefault(d, []).append((s, dport))
+    for bid in order:
+        preds = incoming.get(bid, [])
+        base = max((lat.get(s, 0) for s, _ in preds), default=0)
+        blat = reg[nl.block(bid).type].latency or 0 if nl.block(bid) else 0
+        lat[bid] = base + (blat if isinstance(blat, int) else 0)
+    # Multi-sink blocks: compare the latency arriving at each of their sink ports.
+    for bid, preds in incoming.items():
+        if len(preds) > 1:
+            arr = {}
+            for s, dport in preds:
+                arr.setdefault(dport, lat.get(s, 0))
+            vals = set(arr.values())
+            if len(vals) > 1:
+                warns.append(f"block '{bid}': inputs have unequal latency {arr} "
+                             f"(insert a 'delay' block to align)")
+    return warns
+
+def _topo(nl, edges):
+    seen, order = set(), []
+    def visit(u):
+        if u in seen:
+            return
+        seen.add(u)
+        for v in edges.get(u, ()):
+            visit(v)
+        order.append(u)
+    for b in nl.blocks:
+        visit(b.id)
+    return order[::-1]
+
+# Connection -------------------------------------------------------------------------------------
+
+def connect_all(parent, nl, reg):
+    """Wire every connection on ``parent``, inserting Split for fan-out. Returns inserted glue ids."""
+    _check_acyclic(nl)
+
+    fanout = {}
+    for c in nl.connections:
+        fanout.setdefault(c.src, []).append(c.dst)
+
+    inserted = []
+    for src_ref, dsts in fanout.items():
+        src_ep = parent.endpoint(src_ref)
+        if len(dsts) == 1:
+            parent.comb += src_ep.connect(parent.endpoint(dsts[0]))
+            continue
+        # Fan-out: insert a Split (I/Q only in v1).
+        if _layout_of(parent, src_ref, reg, nl) != "iq":
+            raise NotImplementedError(f"fan-out of a non-I/Q stream ('{src_ref}') is unsupported in v1")
+        name = "split_" + _safe(src_ref)
+        sp   = Split(n=len(dsts), data_width=nl.data_width)
+        setattr(parent, name, sp)
+        inserted.append(name)
+        parent.comb += src_ep.connect(sp.sink)
+        for k, d in enumerate(dsts):
+            parent.comb += sp.sources[k].connect(parent.endpoint(d))
+
+    for w in latency_warnings(parent, nl, reg):
+        parent.flow_warnings.append(w)
+    return inserted
+
+def _safe(ref):
+    return ref.replace(".", "_").replace("[", "_").replace("]", "")
+
+def _layout_of(parent, ref, reg, nl):
+    bid, port = split_ref(ref)
+    if port is None:
+        io = next((x for x in (nl.inputs + nl.outputs) if x.id == bid), None)
+        return io.layout if io else "iq"
+    p = reg[nl.block(bid).type].port(port)
+    return p.layout if p else "iq"

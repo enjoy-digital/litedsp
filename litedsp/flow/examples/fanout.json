@@ -1,0 +1,19 @@
+{
+  "name": "fanout",
+  "data_width": 16,
+  "clock_ns": 10.0,
+  "inputs":  [{"id": "src", "layout": "iq"}],
+  "outputs": [{"id": "out", "layout": "iq"}],
+  "blocks": [
+    {"id": "g",   "type": "gain",       "params": {}},
+    {"id": "dc",  "type": "dc_blocker", "params": {}},
+    {"id": "sum", "type": "combine",    "params": {"n_channels": 2}}
+  ],
+  "connections": [
+    {"from": "src",       "to": "g.sink"},
+    {"from": "g.source",  "to": "dc.sink"},
+    {"from": "g.source",  "to": "sum.sinks[1]"},
+    {"from": "dc.source", "to": "sum.sinks[0]"},
+    {"from": "sum.source","to": "out"}
+  ]
+}
