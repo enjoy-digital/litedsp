@@ -134,8 +134,8 @@ class FIRDecimator(LiteXModule):
             CSRField("taps", size=16, description="FIR taps N."),
             CSRField("rate", size=16, description="Decimation factor R."),
         ])
-        self._coeff_rst = CSRStorage(1, pulse=True, name="coeff_reset",
-            description="Reset the coefficient write pointer to tap 0.")
+        self._coeff_rst = CSRStorage(1, name="coeff_reset",
+            description="Reset the coefficient write pointer to tap 0 (write to strobe).")
         self._coeff = CSRStorage(self.data_width, name="coeff",
             description="Write the next FIR coefficient (auto-incrementing tap index).")
         self.comb += [
