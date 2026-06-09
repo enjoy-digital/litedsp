@@ -143,5 +143,39 @@ class TestValidationAndGenerate(unittest.TestCase):
         self.assertIn("bb_out_payload_q", v)
 
 
+class TestIPCore(unittest.TestCase):
+    def _ddc(self):
+        return nlmod.load(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "litedsp", "flow", "examples", "ddc.json"))
+
+    def test_generate_ip_and_register_map(self):
+        import json
+        from litedsp.flow.ipcore import generate_ip
+        path, ip = generate_ip(self._ddc(), "/tmp/litedsp_flow_test/ddc_ip")
+        self.assertTrue(os.path.exists(path))
+        v = open(path).read()
+        for port in ("s_axil_awvalid", "s_axil_wdata", "s_axil_rdata", "rx_in_payload_i"):
+            self.assertIn(port, v)
+        d = json.load(open(os.path.join(os.path.dirname(path), "csr.json")))
+        addrs = [r["addr"] for r in d["csr_registers"].values()]
+        self.assertEqual(len(addrs), len(set(addrs)))            # unique addresses.
+        self.assertIn("lo_phase_inc", d["csr_registers"])         # per-block, prefixed.
+
+    def test_axilite_write_reaches_csr(self):
+        from migen import run_simulation
+        from litedsp.flow.ipcore import FlowIPCore
+        ip  = FlowIPCore(self._ddc())
+        res = {}
+        def tb():
+            yield from ip.axil.write(0x800, 0x0abcdef0)          # lo_phase_inc bank base.
+            yield
+            res["rb"]  = (yield from ip.axil.read(0x800))
+            res["nco"] = (yield ip.chain.lo.phase_inc)
+        run_simulation(ip, [tb()])
+        rb = res["rb"][0] if isinstance(res["rb"], (list, tuple)) else res["rb"]
+        self.assertEqual(res["nco"], 0x0abcdef0)
+        self.assertEqual(rb, 0x0abcdef0)
+
+
 if __name__ == "__main__":
     unittest.main()
