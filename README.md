@@ -33,10 +33,11 @@ from for client-specific requirements.
 ---------
 
 - `litedsp/`           : the toolbox (generation, mixing, filter, rate, level, correction,
-                         analysis, stream).
+                         analysis, stream) + `flow/` (block-graph → Verilog/CSR/AXI IP generator).
+- `gui/`               : DearPyGui flow-graph editor (GNU-Radio-Companion style).
 - `test/`              : golden-model harness, NumPy reference models, per-block tests.
 - `examples/`          : assembled chains (DDC, DUC, repeater).
-- `doc/`               : architecture, interface contract, fixed-point conventions.
+- `doc/`               : architecture, interface contract, fixed-point conventions, flow tooling.
 
 [> Modules
 ----------
@@ -77,6 +78,10 @@ from for client-specific requirements.
 - **impl/**       : FPGA implementation tests — Yosys/nextpnr (ECP5) + Vivado (xc7a200t)
                      synth/P&R with resource + fmax budgets (`python3 impl/run.py`). See
                      `doc/implementation.md`.
+- **flow/**       : assemble blocks into a chain from a JSON netlist and generate the chain
+                     Verilog + CSR register map + an AXI-Stream/AXI-Lite IP core
+                     (`python3 -m litedsp.flow.generate flow.json`). A DearPyGui editor (`gui/`,
+                     `python3 -m gui.app`) produces/consumes the netlist. See `doc/flow.md`.
 
 [> Tests
 --------
