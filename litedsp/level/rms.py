@@ -30,7 +30,8 @@ class RMS(LiteXModule):
 
         # # #
 
-        self.isqrt = ISqrt(in_width=2*data_width, with_csr=False)
+        # Sequential sqrt: RMS emits once per window, so the multi-cycle (small) ISqrt is free.
+        self.isqrt = ISqrt(in_width=2*data_width, pipelined=False, with_csr=False)
         self.source = stream.Endpoint([("data", self.isqrt.out_width)])
         self.window_log2 = Signal(max=max_window_log2 + 1, reset=window_log2)
 

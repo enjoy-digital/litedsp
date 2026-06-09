@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import iq_layout, scaled, saturated
 
 # Complex LMS Equalizer ----------------------------------------------------------------------------
 
@@ -27,11 +27,14 @@ class LMSEqualizer(LiteXModule):
     weights (feed a slicer's decision back as ``d`` for decision-directed operation). ``mu_shift``
     sets the (inverse) step size; weights are Q.``wfrac`` with the center tap initialized to 1.0.
     """
-    def __init__(self, n_taps=5, data_width=16, wfrac=14, mu_shift=20, with_csr=True):
+    def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, with_csr=True):
         assert n_taps >= 1
         self.n_taps = n_taps
         self.mu_shift = mu_shift
-        ww = wfrac + data_width                          # Weight register width.
+        # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude
+        # (saturated below); keeping ww = wint + wfrac <= 18 makes each weight*sample a single
+        # 18x18 DSP. Stable equalizers have O(1) weights, so a few integer bits suffice.
+        ww = wint + wfrac                                # Weight register width.
         self.sink = stream.Endpoint([
             ("i", (data_width, True)), ("q", (data_width, True)),
             ("d_i", (data_width, True)), ("d_q", (data_width, True)),
@@ -79,8 +82,8 @@ class LMSEqualizer(LiteXModule):
         self.comb += [ei.eq(self.sink.d_i - yi), eq.eq(self.sink.d_q - yq)]
         for k in range(n_taps):
             self.sync += If(xfer & self.train,
-                wr[k].eq(wr[k] + ((ei*xr[k] + eq*xi[k]) >> mu_shift)),
-                wi[k].eq(wi[k] + ((eq*xr[k] - ei*xi[k]) >> mu_shift)),
+                wr[k].eq(saturated(wr[k] + ((ei*xr[k] + eq*xi[k]) >> mu_shift), ww)),
+                wi[k].eq(saturated(wi[k] + ((eq*xr[k] - ei*xi[k]) >> mu_shift), ww)),
             )
 
         self.sync += If(adv,
