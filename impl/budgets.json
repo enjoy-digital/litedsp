@@ -137,10 +137,16 @@
   },
   "fft_iter": {
     "ecp5": {
-      "bram": 0,
+      "bram": 2,
       "dsp": 4,
-      "ff": 8212,
-      "lut": 36165
+      "ff": 87,
+      "lut": 1039
+    },
+    "xilinx": {
+      "bram": 1,
+      "dsp": 5,
+      "ff": 29,
+      "lut": 236
     }
   },
   "fir_complex": {

@@ -27,11 +27,14 @@ the ECP5 Yosys synth across all blocks on every push (portability/compile-clean)
 
 ## Findings (what implementation testing caught)
 
-- **`fft_iter` (iterative FFT) is FPGA-hostile: ~36k LUTs, 0 BRAM.** Its in-place butterfly RAM
-  uses 2 read + 2 write ports; a BRAM has only 2 ports, so Yosys mapped the 4-port memory into
-  distributed LUT-RAM. The "compact" FFT is *not* compact on real silicon. **Action:** rework to
-  two single-port banks (even/odd addresses), the standard FFT memory-banking scheme. Prefer the
-  streaming SDF `FFT` until then.
+- **`fft_iter` (iterative FFT) was FPGA-hostile — now fixed.** The first version used *async-read*
+  RAM with 2 read + 2 write ports per butterfly; async read blocks BRAM inference and 4 ports
+  exceed a BRAM's 2, so Yosys spilled the whole thing to distributed LUT-RAM: **36k LUTs, 0 BRAM**.
+  Reworked to *synchronous-read* memory with a **2-phase butterfly** (one read cycle, then one
+  compute+write cycle) so each I/Q sample RAM is a single true-dual-port BRAM: now **1039 LUT /
+  2 BRAM / 4 DSP** on ECP5 (**236 LUT / 1 BRAM / 5 DSP** on Xilinx) — a 35× LUT reduction, and the
+  "compact FFT" is finally compact. Trade-off: 2 cycles/butterfly (latency `N + N·log2(N) + N`).
+  Lesson: *async-read memories never map to BRAM; large RAMs must be synchronous-read and ≤2 ports.*
 - **`nco_qw` (quarter-wave NCO) trades BRAM for logic at small depths.** At `lut_depth=1024` the
   N/4+1 table (257×16) maps to ~674 LUTs instead of BRAM; the 4× ROM saving only pays off at
   larger depths / wider data. The full-LUT `NCO` (2 BRAM) is preferable for `lut_depth≤1024`.
@@ -70,7 +73,7 @@ LUT = LUT4 + 2·CCU2C (carry); FF = TRELLIS_FF; BRAM = DP16KD; DSP = MULT18X18D.
 | combine | 371 | 33 | 0 | 0 |
 | window | 341 | 15 | 0 | 2 |
 | fft | 2987 | 360 | 0 | 28 |
-| fft_iter | 36165 | 8212 | 0 | 4 |
+| fft_iter | 1039 | 87 | 2 | 4 |
 | psd | 855 | 31 | 0 | 2 |
 | goertzel | 1086 | 143 | 0 | 17 |
 | stats | 289 | 186 | 0 | 2 |
@@ -108,6 +111,7 @@ LUT = LUT4 + 2·CCU2C (carry); FF = TRELLIS_FF; BRAM = DP16KD; DSP = MULT18X18D.
 | cic_decimator | 806 | 484 | 0 | 0 |
 | iir_biquad | 167 | 35 | 0 | 36 |
 | fft | 1475 | 367 | 0 | 35 |
+| fft_iter | 236 | 29 | 1 | 5 |
 | cordic_vec | 733 | 827 | 0 | 1 |
 | ddc | 384 | 122 | 1 | 6 |
 
