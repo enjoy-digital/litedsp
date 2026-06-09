@@ -4,7 +4,12 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Clock-domain crossing and width adaptation for I/Q streams (thin wrappers over LiteX)."""
+"""Clock-domain crossing and width adaptation for I/Q streams (thin wrappers over LiteX).
+
+``IQPack`` / ``IQUnpack`` bridge the per-sample I/Q layout to a wide flat bus word (e.g. four
+16-bit I/Q samples in one 128-bit AXI-Stream ``tdata``), which is how a DSP chain meets a wide
+DMA/AXI interface. They are exact inverses, so ``IQUnpack(IQPack(x)) == x``.
+"""
 
 from migen import *
 
@@ -29,4 +34,49 @@ class IQClockDomainCrossing(LiteXModule):
         self.comb += [
             self.sink.connect(self.cdc.sink),
             self.cdc.source.connect(self.source),
+        ]
+
+# Sample Packing / Unpacking -----------------------------------------------------------------------
+
+class IQPack(LiteXModule):
+    """Pack ``ratio`` consecutive I/Q samples into one wide ``data`` word (LSB = first sample)."""
+    def __init__(self, ratio=4, data_width=16):
+        assert ratio >= 1
+        sw          = 2*data_width
+        self.ratio  = ratio
+        self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.source = stream.Endpoint([("data", sw*ratio)])
+
+        # # #
+
+        self.conv = conv = stream.Converter(sw, sw*ratio)
+        self.comb += [
+            conv.sink.valid.eq(self.sink.valid),
+            self.sink.ready.eq(conv.sink.ready),
+            conv.sink.first.eq(self.sink.first),
+            conv.sink.last.eq(self.sink.last),
+            conv.sink.data.eq(Cat(self.sink.i, self.sink.q)),
+            conv.source.connect(self.source),
+        ]
+
+class IQUnpack(LiteXModule):
+    """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`IQPack`)."""
+    def __init__(self, ratio=4, data_width=16):
+        assert ratio >= 1
+        sw          = 2*data_width
+        self.ratio  = ratio
+        self.sink   = stream.Endpoint([("data", sw*ratio)])
+        self.source = stream.Endpoint(iq_layout(data_width))
+
+        # # #
+
+        self.conv = conv = stream.Converter(sw*ratio, sw)
+        self.comb += [
+            self.sink.connect(conv.sink),
+            self.source.valid.eq(conv.source.valid),
+            conv.source.ready.eq(self.source.ready),
+            self.source.first.eq(conv.source.first),
+            self.source.last.eq(conv.source.last),
+            self.source.i.eq(conv.source.data[:data_width]),
+            self.source.q.eq(conv.source.data[data_width:]),
         ]

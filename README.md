@@ -41,7 +41,8 @@ from for client-specific requirements.
 [> Modules
 ----------
 
-- **generation/** : `NCO` (DDS), `CORDIC`, `Chirp` (linear FM), `NoiseSource` (AWGN), `Replay`.
+- **generation/** : `NCO` (DDS), `CORDIC`, `Chirp` (linear FM), `NoiseSource` (AWGN), `Replay`,
+                     `PatternSource` (const/counter/PRBS/impulse test patterns).
 - **mixing/**     : `Mixer` (complex, runtime up/down), `DDC`, `DUC`.
 - **filter/**     : `FIRFilter`/`FIRFilterComplex` (direct & symmetric), `FIRDecimator`/
                      `FIRInterpolator` (polyphase, single-MAC), `CICDecimator`/`CICInterpolator`,
@@ -58,14 +59,19 @@ from for client-specific requirements.
                      `ConvEncoder`, `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M).
 - **stream/**     : `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`,
                      `Conjugate`/`SwapIQ`/`Negate`, offset-binary converters,
-                     `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope).
+                     `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope), `StreamFIFO`
+                     (elastic buffer), `IQPack`/`IQUnpack` (wide-bus packing),
+                     `CSRSource`/`CSRSink`/`NullSink` (bus-driven I/O),
+                     `StreamFramer`/`StreamDeframer` (first/last ↔ AXI-Stream `tlast`).
 - **analysis/**   : `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`,
                      `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`,
-                     `EnergyDetector`, `FrequencyEstimator`.
+                     `EnergyDetector`, `FrequencyEstimator`, `ErrorCounter` (SER/BER loopback).
 - **numeric/control** : `ISqrt`, `PILoop`.
 - **examples/**   : `ddc_chain.py`, `duc_chain.py`, `spectrum_analyzer.py`, `fm_receiver.py`
                      (FM demod + audio decimation), `qpsk_rx.py` (matched filter -> timing
-                     recovery -> slicer, recovers QPSK at SER 0).
+                     recovery -> slicer, recovers QPSK at SER 0), `wideband_rx.py` (DDC -> FIFO ->
+                     framer -> wide-word pack), `loopback_ber.py` (PRBS self-check), `integrated_ip.py`
+                     (AXI-Stream + aggregated CSR map preview). See `examples/README.md`.
 - **sim/**        : Verilator (real HDL) co-simulation of blocks vs the NumPy models
                      (`python3 sim/run_nco.py`, `sim/run_fir.py`).
 - **impl/**       : FPGA implementation tests — Yosys/nextpnr (ECP5) + Vivado (xc7a200t)

@@ -42,6 +42,12 @@ from litedsp.analysis.goertzel    import Goertzel
 from litedsp.analysis.stats       import Stats
 from litedsp.analysis.histogram   import Histogram
 from litedsp.stream.combine       import Combine
+from litedsp.stream.fifo          import StreamFIFO
+from litedsp.stream.adapt         import IQPack, IQUnpack
+from litedsp.stream.csr_io        import CSRSource, CSRSink, NullSink
+from litedsp.stream.framing       import StreamFramer
+from litedsp.generation.pattern   import PatternSource
+from litedsp.analysis.measure     import ErrorCounter
 from litedsp.comm.fm_demod        import FMDemod
 from litedsp.comm.timing_recovery import TimingRecovery
 from litedsp.comm.correlator      import Correlator
@@ -212,6 +218,42 @@ def correlator():
     d = Correlator([1, 1, 1, -1, -1, 1, -1], data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def stream_fifo():
+    d = StreamFIFO(depth=16, data_width=16, with_csr=False)
+    return d, {d.level, d.overflow} | _eps(d.sink, d.source), 8.0
+
+def iq_pack():
+    d = IQPack(ratio=4, data_width=16)
+    return d, _eps(d.sink, d.source), 8.0
+
+def iq_unpack():
+    d = IQUnpack(ratio=4, data_width=16)
+    return d, _eps(d.sink, d.source), 8.0
+
+def csr_source():
+    d = CSRSource(data_width=16, with_csr=False)
+    return d, {d.i, d.q, d.push} | _eps(d.source), 8.0
+
+def csr_sink():
+    d = CSRSink(data_width=16, with_csr=False)
+    return d, {d.last_i, d.last_q, d.count, d.clear} | _eps(d.sink), 8.0
+
+def null_sink():
+    d = NullSink(data_width=16, with_csr=False)
+    return d, {d.count, d.clear} | _eps(d.sink), 8.0
+
+def pattern_source():
+    d = PatternSource(data_width=16, with_csr=False)
+    return d, {d.mode, d.const_i, d.const_q} | _eps(d.source), 8.0
+
+def error_counter():
+    d = ErrorCounter(data_width=16, with_csr=False)
+    return d, {d.errors, d.total, d.clear} | _eps(d.sink_ref, d.sink_rx), 8.0
+
+def framer():
+    d = StreamFramer(length=256, data_width=16, with_csr=False)
+    return d, {d.length} | _eps(d.sink, d.source), 8.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -226,6 +268,9 @@ REGISTRY = {
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
     "lms_equalizer": lms_equalizer, "timing_recovery": timing_recovery, "fm_demod": fm_demod,
     "correlator": correlator,
+    "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
+    "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
+    "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,
 }
 
 # Subset for the slower full place-&-route flows.
