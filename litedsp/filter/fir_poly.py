@@ -48,6 +48,7 @@ class FIRDecimator(LiteXModule):
         assert len(coefficients) == n_taps
         self.n_taps = n_taps
         self.R      = R
+        self.data_width = data_width
         self.cycles_per_output = R + n_taps
         self.latency = n_taps
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -63,9 +64,19 @@ class FIRDecimator(LiteXModule):
         mi   = Memory(data_width, depth)
         mq   = Memory(data_width, depth)
         crp  = crom.get_port(async_read=True)
+        cwp  = crom.get_port(write_capable=True)          # Runtime coefficient reload.
         wip, wqp = mi.get_port(write_capable=True), mq.get_port(write_capable=True)
         rip, rqp = mi.get_port(async_read=True),    mq.get_port(async_read=True)
-        self.specials += crom, mi, mq, crp, wip, wqp, rip, rqp
+        self.specials += crom, mi, mq, crp, cwp, wip, wqp, rip, rqp
+
+        # Coefficient-reload interface (write taps sequentially; default = the build-time taps).
+        self.coeff_data = Signal(data_width)
+        self.coeff_we   = Signal()
+        self.coeff_rst  = Signal()
+        cwptr = Signal(max=n_taps)
+        self.comb += [cwp.adr.eq(cwptr), cwp.dat_w.eq(self.coeff_data), cwp.we.eq(self.coeff_we)]
+        self.sync += If(self.coeff_rst, cwptr.eq(0)).Elif(self.coeff_we,
+            If(cwptr == (n_taps - 1), cwptr.eq(0)).Else(cwptr.eq(cwptr + 1)))
 
         wptr  = Signal(max=depth)
         decim = Signal(max=R) if R > 1 else Signal()
@@ -123,7 +134,16 @@ class FIRDecimator(LiteXModule):
             CSRField("taps", size=16, description="FIR taps N."),
             CSRField("rate", size=16, description="Decimation factor R."),
         ])
-        self.comb += [self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.R)]
+        self._coeff_rst = CSRStorage(1, pulse=True, name="coeff_reset",
+            description="Reset the coefficient write pointer to tap 0.")
+        self._coeff = CSRStorage(self.data_width, name="coeff",
+            description="Write the next FIR coefficient (auto-incrementing tap index).")
+        self.comb += [
+            self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.R),
+            self.coeff_rst.eq(self._coeff_rst.re),
+            self.coeff_data.eq(self._coeff.storage),
+            self.coeff_we.eq(self._coeff.re),
+        ]
 
 # Interpolating FIR --------------------------------------------------------------------------------
 
