@@ -1,0 +1,20 @@
+{
+  "name": "ddc",
+  "data_width": 16,
+  "clock_ns": 10.0,
+  "inputs":  [{"id": "rx_in",  "layout": "iq"}],
+  "outputs": [{"id": "bb_out", "layout": "iq"}],
+  "blocks": [
+    {"id": "lo",   "type": "nco",         "params": {}},
+    {"id": "mix",  "type": "mixer",       "params": {}},
+    {"id": "lpf",  "type": "fir_complex", "params": {"n_taps": 33}},
+    {"id": "deci", "type": "downsampler", "params": {}}
+  ],
+  "connections": [
+    {"from": "rx_in",      "to": "mix.sink_a"},
+    {"from": "lo.source",  "to": "mix.sink_b"},
+    {"from": "mix.source", "to": "lpf.sink"},
+    {"from": "lpf.source", "to": "deci.sink"},
+    {"from": "deci.source","to": "bb_out"}
+  ]
+}

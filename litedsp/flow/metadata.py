@@ -51,6 +51,8 @@ class BlockSpec:
     csrs: list   = field(default_factory=list)   # [CsrSpec]
     latency: object = None
     doc: str = ""
+    kwargs: dict = field(default_factory=dict)   # Construction defaults (registry-supplied).
+    has_csr: bool = False                        # Accepts a with_csr constructor flag.
 
     def port(self, name):
         for p in self.ports:
@@ -155,4 +157,5 @@ def reflect(key, cls, kwargs=None, category="misc", display_name=None, choices=N
     latency = getattr(dut, "latency", None)
     doc     = doc or (cls.__doc__ or "").strip().split("\n")[0]
     return BlockSpec(key=key, cls=cls, display_name=display_name or key, category=category,
-        params=params, ports=ports, csrs=csrs, latency=latency, doc=doc)
+        params=params, ports=ports, csrs=csrs, latency=latency, doc=doc,
+        kwargs=dict(kwargs), has_csr=_accepts_with_csr(cls))
