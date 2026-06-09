@@ -63,7 +63,11 @@ from for client-specific requirements.
                      `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`,
                      `EnergyDetector`, `FrequencyEstimator`.
 - **numeric/control** : `ISqrt`, `PILoop`.
-- **examples/**   : `ddc_chain.py`, `spectrum_analyzer.py`.
+- **examples/**   : `ddc_chain.py`, `duc_chain.py`, `spectrum_analyzer.py`, `fm_receiver.py`
+                     (FM demod + audio decimation), `qpsk_rx.py` (matched filter -> timing
+                     recovery -> slicer, recovers QPSK at SER 0).
+- **sim/**        : Verilator (real HDL) co-simulation of blocks vs the NumPy models
+                     (`python3 sim/run_nco.py`, `sim/run_fir.py`).
 
 [> Tests
 --------
