@@ -38,6 +38,26 @@ the ECP5 Yosys synth across all blocks on every push (portability/compile-clean)
 - **`nco_qw` (quarter-wave NCO) trades BRAM for logic at small depths.** At `lut_depth=1024` the
   N/4+1 table (257×16) maps to ~674 LUTs instead of BRAM; the 4× ROM saving only pays off at
   larger depths / wider data. The full-LUT `NCO` (2 BRAM) is preferable for `lut_depth≤1024`.
+- **`lms_equalizer` over-provisioned its weight width.** Weights were stored as `wfrac+data_width`
+  = 30 bits, so every weight×sample FIR tap needed two 18×18 DSPs and a 30-bit-wide adder tree —
+  but a stable equalizer's weights are O(1), i.e. 16 of those bits were sign extension. Bounding
+  the weight to `wint+wfrac ≤ 18` (Q4.14, saturated on update) makes each FIR tap a single DSP:
+  **3750 LUT / 84 DSP → 1742 LUT / 56 DSP** on ECP5, still converging to SER 0. Lesson:
+  *size multiplier operands to the value range, not to a worst-case accumulator width.*
+- **The remaining large blocks are inherent, not defects.** `cordic_*` / `magnitude_cordic` /
+  `fm_demod` are fully-unrolled 16-stage CORDIC pipelines (the cost of 1 sample/cycle — a folded
+  iterative CORDIC would trade ~8× area for ~16× fewer samples/s, an opt-in, not a free win);
+  `iir_biquad`'s ECP5 LUTs come from constant-coefficient multiplies that Vivado packs into DSPs
+  but yosys partly expands to shift-add fabric (vendor mapping, not algorithm); the SDF `FFT`'s
+  delay lines are dense SRLs on Xilinx (1475 LUT) and LUT-RAM on ECP5 (2987 LUT) — moving them to
+  BRAM would help ECP5 but *hurt* Xilinx, so they're left as-is.
+- **`rms` used an unrolled square root where it has thousands of idle cycles.** `ISqrt` was
+  fully unrolled (one combinational compare-subtract per result bit, ~16×34-bit) for 1-sample/cycle
+  streaming, but RMS emits only once per `2**window_log2` window. Adding a `pipelined=False`
+  sequential `ISqrt` (one stage reused over `out_width` cycles) and using it in RMS dropped
+  **Xilinx 1166 → 262 LUT** (4.5×); on ECP5 the remaining cost is the runtime-window barrel
+  shifter (`acc >> window_log2`), an intentional CSR feature, not waste. Lesson: *match the
+  unrolling factor to the actual throughput need.*
 - **fmax is dominated, as expected, by the long-combinational blocks** — IIR biquad (recursive
   feedback) and the FFT (per-stage scaled add + twiddle multiply) are the slowest; pipelined
   variants are the lever if higher fmax is needed.
@@ -67,7 +87,7 @@ LUT = LUT4 + 2·CCU2C (carry); FF = TRELLIS_FF; BRAM = DP16KD; DSP = MULT18X18D.
 | power | 0 | 0 | 0 | 0 |
 | agc | 385 | 57 | 0 | 8 |
 | saturate | 67 | 33 | 0 | 0 |
-| rms | 1310 | 123 | 0 | 2 |
+| rms | 1293 | 156 | 0 | 2 |
 | magnitude | 157 | 18 | 0 | 0 |
 | magnitude_cordic | 1618 | 601 | 0 | 1 |
 | combine | 371 | 33 | 0 | 0 |
@@ -81,7 +101,7 @@ LUT = LUT4 + 2·CCU2C (carry); FF = TRELLIS_FF; BRAM = DP16KD; DSP = MULT18X18D.
 | ddc | 890 | 317 | 2 | 6 |
 | duc | 643 | 302 | 2 | 7 |
 | channelizer | 2786 | 1086 | 6 | 24 |
-| lms_equalizer | 3750 | 645 | 0 | 84 |
+| lms_equalizer | 1742 | 455 | 0 | 56 |
 | timing_recovery | 883 | 182 | 0 | 16 |
 | fm_demod | 1720 | 790 | 0 | 4 |
 | correlator | 927 | 710 | 0 | 14 |
@@ -100,19 +120,49 @@ LUT = LUT4 + 2·CCU2C (carry); FF = TRELLIS_FF; BRAM = DP16KD; DSP = MULT18X18D.
 | cordic_vec | 191 | 219 |
 | ddc | 97 | 126 |
 
-## Xilinx resources (Vivado implementation, subset)
+## Xilinx resources (Vivado OOC synth, all blocks)
+
+LUT = CLB LUTs; FF = registers; BRAM = RAMB tiles; DSP = DSP48.
 
 | module | LUT | FF | BRAM | DSP |
 |---|---|---|---|---|
 | nco | 65 | 33 | 1 | 0 |
-| mixer | 107 | 130 | 0 | 4 |
-| fir_complex | 84 | 38 | 0 | 8 |
-| fir_decimator | 184 | 78 | 0 | 2 |
-| cic_decimator | 806 | 484 | 0 | 0 |
-| iir_biquad | 167 | 35 | 0 | 36 |
-| fft | 1475 | 367 | 0 | 35 |
+| nco_qw | 222 | 52 | 0 | 0 |
+| cordic_rot | 970 | 858 | 0 | 2 |
+| cordic_vec | 742 | 827 | 0 | 1 |
+| mixer | 109 | 130 | 0 | 4 |
+| fir_complex | 105 | 38 | 0 | 8 |
+| fir_decimator | 239 | 78 | 0 | 2 |
+| fir_interpolator | 195 | 60 | 0 | 2 |
+| cic_decimator | 776 | 484 | 0 | 0 |
+| cic_interpolator | 676 | 438 | 0 | 0 |
+| halfband | 213 | 68 | 0 | 2 |
+| iir_biquad | 218 | 35 | 0 | 36 |
+| dc_blocker | 90 | 97 | 0 | 0 |
+| moving_average | 172 | 85 | 0 | 0 |
+| farrow | 470 | 207 | 0 | 6 |
+| gain | 21 | 33 | 0 | 8 |
+| power | 0 | 0 | 0 | 0 |
+| agc | 179 | 57 | 0 | 4 |
+| saturate | 55 | 33 | 0 | 0 |
+| rms | 262 | 155 | 0 | 2 |
+| magnitude | 103 | 18 | 0 | 0 |
+| magnitude_cordic | 540 | 580 | 0 | 1 |
+| combine | 134 | 33 | 0 | 0 |
+| window | 67 | 19 | 0 | 2 |
+| fft | 1525 | 367 | 0 | 35 |
 | fft_iter | 236 | 29 | 1 | 5 |
-| cordic_vec | 733 | 827 | 0 | 1 |
-| ddc | 384 | 122 | 1 | 6 |
+| psd | 343 | 30 | 0 | 2 |
+| goertzel | 709 | 143 | 0 | 12 |
+| stats | 92 | 114 | 0 | 3 |
+| histogram | 110 | 22 | 0 | 0 |
+| ddc | 480 | 122 | 1 | 6 |
+| duc | 386 | 100 | 1 | 6 |
+| channelizer | 1280 | 310 | 2 | 24 |
+| lms_equalizer | 643 | 389 | 0 | 60 |
+| timing_recovery | 629 | 244 | 0 | 8 |
+| fm_demod | 264 | 398 | 0 | 5 |
+| correlator | 68 | 198 | 0 | 14 |
 
-(Regenerate any table with `impl/run.py … --report <file>`.)
+(Synth-level estimates; the post-route subset numbers are reflected in the fmax table above.
+Regenerate any table with `impl/run.py … --report <file>`.)
