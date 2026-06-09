@@ -29,14 +29,25 @@ def build_chain(source, with_csr=False):
     nl = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
     return FlowChain(nl, with_csr=with_csr)
 
+def emit_verilog(dut, ios, name, build_dir):
+    """Run to_verilog from inside build_dir so Migen's Memory ``.init`` files land beside the .v."""
+    from sim.verilog import to_verilog                      # Imported lazily (repo-local helper).
+    build_dir = os.path.abspath(build_dir)
+    os.makedirs(build_dir, exist_ok=True)
+    cwd = os.getcwd()
+    try:
+        os.chdir(build_dir)
+        to_verilog(dut, ios, name, ".")
+    finally:
+        os.chdir(cwd)
+    return os.path.join(build_dir, name + ".v")
+
 def generate(source, build_dir, name=None, with_csr=False):
     """Assemble ``source`` and emit chain Verilog into ``build_dir``. Returns ``(path, chain)``."""
-    from sim.verilog import to_verilog                      # Imported lazily (repo-local helper).
     nl    = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
     chain = FlowChain(nl, with_csr=with_csr)
     name  = name or nl.name
-    ios   = chain.io_signals()
-    path  = to_verilog(chain, ios, name, build_dir)
+    path  = emit_verilog(chain, chain.io_signals(), name, build_dir)
     return path, chain
 
 # CLI ----------------------------------------------------------------------------------------------
