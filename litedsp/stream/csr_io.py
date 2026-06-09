@@ -52,11 +52,11 @@ class CSRSource(LiteXModule):
             CSRField("i", size=self.data_width, description="Sample I (signed)."),
             CSRField("q", size=self.data_width, offset=16, description="Sample Q (signed)."),
         ])
-        self._push = CSRStorage(1, name="push", description="Strobe: emit the sample.", pulse=True)
+        self._push = CSRStorage(1, name="push", description="Strobe: emit the sample (write to push).")
         self.comb += [
             self.i.eq(self._sample.fields.i),
             self.q.eq(self._sample.fields.q),
-            self.push.eq(self._push.storage),
+            self.push.eq(self._push.re),         # .re strobes for one cycle on each write.
         ]
 
 # CSR Sink -----------------------------------------------------------------------------------------
@@ -92,12 +92,12 @@ class CSRSink(LiteXModule):
             CSRField("q", size=self.data_width, offset=16, description="Last sample Q."),
         ])
         self._count = CSRStatus(32, name="count", description="Transfers since clear.")
-        self._clear = CSRStorage(1, name="clear", description="Clear the transfer counter.", pulse=True)
+        self._clear = CSRStorage(1, name="clear", description="Clear the transfer counter (write to clear).")
         self.comb += [
             self._last.fields.i.eq(self.last_i),
             self._last.fields.q.eq(self.last_q),
             self._count.status.eq(self.count),
-            self.clear.eq(self._clear.storage),
+            self.clear.eq(self._clear.re),
         ]
 
 # Null Sink ----------------------------------------------------------------------------------------
@@ -122,8 +122,8 @@ class NullSink(LiteXModule):
 
     def add_csr(self):
         self._count = CSRStatus(32, name="count", description="Samples consumed since clear.")
-        self._clear = CSRStorage(1, name="clear", description="Clear the counter.", pulse=True)
+        self._clear = CSRStorage(1, name="clear", description="Clear the counter (write to clear).")
         self.comb += [
             self._count.status.eq(self.count),
-            self.clear.eq(self._clear.storage),
+            self.clear.eq(self._clear.re),
         ]

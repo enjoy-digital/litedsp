@@ -93,8 +93,8 @@ class StreamDeframer(LiteXModule):
 
     def add_csr(self):
         self._frames = CSRStatus(32, name="frames", description="Completed frames since clear.")
-        self._clear  = CSRStorage(1, name="clear", description="Reset the frame counter.", pulse=True)
+        self._clear  = CSRStorage(1, name="clear", description="Reset the frame counter (write to clear).")
         self.comb += [
             self._frames.status.eq(self.frames),
-            self.clear.eq(self._clear.storage),
+            self.clear.eq(self._clear.re),
         ]

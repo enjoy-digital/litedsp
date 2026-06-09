@@ -60,9 +60,9 @@ class ErrorCounter(LiteXModule):
     def add_csr(self):
         self._errors = CSRStatus(32, name="errors", description="Mismatched samples since clear.")
         self._total  = CSRStatus(32, name="total",  description="Compared samples since clear.")
-        self._clear  = CSRStorage(1, name="clear",  description="Reset the counters.", pulse=True)
+        self._clear  = CSRStorage(1, name="clear",  description="Reset the counters (write to clear).")
         self.comb += [
             self._errors.status.eq(self.errors),
             self._total.status.eq(self.total),
-            self.clear.eq(self._clear.storage),
+            self.clear.eq(self._clear.re),
         ]
