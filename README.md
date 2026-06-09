@@ -55,7 +55,7 @@ from for client-specific requirements.
 - **correction/** : `DCOffset`, `IQBalance`, `Derotator` (CFO).
 - **comm/**       : `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `SymbolMapper`,
                      `DifferentialEncoder`/`Decoder`, `Scrambler`/`Descrambler`, `CRC`,
-                     `ConvEncoder`, `Correlator`, `PLL`/`Costas` (`TimingRecovery` = WIP).
+                     `ConvEncoder`, `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M).
 - **stream/**     : `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`,
                      `Conjugate`/`SwapIQ`/`Negate`, offset-binary converters,
                      `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope).
