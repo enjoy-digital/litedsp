@@ -23,11 +23,15 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import iq_layout, real_layout, saturated, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
 def _growth_bits(R, N, M):
+    return int(math.ceil(N*math.log2(R*M)))
+
+def cic_shift(R, N, M=1):
+    """Output rescale shift for a CIC of rate ``R`` (N stages, comb delay M): ``ceil(N*log2(R*M))``."""
     return int(math.ceil(N*math.log2(R*M)))
 
 # CIC Decimator ------------------------------------------------------------------------------------
@@ -109,6 +113,97 @@ class CICDecimator(LiteXModule):
             CSRField("stages", size=8,  description="CIC stages N."),
         ])
         self.comb += [self._config.fields.rate.eq(self.R), self._config.fields.stages.eq(self.N)]
+
+# Runtime-rate CIC Decimator -----------------------------------------------------------------------
+
+@ResetInserter()
+class CICDecimatorRuntime(LiteXModule):
+    """CIC decimator with a runtime-settable rate (datapath sized for ``r_max``).
+
+    Unlike :class:`CICDecimator` (whose R/N/M are build-time so the output rescale is exact), this
+    variant exposes ``rate`` and ``shift`` as runtime controls so the decimation ratio can change
+    without a rebuild. Size the integrator/comb datapath for the maximum ratio ``r_max``; the host
+    sets ``rate`` and the matching ``shift = cic_shift(rate, N, M)`` together so the processing gain
+    ``(rate*M)**N`` stays normalized. The Hogenauer wrap-around property holds for any
+    ``rate <= r_max``. Operates on a real (``iq=False``) or complex (``iq=True``) stream.
+    """
+    def __init__(self, data_width=16, r_max=8192, N=4, M=1, iq=True, with_csr=True):
+        assert r_max >= 2 and N >= 1 and M >= 1
+        self.data_width = data_width
+        self.r_max      = r_max
+        self.N, self.M  = N, M
+        self.latency    = 1
+        growth          = _growth_bits(r_max, N, M)
+        W               = data_width + growth
+        self.growth     = growth
+
+        fields = ["i", "q"] if iq else ["data"]
+        layout = iq_layout(data_width) if iq else real_layout(data_width)
+        self.sink   = stream.Endpoint(layout)
+        self.source = stream.Endpoint(layout)
+
+        self.rate  = Signal(bits_for(r_max), reset=8)
+        self.shift = Signal(bits_for(growth), reset=cic_shift(8, N, M))
+
+        # Decimation-window strobes (e.g. to drive a coherent side-channel accumulator).
+        self.sample_ce = Signal()   # An input sample is consumed this beat.
+        self.out_ce    = Signal()   # An output sample is emitted this beat.
+
+        # # #
+
+        adv    = Signal()
+        is_out = Signal()
+        xfer   = Signal()
+        decim  = Signal(bits_for(r_max))
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            is_out.eq(decim == (self.rate - 1)),
+            self.sink.ready.eq(Mux(is_out, adv, 1)),
+            xfer.eq(self.sink.valid & self.sink.ready),
+            self.sample_ce.eq(xfer),
+            self.out_ce.eq(xfer & is_out),
+        ]
+        self.sync += If(xfer, If(is_out, decim.eq(0)).Else(decim.eq(decim + 1)))
+
+        bias = Signal(W)
+        self.comb += bias.eq(Mux(self.shift == 0, 0, (1 << self.shift) >> 1))
+
+        for field in fields:
+            x = getattr(self.sink, field)
+
+            integ = [Signal((W, True)) for _ in range(N)]
+            nxt, prev = [], x
+            for k in range(N):
+                nk = Signal((W, True))
+                self.comb += nk.eq(integ[k] + prev)
+                nxt.append(nk); prev = nk
+            self.sync += If(xfer, *[integ[k].eq(nxt[k]) for k in range(N)])
+
+            combq = [[Signal((W, True)) for _ in range(M)] for _ in range(N)]
+            c, ins = nxt[N-1], []
+            for k in range(N):
+                d = Signal((W, True))
+                self.comb += d.eq(c - combq[k][M-1])
+                ins.append(c); c = d
+            self.sync += If(xfer & is_out,
+                *[combq[k][0].eq(ins[k]) for k in range(N)],
+                *[combq[k][m].eq(combq[k][m-1]) for k in range(N) for m in range(1, M)])
+
+            shifted = Signal((W, True))
+            self.comb += shifted.eq((c + bias) >> self.shift)
+            self.sync += If(xfer & is_out, getattr(self.source, field).eq(saturated(shifted, data_width)))
+
+        self.sync += If(xfer & is_out, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0))
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._rate  = CSRStorage(len(self.rate),  reset=self.rate.reset.value,
+            description="Decimation factor R (2..r_max).")
+        self._shift = CSRStorage(len(self.shift), reset=self.shift.reset.value,
+            description="Output rescale shift; set to cic_shift(R, N, M) for the chosen rate.")
+        self.comb += [self.rate.eq(self._rate.storage), self.shift.eq(self._shift.storage)]
 
 # CIC Interpolator ---------------------------------------------------------------------------------
 
