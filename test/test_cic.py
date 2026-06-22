@@ -9,7 +9,9 @@ import unittest
 
 import numpy as np
 
-from litedsp.filter.cic import CICDecimator, CICInterpolator
+from migen import passive
+
+from litedsp.filter.cic import CICDecimator, CICInterpolator, CICDecimatorRuntime, cic_shift
 
 from test.common import run_stream, column
 from test.models import cic_decimator_model, cic_interpolator_model
@@ -43,6 +45,35 @@ class TestCICDecimator(unittest.TestCase):
         gi_lo, _, _ = self.run_dec(list(lo), [0]*n, R, N)
         gi_hi, _, _ = self.run_dec(list(hi), [0]*n, R, N)
         self.assertGreater(gi_lo[len(gi_lo)//2:].std(), 10*gi_hi[len(gi_hi)//2:].std())
+
+class TestCICDecimatorRuntime(unittest.TestCase):
+    def run_dec(self, xi, xq, R, N):
+        dut = CICDecimatorRuntime(data_width=16, r_max=8192, N=N, iq=True, with_csr=False)
+        n_out = len(xi)//R
+
+        @passive
+        def cfg():
+            yield dut.rate.eq(R)
+            yield dut.shift.eq(cic_shift(R, N))
+            while True:
+                yield
+
+        samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
+        cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
+            sink_throttle=0.2, source_ready_rate=0.6, extra=[cfg()])
+        return column(cap, "i", 16), column(cap, "q", 16), n_out
+
+    def test_bit_exact_matches_fixed_cic_at_runtime_rates(self):
+        # The runtime CIC must match the build-time CIC golden model for each configured rate.
+        for R, N in [(4, 3), (8, 4), (16, 4), (32, 3)]:
+            prng = random.Random(R*N + 7)
+            xi = [prng.randint(-2000, 2000) for _ in range(R*40)]
+            xq = [prng.randint(-2000, 2000) for _ in range(R*40)]
+            gi, gq, n_out = self.run_dec(xi, xq, R, N)
+            ri = cic_decimator_model(xi, R, N)[:n_out]
+            rq = cic_decimator_model(xq, R, N)[:n_out]
+            self.assertTrue(np.array_equal(gi, ri), f"I R={R} N={N}")
+            self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N}")
 
 class TestCICInterpolator(unittest.TestCase):
     def run_int(self, xi, xq, R, N, M=1):

@@ -45,6 +45,21 @@ def firwin_lowpass(n_taps, cutoff, window="hamming", data_width=16, gain=1.0):
     h = gain*h/h.sum()
     return quantize(h, data_width - 1, data_width)
 
+def firwin_bandpass(n_taps, f_low, f_high, window="hamming", data_width=16, gain=1.0):
+    """Windowed-sinc band-pass FIR; ``f_low``/``f_high`` normalized (0..0.5), unity gain at center.
+
+    Ideal band-pass = lowpass(f_high) - lowpass(f_low), windowed and normalized so the magnitude
+    at the band center is ``gain``. Returns signed Q1.(N-1) integer taps (length ``n_taps``).
+    """
+    assert 0 <= f_low < f_high <= 0.5
+    m = np.arange(n_taps) - (n_taps - 1)/2
+    h = (2*f_high*np.sinc(2*f_high*m) - 2*f_low*np.sinc(2*f_low*m))*_window(n_taps, window)
+    fc   = 0.5*(f_low + f_high)
+    resp = np.hypot(np.sum(h*np.cos(2*np.pi*fc*m)), np.sum(h*np.sin(2*np.pi*fc*m)))
+    if resp != 0:
+        h = gain*h/resp
+    return quantize(h, data_width - 1, data_width)
+
 def rrc_coefficients(sps, span, beta, data_width=16, gain=1.0):
     """Root-raised-cosine FIR. ``sps`` samples/symbol, ``span`` symbols, rolloff ``beta``.
 
