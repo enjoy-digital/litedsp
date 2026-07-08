@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- IRQ support (`with_irq=True`, LiteX `EventManager`) on trigger-type blocks: `Squelch`
+  (gate opened/closed), `EnergyDetector` (signal detected), `Capture` (buffer ready — also new
+  `done` status), `AGC` (gain railed — also new `railed` status), so software no longer polls.
 - `litedsp/stream/dma.py`: `DMACapture`/`DMAReplay` — sustained-rate capture/replay of I/Q
   streams to/from memory over Wishbone DMA (`litex.soc.cores.dma`) or LiteDRAM native-port DMA
   (`litedram.frontend.dma`), with the standard base/length/enable/done/loop register set.

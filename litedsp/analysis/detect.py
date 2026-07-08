@@ -8,8 +8,9 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect.csr import *
-from litex.soc.interconnect     import stream
+from litex.soc.interconnect.csr              import *
+from litex.soc.interconnect.csr_eventmanager import EventManager, EventSourceProcess
+from litex.soc.interconnect                  import stream
 
 from litedsp.common import iq_layout, real_layout
 
@@ -22,8 +23,9 @@ class EnergyDetector(LiteXModule):
     Passes the I/Q stream through and asserts ``detect`` when instantaneous power exceeds the
     estimated noise floor by ``2**threshold_log2``. The floor is a leaky average of power,
     updated only while no signal is detected (so the signal does not raise the floor).
+    With ``with_irq=True``, a detection edge raises an interrupt (``ev.detect``).
     """
-    def __init__(self, data_width=16, avg_shift=10, threshold_log2=3, with_csr=True):
+    def __init__(self, data_width=16, avg_shift=10, threshold_log2=3, with_csr=True, with_irq=False):
         self.threshold_log2 = threshold_log2
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -48,6 +50,14 @@ class EnergyDetector(LiteXModule):
         if with_csr:
             self._status = CSRStatus(fields=[CSRField("detect", size=1, description="Signal present.")])
             self.comb += self._status.fields.detect.eq(self.detect)
+        if with_irq:
+            self.add_irq()
+
+    def add_irq(self):
+        self.ev        = EventManager()
+        self.ev.detect = EventSourceProcess(edge="rising", description="Signal detected (power above floor).")
+        self.ev.finalize()
+        self.comb += self.ev.detect.trigger.eq(self.detect)
 
 # Frequency Estimator (firmware-assisted parabolic) ------------------------------------------------
 

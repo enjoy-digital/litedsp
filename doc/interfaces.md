@@ -31,6 +31,10 @@ The control pattern generalizes the tetra `with_csr` convention and is mandatory
   to make a control value stable from cycle 0).
 - Every processing block has a uniform `self.bypass` (passthrough) where it makes sense.
 - Blocks are wrapped with `@ResetInserter()` for per-instance reset.
+- Trigger-type blocks (Squelch, EnergyDetector, Capture, AGC) additionally take
+  `with_irq=True` / `add_irq()`: a LiteX `EventManager` (`self.ev`) with edge-triggered event
+  sources on their status signals, so a SoC can route them to CPU interrupts
+  (`soc.irq.add("<name>")`) instead of polling.
 
 ## Fixed-point
 

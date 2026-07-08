@@ -8,8 +8,9 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect.csr import *
-from litex.soc.interconnect     import stream
+from litex.soc.interconnect.csr              import *
+from litex.soc.interconnect.csr_eventmanager import EventManager, EventSourceProcess
+from litex.soc.interconnect                  import stream
 
 from litedsp.common import iq_layout
 
@@ -21,9 +22,10 @@ class Squelch(LiteXModule):
 
     Hysteresis: opens above ``open_threshold``, closes below ``close_threshold`` (set
     ``close < open``). When closed, the output is zeroed (samples still flow). ``open`` status
-    reflects the gate state.
+    reflects the gate state. With ``with_irq=True``, gate open/close edges raise interrupts
+    (``ev.opened`` / ``ev.closed``).
     """
-    def __init__(self, data_width=16, with_csr=True):
+    def __init__(self, data_width=16, with_csr=True, with_irq=False):
         self.data_width  = data_width
         self.power_width = 2*data_width + 1
         self.latency     = 1
@@ -52,6 +54,18 @@ class Squelch(LiteXModule):
 
         if with_csr:
             self.add_csr()
+        if with_irq:
+            self.add_irq()
+
+    def add_irq(self):
+        self.ev        = EventManager()
+        self.ev.opened = EventSourceProcess(edge="rising",  description="Squelch gate opened.")
+        self.ev.closed = EventSourceProcess(edge="falling", description="Squelch gate closed.")
+        self.ev.finalize()
+        self.comb += [
+            self.ev.opened.trigger.eq(self.open),
+            self.ev.closed.trigger.eq(self.open),
+        ]
 
     def add_csr(self):
         self._open  = CSRStorage(self.power_width, name="open_threshold",

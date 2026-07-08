@@ -8,8 +8,9 @@ from migen import *
 
 from litex.gen import *
 
-from litex.soc.interconnect.csr import *
-from litex.soc.interconnect     import stream
+from litex.soc.interconnect.csr              import *
+from litex.soc.interconnect.csr_eventmanager import EventManager, EventSourceProcess
+from litex.soc.interconnect                  import stream
 
 from litedsp.common import iq_layout, scaled
 
@@ -22,8 +23,11 @@ class AGC(LiteXModule):
     Estimates the input magnitude (alpha-max-beta-min), integrates the error into a gain
     (``gain += (target - |x|) >> mu``, clamped to ``[0, gain_max]``), and applies it
     (round + saturate). ``mu`` sets the loop time constant. Gain is Q?.``gain_frac``.
+    ``railed`` is asserted while the loop sits at a gain clamp (overload/underrange); with
+    ``with_irq=True`` its rising edge raises an interrupt (``ev.railed``).
     """
-    def __init__(self, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2, with_csr=True):
+    def __init__(self, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2, with_csr=True,
+        with_irq=False):
         self.data_width = data_width
         self.gain_frac  = gain_frac
         self.mu         = mu
@@ -36,6 +40,7 @@ class AGC(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.target = Signal(data_width + 1, reset=1 << (data_width - 2))   # Default ~0.25 FS.
         self.gain   = Signal(gain_width, reset=1 << gain_frac)              # Start at 1.0.
+        self.railed = Signal()
 
         # # #
 
@@ -78,10 +83,20 @@ class AGC(LiteXModule):
             If(gain_nxt < 0, self.gain.eq(0)
             ).Elif(gain_nxt > gain_max, self.gain.eq(gain_max)
             ).Else(self.gain.eq(gain_nxt)),
+            self.railed.eq((gain_nxt < 0) | (gain_nxt > gain_max)),
         )
 
         if with_csr:
             self.add_csr()
+        if with_irq:
+            self.add_irq()
+
+    def add_irq(self):
+        self.ev        = EventManager()
+        self.ev.railed = EventSourceProcess(edge="rising",
+            description="AGC gain hit a clamp (overload/underrange).")
+        self.ev.finalize()
+        self.comb += self.ev.railed.trigger.eq(self.railed)
 
     def add_csr(self):
         self._target = CSRStorage(self.target.nbits, reset=1 << (self.data_width - 2),
