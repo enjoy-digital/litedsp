@@ -25,30 +25,8 @@ import numpy as np
 
 from litex import RemoteClient
 
-# Helpers ------------------------------------------------------------------------------------------
-
-def phase_inc(freq, clk_freq, phase_bits=32):
-    return int(freq/clk_freq * 2**phase_bits) & (2**phase_bits - 1)
-
-def to_signed16(v):
-    return v - 0x10000 if v & 0x8000 else v
-
-def read_capture(bus, depth):
-    samples = np.zeros(depth, dtype=complex)
-    for k in range(depth):
-        word = bus.regs.reader_data.read()
-        samples[k] = complex(to_signed16(word & 0xFFFF), to_signed16((word >> 16) & 0xFFFF))
-        bus.regs.reader_pop.write(1)
-    return samples
-
-def ascii_spectrum(psd_db, width=64, height=16):
-    bins = np.array_split(psd_db, width)
-    cols = np.array([b.max() for b in bins])
-    lo, hi = cols.min(), cols.max()
-    rows = []
-    for level in np.linspace(hi, lo, height):
-        rows.append("".join("#" if c >= level else " " for c in cols))
-    return "\n".join(rows)
+from litedsp.software.drivers import NCODriver, CaptureDriver, CSRReaderDriver
+from litedsp.software.cli     import ascii_spectrum
 
 # Test ---------------------------------------------------------------------------------------------
 
@@ -69,14 +47,16 @@ def main():
     print(f"{bus.constants.config_ident}: clk={clk_freq/1e6:.1f}MHz, capture={depth}, fs_bb={fs_bb/1e6:.3f}MHz")
 
     # Tune: test tone at +tone_freq, DDC LO at -tune_freq (down-conversion).
-    bus.regs.nco_phase_inc.write(phase_inc(args.tone_freq, clk_freq))
-    bus.regs.ddc_nco_phase_inc.write(phase_inc(-args.tune_freq, clk_freq))
+    tone = NCODriver(bus, "nco",     clk_freq=clk_freq)
+    lo   = NCODriver(bus, "ddc_nco", clk_freq=clk_freq)
+    tone.set_frequency(args.tone_freq)
+    lo.set_frequency(-args.tune_freq)
 
     # Trigger a capture and drain the buffer.
-    bus.regs.capture_force.write(0)
-    bus.regs.capture_force.write(1)
-    samples = read_capture(bus, depth)
-    bus.regs.capture_force.write(0)
+    capture = CaptureDriver(bus, "capture")
+    reader  = CSRReaderDriver(bus, "reader")
+    capture.trigger()
+    samples = np.array(reader.read_samples(depth))
 
     # PSD + peak check.
     win  = np.hanning(depth)

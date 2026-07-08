@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- `litedsp/software/`: host-side Python drivers over litex_server (`RemoteClient`) — tune NCOs
+  in Hz, reload FIR taps, trigger/drain captures to NumPy, run DMA windows — with register-map
+  auto-discovery, plus the `litedsp_cli` entry point (`info`/`nco`/`capture`/`spectrum`).
 - `bench/`: board-level proof points (LiteX-ecosystem style) — `spectrum.py` builds a
   tone+AWGN → DDC → Capture SoC with UARTBone on litex-boards targets (Arty,
   Colorlight 5A-75B), `test_spectrum.py` drives it from the host and checks the PSD peak;

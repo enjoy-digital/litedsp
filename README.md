@@ -78,6 +78,9 @@ from for client-specific requirements.
                      recovery -> slicer, recovers QPSK at SER 0), `wideband_rx.py` (DDC -> FIFO ->
                      framer -> wide-word pack), `loopback_ber.py` (PRBS self-check), `integrated_ip.py`
                      (AXI-Stream + aggregated CSR map preview). See `examples/README.md`.
+- **software/**   : host-side drivers over `litex_server` (`RemoteClient`): tune NCOs in Hz,
+                     reload FIR taps, drain captures to NumPy, run DMA windows; register-map
+                     auto-discovery + `litedsp_cli` (`info`/`nco`/`capture`/`spectrum`).
 - **bench/**      : hardware proof points on litex-boards targets: `spectrum.py` (tone + AWGN →
                      DDC → capture, controlled over UARTBone; Arty / Colorlight 5A-75B) with the
                      host-side check `test_spectrum.py` (litex_server + NumPy PSD).

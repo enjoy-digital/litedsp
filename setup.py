@@ -32,6 +32,7 @@ setup(
             "litedsp_gen  = litedsp.gen:main",
             "litedsp_flow = litedsp.flow.generate:main",
             "litedsp_gui  = litedsp.gui.app:main",
+            "litedsp_cli  = litedsp.software.cli:main",
         ],
     },
 )
