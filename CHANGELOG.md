@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- `litedsp/stream/dma.py`: `DMACapture`/`DMAReplay` — sustained-rate capture/replay of I/Q
+  streams to/from memory over Wishbone DMA (`litex.soc.cores.dma`) or LiteDRAM native-port DMA
+  (`litedram.frontend.dma`), with the standard base/length/enable/done/loop register set.
 - `litedsp/gen.py`: standalone core generator in the LiteX-ecosystem style (`litedsp_gen
   config.yml` → Verilog core with AXI-Stream data + AXI-Lite control + `csr.csv`/`csr.json`/
   `csr.h`), with `examples/ddc_core.yml`.

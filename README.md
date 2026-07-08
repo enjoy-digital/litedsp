@@ -64,7 +64,8 @@ from for client-specific requirements.
                      `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope), `StreamFIFO`
                      (elastic buffer), `IQPack`/`IQUnpack` (wide-bus packing),
                      `CSRSource`/`CSRSink`/`NullSink` (bus-driven I/O),
-                     `StreamFramer`/`StreamDeframer` (first/last ↔ AXI-Stream `tlast`).
+                     `StreamFramer`/`StreamDeframer` (first/last ↔ AXI-Stream `tlast`),
+                     `DMACapture`/`DMAReplay` (stream ↔ memory over Wishbone or LiteDRAM DMA).
 - **analysis/**   : `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`,
                      `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`,
                      `EnergyDetector`, `FrequencyEstimator`, `ErrorCounter` (SER/BER loopback).
