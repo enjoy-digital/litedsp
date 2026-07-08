@@ -25,8 +25,15 @@ class Capture(LiteXModule):
     presents them on ``source`` and re-arms once read out. ``done`` is asserted while the
     captured buffer is ready/being read out; with ``with_irq=True`` its rising edge raises an
     interrupt (``ev.done``).
+
+    Readout paths: the ``source`` stream (feed a ``CSRReader`` for CPU-less bridges), or —
+    with ``with_wishbone=True`` / ``add_wishbone()`` — a read-only Wishbone window on the
+    buffer (``self.bus``, one sample per 32-bit word) for fast memory-mapped drains over
+    Etherbone (``soc.bus.add_slave(..., capture.bus, SoCRegion(size=capture.mem_size, ...))``).
     """
-    def __init__(self, depth=1024, data_width=16, with_csr=True, with_irq=False):
+    def __init__(self, depth=1024, data_width=16, with_csr=True, with_irq=False,
+        with_wishbone=False):
+        assert data_width <= 16                            # I/Q packed in one 32-bit word.
         self.depth  = depth
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -38,10 +45,11 @@ class Capture(LiteXModule):
         # # #
 
         mem = Memory(2*data_width, depth)
+        self.mem      = mem
+        self.mem_size = depth*4                            # Bytes (one 32-bit word per sample).
         wp  = mem.get_port(write_capable=True)
         rp  = mem.get_port(async_read=True)
         self.specials += mem, wp, rp
-        mask = (1 << data_width) - 1
 
         wptr = Signal(max=depth)
         rptr = Signal(max=depth)
@@ -52,7 +60,8 @@ class Capture(LiteXModule):
 
         self.comb += [
             self.sink.ready.eq(1),                                  # Non-intrusive tap.
-            wp.adr.eq(wptr), wp.dat_w.eq(Cat(self.sink.i & mask, self.sink.q & mask)),
+            # Slice (not mask): `signed & mask` widens to N+1 bits and would shift Q up a bit.
+            wp.adr.eq(wptr), wp.dat_w.eq(Cat(self.sink.i[:data_width], self.sink.q[:data_width])),
             rp.adr.eq(rptr),
             self.source.i.eq(rp.dat_r[:data_width]),
             self.source.q.eq(rp.dat_r[data_width:]),
@@ -100,9 +109,16 @@ class Capture(LiteXModule):
             ]
         if with_irq:
             self.add_irq()
+        if with_wishbone:
+            self.add_wishbone()
 
     def add_irq(self):
         self.ev      = EventManager()
         self.ev.done = EventSourceProcess(edge="rising", description="Capture complete, buffer ready.")
         self.ev.finalize()
         self.comb += self.ev.done.trigger.eq(self.done)
+
+    def add_wishbone(self):
+        from litex.soc.interconnect import wishbone
+        self.wb_sram = wishbone.SRAM(self.mem, read_only=True)
+        self.bus     = self.wb_sram.bus
