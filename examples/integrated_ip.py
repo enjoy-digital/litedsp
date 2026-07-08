@@ -14,7 +14,7 @@ automatically:
 
   1. The **CSR register map** — built for free by ``get_csrs()``, which recursively gathers and
      name-prefixes every sub-block's CSRs (this is why the generator does not hand-maintain a map).
-  2. The **chain Verilog** with AXI-Stream ports — emitted via the existing ``sim/verilog.py``.
+  2. The **chain Verilog** with AXI-Stream ports — emitted via ``litedsp.verilog``.
 
 The full version (Part C, Phase 2) wraps this in a LiteX ``SoCMini`` + ``Builder`` to also emit
 the AXI-Lite<->CSR bridge and csr.csv / csr.json / csr.h. Here the AXI-Lite side is left as the
@@ -37,7 +37,7 @@ from litedsp.filter.dc_blocker import DCBlocker
 from litedsp.level.gain        import Gain
 from litedsp.stream.framing    import StreamFramer
 
-from sim.verilog import to_verilog
+from litedsp.verilog import to_verilog
 
 # IP chain -----------------------------------------------------------------------------------------
 

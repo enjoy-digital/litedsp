@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Generate per-module Verilog for the FPGA implementation flows (reuses sim/verilog.py)."""
+"""Generate per-module Verilog for the FPGA implementation flows (reuses litedsp/verilog.py)."""
 
 import os
 import sys
@@ -12,7 +12,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from sim.verilog import to_verilog
+from litedsp.verilog import to_verilog
 
 def gen(name, dut, ios, build_dir):
     """Write ``build_dir/name.v`` (+ memory .init files) for ``dut``. Returns the .v path.

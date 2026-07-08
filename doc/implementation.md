@@ -20,7 +20,7 @@ python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
-`impl/run.py` builds each block (`impl/modules.py` registry → Verilog via `sim/verilog.py`),
+`impl/run.py` builds each block (`impl/modules.py` registry → Verilog via `litedsp/verilog.py`),
 parses LUT/FF/BRAM/DSP (+ fmax for P&R), and **fails** on any synth/P&R error or budget
 violation (baseline in `impl/budgets.json`, ±15% tolerance). The Implementation CI workflow runs
 the ECP5 Yosys synth across all blocks on every push (portability/compile-clean).

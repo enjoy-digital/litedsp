@@ -6,7 +6,7 @@
 
 """Headless code generation: netlist JSON -> chain Verilog.
 
-This is the Phase-1 path (datapath Verilog via the existing ``sim/verilog.py``). Phase 2's
+This is the Phase-1 path (datapath Verilog via ``litedsp.verilog``). Phase 2's
 ``ipcore`` adds the AXI-Stream/AXI-Lite wrapper + CSR register-map artifacts. Used identically by
 the CLI, by tests, and (later) by the GUI's "Generate" button.
 
@@ -16,7 +16,6 @@ CLI::
 """
 
 import os
-import sys
 import argparse
 
 from litedsp.flow import netlist as netlist_mod
@@ -31,7 +30,7 @@ def build_chain(source, with_csr=False):
 
 def emit_verilog(dut, ios, name, build_dir):
     """Run to_verilog from inside build_dir so Migen's Memory ``.init`` files land beside the .v."""
-    from sim.verilog import to_verilog                      # Imported lazily (repo-local helper).
+    from litedsp.verilog import to_verilog
     build_dir = os.path.abspath(build_dir)
     os.makedirs(build_dir, exist_ok=True)
     cwd = os.getcwd()
@@ -60,8 +59,6 @@ def main(argv=None):
     p.add_argument("--csr",  action="store_true", help="Build sub-blocks with CSRs (with_csr=True).")
     args = p.parse_args(argv)
 
-    # Make the repo root importable so `sim.verilog` resolves when run from anywhere.
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     path, chain = generate(args.netlist, args.out, name=args.name, with_csr=args.csr)
     print(f"Generated: {path}")
     if chain.flow_inserted:

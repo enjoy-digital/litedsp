@@ -21,7 +21,7 @@ sys.path.insert(0, ROOT)
 
 from litedsp.generation.nco import NCO
 
-from sim.verilog   import to_verilog
+from litedsp.verilog import to_verilog
 from sim.verilator import build, run
 from test.models   import nco_model
 

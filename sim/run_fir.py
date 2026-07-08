@@ -23,7 +23,7 @@ sys.path.insert(0, ROOT)
 from litedsp.filter.fir    import FIRFilterComplex
 from litedsp.filter.design import firwin_lowpass
 
-from sim.verilog   import to_verilog
+from litedsp.verilog import to_verilog
 from sim.verilator import build, run
 from test.models   import fir_complex_model
 
