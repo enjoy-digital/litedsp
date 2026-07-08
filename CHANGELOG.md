@@ -6,6 +6,10 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- comm/ growth: `ViterbiDecoder` (hard-decision rate-1/n, matches `ConvEncoder`; verified
+  end-to-end incl. error correction), Gardner TED option on `TimingRecovery`
+  (`ted="gardner"` — non-decision-aided, modulation-agnostic), and `CPInsert`/`CPRemove`
+  OFDM cyclic-prefix blocks.
 - Parallel path completed: `ParallelFIRFilterComplex` (shared CSR coefficients),
   `ParallelCICDecimator` (integrator cascade unrolled per lane, serial output) and the
   `ParallelDDC` composite — a full gigasample RX front-end (parallel NCO + mixer + CIC),

@@ -11,26 +11,33 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import iq_layout, saturated, scaled
 
 # Mueller & Muller Symbol Timing Recovery ----------------------------------------------------------
 
 @ResetInserter()
 class TimingRecovery(LiteXModule):
-    """Mueller & Muller decision-directed symbol timing recovery (with interpolation controller).
+    """Symbol timing recovery with an interpolation controller (M&M or Gardner detector).
 
     Maintains a samples-per-symbol estimate ``omega`` and a fractional interpolation phase
-    ``mu``. Each symbol: interpolate (cubic Farrow) at ``mu``, slice it, form the M&M timing
-    error ``e = Re{slice(prev)·conj(y) − slice(y)·conj(prev)}``, update
+    ``mu``. Each symbol: interpolate (cubic Farrow) at ``mu``, form the timing error, update
     ``omega += g_omega·e`` (clamped) and ``mu += omega + g_mu·e``, then advance the input by
     ``floor(mu)`` samples (the integer sample-slip) keeping the fractional part. Input is
     nominally ``sps`` samples/symbol; output is one (timing-aligned) sample per symbol.
+
+    Detectors (``ted``): ``"mm"`` — Mueller & Muller, decision-directed
+    (``e = Re{slice(prev)·conj(y) − slice(y)·conj(prev)}``, multiplier-free); ``"gardner"`` —
+    non-decision-aided (``e = Re{(y − y_prev)·conj(y_mid)}`` with a second interpolation at
+    the symbol midpoint; modulation-agnostic, locks without carrier lock, for ``sps=2``).
     """
-    def __init__(self, data_width=16, sps=2, frac=16, gain_mu=0.1, gain_omega=None, with_csr=True):
+    def __init__(self, data_width=16, sps=2, frac=16, gain_mu=0.1, gain_omega=None, ted="mm",
+        with_csr=True):
+        assert ted in ("mm", "gardner")
         if gain_omega is None:
             gain_omega = gain_mu*gain_mu/4
         self.data_width = data_width
         self.sps = sps
+        self.ted = ted
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -44,12 +51,13 @@ class TimingRecovery(LiteXModule):
         omega_lim = int(round(0.05*sps*ONE))
         iw        = frac + 4                              # mu/omega width (a few integer bits).
 
-        # State.
-        need  = Signal(4, reset=4)                       # Inputs to consume before next output.
+        # State. Gardner keeps one extra window sample for the midpoint interpolation.
+        nw    = 4 if ted == "mm" else 5
+        need  = Signal(4, reset=nw)                      # Inputs to consume before next output.
         mu    = Signal(iw, reset=ONE//2)
         omega = Signal((iw, True), reset=omega_mid)
-        wr    = [Signal((data_width, True)) for _ in range(4)]   # Input window (wr[3] = newest).
-        wi    = [Signal((data_width, True)) for _ in range(4)]
+        wr    = [Signal((data_width, True)) for _ in range(nw)]  # Input window (wr[-1] = newest).
+        wi    = [Signal((data_width, True)) for _ in range(nw)]
         last_r, last_q = Signal((data_width, True)), Signal((data_width, True))
 
         consuming = Signal()
@@ -75,22 +83,40 @@ class TimingRecovery(LiteXModule):
             self.comb += [y2.eq(a2 + ((mu_f*a3) >> frac)), y1.eq(a1 + ((mu_f*y2) >> frac))]
             return scaled(a0*ONE + mu_f*y1, frac, data_width)[0]
         yr = Signal((data_width, True)); yq = Signal((data_width, True))
-        self.comb += [yr.eq(interp(wr)), yq.eq(interp(wi))]
+        self.comb += [yr.eq(interp(wr[nw-4:])), yq.eq(interp(wi[nw-4:]))]
         self.comb += [self.source.i.eq(yr), self.source.q.eq(yq)]
 
-        # M&M timing error (slices are +/-1, so no multiplies): e = sgn(last)·y − sgn(y)·last.
-        def sgnmul(sign_src, val):
-            return Mux(sign_src >= 0, val, -val)
-        mm = Signal((data_width + 3, True))
-        self.comb += mm.eq(sgnmul(last_r, yr) + sgnmul(last_q, yq)
-                         - sgnmul(yr, last_r) - sgnmul(yq, last_q))
+        err = Signal((data_width + 3, True))
+        if ted == "mm":
+            # M&M timing error (slices are +/-1, so no multiplies): e = sgn(last)·y − sgn(y)·last.
+            def sgnmul(sign_src, val):
+                return Mux(sign_src >= 0, val, -val)
+            self.comb += err.eq(sgnmul(last_r, yr) + sgnmul(last_q, yq)
+                              - sgnmul(yr, last_r) - sgnmul(yq, last_q))
+        else:
+            # Gardner: e = Re{(y_prev − y)·conj(y_mid)}, midpoint interpolated one sample back
+            # (half a symbol at sps=2, same fractional phase). The error is only valid when the
+            # controller stepped the nominal sps samples — on a slip the T−1 point is not the
+            # half-symbol point, and feeding that error back makes the loop hunt.
+            ymid_r = Signal((data_width, True)); ymid_q = Signal((data_width, True))
+            self.comb += [ymid_r.eq(interp(wr[:4])), ymid_q.eq(interp(wi[:4]))]
+            g       = Signal((2*data_width + 2, True))
+            gs      = Signal((data_width + 8, True))
+            nominal = Signal()
+            self.comb += [
+                g.eq((last_r - yr)*ymid_r + (last_q - yq)*ymid_q),   # Sign matches the mu += g·e loop.
+                # Rescale toward the M&M error amplitude (the product is quadratic in the
+                # signal, so the raw >> (dw-1) form is an order of magnitude weaker).
+                gs.eq(g >> (data_width - 5)),
+                err.eq(Mux(nominal, saturated(gs, data_width + 3), 0)),
+            ]
 
         # Loop update + interpolation controller (on each emitted symbol).
         omega_n = Signal((iw, True))
         mu_n    = Signal((iw + 1, True))
         self.comb += [
-            omega_n.eq(omega + ((go_q*mm) >> amp_shift)),
-            mu_n.eq(mu + omega + ((gm_q*mm) >> amp_shift)),
+            omega_n.eq(omega + ((go_q*err) >> amp_shift)),
+            mu_n.eq(mu + omega + ((gm_q*err) >> amp_shift)),
         ]
         omega_c = Signal((iw, True))
         self.comb += omega_c.eq(
@@ -98,11 +124,13 @@ class TimingRecovery(LiteXModule):
             Mux(omega_n > (omega_mid + omega_lim), omega_mid + omega_lim, omega_n)))
         step = Signal(4)
         self.comb += step.eq(Mux(mu_n[frac:] == 0, 1, mu_n[frac:]))   # floor(mu), at least 1.
+        if ted == "gardner":
+            self.sync += If(emitting & self.source.ready, nominal.eq(step == sps))
 
         self.sync += [
             If(consuming & self.sink.valid,                # Slide the window in one sample.
-                wr[0].eq(wr[1]), wr[1].eq(wr[2]), wr[2].eq(wr[3]), wr[3].eq(self.sink.i),
-                wi[0].eq(wi[1]), wi[1].eq(wi[2]), wi[2].eq(wi[3]), wi[3].eq(self.sink.q),
+                *[wr[k].eq(wr[k + 1]) for k in range(nw - 1)], wr[nw - 1].eq(self.sink.i),
+                *[wi[k].eq(wi[k + 1]) for k in range(nw - 1)], wi[nw - 1].eq(self.sink.q),
                 need.eq(need - 1),
             ),
             If(emitting & self.source.ready,              # Emit a symbol, run the loop.

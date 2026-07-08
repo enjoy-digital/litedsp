@@ -58,7 +58,9 @@ from for client-specific requirements.
 - **correction/** : `DCOffset`, `IQBalance`, `Derotator` (CFO).
 - **comm/**       : `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `SymbolMapper`,
                      `DifferentialEncoder`/`Decoder`, `Scrambler`/`Descrambler`, `CRC`,
-                     `ConvEncoder`, `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M).
+                     `ConvEncoder`, `ViterbiDecoder` (hard-decision, register-exchange),
+                     `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M or Gardner TED),
+                     `CPInsert`/`CPRemove` (OFDM cyclic prefix).
 - **stream/**     : `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`,
                      `Conjugate`/`SwapIQ`/`Negate`, offset-binary converters,
                      `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope), `StreamFIFO`

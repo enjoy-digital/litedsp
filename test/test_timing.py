@@ -25,8 +25,8 @@ def make_signal(L, sps_hi, sps, offset, seed):
     return d, np.round(x*11000).astype(complex)
 
 class TestTimingRecovery(unittest.TestCase):
-    def run_mm(self, x, sps=2):
-        dut = TimingRecovery(data_width=16, sps=sps, gain_mu=0.1, with_csr=False)
+    def run_mm(self, x, sps=2, ted="mm"):
+        dut = TimingRecovery(data_width=16, sps=sps, gain_mu=0.1, ted=ted, with_csr=False)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         n_out = len(x)//sps - 8
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
@@ -38,6 +38,15 @@ class TestTimingRecovery(unittest.TestCase):
         y = self.run_mm(x)
         tail = y[len(y)//2:]
         # Locked timing -> tight QPSK clusters: per-axis |value| has small spread vs its mean.
+        for axis in [tail.real, tail.imag]:
+            m, s = np.mean(np.abs(axis)), np.std(np.abs(axis))
+            self.assertGreater(m, 2000)
+            self.assertLess(s/m, 0.25)
+
+    def test_eye_opens_gardner(self):
+        d, x = make_signal(L=900, sps_hi=32, sps=2, offset=7, seed=4)
+        y = self.run_mm(x, ted="gardner")
+        tail = y[len(y)//2:]
         for axis in [tail.real, tail.imag]:
             m, s = np.mean(np.abs(axis)), np.std(np.abs(axis))
             self.assertGreater(m, 2000)
