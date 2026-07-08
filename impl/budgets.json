@@ -609,15 +609,16 @@
   "power": {
     "ecp5": {
       "bram": 0,
-      "dsp": 0,
-      "ff": 0,
-      "lut": 0
+      "dsp": 2,
+      "ff": 106,
+      "fmax_min": 143.4,
+      "lut": 969
     },
     "xilinx": {
       "bram": 0,
-      "dsp": 0,
-      "ff": 0,
-      "lut": 0
+      "dsp": 2,
+      "ff": 106,
+      "lut": 189
     }
   },
   "psd": {

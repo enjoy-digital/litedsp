@@ -142,7 +142,8 @@ def gain():
 
 def power():
     d = Power(data_width=16, with_csr=False)
-    return d, {d.window_log2} | _eps(d.sink, d.source), 10.0
+    # Expose the measurement outputs too, or the whole datapath folds away (0-LUT entry).
+    return d, {d.window_log2, d.power, d.update} | _eps(d.sink, d.source), 10.0
 
 def agc():
     d = AGC(data_width=16, with_csr=False)

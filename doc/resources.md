@@ -53,7 +53,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `nco_qw` | 674/52/0/0 | 222/52/0/0 | 216 |
 | `null_sink` | 65/32/0/0 | - | 305 |
 | `pattern_source` | 114/65/0/0 | - | 353 |
-| `power` | 0/0/0/0 | 0/0/0/0 | - |
+| `power` | 969/106/0/2 | 189/106/0/2 | 143 |
 | `psd` | 855/31/0/2 | 343/30/0/2 | 89 |
 | `rms` | 1293/156/0/2 | 262/155/0/2 | 129 |
 | `saturate` | 67/33/0/0 | 55/33/0/0 | 572 |
