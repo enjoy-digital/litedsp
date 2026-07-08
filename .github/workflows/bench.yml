@@ -32,3 +32,4 @@ jobs:
           for board in arty colorlight_5a_75b; do
             (cd $(mktemp -d) && python3 $GITHUB_WORKSPACE/bench/spectrum.py --board=$board)
           done
+          (cd $(mktemp -d) && python3 $GITHUB_WORKSPACE/bench/stream.py)
