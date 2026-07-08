@@ -65,5 +65,31 @@ class TestImport(unittest.TestCase):
         self.assertTrue(hasattr(litedsp.gui.app, "main"))
 
 
+class TestLiveSession(unittest.TestCase):
+    def test_discovery_and_tune(self):
+        from litedsp.gui.live import LiveSession
+        from test.test_software import MockBus, MockCSR
+
+        bus = MockBus({"lo_phase_inc": MockCSR(),
+                       "capture_threshold": MockCSR(), "capture_force": MockCSR(),
+                       "capture_status": MockCSR(),
+                       "reader_data": MockCSR(), "reader_valid": MockCSR(1),
+                       "reader_pop": MockCSR()})
+        bus.constants = type("C", (), {"config_clock_frequency": 100e6})()
+
+        live = LiveSession(bus=bus)
+        blocks = live.open()
+        self.assertEqual(set(blocks), {"lo", "capture", "reader"})
+        self.assertEqual(set(live.ncos), {"lo"})
+
+        live.tune("lo", 25e6)
+        self.assertEqual(bus.regs.lo_phase_inc.writes, [1 << 30])   # fs/4.
+
+        freq, psd = live.capture_psd("capture", "reader", n=16)
+        self.assertEqual(bus.regs.capture_force.writes, [0, 1, 0])
+        self.assertEqual(len(freq), 16)
+        self.assertEqual(len(psd), 16)
+
+
 if __name__ == "__main__":
     unittest.main()

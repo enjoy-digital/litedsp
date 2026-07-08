@@ -12,6 +12,10 @@ Top toolbar: add top-level AXI-Stream input/output ports, Load/Save the netlist 
 (chain Verilog) / Generate IP (AXI-Stream + AXI-Lite + register map). All generation goes through
 the headless backend (:mod:`litedsp.flow`), so the GUI adds no codegen logic.
 
+Live mode: Connect opens a litex_server session on the SoC's ``csr.csv``
+(:mod:`litedsp.gui.live`) and builds a panel of runtime controls for every discovered block —
+tune NCOs in Hz, reload FIR taps, trigger captures and watch the PSD.
+
 Run: ``litedsp_gui``.
 """
 
@@ -36,6 +40,7 @@ class FlowEditor:
         self.attrs   = {}      # dpg attribute id -> (node_id, port, direction)
         self.links   = {}      # dpg link id -> (src_ref, dst_ref)
         self._counter = {}
+        self.live     = None   # LiveSession when connected.
 
     # -- model helpers --------------------------------------------------------------------------
     def _new_id(self, key):
@@ -151,6 +156,78 @@ class FlowEditor:
         except Exception as e:
             self._log("Generate failed:\n" + "".join(traceback.format_exception_only(type(e), e)))
 
+    # -- live mode ------------------------------------------------------------------------------
+    def do_connect(self):
+        dpg = self.dpg
+        from litedsp.gui.live import LiveSession
+        try:
+            if self.live is not None:
+                self.live.close()
+                if dpg.does_item_exist("live"):
+                    dpg.delete_item("live")
+            self.live = LiveSession(csr_csv=dpg.get_value("cfg_csr") or "csr.csv")
+            blocks = self.live.open()
+            self._build_live_window()
+            self._log(f"Connected: {len(blocks)} block(s) discovered.")
+        except Exception as e:
+            self.live = None
+            self._log("Connect failed:\n" + "".join(traceback.format_exception_only(type(e), e)))
+
+    def _build_live_window(self):
+        dpg  = self.dpg
+        live = self.live
+        with dpg.window(label="Live", tag="live", width=480, height=640, pos=(760, 60)):
+            # NCOs: tune in Hz.
+            for prefix in sorted(live.ncos):
+                dpg.add_input_float(label=f"{prefix} (Hz)", default_value=0.0, width=160,
+                    step=1000, format="%.0f", user_data=prefix, callback=self.on_live_tune)
+            # FIRs: comma-separated taps + reload.
+            for prefix, drv in sorted(live.firs.items()):
+                with dpg.group(horizontal=True):
+                    dpg.add_input_text(hint=f"{drv.n_taps} taps (int or float)", width=240,
+                        tag=f"live_taps_{prefix}")
+                    dpg.add_button(label=f"Load {prefix}", user_data=prefix,
+                        callback=self.on_live_taps)
+            # Capture + PSD plot.
+            if live.captures and live.readers:
+                with dpg.group(horizontal=True):
+                    dpg.add_combo(sorted(live.captures), default_value=sorted(live.captures)[0],
+                        width=120, tag="live_capture")
+                    dpg.add_combo(sorted(live.readers),  default_value=sorted(live.readers)[0],
+                        width=120, tag="live_reader")
+                    dpg.add_input_int(default_value=1024, width=80, tag="live_n")
+                    dpg.add_button(label="Capture", callback=self.on_live_capture)
+                with dpg.plot(label="PSD", height=280, width=-1):
+                    dpg.add_plot_axis(dpg.mvXAxis, label="f / fs", tag="live_xaxis")
+                    with dpg.plot_axis(dpg.mvYAxis, label="dB", tag="live_yaxis"):
+                        dpg.add_line_series([], [], tag="live_psd")
+
+    def on_live_tune(self, sender, value, prefix):
+        try:
+            self.live.tune(prefix, float(value))
+        except Exception as e:
+            self._log(f"Tune {prefix} failed:\n{e}")
+
+    def on_live_taps(self, sender, app_data, prefix):
+        try:
+            text = self.dpg.get_value(f"live_taps_{prefix}")
+            taps = [float(t) if "." in t else int(t) for t in text.replace(",", " ").split()]
+            self.live.load_taps(prefix, taps)
+            self._log(f"Loaded {len(taps)} taps into {prefix}.")
+        except Exception as e:
+            self._log(f"Load taps {prefix} failed:\n{e}")
+
+    def on_live_capture(self):
+        dpg = self.dpg
+        try:
+            freq, psd = self.live.capture_psd(dpg.get_value("live_capture"),
+                dpg.get_value("live_reader"), n=int(dpg.get_value("live_n")))
+            dpg.set_value("live_psd", [list(freq), list(psd)])
+            dpg.fit_axis_data("live_xaxis")
+            dpg.fit_axis_data("live_yaxis")
+        except Exception as e:
+            self._log(f"Capture failed:\n{e}")
+
     # -- UI -------------------------------------------------------------------------------------
     def build(self):
         dpg = self.dpg
@@ -164,6 +241,8 @@ class FlowEditor:
                 dpg.add_button(label="Save", callback=lambda: dpg.show_item("save_dlg"))
                 dpg.add_button(label="Generate",    callback=lambda: self.do_generate(ip=False))
                 dpg.add_button(label="Generate IP", callback=lambda: self.do_generate(ip=True))
+                dpg.add_input_text(label="csr.csv", tag="cfg_csr", default_value="csr.csv", width=120)
+                dpg.add_button(label="Connect", callback=lambda: self.do_connect())
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=230, tag="palette"):
                     for cat, specs in palette.categories().items():

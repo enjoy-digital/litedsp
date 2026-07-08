@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- GUI live mode: Connect opens a litex_server session on the SoC's `csr.csv`
+  (`litedsp/gui/live.py`) and builds runtime controls for every discovered block — NCO tuning
+  in Hz, FIR tap reload, capture trigger with an in-editor PSD plot.
 - `litedsp/software/`: host-side Python drivers over litex_server (`RemoteClient`) — tune NCOs
   in Hz, reload FIR taps, trigger/drain captures to NumPy, run DMA windows — with register-map
   auto-discovery, plus the `litedsp_cli` entry point (`info`/`nco`/`capture`/`spectrum`).

@@ -79,5 +79,9 @@ an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
   simulation.
 - Phase 3 (DearPyGui editor, `litedsp/gui/`) is functional; its pure graph↔netlist logic is tested
   (`test/test_gui.py`), the rendering needs a display.
+- Live mode: the editor's Connect button opens a litex_server session on the SoC's `csr.csv`
+  (`litedsp/gui/live.py` + `litedsp/software/drivers.py`) and exposes runtime controls (NCO
+  tuning, FIR reload, capture + PSD plot) for every discovered block — netlist block ids are
+  the register prefixes, so live controls line up with editor nodes.
 - Next: in-canvas netlist *load* (round-trip positions), optional auto-`Delay` balancing on
   reconvergent paths, and packaging the IP for Vivado IP-integrator.
