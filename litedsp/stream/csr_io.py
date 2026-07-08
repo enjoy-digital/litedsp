@@ -100,6 +100,41 @@ class CSRSink(LiteXModule):
             self.clear.eq(self._clear.re),
         ]
 
+# CSR Reader ---------------------------------------------------------------------------------------
+
+class CSRReader(LiteXModule):
+    """Bus-paced sink: firmware reads the pending sample over CSR, then pops it.
+
+    The stream is backpressured until firmware consumes it, so a whole Capture buffer can be
+    drained sample-by-sample over the bridge/CPU: check ``valid``, read ``data``, write ``pop``.
+    """
+    def __init__(self, data_width=16, with_csr=True):
+        assert data_width <= 16                            # I/Q packed in one 32-bit data CSR.
+        self.data_width = data_width
+        self.sink = stream.Endpoint(iq_layout(data_width))
+        self.pop  = Signal()
+
+        # # #
+
+        self.comb += self.sink.ready.eq(self.pop)
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._data = CSRStatus(fields=[
+            CSRField("i", size=self.data_width, description="Pending sample I."),
+            CSRField("q", size=self.data_width, offset=16, description="Pending sample Q."),
+        ])
+        self._valid = CSRStatus(1, name="valid", description="A sample is pending.")
+        self._pop   = CSRStorage(1, name="pop", description="Consume the pending sample (write to pop).")
+        self.comb += [
+            self._data.fields.i.eq(self.sink.i),
+            self._data.fields.q.eq(self.sink.q),
+            self._valid.status.eq(self.sink.valid),
+            self.pop.eq(self._pop.re),
+        ]
+
 # Null Sink ----------------------------------------------------------------------------------------
 
 class NullSink(LiteXModule):

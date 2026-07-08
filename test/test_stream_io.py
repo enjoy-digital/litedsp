@@ -18,7 +18,7 @@ from litex.gen import LiteXModule
 from litedsp.common              import iq_layout
 from litedsp.stream.fifo         import StreamFIFO
 from litedsp.stream.adapt        import IQPack, IQUnpack
-from litedsp.stream.csr_io       import CSRSource, CSRSink, NullSink
+from litedsp.stream.csr_io       import CSRSource, CSRSink, CSRReader, NullSink
 from litedsp.stream.framing      import StreamFramer, StreamDeframer
 from litedsp.generation.pattern  import PatternSource, PATTERN_COUNTER, PATTERN_PRBS
 from litedsp.analysis.measure    import ErrorCounter
@@ -105,6 +105,25 @@ class TestCSRSourceSink(unittest.TestCase):
         self.assertEqual(result["count"], n)
         self.assertEqual(result["last_i"], 100 + n - 1)
 
+
+class TestCSRReader(unittest.TestCase):
+    def test_paced_readout(self):
+        n   = 8
+        dut = CSRReader(data_width=16, with_csr=False)
+        samples = [{"i": 10*k + 1, "q": -(10*k + 1)} for k in range(n)]
+        got = []
+        def reader():
+            for _ in range(n):
+                while not (yield dut.sink.valid):
+                    yield
+                got.append(((yield dut.sink.i), (yield dut.sink.q)))
+                yield dut.pop.eq(1)
+                yield
+                yield dut.pop.eq(0)
+                yield
+        from test.common import stream_driver
+        run_simulation(dut, [stream_driver(dut.sink, samples, ("i", "q"), throttle=0.3), reader()])
+        self.assertEqual(got, [(s["i"], s["q"]) for s in samples])
 
 class TestNullSink(unittest.TestCase):
     def test_counts_all(self):

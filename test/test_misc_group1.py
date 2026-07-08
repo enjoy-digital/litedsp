@@ -13,7 +13,7 @@ from migen import run_simulation
 
 from litedsp.numeric          import ISqrt
 from litedsp.level.rms        import RMS
-from litedsp.stream.ops       import Conjugate, SwapIQ, Negate
+from litedsp.stream.ops       import Conjugate, SwapIQ, Negate, IQAdd
 from litedsp.stream.split     import Split
 from litedsp.stream.delay     import Delay
 from litedsp.comm.slicer      import Slicer
@@ -58,6 +58,27 @@ class TestStreamOps(unittest.TestCase):
         self.assertTrue(np.array_equal(gi, xq) and np.array_equal(gq, xi))
         gi, gq = self.run_op(Negate, xi, xq)
         self.assertTrue(np.array_equal(gi, -np.array(xi)) and np.array_equal(gq, -np.array(xq)))
+
+class TestIQAdd(unittest.TestCase):
+    def test_sum_saturated(self):
+        from test.common import np_saturated
+        dut  = IQAdd(data_width=16)
+        prng = random.Random(4)
+        n    = 100
+        a = [(prng.randint(-30000, 30000), prng.randint(-30000, 30000)) for _ in range(n)]
+        b = [(prng.randint(-30000, 30000), prng.randint(-30000, 30000)) for _ in range(n)]
+        cap = []
+        run_simulation(dut, [
+            stream_driver(dut.sink_a, [{"i": i, "q": q} for (i, q) in a], ("i", "q"), throttle=0.2),
+            stream_driver(dut.sink_b, [{"i": i, "q": q} for (i, q) in b], ("i", "q"), throttle=0.3,
+                seed=5),
+            stream_capture(dut.source, cap, n, ("i", "q"), ready_rate=0.7),
+        ])
+        gi, gq = column(cap, "i", 16), column(cap, "q", 16)
+        ei = np_saturated(np.array([x[0] for x in a]) + np.array([x[0] for x in b]), 16)
+        eq = np_saturated(np.array([x[1] for x in a]) + np.array([x[1] for x in b]), 16)
+        self.assertTrue(np.array_equal(gi, ei))
+        self.assertTrue(np.array_equal(gq, eq))
 
 class TestSplit(unittest.TestCase):
     def test_duplicate(self):
