@@ -4,7 +4,8 @@
       "bram": 0,
       "dsp": 8,
       "ff": 57,
-      "lut": 385
+      "fmax_min": 53.8,
+      "lut": 377
     },
     "xilinx": {
       "bram": 0,
@@ -18,6 +19,7 @@
       "bram": 6,
       "dsp": 24,
       "ff": 1086,
+      "fmax_min": 77.5,
       "lut": 2786
     },
     "xilinx": {
@@ -48,6 +50,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 438,
+      "fmax_min": 50.9,
       "lut": 580
     },
     "xilinx": {
@@ -62,6 +65,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 33,
+      "fmax_min": 562.2,
       "lut": 371
     },
     "xilinx": {
@@ -76,6 +80,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 907,
+      "fmax_min": 158.4,
       "lut": 1943
     },
     "xilinx": {
@@ -106,6 +111,7 @@
       "bram": 0,
       "dsp": 14,
       "ff": 710,
+      "fmax_min": 110.5,
       "lut": 927
     },
     "xilinx": {
@@ -120,6 +126,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 64,
+      "fmax_min": 288.1,
       "lut": 64
     }
   },
@@ -136,6 +143,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 97,
+      "fmax_min": 210.3,
       "lut": 224
     },
     "xilinx": {
@@ -166,6 +174,7 @@
       "bram": 2,
       "dsp": 7,
       "ff": 302,
+      "fmax_min": 63.1,
       "lut": 643
     },
     "xilinx": {
@@ -180,6 +189,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 64,
+      "fmax_min": 368.6,
       "lut": 97
     }
   },
@@ -188,6 +198,7 @@
       "bram": 0,
       "dsp": 14,
       "ff": 145,
+      "fmax_min": 30.4,
       "lut": 650
     },
     "xilinx": {
@@ -218,6 +229,7 @@
       "bram": 2,
       "dsp": 4,
       "ff": 87,
+      "fmax_min": 50.3,
       "lut": 1039
     },
     "xilinx": {
@@ -225,6 +237,14 @@
       "dsp": 5,
       "ff": 29,
       "lut": 236
+    }
+  },
+  "fir": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 32,
+      "ff": 1555,
+      "lut": 2715
     }
   },
   "fir_complex": {
@@ -264,6 +284,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 86,
+      "fmax_min": 101.9,
       "lut": 338
     },
     "xilinx": {
@@ -273,11 +294,28 @@
       "lut": 195
     }
   },
+  "fir_parallel_x2": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 64,
+      "ff": 2611,
+      "lut": 5221
+    }
+  },
+  "fir_parallel_x4": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 128,
+      "ff": 4723,
+      "lut": 10351
+    }
+  },
   "fm_demod": {
     "ecp5": {
       "bram": 0,
       "dsp": 4,
       "ff": 790,
+      "fmax_min": 110.6,
       "lut": 1720
     },
     "xilinx": {
@@ -292,6 +330,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 16,
+      "fmax_min": 267.7,
       "lut": 102
     }
   },
@@ -300,6 +339,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 33,
+      "fmax_min": 375.8,
       "lut": 59
     },
     "xilinx": {
@@ -314,6 +354,7 @@
       "bram": 0,
       "dsp": 17,
       "ff": 143,
+      "fmax_min": 29.5,
       "lut": 1086
     },
     "xilinx": {
@@ -328,6 +369,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 94,
+      "fmax_min": 94.3,
       "lut": 394
     },
     "xilinx": {
@@ -342,6 +384,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 22,
+      "fmax_min": 101.5,
       "lut": 389
     },
     "xilinx": {
@@ -372,6 +415,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 133,
+      "fmax_min": 153.0,
       "lut": 21
     }
   },
@@ -380,6 +424,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 2,
+      "fmax_min": 878.1,
       "lut": 134
     }
   },
@@ -388,6 +433,7 @@
       "bram": 0,
       "dsp": 56,
       "ff": 455,
+      "fmax_min": 32.7,
       "lut": 1742
     },
     "xilinx": {
@@ -402,6 +448,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 18,
+      "fmax_min": 739.1,
       "lut": 157
     },
     "xilinx": {
@@ -416,6 +463,7 @@
       "bram": 0,
       "dsp": 1,
       "ff": 601,
+      "fmax_min": 166.8,
       "lut": 1618
     },
     "xilinx": {
@@ -441,11 +489,29 @@
       "lut": 109
     }
   },
+  "mixer_parallel_x2": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 8,
+      "ff": 334,
+      "fmax_min": 271.9,
+      "lut": 511
+    }
+  },
+  "mixer_parallel_x4": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 16,
+      "ff": 666,
+      "lut": 980
+    }
+  },
   "moving_average": {
     "ecp5": {
       "bram": 0,
       "dsp": 0,
       "ff": 87,
+      "fmax_min": 157.1,
       "lut": 246
     },
     "xilinx": {
@@ -471,11 +537,30 @@
       "lut": 65
     }
   },
+  "nco_parallel_x2": {
+    "ecp5": {
+      "bram": 4,
+      "dsp": 0,
+      "ff": 52,
+      "fmax_min": 233.9,
+      "lut": 85
+    }
+  },
+  "nco_parallel_x4": {
+    "ecp5": {
+      "bram": 8,
+      "dsp": 2,
+      "ff": 71,
+      "fmax_min": 167.7,
+      "lut": 222
+    }
+  },
   "nco_qw": {
     "ecp5": {
       "bram": 0,
       "dsp": 0,
       "ff": 52,
+      "fmax_min": 216.0,
       "lut": 674
     },
     "xilinx": {
@@ -490,6 +575,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 32,
+      "fmax_min": 305.3,
       "lut": 65
     }
   },
@@ -498,6 +584,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 65,
+      "fmax_min": 353.3,
       "lut": 114
     }
   },
@@ -520,6 +607,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 31,
+      "fmax_min": 89.1,
       "lut": 855
     },
     "xilinx": {
@@ -534,6 +622,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 156,
+      "fmax_min": 128.8,
       "lut": 1293
     },
     "xilinx": {
@@ -548,6 +637,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 33,
+      "fmax_min": 572.0,
       "lut": 67
     },
     "xilinx": {
@@ -562,6 +652,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 186,
+      "fmax_min": 113.2,
       "lut": 289
     },
     "xilinx": {
@@ -576,6 +667,7 @@
       "bram": 0,
       "dsp": 0,
       "ff": 14,
+      "fmax_min": 232.0,
       "lut": 32
     }
   },
@@ -584,6 +676,7 @@
       "bram": 0,
       "dsp": 16,
       "ff": 182,
+      "fmax_min": 21.4,
       "lut": 883
     },
     "xilinx": {
@@ -598,6 +691,7 @@
       "bram": 0,
       "dsp": 2,
       "ff": 15,
+      "fmax_min": 100.5,
       "lut": 341
     },
     "xilinx": {

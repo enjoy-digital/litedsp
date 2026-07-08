@@ -70,7 +70,10 @@ def pnr(json_in, top, build_dir, clock_ns):
     for m in re.finditer(r"Max frequency for clock\s+'[^']*':\s+([\d.]+)\s*MHz", text):
         fmax = float(m.group(1))                                   # Last reported (post-route).
     if fmax is None:
-        raise RuntimeError(f"nextpnr-ecp5 failed (no fmax) - see {log}")
+        # Pass-through-ish blocks have no interior register-to-register paths at their default
+        # parameters -- routed fine, just nothing to time.
+        if "no interior timing paths found" not in text:
+            raise RuntimeError(f"nextpnr-ecp5 failed (no fmax) - see {log}")
     util = {}
     for cell, key in [("TRELLIS_COMB", "lut"), ("TRELLIS_FF", "ff"),
                       ("DP16KD", "bram"), ("MULT18X18D", "dsp")]:
