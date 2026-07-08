@@ -1,7 +1,9 @@
-name: Implementation (ECP5 synth)
+name: Implementation (ECP5)
 
-# Portability + compile-clean check: synthesize every block with Yosys for ECP5.
-# (nextpnr-ecp5 P&R and the Xilinx/Vivado flows run locally via impl/run.py.)
+# Portability + resource/fmax regression checks:
+# - synth: Yosys synthesis of every block, gated on the resource budgets.
+# - pnr:   nextpnr-ecp5 P&R of the representative subset (OSS CAD Suite), gated on fmax_min.
+# (Full-registry P&R and the Xilinx/Vivado flows run locally via impl/run.py.)
 
 on:
   push:
@@ -29,3 +31,25 @@ jobs:
 
       - name: Synthesize all blocks for ECP5
         run: python3 impl/run.py --device ecp5 --flow synth --no-gate
+
+  ecp5-pnr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OSS CAD Suite (Yosys + nextpnr-ecp5)
+        uses: YosysHQ/setup-oss-cad-suite@v3
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy
+          pip install git+https://github.com/m-labs/migen.git
+          pip install git+https://github.com/enjoy-digital/litex.git
+
+      - name: Place & route the P&R subset (resource + fmax budgets)
+        run: python3 impl/run.py --device ecp5 --flow pnr --subset
