@@ -61,10 +61,18 @@ class LiveSession:
         self.blocks[prefix].load(taps)
 
     def capture_psd(self, capture, reader, n=1024):
-        """Trigger ``capture``, drain ``n`` samples from ``reader``, return (freq_norm, psd_db)."""
+        """Trigger ``capture``, drain ``n`` samples, return (freq_norm, psd_db).
+
+        Uses the capture's memory-mapped window (``<capture>_mem`` region) when the SoC has
+        one — one bus word per sample — and falls back to the paced ``reader`` block.
+        """
         import numpy as np
+        from litedsp.software.drivers import CaptureMemoryReader
         self.blocks[capture].trigger()
-        samples = np.array(self.blocks[reader].read_samples(n))
+        if CaptureMemoryReader.present(self.bus, f"{capture}_mem"):
+            samples = np.array(CaptureMemoryReader(self.bus, f"{capture}_mem").read_samples(n))
+        else:
+            samples = np.array(self.blocks[reader].read_samples(n))
         win  = np.hanning(len(samples))
         psd  = 20*np.log10(np.abs(np.fft.fftshift(np.fft.fft(samples*win))) + 1e-9)
         freq = np.fft.fftshift(np.fft.fftfreq(len(samples)))

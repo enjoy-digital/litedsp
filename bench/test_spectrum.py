@@ -25,7 +25,8 @@ import numpy as np
 
 from litex import RemoteClient
 
-from litedsp.software.drivers import NCODriver, CaptureDriver, CSRReaderDriver
+from litedsp.software.drivers import (NCODriver, CaptureDriver, CSRReaderDriver,
+    CaptureMemoryReader)
 from litedsp.software.cli     import ascii_spectrum
 
 # Test ---------------------------------------------------------------------------------------------
@@ -52,11 +53,13 @@ def main():
     tone.set_frequency(args.tone_freq)
     lo.set_frequency(-args.tune_freq)
 
-    # Trigger a capture and drain the buffer.
+    # Trigger a capture and drain the buffer (memory-mapped window if the SoC has one).
     capture = CaptureDriver(bus, "capture")
-    reader  = CSRReaderDriver(bus, "reader")
     capture.trigger()
-    samples = np.array(reader.read_samples(depth))
+    if CaptureMemoryReader.present(bus, "capture_mem"):
+        samples = np.array(CaptureMemoryReader(bus, "capture_mem").read_samples(depth))
+    else:
+        samples = np.array(CSRReaderDriver(bus, "reader").read_samples(depth))
 
     # PSD + peak check.
     win  = np.hanning(depth)

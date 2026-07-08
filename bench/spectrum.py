@@ -27,6 +27,7 @@ from migen import *
 
 from litex.gen import *
 
+from litex.soc.integration.soc      import SoCRegion
 from litex.soc.integration.soc_core import SoCMini
 from litex.soc.integration.builder  import Builder
 from litex.soc.cores.led            import LedChaser
@@ -83,8 +84,11 @@ class BenchSoC(SoCMini):
         self.noise   = NoiseSource(data_width=16, shift=4)    # AWGN floor.
         self.adder   = IQAdd(data_width=16)
         self.ddc     = DDC(data_width=16, decimation=8)       # Tune (nco phase_inc) + /8.
-        self.capture = Capture(depth=capture_depth, data_width=16)
+        self.capture = Capture(depth=capture_depth, data_width=16, with_wishbone=True)
         self.reader  = CSRReader(data_width=16)
+        # Fast readout: the capture buffer as a memory-mapped window (one sample per word).
+        self.bus.add_slave(name="capture_mem", slave=self.capture.bus,
+            region=SoCRegion(origin=0x3000_0000, size=self.capture.mem_size, cached=False))
         self.comb += [
             self.nco.source.connect(self.adder.sink_a),
             self.noise.source.connect(self.adder.sink_b),

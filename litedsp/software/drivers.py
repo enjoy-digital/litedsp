@@ -112,6 +112,32 @@ class CSRReaderDriver(Driver):
             self.pop.write(1)
         return samples
 
+class CaptureMemoryReader:
+    """Drain a Capture buffer through its memory-mapped Wishbone window.
+
+    The fast readout path: one bus word per sample (burstable over Etherbone) instead of
+    CSRReader's read/check/pop sequence. ``region`` is the SoC memory-region name the window
+    was added under (convention: ``<capture_name>_mem``).
+    """
+    def __init__(self, bus, region="capture_mem", data_width=16):
+        self.bus        = bus
+        self.region     = region
+        self.data_width = data_width
+        r = getattr(bus.mems, region)
+        self.base, self.size = r.base, r.size
+
+    @classmethod
+    def present(cls, bus, region="capture_mem"):
+        return hasattr(getattr(bus, "mems", None), region)
+
+    def read_samples(self, n):
+        assert n*4 <= self.size, f"capture window holds {self.size//4} samples"
+        mask  = (1 << self.data_width) - 1
+        words = self.bus.read(self.base, n)
+        return [complex(to_signed(w & mask, self.data_width),
+                        to_signed((w >> self.data_width) & mask, self.data_width))
+                for w in words]
+
 class DMADriver(Driver):
     """LiteX DMA register set (DMACapture's ``<name>_writer`` / DMAReplay's ``<name>_reader``)."""
     regs = ("base", "length", "enable", "done", "loop", "offset")
