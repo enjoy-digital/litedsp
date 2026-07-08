@@ -7,10 +7,11 @@
 """Compact iterative (memory-based) radix-2 FFT.
 
 A single radix-2 butterfly works in place on synchronous-read RAM, processing an N-sample burst
-in ~N + N*log2(N) + N cycles. Each I/Q sample memory is one true-dual-port block RAM (two R/W
-ports, synchronous read), so the design maps to BRAM rather than fabric LUTs. DIT in-place: the
-input is written bit-reversed, log2(N) stages of butterflies run (each butterfly = a read cycle
-then a compute+write cycle), then the result is read out in natural order. Output is 1/N-scaled.
+in ~N + 1.5*N*log2(N) + N cycles. Each I/Q sample memory is one true-dual-port block RAM (two
+R/W ports, synchronous read), so the design maps to BRAM rather than fabric LUTs. DIT in-place:
+the input is written bit-reversed, log2(N) stages of butterflies run (each butterfly = read,
+twiddle-product register, write — one multiply level per cycle), then the result is read out in
+natural order. Output is 1/N-scaled.
 """
 
 import math
@@ -48,7 +49,7 @@ class FFTIter(LiteXModule):
         S         = N.bit_length() - 1
         self.bits = S
         self.data_width = data_width
-        self.latency    = N + N*S + N
+        self.latency    = N + (3*N*S)//2 + N             # 3 cycles per butterfly.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -81,13 +82,18 @@ class FFTIter(LiteXModule):
         ]
 
         # Butterfly arithmetic (operands are the registered reads from the previous cycle).
+        # The twiddle product is registered in its own cycle (BFLY_CALC) so each clock carries
+        # one multiply level: read -> product register -> write.
         tr, ti = Signal((twiddle_width, True)), Signal((twiddle_width, True))
         self.comb += [tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r)]
         Ar, Aq = Signal((data_width, True)), Signal((data_width, True))
         Br, Bq = Signal((data_width, True)), Signal((data_width, True))
         self.comb += [Ar.eq(ai.dat_r), Aq.eq(aq.dat_r), Br.eq(bi.dat_r), Bq.eq(bq.dat_r)]
-        pr, _ = scaled(Br*tr - Bq*ti, twiddle_width - 1, data_width)   # b*tw.
-        pi, _ = scaled(Br*ti + Bq*tr, twiddle_width - 1, data_width)
+        pr, pi = Signal((data_width, True)), Signal((data_width, True))
+        self.sync += [
+            pr.eq(scaled(Br*tr - Bq*ti, twiddle_width - 1, data_width)[0]),   # b*tw.
+            pi.eq(scaled(Br*ti + Bq*tr, twiddle_width - 1, data_width)[0]),
+        ]
         sum_i, _ = scaled(Ar + pr, 1, data_width)                      # (a + b*tw)/2.
         sum_q, _ = scaled(Aq + pi, 1, data_width)
         dif_i, _ = scaled(Ar - pr, 1, data_width)                      # (a - b*tw)/2.
@@ -122,7 +128,8 @@ class FFTIter(LiteXModule):
                 ).Else(NextValue(idx, idx + 1)),
             )
         )
-        fsm.act("BFLY_READ", NextState("BFLY_WRITE"))      # Reads issued; data ready next cycle.
+        fsm.act("BFLY_READ", NextState("BFLY_CALC"))       # Reads issued; data ready next cycle.
+        fsm.act("BFLY_CALC", NextState("BFLY_WRITE"))      # Twiddle product registers.
         fsm.act("BFLY_WRITE",
             If(b == (N//2 - 1),
                 NextValue(b, 0),
