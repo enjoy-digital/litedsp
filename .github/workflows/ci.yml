@@ -32,3 +32,12 @@ jobs:
       - name: Run test suite
         run: |
           python -m unittest discover -s test -v
+
+      - name: Verilator lint (all registry blocks)
+        run: python3 sim/run_lint.py
+
+      - name: Verilator co-simulation (golden models)
+        run: |
+          python3 sim/run_blocks.py
+          python3 sim/run_nco.py
+          python3 sim/run_fir.py

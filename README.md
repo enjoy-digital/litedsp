@@ -88,8 +88,9 @@ from for client-specific requirements.
 - **bench/**      : hardware proof points on litex-boards targets: `spectrum.py` (tone + AWGN →
                      DDC → capture, controlled over UARTBone; Arty / Colorlight 5A-75B) with the
                      host-side check `test_spectrum.py` (litex_server + NumPy PSD).
-- **sim/**        : Verilator (real HDL) co-simulation of blocks vs the NumPy models
-                     (`python3 sim/run_nco.py`, `sim/run_fir.py`).
+- **sim/**        : Verilator (real HDL) checks: generic co-simulation of blocks vs the NumPy
+                     models (`python3 sim/run_blocks.py`; `run_nco.py`/`run_fir.py` for the
+                     special shapes) and a full-registry lint sweep (`python3 sim/run_lint.py`).
 - **impl/**       : FPGA implementation tests — Yosys/nextpnr (ECP5) + Vivado (xc7a200t)
                      synth/P&R with resource + fmax budgets (`python3 impl/run.py`). See
                      `doc/implementation.md`; per-block numbers in `doc/resources.md`.
