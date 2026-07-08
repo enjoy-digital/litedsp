@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- Release workflow: version tags publish to PyPI via trusted publishing
+  (`.github/workflows/release.yml`); litedsp registered in `litex_setup` (litex repo,
+  pending upstream push).
 - comm/ growth: `ViterbiDecoder` (hard-decision rate-1/n, matches `ConvEncoder`; verified
   end-to-end incl. error correction), Gardner TED option on `TimingRecovery`
   (`ted="gardner"` — non-decision-aided, modulation-agnostic), and `CPInsert`/`CPRemove`
