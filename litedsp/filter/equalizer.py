@@ -4,8 +4,6 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-from functools import reduce
-
 from migen import *
 
 from litex.gen import *
@@ -13,7 +11,8 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled, saturated
+from litedsp.common     import iq_layout, scaled, saturated
+from litedsp.filter.fir import _adder_tree
 
 # Complex LMS Equalizer ----------------------------------------------------------------------------
 
@@ -26,6 +25,11 @@ class LMSEqualizer(LiteXModule):
     (``i``,``q``) and the desired symbol (``d_i``,``d_q``); drive ``train`` low to freeze the
     weights (feed a slicer's decision back as ``d`` for decision-directed operation). ``mu_shift``
     sets the (inverse) step size; weights are Q.``wfrac`` with the center tap initialized to 1.0.
+
+    Adaptation is *delayed LMS* (the standard hardware form): the update applies the previous
+    sample's error (registered with its input-window snapshot), so the filter and the update
+    each carry one multiply level per cycle instead of chaining y -> e -> update
+    combinationally. Convergence is indistinguishable at practical step sizes.
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, with_csr=True):
         assert n_taps >= 1
@@ -69,21 +73,30 @@ class LMSEqualizer(LiteXModule):
         wi = [Signal((ww, True)) for _ in range(n_taps)]
         wr[n_taps//2].reset = 1 << wfrac                 # Center tap = 1.0.
 
-        # Complex FIR: y = sum w_k * x_k.
-        acc_w = 2*ww
-        yi_full = reduce(lambda a, b: a + b, [wr[k]*xr[k] - wi[k]*xi[k] for k in range(n_taps)])
-        yq_full = reduce(lambda a, b: a + b, [wr[k]*xi[k] + wi[k]*xr[k] for k in range(n_taps)])
+        # Complex FIR: y = sum w_k * x_k (balanced adder trees).
+        yi_full = _adder_tree([wr[k]*xr[k] - wi[k]*xi[k] for k in range(n_taps)])
+        yq_full = _adder_tree([wr[k]*xi[k] + wi[k]*xr[k] for k in range(n_taps)])
         yi = scaled(yi_full, wfrac, data_width)[0]
         yq = scaled(yq_full, wfrac, data_width)[0]
 
-        # Error and LMS update: w_k += mu * e * conj(x_k).
-        ei = Signal((data_width + 1, True))
-        eq = Signal((data_width + 1, True))
-        self.comb += [ei.eq(self.sink.d_i - yi), eq.eq(self.sink.d_q - yq)]
+        # Delayed-LMS update: register the error with its input-window snapshot, apply it on
+        # the next accepted sample: w_k += mu * e[n-1] * conj(x[n-1-k]).
+        ei_d = Signal((data_width + 1, True))
+        eq_d = Signal((data_width + 1, True))
+        xr_d = [Signal((data_width, True)) for _ in range(n_taps)]
+        xi_d = [Signal((data_width, True)) for _ in range(n_taps)]
+        v_e  = Signal()                                  # A registered error is pending.
+        self.sync += If(xfer,
+            ei_d.eq(self.sink.d_i - yi),
+            eq_d.eq(self.sink.d_q - yq),
+            *[xr_d[k].eq(xr[k]) for k in range(n_taps)],
+            *[xi_d[k].eq(xi[k]) for k in range(n_taps)],
+            v_e.eq(1),
+        )
         for k in range(n_taps):
-            self.sync += If(xfer & self.train,
-                wr[k].eq(saturated(wr[k] + ((ei*xr[k] + eq*xi[k]) >> mu_shift), ww)),
-                wi[k].eq(saturated(wi[k] + ((eq*xr[k] - ei*xi[k]) >> mu_shift), ww)),
+            self.sync += If(xfer & self.train & v_e,
+                wr[k].eq(saturated(wr[k] + ((ei_d*xr_d[k] + eq_d*xi_d[k]) >> mu_shift), ww)),
+                wi[k].eq(saturated(wi[k] + ((eq_d*xr_d[k] - ei_d*xi_d[k]) >> mu_shift), ww)),
             )
 
         self.sync += If(adv,
