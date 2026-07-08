@@ -8,9 +8,10 @@
 
 DF2T is chosen for its good fixed-point numerics and minimal state (2 registers/section). The
 output and the two state registers are round+saturated each sample for stability. The
-recursive loop is a single combinational pass per sample (no pipelining across feedback), so
-one section evaluates per cycle — document the resulting fmax when cascading many sections.
-Coefficients come from ``litedsp.filter.design.biquad_sos_quantize`` (Q?.frac_bits).
+feed-forward b·x products are hoisted into a registered intake stage, so the inherent
+recursive loop (s -> y -> a·y -> s', which cannot be pipelined across feedback) carries a
+single multiply level per cycle. Coefficients come from
+``litedsp.filter.design.biquad_sos_quantize`` (Q?.frac_bits).
 """
 
 from migen import *
@@ -38,7 +39,7 @@ class IIRBiquad(LiteXModule):
         self.frac_bits  = frac_bits
         self.coeffs     = coeffs
         self.state_width = data_width + frac_bits + 4
-        self.latency    = 1
+        self.latency    = 2                       # Registered b·x intake + recurrence/output.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -48,29 +49,37 @@ class IIRBiquad(LiteXModule):
         a1, a2     = coeffs["a1"], coeffs["a2"]
         SW         = self.state_width
 
-        adv  = Signal()
-        xfer = Signal()
+        adv = Signal()
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
-            xfer.eq(self.sink.valid & adv),
         ]
 
+        # The recursive loop s -> y -> a·y -> s' is a single pass per sample by nature; hoist
+        # the feed-forward b·x products into a registered intake stage so only one multiply
+        # level remains inside it.
+        v_px = Signal()                           # Intake stage holds a real sample.
+        self.sync += If(adv, v_px.eq(self.sink.valid))
         for field in ["i", "q"]:
-            x  = getattr(self.sink, field)
+            x   = getattr(self.sink, field)
+            px0 = Signal((SW, True))
+            px1 = Signal((SW, True))
+            px2 = Signal((SW, True))
+            self.sync += If(adv, px0.eq(b0*x), px1.eq(b1*x), px2.eq(b2*x))
+
             s1 = Signal((SW, True))
             s2 = Signal((SW, True))
             y  = Signal((data_width, True))
-            self.comb += y.eq(scaled(b0*x + s1, frac_bits, data_width)[0])
-            self.sync += If(xfer,
-                s1.eq(saturated(b1*x + s2 - a1*y, SW)),
-                s2.eq(saturated(b2*x - a2*y, SW)),
+            self.comb += y.eq(scaled(px0 + s1, frac_bits, data_width)[0])
+            self.sync += If(adv & v_px,
+                s1.eq(saturated(px1 + s2 - a1*y, SW)),
+                s2.eq(saturated(px2 - a2*y, SW)),
             )
             self.sync += If(adv, getattr(self.source, field).eq(y))
 
-        valid_pipe = Signal()
-        self.sync += If(adv, valid_pipe.eq(self.sink.valid))
-        self.comb += self.source.valid.eq(valid_pipe)
+        valid_pipe = Signal(2)
+        self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[0])))
+        self.comb += self.source.valid.eq(valid_pipe[1])
 
 # IIR Biquad cascade -------------------------------------------------------------------------------
 
@@ -92,4 +101,4 @@ class IIRBiquadCascade(LiteXModule):
             self.sections.append(bq)
             last = bq.source
         self.comb += last.connect(self.source)
-        self.latency = len(sections)
+        self.latency = sum(bq.latency for bq in self.sections)
