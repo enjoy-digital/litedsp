@@ -29,82 +29,57 @@ from for client-specific requirements.
 - **Tested**: each block has a NumPy golden reference model; simulation output is compared
   bit-exact or against an SNR threshold, run under `unittest` and CI.
 
-[> Layout
+[> Blocks
 ---------
 
-- `litedsp/`           : the toolbox (generation, mixing, filter, rate, level, correction,
-                         analysis, stream) + `flow/` (block-graph → Verilog/CSR/AXI IP generator)
-                         + `gui/` (DearPyGui flow-graph editor, GNU-Radio-Companion style)
-                         + `gen.py` (standalone core generator, YAML → Verilog + CSR map).
-- `test/`              : golden-model harness, NumPy reference models, per-block tests.
-- `examples/`          : assembled chains (DDC, DUC, repeater).
-- `doc/`               : architecture, interface contract, fixed-point conventions, flow tooling.
+| Category        | Blocks                                                                      |
+|-----------------|-----------------------------------------------------------------------------|
+| `generation/`   | `NCO` (DDS), `CORDIC`, `Chirp` (linear FM), `NoiseSource` (AWGN), `Replay` (RAM AWG), `PatternSource` (const/counter/PRBS/impulse) |
+| `mixing/`       | `Mixer` (complex, runtime up/down), `DDC`, `DUC`, `Channelizer`               |
+| `filter/`       | `FIRFilter`/`FIRFilterComplex` (direct & symmetric), `FIRDecimator`/`FIRInterpolator` (polyphase), `CICDecimator`/`CICInterpolator` (+ runtime-rate), `HalfbandDecimator`/`HalfbandInterpolator`, `IIRBiquad`/`IIRBiquadCascade` (DF2T), `DCBlocker`, `MovingAverage`, `Hilbert`, `PulseShaper` (RRC), `FarrowInterpolator`, `RationalResampler`, `ArbResampler`, `Notch`, `CombFilter`, `Allpass`, `LMSEqualizer` (delayed LMS), `design.py` (coefficients) |
+| `rate/`         | `Downsampler`, `Upsampler` (naive), `Decimator`, `Interpolator` (CIC/FIR), `Dropper` |
+| `level/`        | `Gain`, `Power`, `Saturate`, `Clipper`, `EnvelopeDetector`, `Squelch`, `AGC`, `RMS`, `Log2`/`LogPower` (dB) |
+| `correction/`   | `DCOffset`, `IQBalance`, `Derotator` (CFO)                                    |
+| `comm/`         | `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `SymbolMapper`, `DifferentialEncoder`/`Decoder`, `Scrambler`/`Descrambler`, `CRC`, `ConvEncoder`, `ViterbiDecoder` (hard-decision), `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M or Gardner TED), `CPInsert`/`CPRemove` (OFDM cyclic prefix) |
+| `analysis/`     | `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`, `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`, `EnergyDetector`, `FrequencyEstimator`, `ErrorCounter` (SER/BER) |
+| `stream/`       | `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`, `Conjugate`/`SwapIQ`/`Negate`/`IQAdd`, offset-binary converters, `IQClockDomainCrossing`, `SkidBuffer`, `StreamFIFO`, `IQPack`/`IQUnpack`, `Capture` (scope, CSR or memory-mapped readout), `CSRSource`/`CSRSink`/`CSRReader`/`NullSink`, `StreamFramer`/`StreamDeframer` (`tlast`), `DMACapture`/`DMAReplay` (Wishbone or LiteDRAM DMA) |
+| `frontend/`     | `ADCInterface`/`DACInterface` (raw converter words), `IQPacketizer`/`IQDepacketizer` (framed host-link words, LitePCIe-ready), `UDPIQStreamer`/`UDPIQReceiver` (I/Q packets over LiteEth UDP) |
+| parallel (*)    | `ParallelNCO`, `ParallelMixer`, `ParallelFIRFilter`/`ParallelFIRFilterComplex`, `ParallelCICDecimator`, `ParallelDDC` composite + `IQSerialToParallel`/`IQParallelToSerial` adapters |
+| misc            | `ISqrt` (`numeric.py`), `PILoop` (`control.py`)                               |
 
-[> Modules
+(*) Multi-sample-per-cycle datapaths (N samples/clk for rates above the fabric clock, e.g. a
+gigasample RX front-end), bit-identical to their serial counterparts. The parallel variants
+live next to their serial versions (`generation/nco_parallel.py`, ...).
+
+Per-block FPGA resource/fmax numbers (ECP5 + Artix-7): see `doc/resources.md`.
+
+[> Tooling
 ----------
 
-- **generation/** : `NCO` (DDS), `CORDIC`, `Chirp` (linear FM), `NoiseSource` (AWGN), `Replay`,
-                     `PatternSource` (const/counter/PRBS/impulse test patterns).
-- **mixing/**     : `Mixer` (complex, runtime up/down), `DDC`, `DUC`.
-- **filter/**     : `FIRFilter`/`FIRFilterComplex` (direct & symmetric), `FIRDecimator`/
-                     `FIRInterpolator` (polyphase, single-MAC), `CICDecimator`/`CICInterpolator`,
-                     `HalfbandDecimator`/`HalfbandInterpolator`, `IIRBiquad`/`IIRBiquadCascade`
-                     (DF2T), `DCBlocker`, `MovingAverage`, `Hilbert`, `PulseShaper` (RRC),
-                     `FarrowInterpolator`, `RationalResampler`, `ArbResampler`, `Notch`,
-                     `CombFilter`, `Allpass`, `design.py` (coefficients).
-- **rate/**       : `Downsampler`, `Upsampler` (naive), `Decimator`, `Interpolator` (CIC/FIR).
-- **level/**      : `Gain`, `Power`, `Saturate`, `Clipper`, `EnvelopeDetector`, `Squelch`,
-                     `AGC`, `RMS`, `Log2`/`LogPower` (dB).
-- **correction/** : `DCOffset`, `IQBalance`, `Derotator` (CFO).
-- **comm/**       : `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `SymbolMapper`,
-                     `DifferentialEncoder`/`Decoder`, `Scrambler`/`Descrambler`, `CRC`,
-                     `ConvEncoder`, `ViterbiDecoder` (hard-decision, register-exchange),
-                     `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M or Gardner TED),
-                     `CPInsert`/`CPRemove` (OFDM cyclic prefix).
-- **stream/**     : `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`,
-                     `Conjugate`/`SwapIQ`/`Negate`, offset-binary converters,
-                     `IQClockDomainCrossing`, `SkidBuffer`, `Capture` (scope), `StreamFIFO`
-                     (elastic buffer), `IQPack`/`IQUnpack` (wide-bus packing),
-                     `CSRSource`/`CSRSink`/`NullSink` (bus-driven I/O),
-                     `StreamFramer`/`StreamDeframer` (first/last ↔ AXI-Stream `tlast`),
-                     `DMACapture`/`DMAReplay` (stream ↔ memory over Wishbone or LiteDRAM DMA).
-- **frontend/**   : boundary adapters — `ADCInterface`/`DACInterface` (raw converter words),
-                     `IQPacketizer`/`IQDepacketizer` (framed host-link words, LitePCIe-ready),
-                     `UDPIQStreamer`/`UDPIQReceiver` (I/Q packets over LiteEth UDP).
-- **analysis/**   : `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`,
-                     `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`,
-                     `EnergyDetector`, `FrequencyEstimator`, `ErrorCounter` (SER/BER loopback).
-- **numeric/control** : `ISqrt`, `PILoop`.
-- **parallel**    : multi-sample-per-cycle datapaths (N samples/clk for rates above the fabric
-                     clock): `iq_layout(dw, n_samples)` lanes, `IQSerialToParallel`/
-                     `IQParallelToSerial` adapters, `ParallelNCO`, `ParallelMixer`,
-                     `ParallelFIRFilter`/`ParallelFIRFilterComplex`, `ParallelCICDecimator`
-                     (unrolled Hogenauer, serial output) and the `ParallelDDC` composite
-                     (gigasample RX front-end) — all bit-identical to their serial counterparts.
-- **examples/**   : `ddc_chain.py`, `duc_chain.py`, `spectrum_analyzer.py`, `fm_receiver.py`
-                     (FM demod + audio decimation), `qpsk_rx.py` (matched filter -> timing
-                     recovery -> slicer, recovers QPSK at SER 0), `wideband_rx.py` (DDC -> FIFO ->
-                     framer -> wide-word pack), `loopback_ber.py` (PRBS self-check), `integrated_ip.py`
-                     (AXI-Stream + aggregated CSR map preview). See `examples/README.md`.
-- **software/**   : host-side drivers over `litex_server` (`RemoteClient`): tune NCOs in Hz,
-                     reload FIR taps, drain captures to NumPy, run DMA windows; register-map
-                     auto-discovery + `litedsp_cli` (`info`/`nco`/`capture`/`spectrum`).
-- **bench/**      : hardware proof points on litex-boards targets: `spectrum.py` (tone + AWGN →
-                     DDC → capture, controlled over UARTBone; Arty / Colorlight 5A-75B) with the
-                     host-side check `test_spectrum.py` (litex_server + NumPy PSD).
-- **sim/**        : Verilator (real HDL) checks: generic co-simulation of blocks vs the NumPy
-                     models (`python3 sim/run_blocks.py`; `run_nco.py`/`run_fir.py` for the
-                     special shapes) and a full-registry lint sweep (`python3 sim/run_lint.py`).
-- **impl/**       : FPGA implementation tests — Yosys/nextpnr (ECP5) + Vivado (xc7a200t)
-                     synth/P&R with resource + fmax budgets (`python3 impl/run.py`). See
-                     `doc/implementation.md`; per-block numbers in `doc/resources.md`.
-- **flow/**       : assemble blocks into a chain from a JSON netlist and generate the chain
-                     Verilog + CSR register map + an AXI-Stream/AXI-Lite IP core (`litedsp_flow
-                     flow.json`). A DearPyGui editor (`litedsp/gui/`, `litedsp_gui`) produces/
-                     consumes the netlist. See `doc/flow.md`.
-- **gen.py**      : standalone core generator in the LiteX-ecosystem style: `litedsp_gen
-                     config.yml` turns a YAML flow description into a Verilog core (AXI-Stream
-                     data + AXI-Lite control) + `csr.csv`/`csr.json`/`csr.h` register map.
+| Tool               | What it does                                                       | Run |
+|--------------------|--------------------------------------------------------------------|-----|
+| Flow (`flow/`)     | JSON netlist → chain Verilog + CSR map + AXI-Stream/AXI-Lite IP core | `litedsp_flow flow.json` |
+| GUI (`gui/`)       | DearPyGui node editor for flow netlists (GNU-Radio-Companion style), with **live mode**: connect to a running SoC and tune NCOs/gains/FIR taps, watch the PSD | `litedsp_gui` |
+| Generator (`gen.py`) | Standalone core in the LiteX-ecosystem style: YAML → Verilog core + `csr.csv`/`csr.json`/`csr.h` | `litedsp_gen config.yml` |
+| Software (`software/`) | Host-side drivers over `litex_server`: tune in Hz, reload taps, drain captures to NumPy, run DMA windows; register-map auto-discovery | `litedsp_cli info` |
+| Examples (`examples/`) | Assembled chains: DDC/DUC, spectrum analyzer, FM receiver, QPSK RX, wideband RX, PRBS loopback BER, AXI IP preview | `python3 examples/fm_receiver.py` |
+| Tests (`test/`)    | Golden-model harness: NumPy reference models, bit-exact/SNR checks under randomized backpressure | `python3 -m unittest discover -s test` |
+| Sim (`sim/`)       | Verilator (real HDL) co-simulation vs the NumPy models + full-registry lint sweep | `python3 sim/run_blocks.py` |
+| Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
+| Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |
+
+[> Documentation
+----------------
+
+| Document                  | Content                                                    |
+|---------------------------|------------------------------------------------------------|
+| `doc/interfaces.md`       | The block contract: streaming, control, conventions checklist |
+| `doc/fixed_point.md`      | Qm.n conventions, rounding/saturation rules                 |
+| `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |
+| `doc/flow.md`             | Netlist format, flow/GUI usage, IP core generation          |
+| `doc/resources.md`        | Per-block LUT/FF/BRAM/DSP + fmax table (generated)          |
+| `doc/implementation.md`   | The impl/ flows and budget gating                           |
+| `CONTRIBUTING.md`         | New-block checklist, tests, commit conventions              |
 
 [> Tests
 --------
