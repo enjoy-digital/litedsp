@@ -81,6 +81,11 @@ def run_stream(dut, sink_samples, n_out, sink_fields, source_fields,
 
 def to_signed(values, width):
     """Reinterpret unsigned captured values as signed ``width``-bit (idempotent)."""
+    if width >= 63:
+        # Exceeds int64 (e.g. Goertzel's 2*SW power output): use Python ints (object dtype).
+        mask = (1 << width) - 1
+        return np.array([(v & mask) - (1 << width) if (v & mask) >> (width - 1) else (v & mask)
+                         for v in (int(x) for x in np.atleast_1d(values))], dtype=object)
     values = np.asarray(values, dtype=np.int64) & ((1 << width) - 1)
     return np.where(values >= (1 << (width-1)), values - (1 << width), values)
 
