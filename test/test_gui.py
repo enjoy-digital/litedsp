@@ -8,6 +8,7 @@
 rendering needs a display and is not unit-tested; we only assert litedsp.gui.app imports headlessly."""
 
 import os
+import importlib.util
 import unittest
 
 from litedsp.flow import netlist as nlmod
@@ -65,6 +66,7 @@ class TestImport(unittest.TestCase):
         self.assertTrue(hasattr(litedsp.gui.app, "main"))
 
 
+@unittest.skipUnless(importlib.util.find_spec("dearpygui"), "dearpygui not installed")
 class TestLoadRoundTrip(unittest.TestCase):
     def test_load_then_save_round_trips(self):
         # DearPyGui items can be created without a viewport, so the load path runs headless.

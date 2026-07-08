@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
+      fail-fast: false                # One shard's failure should not mask the others.
       matrix:
         python-version: ["3.9", "3.11"]
         shard: [0, 1, 2, 3]
@@ -30,6 +31,9 @@ jobs:
           # Migen + LiteX (gateware framework).
           pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
           pip install git+https://github.com/enjoy-digital/litex.git
+          # Ecosystem cores exercised by the integration tests (DMA backends, UDP streamers).
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
 
       - name: Run test suite (shard ${{ matrix.shard }}/4)
         run: |
