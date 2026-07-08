@@ -6,6 +6,11 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- `bench/`: board-level proof points (LiteX-ecosystem style) — `spectrum.py` builds a
+  tone+AWGN → DDC → Capture SoC with UARTBone on litex-boards targets (Arty,
+  Colorlight 5A-75B), `test_spectrum.py` drives it from the host and checks the PSD peak;
+  CI elaborates every bench board.
+- `IQAdd` (saturating complex adder) and `CSRReader` (bus-paced buffer readout) stream blocks.
 - `litedsp/frontend/`: boundary adapters — `ADCInterface`/`DACInterface` (raw converter words
   <-> Q1.(N-1) streams), `IQPacketizer`/`IQDepacketizer` (framed wide-word host-link glue for
   LitePCIe DMA & co), `UDPIQStreamer`/`UDPIQReceiver` (I/Q sample packets over LiteEth UDP).
