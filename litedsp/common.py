@@ -22,16 +22,41 @@ from migen import *
 
 # Layouts ------------------------------------------------------------------------------------------
 
-def real_layout(data_width=16):
-    """Stream payload layout for a real signed sample."""
-    return [("data", (data_width, True))]
+def real_layout(data_width=16, n_samples=1):
+    """Stream payload layout for real signed samples (``n_samples`` lanes per beat if > 1)."""
+    if n_samples == 1:
+        return [("data", (data_width, True))]
+    return [("data", n_samples*data_width)]
 
-def iq_layout(data_width=16):
-    """Stream payload layout for complex signed I/Q samples (Q1.(N-1) by default)."""
+def real_lanes(endpoint, data_width, n_samples):
+    """Per-lane ``data`` bit-slices of a multi-sample real endpoint (lane 0 = first sample)."""
+    return [endpoint.data[k*data_width:(k + 1)*data_width] for k in range(n_samples)]
+
+def iq_layout(data_width=16, n_samples=1):
+    """Stream payload layout for complex signed I/Q samples (Q1.(N-1) by default).
+
+    With ``n_samples > 1`` the layout carries that many I/Q pairs per beat (multi-sample-per-
+    cycle datapaths for rates above the fabric clock): lanes are concatenated LSB-first in each
+    field (lane 0 = first/oldest sample) and extracted with :func:`iq_lanes`.
+    """
+    if n_samples == 1:
+        return [
+            ("i", (data_width, True)),
+            ("q", (data_width, True)),
+        ]
     return [
-        ("i", (data_width, True)),
-        ("q", (data_width, True)),
+        ("i", n_samples*data_width),
+        ("q", n_samples*data_width),
     ]
+
+def iq_lanes(endpoint, data_width, n_samples):
+    """Per-lane ``(i, q)`` bit-slices of a multi-sample endpoint (lane 0 = first sample).
+
+    Slices are raw bits: assign them to/from ``(data_width, True)`` Signals to reinterpret the
+    sign before arithmetic.
+    """
+    return [(endpoint.i[k*data_width:(k + 1)*data_width],
+             endpoint.q[k*data_width:(k + 1)*data_width]) for k in range(n_samples)]
 
 # Fixed-Point Format -------------------------------------------------------------------------------
 

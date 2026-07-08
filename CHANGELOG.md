@@ -6,6 +6,11 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock:
+  `iq_layout`/`real_layout` gain an `n_samples` lane dimension (+ `iq_lanes`/`real_lanes`
+  helpers), with `IQSerialToParallel`/`IQParallelToSerial` adapters and the first parallel
+  blocks — `ParallelNCO`, `ParallelMixer`, `ParallelFIRFilter` — each bit-identical to its
+  serial counterpart on the flattened lane stream.
 - GUI live mode: Connect opens a litex_server session on the SoC's `csr.csv`
   (`litedsp/gui/live.py`) and builds runtime controls for every discovered block — NCO tuning
   in Hz, FIR tap reload, capture trigger with an in-editor PSD plot.
