@@ -243,6 +243,14 @@ class FlowEditor:
                         tag=f"live_taps_{prefix}")
                     dpg.add_button(label=f"Load {prefix}", user_data=prefix,
                         callback=self.on_live_taps)
+            # Gains: linear factor.
+            for prefix in sorted(live.gains):
+                dpg.add_input_float(label=f"{prefix} (linear)", default_value=1.0, width=160,
+                    user_data=prefix, callback=self.on_live_gain)
+            # Mixers: up/down mode.
+            for prefix in sorted(live.mixers):
+                dpg.add_combo(("down", "up"), label=f"{prefix} mode", default_value="down",
+                    width=100, user_data=prefix, callback=self.on_live_mixer)
             # Capture + PSD plot.
             if live.captures and live.readers:
                 with dpg.group(horizontal=True):
@@ -262,6 +270,18 @@ class FlowEditor:
             self.live.tune(prefix, float(value))
         except Exception as e:
             self._log(f"Tune {prefix} failed:\n{e}")
+
+    def on_live_gain(self, sender, value, prefix):
+        try:
+            self.live.blocks[prefix].set_gain(float(value))
+        except Exception as e:
+            self._log(f"Gain {prefix} failed:\n{e}")
+
+    def on_live_mixer(self, sender, value, prefix):
+        try:
+            self.live.blocks[prefix].set_mode(value)
+        except Exception as e:
+            self._log(f"Mixer {prefix} failed:\n{e}")
 
     def on_live_taps(self, sender, app_data, prefix):
         try:

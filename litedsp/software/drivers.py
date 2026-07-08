@@ -187,6 +187,44 @@ class FramerDriver(Driver):
     def set_length(self, length):
         self.length.write(length)
 
+class GainDriver(Driver):
+    """Gain block: linear gain (Q2.(N-2) mantissa + shift), bypass, saturation flag."""
+    regs       = ("gain", "control", "status")
+    data_width = 16
+
+    def set_gain(self, linear, shift=0, bypass=False):
+        """Set a linear gain factor (float, 1.0 = unity) with an extra ``>> shift``."""
+        mantissa = int(round(linear * (1 << (self.data_width - 2))))
+        self.gain.write(mantissa & ((1 << self.data_width) - 1))
+        self.control.write((shift & 0b11) | (int(bypass) << 2))
+
+    @property
+    def saturated(self):
+        return bool(self.status.read() & 0b1)
+
+    def clear_saturation(self):
+        self.control.write(self.control.read() | (1 << 3))   # clear_sat is a pulse field.
+
+class MixerDriver(Driver):
+    """Complex mixer: runtime up/down mode + bypass. (Heuristic signature: a lone 'control'.)"""
+    regs = ("control",)
+
+    def set_mode(self, mode):
+        assert mode in ("down", "up")
+        v = self.control.read()
+        self.control.write((v & ~0b1) | (0 if mode == "down" else 1))
+
+    def set_bypass(self, bypass):
+        v = self.control.read()
+        self.control.write((v & ~(0b11 << 8)) | ((bypass & 0b11) << 8))
+
+class PLLDriver(Driver):
+    """Carrier loop / PLL: recovered-frequency readback (PI integrator, phase units)."""
+    regs = ("frequency",)
+
+    def get_frequency_raw(self):
+        return self.frequency.read()
+
 class FIRDriver(Driver):
     """FIR filter with CSR-reloadable coefficients (``coeff_0`` ... ``coeff_{n-1}``)."""
     regs       = ("coeff_0",)
@@ -214,7 +252,7 @@ class FIRDriver(Driver):
 # Discovery ----------------------------------------------------------------------------------------
 
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
-           FramerDriver, FIRDriver]
+           FramerDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

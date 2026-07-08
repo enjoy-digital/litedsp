@@ -13,7 +13,8 @@ the discovered prefixes are the netlist block ids, so live controls line up with
 Testable headless by injecting any bus with ``regs``/``constants``.
 """
 
-from litedsp.software.drivers import discover, NCODriver, CaptureDriver, CSRReaderDriver, FIRDriver
+from litedsp.software.drivers import (discover, NCODriver, CaptureDriver, CSRReaderDriver,
+    FIRDriver, GainDriver, MixerDriver)
 
 # Live Session -------------------------------------------------------------------------------------
 
@@ -52,6 +53,10 @@ class LiveSession:
     def captures(self): return self.of_type(CaptureDriver)
     @property
     def readers(self):  return self.of_type(CSRReaderDriver)
+    @property
+    def gains(self):    return self.of_type(GainDriver)
+    @property
+    def mixers(self):   return self.of_type(MixerDriver)
 
     # Runtime operations the GUI binds to.
     def tune(self, prefix, freq):

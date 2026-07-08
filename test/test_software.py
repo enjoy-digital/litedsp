@@ -9,7 +9,7 @@
 import unittest
 
 from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, discover,
-    NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver)
+    NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -98,18 +98,44 @@ class TestFIRDriver(unittest.TestCase):
         self.assertEqual(bus.regs.fir_coeff_1.writes, [-1 & 0xFFFF])
         self.assertEqual(bus.regs.fir_coeff_2.writes, [1 << 14])
 
+class TestGainDriver(unittest.TestCase):
+    def test_set_gain_and_saturation(self):
+        bus = MockBus({"g0_gain": MockCSR(), "g0_control": MockCSR(), "g0_status": MockCSR(1)})
+        g = GainDriver(bus, "g0")
+        g.set_gain(2.0, shift=1)
+        self.assertEqual(bus.regs.g0_gain.writes,    [2 << 14])   # 2.0 in Q2.14.
+        self.assertEqual(bus.regs.g0_control.writes, [0b01])
+        self.assertTrue(g.saturated)
+        g.clear_saturation()
+        self.assertEqual(bus.regs.g0_control.writes[-1] & (1 << 3), 1 << 3)
+
+class TestMixerDriver(unittest.TestCase):
+    def test_mode_and_bypass(self):
+        bus = MockBus({"mix_control": MockCSR()})
+        m = MixerDriver(bus, "mix")
+        m.set_mode("up")
+        self.assertEqual(bus.regs.mix_control.value & 0b1, 1)
+        m.set_mode("down")
+        self.assertEqual(bus.regs.mix_control.value & 0b1, 0)
+        m.set_bypass(0b01)
+        self.assertEqual((bus.regs.mix_control.value >> 8) & 0b11, 0b01)
+
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):
         regs = {"nco_phase_inc": MockCSR(), "ddc_nco_phase_inc": MockCSR(),
                 "capture_threshold": MockCSR(), "capture_force": MockCSR(),
                 "capture_status": MockCSR(),
-                "reader_data": MockCSR(), "reader_valid": MockCSR(), "reader_pop": MockCSR()}
+                "reader_data": MockCSR(), "reader_valid": MockCSR(), "reader_pop": MockCSR(),
+                "g0_gain": MockCSR(), "g0_control": MockCSR(), "g0_status": MockCSR(),
+                "mix_control": MockCSR()}
         found = discover(MockBus(regs), clk_freq=100e6)
         self.assertIsInstance(found["nco"],     NCODriver)
         self.assertIsInstance(found["ddc_nco"], NCODriver)
         self.assertIsInstance(found["capture"], CaptureDriver)
         self.assertIsInstance(found["reader"],  CSRReaderDriver)
-        self.assertEqual(len(found), 4)
+        self.assertIsInstance(found["g0"],      GainDriver)     # More specific than Mixer.
+        self.assertIsInstance(found["mix"],     MixerDriver)
+        self.assertEqual(len(found), 6)
 
 if __name__ == "__main__":
     unittest.main()
