@@ -92,7 +92,7 @@ from for client-specific requirements.
                      (`python3 sim/run_nco.py`, `sim/run_fir.py`).
 - **impl/**       : FPGA implementation tests — Yosys/nextpnr (ECP5) + Vivado (xc7a200t)
                      synth/P&R with resource + fmax budgets (`python3 impl/run.py`). See
-                     `doc/implementation.md`.
+                     `doc/implementation.md`; per-block numbers in `doc/resources.md`.
 - **flow/**       : assemble blocks into a chain from a JSON netlist and generate the chain
                      Verilog + CSR register map + an AXI-Stream/AXI-Lite IP core (`litedsp_flow
                      flow.json`). A DearPyGui editor (`litedsp/gui/`, `litedsp_gui`) produces/

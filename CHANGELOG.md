@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- `CONTRIBUTING.md` (new-block checklist, tests, commit conventions) and `doc/resources.md` —
+  a per-block LUT/FF/BRAM/DSP + Fmax table generated from the implementation budgets
+  (`python3 impl/report.py`).
 - Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock:
   `iq_layout`/`real_layout` gain an `n_samples` lane dimension (+ `iq_lanes`/`real_lanes`
   helpers), with `IQSerialToParallel`/`IQParallelToSerial` adapters and the first parallel
