@@ -12,7 +12,7 @@ Top toolbar: add top-level AXI-Stream input/output ports, Load/Save the netlist 
 (chain Verilog) / Generate IP (AXI-Stream + AXI-Lite + register map). All generation goes through
 the headless backend (:mod:`litedsp.flow`), so the GUI adds no codegen logic.
 
-Run: ``python -m gui.app``.
+Run: ``litedsp_gui``.
 """
 
 import os
@@ -23,8 +23,8 @@ from litedsp.flow import registry
 from litedsp.flow.generate import generate
 from litedsp.flow.ipcore   import generate_ip
 
-from gui import graph, palette
-from gui.params import coerce_params
+from litedsp.gui import graph, palette
+from litedsp.gui.params import coerce_params
 
 
 class FlowEditor:

@@ -33,8 +33,9 @@ from for client-specific requirements.
 ---------
 
 - `litedsp/`           : the toolbox (generation, mixing, filter, rate, level, correction,
-                         analysis, stream) + `flow/` (block-graph → Verilog/CSR/AXI IP generator).
-- `gui/`               : DearPyGui flow-graph editor (GNU-Radio-Companion style).
+                         analysis, stream) + `flow/` (block-graph → Verilog/CSR/AXI IP generator)
+                         + `gui/` (DearPyGui flow-graph editor, GNU-Radio-Companion style)
+                         + `gen.py` (standalone core generator, YAML → Verilog + CSR map).
 - `test/`              : golden-model harness, NumPy reference models, per-block tests.
 - `examples/`          : assembled chains (DDC, DUC, repeater).
 - `doc/`               : architecture, interface contract, fixed-point conventions, flow tooling.
@@ -79,9 +80,12 @@ from for client-specific requirements.
                      synth/P&R with resource + fmax budgets (`python3 impl/run.py`). See
                      `doc/implementation.md`.
 - **flow/**       : assemble blocks into a chain from a JSON netlist and generate the chain
-                     Verilog + CSR register map + an AXI-Stream/AXI-Lite IP core
-                     (`python3 -m litedsp.flow.generate flow.json`). A DearPyGui editor (`gui/`,
-                     `python3 -m gui.app`) produces/consumes the netlist. See `doc/flow.md`.
+                     Verilog + CSR register map + an AXI-Stream/AXI-Lite IP core (`litedsp_flow
+                     flow.json`). A DearPyGui editor (`litedsp/gui/`, `litedsp_gui`) produces/
+                     consumes the netlist. See `doc/flow.md`.
+- **gen.py**      : standalone core generator in the LiteX-ecosystem style: `litedsp_gen
+                     config.yml` turns a YAML flow description into a Verilog core (AXI-Stream
+                     data + AXI-Lite control) + `csr.csv`/`csr.json`/`csr.h` register map.
 
 [> Tests
 --------

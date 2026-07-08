@@ -8,6 +8,6 @@
 
 This package is a thin front-end: it only produces/consumes the tool-agnostic netlist JSON
 (:mod:`litedsp.flow.netlist`) and calls the headless code generators (:mod:`litedsp.flow.generate`,
-:mod:`litedsp.flow.ipcore`). All graph<->netlist logic lives in :mod:`gui.graph` (pure, tested);
-:mod:`gui.app` is the DearPyGui rendering. Run with ``python -m gui.app``.
+:mod:`litedsp.flow.ipcore`). All graph<->netlist logic lives in :mod:`litedsp.gui.graph` (pure, tested);
+:mod:`litedsp.gui.app` is the DearPyGui rendering. Run with ``litedsp_gui``.
 """

@@ -16,9 +16,22 @@ setup(
     long_description_content_type = "text/markdown",
     author           = "Florent Kermarrec",
     author_email     = "florent@enjoy-digital.fr",
+    url              = "https://github.com/enjoy-digital/litedsp",
     license          = "BSD-2-Clause",
     python_requires  = ">=3.7",
-    packages         = find_packages(exclude=("test*", "examples*")),
-    install_requires = ["migen", "litex"],
+    packages         = find_packages(include=("litedsp", "litedsp.*")),
+    install_requires = ["migen", "litex", "pyyaml"],
+    extras_require   = {
+        "design": ["numpy"],      # Filter coefficient design (litedsp/filter/design.py).
+        "gui":    ["dearpygui"],  # Flow-graph editor (litedsp/gui).
+    },
     include_package_data = True,
+    package_data     = {"litedsp.flow": ["examples/*.json"]},
+    entry_points = {
+        "console_scripts": [
+            "litedsp_gen  = litedsp.gen:main",
+            "litedsp_flow = litedsp.flow.generate:main",
+            "litedsp_gui  = litedsp.gui.app:main",
+        ],
+    },
 )

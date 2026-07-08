@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Tests for the GUI's pure logic (graph<->netlist, param coercion, palette). The DearPyGui
-rendering needs a display and is not unit-tested; we only assert gui.app imports headlessly."""
+rendering needs a display and is not unit-tested; we only assert litedsp.gui.app imports headlessly."""
 
 import os
 import unittest
@@ -13,8 +13,8 @@ import unittest
 from litedsp.flow import netlist as nlmod
 from litedsp.flow import registry
 
-from gui import graph, palette
-from gui.params import coerce, coerce_params
+from litedsp.gui import graph, palette
+from litedsp.gui.params import coerce, coerce_params
 
 
 def _ddc():
@@ -61,8 +61,8 @@ class TestPalette(unittest.TestCase):
 
 class TestImport(unittest.TestCase):
     def test_app_imports_headless(self):
-        import gui.app                          # must import without a display.
-        self.assertTrue(hasattr(gui.app, "main"))
+        import litedsp.gui.app                          # must import without a display.
+        self.assertTrue(hasattr(litedsp.gui.app, "main"))
 
 
 if __name__ == "__main__":

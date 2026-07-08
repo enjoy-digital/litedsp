@@ -54,13 +54,16 @@ referenced by their bare id. See `litedsp/flow/examples/`.
 
 ```bash
 # Chain Verilog:
-python -m litedsp.flow.generate litedsp/flow/examples/ddc.json --out build/ddc
+litedsp_flow litedsp/flow/examples/ddc.json --out build/ddc
 
-# AXI IP core + register map (csr.csv / csr.json / csr.h):
+# Standalone core (AXI IP + csr.csv / csr.json / csr.h) from a YAML config (see litedsp/gen.py):
+litedsp_gen examples/ddc_core.yml --output-dir build/ddc_core
+
+# ...or directly from a netlist JSON:
 python -c "from litedsp.flow.ipcore import generate_ip; generate_ip('litedsp/flow/examples/ddc.json','build/ddc_ip')"
 
 # GUI editor (needs a display; DearPyGui):
-python -m gui.app
+litedsp_gui
 ```
 
 The IP core exposes a `s_axil_*` AXI-Lite slave for configuration and, per top-level netlist I/O,
@@ -74,7 +77,7 @@ an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
   tested (`test/test_flow.py`): netlist-assembled chains are bit-identical to hand-wired
   equivalents, and an AXI-Lite write at a mapped address reaches the right block's CSR in
   simulation.
-- Phase 3 (DearPyGui editor, `gui/`) is functional; its pure graph↔netlist logic is tested
+- Phase 3 (DearPyGui editor, `litedsp/gui/`) is functional; its pure graph↔netlist logic is tested
   (`test/test_gui.py`), the rendering needs a display.
 - Next: in-canvas netlist *load* (round-trip positions), optional auto-`Delay` balancing on
   reconvergent paths, and packaging the IP for Vivado IP-integrator.
