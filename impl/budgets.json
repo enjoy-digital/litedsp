@@ -371,9 +371,9 @@
     "ecp5": {
       "bram": 0,
       "dsp": 17,
-      "ff": 143,
-      "fmax_min": 29.5,
-      "lut": 1086
+      "ff": 336,
+      "fmax_min": 51.9,
+      "lut": 1374
     },
     "xilinx": {
       "bram": 0,

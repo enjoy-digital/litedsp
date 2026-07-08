@@ -25,6 +25,7 @@ class Goertzel(LiteXModule):
     ``s1**2 + s2**2 - coeff*s1*s2`` on ``source`` and restarts. Cheap DTMF / pilot detection.
     """
     def __init__(self, N, k, data_width=16, coeff_frac=14, with_csr=True):
+        assert N >= 4                                     # Power pipeline spans 2 cycles.
         self.N = N
         self.k = k
         coeff = int(round(2*math.cos(2*math.pi*k/N)*(1 << coeff_frac)))
@@ -41,21 +42,35 @@ class Goertzel(LiteXModule):
             self.sink.ready.eq(1),
             s.eq(self.sink.data + ((coeff*s1) >> coeff_frac) - s2),
         ]
-        # Power from the post-update states (new s1 = s, new s2 = s1).
-        power = Signal((2*SW, True))
-        self.comb += power.eq(s*s + s1*s1 - ((coeff*((s*s1) >> coeff_frac)) >> coeff_frac))
+        # Power from the final states (new s1 = s, new s2 = s1), computed over a 2-stage
+        # registered pipeline after the window boundary — done combinationally it chained three
+        # multiplies onto the resonator and was the block's critical path. Bit-identical result,
+        # emitted two cycles after the last window sample.
+        f1, f2 = Signal((SW, True)), Signal((SW, True))
+        p1     = Signal((2*SW + 1, True))
+        p2     = Signal((2*SW + 1, True))
+        phase  = Signal(2)
         self.sync += [
             If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
             If(self.sink.valid,
                 s1.eq(s), s2.eq(s1),
                 If(count == (N - 1),
                     count.eq(0), s1.eq(0), s2.eq(0),
-                    self.source.data.eq(power),
-                    self.source.valid.eq(1),
+                    f1.eq(s), f2.eq(s1),
+                    phase.eq(1),
                 ).Else(
                     count.eq(count + 1),
                 )
-            )
+            ),
+            If(phase == 1,
+                p1.eq(f1*f1 + f2*f2),
+                p2.eq(coeff*((f1*f2) >> coeff_frac)),
+                phase.eq(2),
+            ).Elif(phase == 2,
+                self.source.data.eq(p1 - (p2 >> coeff_frac)),
+                self.source.valid.eq(1),
+                phase.eq(0),
+            ),
         ]
 
         if with_csr:
