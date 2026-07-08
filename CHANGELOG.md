@@ -6,6 +6,9 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- `litedsp/frontend/`: boundary adapters — `ADCInterface`/`DACInterface` (raw converter words
+  <-> Q1.(N-1) streams), `IQPacketizer`/`IQDepacketizer` (framed wide-word host-link glue for
+  LitePCIe DMA & co), `UDPIQStreamer`/`UDPIQReceiver` (I/Q sample packets over LiteEth UDP).
 - IRQ support (`with_irq=True`, LiteX `EventManager`) on trigger-type blocks: `Squelch`
   (gate opened/closed), `EnergyDetector` (signal detected), `Capture` (buffer ready — also new
   `done` status), `AGC` (gain railed — also new `railed` status), so software no longer polls.

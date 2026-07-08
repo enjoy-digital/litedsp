@@ -66,6 +66,9 @@ from for client-specific requirements.
                      `CSRSource`/`CSRSink`/`NullSink` (bus-driven I/O),
                      `StreamFramer`/`StreamDeframer` (first/last ↔ AXI-Stream `tlast`),
                      `DMACapture`/`DMAReplay` (stream ↔ memory over Wishbone or LiteDRAM DMA).
+- **frontend/**   : boundary adapters — `ADCInterface`/`DACInterface` (raw converter words),
+                     `IQPacketizer`/`IQDepacketizer` (framed host-link words, LitePCIe-ready),
+                     `UDPIQStreamer`/`UDPIQReceiver` (I/Q packets over LiteEth UDP).
 - **analysis/**   : `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`,
                      `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`,
                      `EnergyDetector`, `FrequencyEstimator`, `ErrorCounter` (SER/BER loopback).

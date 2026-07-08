@@ -64,6 +64,30 @@ litedsp_gen examples/ddc_core.yml --output-dir build
 This produces the core Verilog plus the register map artifacts (`csr.csv`, `csr.json`, `csr.h`)
 to drive it from software. See `litedsp/gen.py` and `flow.md` for the config/netlist schema.
 
+## Getting samples in and out
+
+`litedsp/frontend/` holds the boundary adapters:
+
+- **Converters**: `ADCInterface` / `DACInterface` adapt raw converter words (two's-complement or
+  offset-binary, any resolution ≤ `data_width`) to the chain's left-aligned Q1.(N-1) streams.
+- **Memory**: `litedsp/stream/dma.py` `DMACapture` / `DMAReplay` move streams to/from memory over
+  Wishbone DMA or a LiteDRAM native port (`soc.sdram.crossbar.get_port()`).
+- **Ethernet**: `UDPIQStreamer` / `UDPIQReceiver` send/receive fixed-size UDP sample packets
+  through a LiteEth UDP core.
+- **PCIe (or any tlast DMA)**: `IQPacketizer` / `IQDepacketizer` produce/consume a framed
+  `data`+`last` word stream that connects directly to a LitePCIe DMA endpoint:
+
+```python
+self.packetizer = IQPacketizer(data_width=16, word_width=64, samples_per_packet=1024)
+self.comb += [
+    chain.source.connect(self.packetizer.sink),
+    self.packetizer.source.connect(self.pcie_dma0.sink),   # LitePCIeDMA writer.
+]
+```
+
+For debug-style visibility (rather than data transport), `Capture` + the `analysis/` blocks play
+the role LiteScope plays for logic: trigger, record, inspect over the bridge.
+
 ## Software access
 
 CSR fields are documented in the generated register map. Inside a LiteX SoC, the registers are
