@@ -27,7 +27,7 @@ class FarrowInterpolator(LiteXModule):
     def __init__(self, data_width=16, frac_bits=15, with_csr=True):
         self.data_width = data_width
         self.frac_bits  = frac_bits
-        self.latency    = 1
+        self.latency    = 3                      # One register per Horner multiply stage.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.mu     = Signal(frac_bits)          # Fractional position in [0, 1).
@@ -62,19 +62,25 @@ class FarrowInterpolator(LiteXModule):
                 a2.eq((2*xm1 - 5*x0 + 4*x1 - x2) >> 1),
                 a3.eq((-xm1 + 3*x0 - 3*x1 + x2) >> 1),
             ]
-            # Horner: y = a0 + mu*(a1 + mu*(a2 + mu*a3)).
-            y2 = Signal((data_width + 6, True))
-            y1 = Signal((data_width + 6, True))
-            self.comb += [
-                y2.eq(a2 + ((mu*a3) >> frac_bits)),
-                y1.eq(a1 + ((mu*y2) >> frac_bits)),
-            ]
-            y0, _ = scaled(a0*(1 << frac_bits) + mu*y1, frac_bits, data_width)
-            self.sync += If(adv, getattr(self.source, field).eq(y0))
+            # Horner: y = a0 + mu*(a1 + mu*(a2 + mu*a3)), one register per multiply stage
+            # (a0/a1 delayed alongside) so a single DSP level remains per clock.
+            y2    = Signal((data_width + 6, True))
+            y1    = Signal((data_width + 6, True))
+            a1_d  = Signal((data_width + 2, True))
+            a0_d  = Signal((data_width, True))
+            a0_d2 = Signal((data_width, True))
+            self.sync += If(adv,
+                y2.eq(a2 + ((mu*a3) >> frac_bits)),      # Stage 1.
+                a1_d.eq(a1), a0_d.eq(a0),
+                y1.eq(a1_d + ((mu*y2) >> frac_bits)),    # Stage 2.
+                a0_d2.eq(a0_d),
+                getattr(self.source, field).eq(          # Stage 3.
+                    scaled(a0_d2*(1 << frac_bits) + mu*y1, frac_bits, data_width)[0]),
+            )
 
-        valid = Signal()
-        self.sync += If(adv, valid.eq(self.sink.valid))
-        self.comb += self.source.valid.eq(valid)
+        valid_pipe = Signal(self.latency)
+        self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
+        self.comb += self.source.valid.eq(valid_pipe[-1])
 
         if with_csr:
             self.add_csr()
