@@ -103,11 +103,14 @@ class FlowIPCore(LiteXModule):
 
 # Generation ---------------------------------------------------------------------------------------
 
-def generate_ip(source, build_dir, name=None):
-    """Emit the IP Verilog + register map (csv/json/h) into ``build_dir``. Returns ``(path, ip)``."""
+def generate_ip(source, build_dir, name=None, **core_kwargs):
+    """Emit the IP Verilog + register map (csv/json/h) into ``build_dir``. Returns ``(path, ip)``.
+
+    ``core_kwargs`` are forwarded to :class:`FlowIPCore` (``csr_base``, ``axil_address_width``, ...).
+    """
     from litedsp.flow.generate import emit_verilog
     nl   = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
-    ip   = FlowIPCore(nl)
+    ip   = FlowIPCore(nl, **core_kwargs)
     name = name or (nl.name + "_ip")
     os.makedirs(build_dir, exist_ok=True)
     path = emit_verilog(ip, ip.io_signals(), name, build_dir)   # chdir so .init files land here.

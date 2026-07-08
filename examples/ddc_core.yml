@@ -1,0 +1,38 @@
+#
+# This file is part of LiteDSP.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+# LiteDSP standalone core example: a DDC (NCO + mixer + low-pass FIR + decimation) exposed as an
+# AXI-Stream (data) + AXI-Lite (control) core. Generate with:
+#
+#   litedsp_gen examples/ddc_core.yml --output-dir build
+#
+# The flow section uses the netlist schema (litedsp/flow/netlist.py); a "netlist: file.json"
+# reference can be used instead of an inline flow.
+
+# Core ---------------------------------------------------------------------
+name     : ddc_core
+csr_base : 0x0
+
+# Flow ---------------------------------------------------------------------
+flow:
+  name       : ddc
+  data_width : 16
+  clock_ns   : 10.0
+  inputs     : [{id: rx_in,  layout: iq}]
+  outputs    : [{id: bb_out, layout: iq}]
+  blocks:
+    - {id: lo,   type: nco,         params: {}}
+    - {id: dly,  type: delay,       params: {depth: 1}}
+    - {id: mix,  type: mixer,       params: {}}
+    - {id: lpf,  type: fir_complex, params: {n_taps: 33}}
+    - {id: deci, type: downsampler, params: {}}
+  connections:
+    - {from: rx_in,       to: dly.sink}
+    - {from: dly.source,  to: mix.sink_a}
+    - {from: lo.source,   to: mix.sink_b}
+    - {from: mix.source,  to: lpf.sink}
+    - {from: lpf.source,  to: deci.sink}
+    - {from: deci.source, to: bb_out}
