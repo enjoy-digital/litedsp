@@ -44,21 +44,25 @@ class FlowEditor:
 
     # -- model helpers --------------------------------------------------------------------------
     def _new_id(self, key):
-        self._counter[key] = self._counter.get(key, 0) + 1
-        nid = f"{key}{self._counter[key]}".lower()
-        nid = "".join(c if (c.isalnum() or c == "_") else "_" for c in nid)
-        return nid
+        while True:
+            self._counter[key] = self._counter.get(key, 0) + 1
+            nid = f"{key}{self._counter[key]}".lower()
+            nid = "".join(c if (c.isalnum() or c == "_") else "_" for c in nid)
+            if nid not in self.nodes:                   # Skip ids taken by a loaded netlist.
+                return nid
 
     def _ref(self, attr_id):
         nid, port, _ = self.attrs[attr_id]
         return nid if port is None else f"{nid}.{port}"
 
     # -- node creation --------------------------------------------------------------------------
-    def add_block(self, key):
+    def add_block(self, key, nid=None, pos=None):
         dpg = self.dpg
         spec = self.reg[key]
-        nid  = self._new_id(key)
-        with dpg.node(label=f"{spec.display_name} [{nid}]", parent="editor", tag=f"node_{nid}"):
+        nid  = nid or self._new_id(key)
+        kwargs = {"pos": pos} if pos else {}
+        with dpg.node(label=f"{spec.display_name} [{nid}]", parent="editor", tag=f"node_{nid}",
+                      **kwargs):
             for p in spec.sinks:
                 a = dpg.add_node_attribute(attribute_type=dpg.mvNode_Attr_Input, label=p.name)
                 dpg.add_text(f"> {p.name} ({p.layout})", parent=a)
@@ -84,15 +88,16 @@ class FlowEditor:
                 self.attrs[a] = (nid, p.name, "source")
         self.nodes[nid] = {"type": key, "params": param_tags}
 
-    def add_io(self, kind):
+    def add_io(self, kind, nid=None, pos=None):
         dpg = self.dpg
-        nid = self._new_id("in" if kind == graph.INPUT_TYPE else "out")
+        nid = nid or self._new_id("in" if kind == graph.INPUT_TYPE else "out")
+        kwargs = {"pos": pos} if pos else {}
         with dpg.node(label=f"{'INPUT' if kind == graph.INPUT_TYPE else 'OUTPUT'} [{nid}]",
-                      parent="editor", tag=f"node_{nid}"):
+                      parent="editor", tag=f"node_{nid}", **kwargs):
             direction = "source" if kind == graph.INPUT_TYPE else "sink"
             attr_type = dpg.mvNode_Attr_Output if kind == graph.INPUT_TYPE else dpg.mvNode_Attr_Input
             a = dpg.add_node_attribute(attribute_type=attr_type)
-            dpg.add_text("iq")
+            dpg.add_text("iq", parent=a)
             self.attrs[a] = (nid, None, direction)
         self.nodes[nid] = {"type": kind, "params": {}}
 
@@ -132,6 +137,8 @@ class FlowEditor:
     def do_save(self, sender, app_data):
         try:
             nl = self.to_netlist()
+            nl.editor["positions"] = {nid: list(self.dpg.get_item_pos(f"node_{nid}"))
+                                      for nid in self.nodes}
             path = app_data["file_path_name"]
             nlmod.save(nl, path)
             self._log(f"Saved netlist: {path}")
@@ -139,8 +146,56 @@ class FlowEditor:
             self._log(f"Save failed:\n{e}")
 
     def do_load(self, sender, app_data):
-        self._log("Load: re-open the JSON via the headless CLI for now "
-                  "(in-canvas reload lands next); validated on Generate.")
+        try:
+            nl = nlmod.load(app_data["file_path_name"])
+            self.load_netlist(nl)
+            self._log(f"Loaded netlist: {app_data['file_path_name']} "
+                      f"({len(nl.blocks)} blocks, {len(nl.connections)} connections)")
+        except Exception as e:
+            self._log("Load failed:\n" + "".join(traceback.format_exception_only(type(e), e)))
+
+    def clear_canvas(self):
+        dpg = self.dpg
+        for nid in list(self.nodes):
+            dpg.delete_item(f"node_{nid}")              # Deletes attributes; links die with them.
+        for link in list(self.links):
+            if dpg.does_item_exist(link):
+                dpg.delete_item(link)
+        self.nodes, self.attrs, self.links, self._counter = {}, {}, {}, {}
+
+    def load_netlist(self, nl):
+        """Rebuild the canvas from a netlist (saved positions, or a simple grid fallback)."""
+        dpg = self.dpg
+        self.clear_canvas()
+        dpg.set_value("cfg_name", nl.name)
+        dpg.set_value("cfg_dw",   str(nl.data_width))
+        dpg.set_value("cfg_clk",  str(nl.clock_ns))
+
+        nodes, links = graph.netlist_to_model(nl)
+        positions    = nl.editor.get("positions", {})
+        for k, n in enumerate(nodes):
+            pos = positions.get(n["id"]) or [60 + 240*(k // 4), 60 + 150*(k % 4)]
+            if n["type"] in (graph.INPUT_TYPE, graph.OUTPUT_TYPE):
+                self.add_io(n["type"], nid=n["id"], pos=pos)
+            else:
+                self.add_block(n["type"], nid=n["id"], pos=pos)
+                for pname, value in n["params"].items():
+                    tag = self.nodes[n["id"]]["params"].get(pname)
+                    if tag is None:
+                        continue
+                    dpg.set_value(tag, value if isinstance(value, bool) else str(value))
+
+        ref2attr = {}
+        for a, (nid, port, direction) in self.attrs.items():
+            ref2attr[(nid if port is None else f"{nid}.{port}", direction)] = a
+        for src, dst in links:
+            a_src = ref2attr.get((src, "source"))
+            a_dst = ref2attr.get((dst, "sink"))
+            if a_src is None or a_dst is None:
+                self._log(f"Load: skipping connection {src} -> {dst} (unknown port).")
+                continue
+            link = dpg.add_node_link(a_src, a_dst, parent="editor")
+            self.links[link] = (src, dst)
 
     def do_generate(self, ip=False):
         try:
@@ -238,6 +293,7 @@ class FlowEditor:
                 dpg.add_input_text(label="clock_ns", tag="cfg_clk", default_value="10.0", width=60)
                 dpg.add_button(label="+ Input",  callback=lambda: self.add_io(graph.INPUT_TYPE))
                 dpg.add_button(label="+ Output", callback=lambda: self.add_io(graph.OUTPUT_TYPE))
+                dpg.add_button(label="Load", callback=lambda: dpg.show_item("load_dlg"))
                 dpg.add_button(label="Save", callback=lambda: dpg.show_item("save_dlg"))
                 dpg.add_button(label="Generate",    callback=lambda: self.do_generate(ip=False))
                 dpg.add_button(label="Generate IP", callback=lambda: self.do_generate(ip=True))
@@ -257,6 +313,9 @@ class FlowEditor:
                     delink_callback=self.on_delink, minimap=True)
         with dpg.file_dialog(directory_selector=False, show=False, tag="save_dlg",
                              default_filename="chain.json", callback=self.do_save, width=600, height=400):
+            dpg.add_file_extension(".json")
+        with dpg.file_dialog(directory_selector=False, show=False, tag="load_dlg",
+                             callback=self.do_load, width=600, height=400):
             dpg.add_file_extension(".json")
 
 

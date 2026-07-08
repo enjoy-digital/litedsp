@@ -12,6 +12,8 @@ def coerce(param, raw):
     """Convert a raw widget value/string to the type implied by ``param`` (a ParamSpec)."""
     if raw is None or (isinstance(raw, str) and raw.strip() == ""):
         return param.default
+    if isinstance(raw, str) and raw.strip() == "None":  # Untouched widget for a None default.
+        return None
     if param.kind == "int":
         return int(raw, 0) if isinstance(raw, str) else int(raw)
     if param.kind == "float":

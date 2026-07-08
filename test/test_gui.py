@@ -65,6 +65,56 @@ class TestImport(unittest.TestCase):
         self.assertTrue(hasattr(litedsp.gui.app, "main"))
 
 
+class TestLoadRoundTrip(unittest.TestCase):
+    def test_load_then_save_round_trips(self):
+        # DearPyGui items can be created without a viewport, so the load path runs headless.
+        import dearpygui.dearpygui as dpg
+        from litedsp.gui.app import FlowEditor
+        from litedsp.flow import netlist as nlmod
+
+        nl = nlmod.from_dict({
+            "name": "ddc", "data_width": 16,
+            "inputs":  [{"id": "rx_in",  "layout": "iq"}],
+            "outputs": [{"id": "bb_out", "layout": "iq"}],
+            "blocks": [
+                {"id": "lo",  "type": "nco",         "params": {}},
+                {"id": "mix", "type": "mixer",       "params": {}},
+                {"id": "lpf", "type": "fir_complex", "params": {"n_taps": 33}},
+            ],
+            "connections": [
+                {"from": "rx_in",      "to": "mix.sink_a"},
+                {"from": "lo.source",  "to": "mix.sink_b"},
+                {"from": "mix.source", "to": "lpf.sink"},
+                {"from": "lpf.source", "to": "bb_out"},
+            ],
+            "editor": {"positions": {"lo": [10, 20]}},
+        })
+
+        dpg.create_context()
+        try:
+            editor = FlowEditor()
+            editor.build()
+            editor.load_netlist(nl)
+            self.assertEqual(set(editor.nodes), {"rx_in", "bb_out", "lo", "mix", "lpf"})
+            self.assertEqual(len(editor.links), 4)
+            # Saved position honored, grid fallback applied elsewhere.
+            self.assertEqual(dpg.get_item_pos("node_lo"), [10, 20])
+            # Round trip: the rebuilt canvas serializes back to the same netlist.
+            out = nlmod.to_dict(editor.to_netlist())
+            self.assertEqual(out["name"], "ddc")
+            self.assertEqual({b["id"]: b["type"] for b in out["blocks"]},
+                             {"lo": "nco", "mix": "mixer", "lpf": "fir_complex"})
+            self.assertEqual(next(b for b in out["blocks"] if b["id"] == "lpf")["params"],
+                             {"n_taps": 33})
+            self.assertEqual(sorted((c["from"], c["to"]) for c in out["connections"]),
+                             sorted((c.src, c.dst) for c in nl.connections))
+            # New ids after a load do not collide with loaded ones.
+            editor.add_block("nco")
+            self.assertIn("nco1", editor.nodes)
+        finally:
+            dpg.destroy_context()
+
+
 class TestLiveSession(unittest.TestCase):
     def test_discovery_and_tune(self):
         from litedsp.gui.live import LiveSession

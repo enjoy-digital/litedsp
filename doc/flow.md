@@ -86,5 +86,7 @@ an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
 - Latency balancing on reconvergent paths is automatic: unequal-latency joins get an exact
   alignment `Delay` inserted (reported in `flow_inserted`); `auto_delay=False` restores
   warn-only behavior.
-- Next: in-canvas netlist *load* (round-trip positions) and packaging the IP for Vivado
-  IP-integrator.
+- Load/Save round-trips the canvas: node positions are stored in the netlist's `editor`
+  section (ignored by codegen) and restored on load, with a grid fallback for hand-written
+  netlists.
+- Next: packaging the IP for Vivado IP-integrator.

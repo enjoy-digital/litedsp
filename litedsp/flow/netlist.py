@@ -71,6 +71,7 @@ class Netlist:
     blocks: list = field(default_factory=list)        # [BlockNode]
     connections: list = field(default_factory=list)   # [Connection]
     csr_base: int = 0
+    editor: dict = field(default_factory=dict)        # Editor hints (node positions); codegen ignores.
 
     # Lookups ------------------------------------------------------------------------------------
     def block(self, bid):
@@ -95,10 +96,11 @@ def from_dict(d):
                 for b in d.get("blocks", [])],
         connections=[Connection(src=c["from"], dst=c["to"]) for c in d.get("connections", [])],
         csr_base=d.get("csr", {}).get("base_address", 0) if isinstance(d.get("csr"), dict) else 0,
+        editor=d.get("editor", {}),
     )
 
 def to_dict(nl):
-    return {
+    d = {
         "name": nl.name, "data_width": nl.data_width, "clock_ns": nl.clock_ns,
         "inputs":  [asdict(io) for io in nl.inputs],
         "outputs": [asdict(io) for io in nl.outputs],
@@ -106,6 +108,9 @@ def to_dict(nl):
         "connections": [{"from": c.src, "to": c.dst} for c in nl.connections],
         "csr": {"base_address": nl.csr_base},
     }
+    if nl.editor:
+        d["editor"] = nl.editor
+    return d
 
 def loads(text):
     return from_dict(json.loads(text))
