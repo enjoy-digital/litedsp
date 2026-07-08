@@ -120,6 +120,57 @@ class TestAssemblyMatchesManual(unittest.TestCase):
         self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
 
 
+class TestAutoDelay(unittest.TestCase):
+    """Unequal-latency joins are auto-balanced with Delay glue (bit-exact vs explicit wiring)."""
+
+    def _mix_netlist(self):
+        # NCO (latency 1) into mixer sink_b vs a direct input into sink_a: 1-cycle imbalance.
+        return nlmod.from_dict({
+            "name": "mixnl", "data_width": 16,
+            "inputs": [{"id": "in0", "layout": "iq"}], "outputs": [{"id": "out0", "layout": "iq"}],
+            "blocks": [{"id": "lo",  "type": "nco",   "params": {}},
+                       {"id": "mix", "type": "mixer", "params": {}}],
+            "connections": [{"from": "in0",        "to": "mix.sink_a"},
+                            {"from": "lo.source",  "to": "mix.sink_b"},
+                            {"from": "mix.source", "to": "out0"}],
+        })
+
+    def test_delay_inserted_no_warning(self):
+        flow = FlowChain(self._mix_netlist(), with_csr=False)
+        self.assertEqual(flow.flow_inserted, ["delay_mix_sink_a"])
+        self.assertEqual(flow.flow_warnings, [])
+
+    def test_auto_delay_off_warns(self):
+        flow = FlowChain(self._mix_netlist(), with_csr=False, auto_delay=False)
+        self.assertEqual(flow.flow_inserted, [])
+        self.assertEqual(len(flow.flow_warnings), 1)
+        self.assertIn("unequal latency", flow.flow_warnings[0])
+
+    def test_matches_manual_delay(self):
+        from litedsp.generation.nco import NCO
+        from litedsp.mixing.mixer   import Mixer
+        from litedsp.stream.delay   import Delay
+        n = 256
+        samples = _samples(n, seed=3)
+        flow = FlowChain(self._mix_netlist(), with_csr=False)
+
+        class Manual(LiteXModule):
+            def __init__(self):
+                self.lo  = NCO(data_width=16, with_csr=False)
+                self.dly = Delay(depth=1, data_width=16)
+                self.mix = Mixer(data_width=16, with_csr=False)
+                self.sink, self.source = self.dly.sink, self.mix.source
+                self.comb += [
+                    self.dly.source.connect(self.mix.sink_a),
+                    self.lo.source.connect(self.mix.sink_b),
+                ]
+
+        a = run_stream(flow,     samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+        self.assertTrue(np.array_equal(column(a, "i", 16), column(b, "i", 16)))
+        self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
+
+
 class TestValidationAndGenerate(unittest.TestCase):
     def test_loop_rejected(self):
         nl = nlmod.from_dict({

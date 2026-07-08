@@ -40,8 +40,13 @@ def _build_kwargs(spec, params, data_width, with_csr):
 # Flow chain ---------------------------------------------------------------------------------------
 
 class FlowChain(LiteXModule):
-    """A processing chain built from a :class:`~litedsp.flow.netlist.Netlist`."""
-    def __init__(self, nl, reg=None, with_csr=True):
+    """A processing chain built from a :class:`~litedsp.flow.netlist.Netlist`.
+
+    ``auto_delay=True`` (default) inserts alignment ``Delay`` blocks on reconvergent paths with
+    unequal branch latency (reported in ``flow_inserted``); with ``auto_delay=False`` unbalanced
+    joins are only warned about (``flow_warnings``).
+    """
+    def __init__(self, nl, reg=None, with_csr=True, auto_delay=True):
         self.reg = reg = reg or registry.registry()
         validate(nl, reg)
         self.netlist       = nl
@@ -62,8 +67,8 @@ class FlowChain(LiteXModule):
             setattr(self, b.id, inst)
             self._inst[b.id] = inst
 
-        # Connect everything (auto-insert Split for fan-out, reject loops).
-        self.flow_inserted = glue.connect_all(self, nl, reg)
+        # Connect everything (auto-insert Split/Delay glue, reject loops).
+        self.flow_inserted = glue.connect_all(self, nl, reg, auto_delay=auto_delay)
 
         # Convenience aliases so a single-in/single-out chain drops into run_stream()/connect().
         if len(self.inputs) == 1:

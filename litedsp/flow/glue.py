@@ -15,13 +15,17 @@ stream contract:
   ``combine``/``mixer`` block, which has distinct sink ports).
 - **Combinational loops** are rejected: v1 targets feed-forward chains, so any cycle in the block
   graph is an error.
-- **Latency balancing** on reconvergent paths is *reported* (not auto-mutated): the assembler warns
-  when the branches feeding a multi-input block have unequal cumulative latency, and the user
-  inserts an explicit ``delay`` block. Keeping insertion explicit keeps generated chains
-  predictable and bit-identical to hand-wired equivalents.
+- **Latency balancing** on reconvergent paths is automatic (``auto_delay=True``): when the
+  branches feeding a multi-input block have unequal cumulative latency, a
+  :class:`~litedsp.stream.delay.Delay` of the exact deficit is inserted on the shorter
+  branch(es). Insertions are deterministic (a pure function of the netlist) and reported via
+  ``flow_inserted``, so chains stay predictable and bit-identical to hand-wired equivalents
+  with explicit delays. Joins the assembler cannot fix (non-I/Q sink ports) — or all joins,
+  with ``auto_delay=False`` — are reported as warnings instead.
 """
 
 from litedsp.stream.split import Split
+from litedsp.stream.delay import Delay
 from litedsp.flow.netlist import split_ref, NetlistError
 
 # Cycle detection ----------------------------------------------------------------------------------
@@ -57,11 +61,13 @@ def _check_acyclic(nl):
         if color[b.id] == WHITE:
             visit(b.id)
 
-# Latency analysis (report only) -------------------------------------------------------------------
+# Latency analysis ---------------------------------------------------------------------------------
 
-def latency_warnings(parent, nl, reg):
-    """Warn when branches feeding a multi-sink block have unequal cumulative latency."""
-    warns = []
+def _latency_analysis(nl, reg):
+    """Cumulative-latency walk: returns ``(joins, incoming)``.
+
+    ``joins`` maps each multi-input block id to ``{sink_port: arriving_latency}``.
+    """
     lat = {}   # block_id -> cumulative latency from any input (best effort, longest path).
     edges = _block_edges(nl)
     order = _topo(nl, edges)
@@ -75,16 +81,31 @@ def latency_warnings(parent, nl, reg):
         base = max((lat.get(s, 0) for s, _ in preds), default=0)
         blat = reg[nl.block(bid).type].latency or 0 if nl.block(bid) else 0
         lat[bid] = base + (blat if isinstance(blat, int) else 0)
-    # Multi-sink blocks: compare the latency arriving at each of their sink ports.
+    joins = {}
     for bid, preds in incoming.items():
         if len(preds) > 1:
-            arr = {}
-            for s, dport in preds:
-                arr.setdefault(dport, lat.get(s, 0))
-            vals = set(arr.values())
-            if len(vals) > 1:
-                warns.append(f"block '{bid}': inputs have unequal latency {arr} "
-                             f"(insert a 'delay' block to align)")
+            joins[bid] = {dport: lat.get(s, 0) for s, dport in preds}
+    return joins, incoming
+
+def latency_deficits(nl, reg):
+    """Per-sink-ref alignment deficits: ``{"bid.port": cycles}`` to equalize each join."""
+    joins, _ = _latency_analysis(nl, reg)
+    deficits = {}
+    for bid, arr in joins.items():
+        target = max(arr.values())
+        for dport, l in arr.items():
+            if l < target:
+                deficits[f"{bid}.{dport}"] = target - l
+    return deficits
+
+def latency_warnings(parent, nl, reg):
+    """Warn when branches feeding a multi-sink block have unequal cumulative latency."""
+    warns = []
+    joins, _ = _latency_analysis(nl, reg)
+    for bid, arr in joins.items():
+        if len(set(arr.values())) > 1:
+            warns.append(f"block '{bid}': inputs have unequal latency {arr} "
+                         f"(insert a 'delay' block to align)")
     return warns
 
 def _topo(nl, edges):
@@ -102,8 +123,9 @@ def _topo(nl, edges):
 
 # Connection -------------------------------------------------------------------------------------
 
-def connect_all(parent, nl, reg):
-    """Wire every connection on ``parent``, inserting Split for fan-out. Returns inserted glue ids."""
+def connect_all(parent, nl, reg, auto_delay=True):
+    """Wire every connection on ``parent``, inserting Split for fan-out and Delay for latency
+    alignment (``auto_delay``). Returns inserted glue ids."""
     _check_acyclic(nl)
 
     fanout = {}
@@ -111,10 +133,24 @@ def connect_all(parent, nl, reg):
         fanout.setdefault(c.src, []).append(c.dst)
 
     inserted = []
+    deficits = latency_deficits(nl, reg) if auto_delay else {}
+
+    def sink_ep(dst_ref):
+        """Sink endpoint for ``dst_ref``, behind an alignment Delay when the join needs one."""
+        d = deficits.get(dst_ref, 0)
+        if d == 0 or _layout_of(parent, dst_ref, reg, nl) != "iq":
+            return parent.endpoint(dst_ref)                # Non-I/Q joins fall back to warnings.
+        name = "delay_" + _safe(dst_ref)
+        dl   = Delay(depth=d, data_width=nl.data_width)
+        setattr(parent, name, dl)
+        inserted.append(name)
+        parent.comb += dl.source.connect(parent.endpoint(dst_ref))
+        return dl.sink
+
     for src_ref, dsts in fanout.items():
         src_ep = parent.endpoint(src_ref)
         if len(dsts) == 1:
-            parent.comb += src_ep.connect(parent.endpoint(dsts[0]))
+            parent.comb += src_ep.connect(sink_ep(dsts[0]))
             continue
         # Fan-out: insert a Split (I/Q only in v1).
         if _layout_of(parent, src_ref, reg, nl) != "iq":
@@ -125,10 +161,17 @@ def connect_all(parent, nl, reg):
         inserted.append(name)
         parent.comb += src_ep.connect(sp.sink)
         for k, d in enumerate(dsts):
-            parent.comb += sp.sources[k].connect(parent.endpoint(d))
+            parent.comb += sp.sources[k].connect(sink_ep(d))
 
-    for w in latency_warnings(parent, nl, reg):
-        parent.flow_warnings.append(w)
+    # Report joins that remain unbalanced (auto_delay off, or non-I/Q sink ports).
+    if not auto_delay:
+        for w in latency_warnings(parent, nl, reg):
+            parent.flow_warnings.append(w)
+    else:
+        for ref, d in sorted(deficits.items()):
+            if "delay_" + _safe(ref) not in inserted:
+                parent.flow_warnings.append(f"input '{ref}' lags by {d} cycle(s) and is not I/Q "
+                                            f"(insert an explicit delay to align)")
     return inserted
 
 def _safe(ref):

@@ -83,5 +83,8 @@ an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
   (`litedsp/gui/live.py` + `litedsp/software/drivers.py`) and exposes runtime controls (NCO
   tuning, FIR reload, capture + PSD plot) for every discovered block — netlist block ids are
   the register prefixes, so live controls line up with editor nodes.
-- Next: in-canvas netlist *load* (round-trip positions), optional auto-`Delay` balancing on
-  reconvergent paths, and packaging the IP for Vivado IP-integrator.
+- Latency balancing on reconvergent paths is automatic: unequal-latency joins get an exact
+  alignment `Delay` inserted (reported in `flow_inserted`); `auto_delay=False` restores
+  warn-only behavior.
+- Next: in-canvas netlist *load* (round-trip positions) and packaging the IP for Vivado
+  IP-integrator.
