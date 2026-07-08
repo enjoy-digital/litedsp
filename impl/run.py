@@ -10,7 +10,8 @@
 
     python3 impl/run.py --device ecp5   --flow synth                # all modules, Yosys synth
     python3 impl/run.py --device xilinx --flow synth --subset       # Vivado OOC synth (subset)
-    python3 impl/run.py --device ecp5   --flow pnr  --subset        # + nextpnr P&R (fmax)
+    python3 impl/run.py --device ecp5   --flow pnr                  # + nextpnr P&R (fmax), all
+    python3 impl/run.py --device ecp5   --flow pnr  --subset        # + nextpnr P&R, fast subset
     python3 impl/run.py --device ecp5   --flow synth --update-budgets   # seed/refresh baseline
 """
 
@@ -21,7 +22,7 @@ import argparse
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from impl.modules import REGISTRY, PNR_SUBSET
+from impl.modules import REGISTRY, PNR_SUBSET, SYNTH_ONLY
 from impl import wrap, ecp5, xilinx, report, budgets
 
 def build_one(device, flow, name, build_root):
@@ -54,10 +55,12 @@ def main():
 
     if args.module:
         names = [args.module]
-    elif args.subset or args.flow == "pnr":
+    elif args.subset:
         names = list(PNR_SUBSET)
     else:
         names = list(REGISTRY)
+        if args.flow == "pnr":                            # Port count exceeds device pins.
+            names = [n for n in names if n not in SYNTH_ONLY]
 
     tool_ok = {"ecp5": ecp5.have_yosys(), "xilinx": xilinx.have_vivado()}[args.device]
     if not tool_ok:

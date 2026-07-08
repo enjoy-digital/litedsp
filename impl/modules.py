@@ -12,9 +12,13 @@ top-level IOs (sink/source + controls), and the target clock period for fmax con
 
 import numpy as np
 
-from litedsp.generation.nco       import NCO
-from litedsp.generation.cordic    import CORDIC
-from litedsp.mixing.mixer         import Mixer
+from litedsp.generation.nco          import NCO
+from litedsp.generation.nco_parallel import ParallelNCO
+from litedsp.generation.cordic       import CORDIC
+from litedsp.mixing.mixer            import Mixer
+from litedsp.mixing.mixer_parallel   import ParallelMixer
+from litedsp.filter.fir              import FIRFilter
+from litedsp.filter.fir_parallel     import ParallelFIRFilter
 from litedsp.mixing.ddc           import DDC
 from litedsp.mixing.duc           import DUC
 from litedsp.mixing.channelizer   import Channelizer
@@ -254,6 +258,33 @@ def framer():
     d = StreamFramer(length=256, data_width=16, with_csr=False)
     return d, {d.length} | _eps(d.sink, d.source), 8.0
 
+# Parallel (multi-sample-per-cycle) variants. Coefficients are exposed as ports on the FIRs so
+# the multipliers stay runtime-variable (not const-folded) and the DSP scaling vs n_samples is
+# honest; these are synthesis-resource entries (port count exceeds device pins for full P&R).
+
+def fir():
+    d = FIRFilter(n_taps=32, data_width=16)
+    return d, set(d.coeffs) | _eps(d.sink, d.source), 10.0
+
+def _parallel_nco(n):
+    d = ParallelNCO(n_samples=n, data_width=16, with_csr=False)
+    return d, {d.phase_inc} | _eps(d.source), 10.0
+
+def _parallel_mixer(n):
+    d = ParallelMixer(n_samples=n, data_width=16, with_csr=False)
+    return d, {d.mode} | _eps(d.sink_a, d.sink_b, d.source), 10.0
+
+def _parallel_fir(n):
+    d = ParallelFIRFilter(n_samples=n, n_taps=32, data_width=16)
+    return d, set(d.coeffs) | _eps(d.sink, d.source), 10.0
+
+def nco_parallel_x2():   return _parallel_nco(2)
+def nco_parallel_x4():   return _parallel_nco(4)
+def mixer_parallel_x2(): return _parallel_mixer(2)
+def mixer_parallel_x4(): return _parallel_mixer(4)
+def fir_parallel_x2():   return _parallel_fir(2)
+def fir_parallel_x4():   return _parallel_fir(4)
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -271,8 +302,15 @@ REGISTRY = {
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
     "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,
+    "fir": fir,
+    "nco_parallel_x2": nco_parallel_x2, "nco_parallel_x4": nco_parallel_x4,
+    "mixer_parallel_x2": mixer_parallel_x2, "mixer_parallel_x4": mixer_parallel_x4,
+    "fir_parallel_x2": fir_parallel_x2, "fir_parallel_x4": fir_parallel_x4,
 }
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
-              "iir_biquad", "fft", "cordic_vec", "ddc"]
+              "iir_biquad", "fft", "cordic_vec", "ddc", "mixer_parallel_x2"]
+
+# Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
+SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]
