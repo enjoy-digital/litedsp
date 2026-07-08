@@ -6,6 +6,10 @@ conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned wit
 ## [Unreleased]
 
 ### Added
+- Parallel path completed: `ParallelFIRFilterComplex` (shared CSR coefficients),
+  `ParallelCICDecimator` (integrator cascade unrolled per lane, serial output) and the
+  `ParallelDDC` composite — a full gigasample RX front-end (parallel NCO + mixer + CIC),
+  bit-identical to the serial chain and P&R-verified on ECP5.
 - `CONTRIBUTING.md` (new-block checklist, tests, commit conventions) and `doc/resources.md` —
   a per-block LUT/FF/BRAM/DSP + Fmax table generated from the implementation budgets
   (`python3 impl/report.py`).

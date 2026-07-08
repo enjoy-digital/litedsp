@@ -22,10 +22,13 @@ from litex.gen import LiteXModule
 from litedsp.stream.adapt           import IQSerialToParallel, IQParallelToSerial
 from litedsp.generation.nco_parallel import ParallelNCO
 from litedsp.mixing.mixer_parallel  import ParallelMixer
-from litedsp.filter.fir_parallel    import ParallelFIRFilter
+from litedsp.mixing.ddc_parallel    import ParallelDDC
+from litedsp.filter.fir_parallel    import ParallelFIRFilter, ParallelFIRFilterComplex
+from litedsp.filter.cic_parallel    import ParallelCICDecimator
 
 from test.common import stream_driver, stream_capture, to_signed
-from test.models import nco_model, mixer_model, fir_model
+from test.models import (nco_model, mixer_model, fir_model, fir_complex_model,
+    cic_decimator_model)
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -148,6 +151,88 @@ class TestParallelFIR(unittest.TestCase):
             got = flatten(cap, "data", n_samples)
             ref = fir_model(np.array(x), coeffs)[:len(got)]
             self.assertTrue(np.array_equal(got, ref), f"n_samples={n_samples}")
+
+class TestParallelFIRComplex(unittest.TestCase):
+    def test_matches_model(self):
+        n_samples, n_taps, n_beats = 2, 7, 48
+        prng   = random.Random(3)
+        coeffs = [prng.randint(-8000, 8000) for _ in range(n_taps)]
+        x      = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
+                  for _ in range(n_samples*n_beats)]
+        dut = ParallelFIRFilterComplex(n_samples=n_samples, n_taps=n_taps, data_width=16,
+            coefficients=coeffs, with_csr=False)
+        beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
+                  "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
+                 for k in range(0, len(x), n_samples)]
+        cap = []
+        run_simulation(dut, [
+            stream_driver(dut.sink, beats, ("i", "q"), throttle=0.2),
+            stream_capture(dut.source, cap, n_beats, ("i", "q"), ready_rate=0.7),
+        ])
+        gi = flatten(cap, "i", n_samples)
+        gq = flatten(cap, "q", n_samples)
+        ri, rq = fir_complex_model([s[0] for s in x], [s[1] for s in x], coeffs)
+        self.assertTrue(np.array_equal(gi, ri[:len(gi)]))
+        self.assertTrue(np.array_equal(gq, rq[:len(gq)]))
+
+# Parallel CIC -------------------------------------------------------------------------------------
+
+class TestParallelCIC(unittest.TestCase):
+    def test_matches_model(self):
+        for n_samples, R in ((2, 8), (4, 8), (4, 4)):
+            N, n_beats = 3, 128
+            prng = random.Random(4)
+            x    = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
+                    for _ in range(n_samples*n_beats)]
+            dut  = ParallelCICDecimator(n_samples=n_samples, data_width=16, R=R, N=N,
+                with_csr=False)
+            beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
+                      "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
+                     for k in range(0, len(x), n_samples)]
+            n_out = n_samples*n_beats//R - 2
+            cap = []
+            run_simulation(dut, [
+                stream_driver(dut.sink, beats, ("i", "q"), throttle=0.2),
+                stream_capture(dut.source, cap, n_out, ("i", "q"), ready_rate=0.7),
+            ])
+            gi = np.array(to_signed([c["i"] for c in cap], 16))
+            gq = np.array(to_signed([c["q"] for c in cap], 16))
+            ri = cic_decimator_model(np.array([s[0] for s in x]), R, N)[:n_out]
+            rq = cic_decimator_model(np.array([s[1] for s in x]), R, N)[:n_out]
+            self.assertTrue(np.array_equal(gi, ri), f"n={n_samples} R={R}")
+            self.assertTrue(np.array_equal(gq, rq), f"n={n_samples} R={R}")
+
+# Parallel DDC -------------------------------------------------------------------------------------
+
+class TestParallelDDC(unittest.TestCase):
+    def test_matches_model_chain(self):
+        n_samples, R, N, n_beats = 4, 8, 3, 128
+        phase_inc = 0x0913_579B
+        prng = random.Random(5)
+        x    = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
+                for _ in range(n_samples*n_beats)]
+        dut = ParallelDDC(n_samples=n_samples, data_width=16, decimation=R, cic_stages=N,
+            with_csr=False)
+        dut.nco.phase_inc.reset = phase_inc
+        beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
+                  "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
+                 for k in range(0, len(x), n_samples)]
+        n_out = n_samples*n_beats//R - 2
+        cap = []
+        run_simulation(dut, [
+            stream_driver(dut.sink, beats, ("i", "q"), throttle=0.2),
+            stream_capture(dut.source, cap, n_out, ("i", "q"), ready_rate=0.7),
+        ])
+        gi = np.array(to_signed([c["i"] for c in cap], 16))
+        gq = np.array(to_signed([c["q"] for c in cap], 16))
+        # Exact model chain: NCO -> complex down-mix -> CIC.
+        lo_i, lo_q = nco_model(phase_inc, len(x))
+        mi, mq = mixer_model(np.array([s[0] for s in x]), np.array([s[1] for s in x]),
+                             lo_i, lo_q, mode="down")
+        ri = cic_decimator_model(mi, R, N)[:n_out]
+        rq = cic_decimator_model(mq, R, N)[:n_out]
+        self.assertTrue(np.array_equal(gi, ri))
+        self.assertTrue(np.array_equal(gq, rq))
 
 if __name__ == "__main__":
     unittest.main()

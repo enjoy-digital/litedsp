@@ -12,8 +12,8 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common     import real_layout, real_lanes, scaled
-from litedsp.filter.fir import _adder_tree
+from litedsp.common     import iq_layout, real_layout, real_lanes, scaled
+from litedsp.filter.fir import _adder_tree, FIRCoefficients
 
 # Parallel FIR Filter (real) -------------------------------------------------------------------------
 
@@ -84,3 +84,47 @@ class ParallelFIRFilter(LiteXModule):
         valid_pipe = Signal(self.latency)
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
         self.comb += self.source.valid.eq(valid_pipe[-1])
+
+# Parallel FIR Filter (complex) ----------------------------------------------------------------------
+
+@ResetInserter()
+class ParallelFIRFilterComplex(LiteXModule):
+    """Complex parallel FIR: identical :class:`ParallelFIRFilter` on I and Q, shared coefficients.
+
+    The multi-sample ``i``/``q`` fields are the concatenated lanes, so they map one-to-one onto
+    the real filters' multi-sample ``data`` fields. Coefficients are shared/CSR-reloadable via
+    :class:`~litedsp.filter.fir.FIRCoefficients`, as in the serial complex FIR.
+    """
+    def __init__(self, n_samples=2, n_taps=32, data_width=16, coefficients=None, shift=None,
+        with_csr=True):
+        assert n_taps > 0
+        self.n_samples  = n_samples
+        self.n_taps     = n_taps
+        self.data_width = data_width
+        self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
+        self.source = stream.Endpoint(iq_layout(data_width, n_samples))
+
+        # # #
+
+        self.coeffs = FIRCoefficients(n_taps=n_taps, data_width=data_width,
+            coefficients=coefficients, with_csr=with_csr)
+        self.fir_i  = ParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
+            shift=shift)
+        self.fir_q  = ParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
+            shift=shift)
+        self.latency = self.fir_i.latency
+
+        self.comb += [
+            [self.fir_i.coeffs[t].eq(self.coeffs.values[t]) for t in range(n_taps)],
+            [self.fir_q.coeffs[t].eq(self.coeffs.values[t]) for t in range(n_taps)],
+            self.fir_i.sink.valid.eq(self.sink.valid),
+            self.fir_q.sink.valid.eq(self.sink.valid),
+            self.fir_i.sink.data.eq(self.sink.i),
+            self.fir_q.sink.data.eq(self.sink.q),
+            self.sink.ready.eq(self.fir_i.sink.ready & self.fir_q.sink.ready),
+            self.source.valid.eq(self.fir_i.source.valid & self.fir_q.source.valid),
+            self.source.i.eq(self.fir_i.source.data),
+            self.source.q.eq(self.fir_q.source.data),
+            self.fir_i.source.ready.eq(self.source.ready),
+            self.fir_q.source.ready.eq(self.source.ready),
+        ]

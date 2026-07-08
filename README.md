@@ -76,7 +76,9 @@ from for client-specific requirements.
 - **parallel**    : multi-sample-per-cycle datapaths (N samples/clk for rates above the fabric
                      clock): `iq_layout(dw, n_samples)` lanes, `IQSerialToParallel`/
                      `IQParallelToSerial` adapters, `ParallelNCO`, `ParallelMixer`,
-                     `ParallelFIRFilter` — bit-identical to their serial counterparts.
+                     `ParallelFIRFilter`/`ParallelFIRFilterComplex`, `ParallelCICDecimator`
+                     (unrolled Hogenauer, serial output) and the `ParallelDDC` composite
+                     (gigasample RX front-end) — all bit-identical to their serial counterparts.
 - **examples/**   : `ddc_chain.py`, `duc_chain.py`, `spectrum_analyzer.py`, `fm_receiver.py`
                      (FM demod + audio decimation), `qpsk_rx.py` (matched filter -> timing
                      recovery -> slicer, recovers QPSK at SER 0), `wideband_rx.py` (DDC -> FIFO ->

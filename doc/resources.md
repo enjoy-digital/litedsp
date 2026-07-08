@@ -10,6 +10,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `channelizer` | 2786/1086/6/24 | 1280/310/2/24 | 78 |
 | `cic_decimator` | 566/484/0/0 | 776/484/0/0 | 83 |
 | `cic_interpolator` | 580/438/0/0 | 676/438/0/0 | 51 |
+| `cic_parallel_x4` | 1393/482/0/0 | - | 48 |
 | `combine` | 371/33/0/0 | 134/33/0/0 | 562 |
 | `cordic_rot` | 1943/907/0/2 | 970/858/0/2 | 158 |
 | `cordic_vec` | 1839/849/0/1 | 742/827/0/1 | 186 |
@@ -18,6 +19,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `csr_source` | 1/33/0/0 | - | - |
 | `dc_blocker` | 224/97/0/0 | 90/97/0/0 | 210 |
 | `ddc` | 890/317/2/6 | 480/122/1/6 | 107 |
+| `ddc_parallel_x4` | 1942/1071/8/18 | - | 42 |
 | `duc` | 643/302/2/7 | 386/100/1/6 | 63 |
 | `error_counter` | 97/64/0/0 | - | 369 |
 | `farrow` | 650/145/0/14 | 470/207/0/6 | 30 |

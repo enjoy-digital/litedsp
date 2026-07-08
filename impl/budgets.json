@@ -60,6 +60,15 @@
       "lut": 676
     }
   },
+  "cic_parallel_x4": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 482,
+      "fmax_min": 47.8,
+      "lut": 1393
+    }
+  },
   "combine": {
     "ecp5": {
       "bram": 0,
@@ -167,6 +176,15 @@
       "ff": 122,
       "fmax_min": 107.4,
       "lut": 480
+    }
+  },
+  "ddc_parallel_x4": {
+    "ecp5": {
+      "bram": 8,
+      "dsp": 18,
+      "ff": 1071,
+      "fmax_min": 42.2,
+      "lut": 1942
     }
   },
   "duc": {

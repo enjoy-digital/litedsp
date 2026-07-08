@@ -17,8 +17,10 @@ from litedsp.generation.nco_parallel import ParallelNCO
 from litedsp.generation.cordic       import CORDIC
 from litedsp.mixing.mixer            import Mixer
 from litedsp.mixing.mixer_parallel   import ParallelMixer
+from litedsp.mixing.ddc_parallel     import ParallelDDC
 from litedsp.filter.fir              import FIRFilter
 from litedsp.filter.fir_parallel     import ParallelFIRFilter
+from litedsp.filter.cic_parallel     import ParallelCICDecimator
 from litedsp.mixing.ddc           import DDC
 from litedsp.mixing.duc           import DUC
 from litedsp.mixing.channelizer   import Channelizer
@@ -285,6 +287,14 @@ def mixer_parallel_x4(): return _parallel_mixer(4)
 def fir_parallel_x2():   return _parallel_fir(2)
 def fir_parallel_x4():   return _parallel_fir(4)
 
+def cic_parallel_x4():
+    d = ParallelCICDecimator(n_samples=4, data_width=16, R=8, N=4, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def ddc_parallel_x4():
+    d = ParallelDDC(n_samples=4, data_width=16, decimation=8, with_csr=False)
+    return d, {d.nco.phase_inc} | _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -306,6 +316,7 @@ REGISTRY = {
     "nco_parallel_x2": nco_parallel_x2, "nco_parallel_x4": nco_parallel_x4,
     "mixer_parallel_x2": mixer_parallel_x2, "mixer_parallel_x4": mixer_parallel_x4,
     "fir_parallel_x2": fir_parallel_x2, "fir_parallel_x4": fir_parallel_x4,
+    "cic_parallel_x4": cic_parallel_x4, "ddc_parallel_x4": ddc_parallel_x4,
 }
 
 # Subset for the slower full place-&-route flows.
