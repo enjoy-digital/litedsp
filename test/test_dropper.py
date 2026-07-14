@@ -4,6 +4,12 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
+"""Downsampler/Upsampler tests, bit-exact against ``decimate_model`` / ``interpolate_model``
+(sample-and-hold and zero-stuff modes), under randomized throttle/backpressure.
+
+verify-tier: model
+"""
+
 import random
 import unittest
 
@@ -49,17 +55,22 @@ class TestDropper(unittest.TestCase):
             self.assertTrue(np.array_equal(gi, ri), f"up-hold mismatch factor={factor}")
 
     def test_upsample_zero(self):
-        for factor in [2, 4]:
+        # Zero-stuff mode: sample first, then factor-1 zeros, on both I and Q — including
+        # under backpressure extremes (sample/zero ordering must not depend on stalls).
+        for factor, throttle, ready_rate in [(2, 0.2, 0.6), (3, 0.4, 0.3), (4, 0.2, 0.6)]:
             xi, xq = self.rand_iq(80, factor + 20)
             dut = LiteDSPUpsampler(data_width=16, zero_stuff=True, with_csr=False)
             dut.factor.reset = factor
             n_out = len(xi)*factor
             samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
             cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
-                sink_throttle=0.2, source_ready_rate=0.6)
+                sink_throttle=throttle, source_ready_rate=ready_rate)
             gi = column(cap, "i", 16)
+            gq = column(cap, "q", 16)
             ri = interpolate_model(xi, factor, mode="zero")[:n_out]
-            self.assertTrue(np.array_equal(gi, ri), f"up-zero mismatch factor={factor}")
+            rq = interpolate_model(xq, factor, mode="zero")[:n_out]
+            self.assertTrue(np.array_equal(gi, ri), f"up-zero I mismatch factor={factor}")
+            self.assertTrue(np.array_equal(gq, rq), f"up-zero Q mismatch factor={factor}")
 
 if __name__ == "__main__":
     unittest.main()

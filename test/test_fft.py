@@ -32,6 +32,13 @@ class TestFFT(unittest.TestCase):
             best = max(best, snr_db(ref, nat))
         return best
 
+    # Fixed-point bound: each radix-2 SDF stage halves the amplitude (1/N overall) and adds a
+    # round-half-up step, so quantization noise accumulates and SNR falls with log2(N). Gates
+    # are set 3 dB under the values measured at LITEDSP_SEED=0 (68.4/59.6/54.1 dB); the
+    # capture is handshake-invariant, so the measurement is stable across seed rotation.
+    SNR_GATES = {16: 65.0, 64: 56.5, 256: 51.0}
+
+    # verify-tier: bound — per-size SNR against the fft_model golden reference.
     def test_random_snr(self):
         for N in [16, 64, 256]:
             bits = N.bit_length() - 1
@@ -42,8 +49,9 @@ class TestFFT(unittest.TestCase):
             out  = self.run_fft(list(fi)*nfr, list(fq)*nfr, N)
             ref  = fft_model(fi, fq)
             snr  = self.best_frame_snr(out, ref, N, bits)
-            self.assertGreater(snr, 45.0, f"N={N} SNR={snr:.1f} dB")
+            self.assertGreater(snr, self.SNR_GATES[N], f"N={N} SNR={snr:.1f} dB")
 
+    # verify-tier: bound — tone concentration + frame SNR (measured 79.7 dB; gate 3 dB under).
     def test_tone_bin(self):
         # A pure complex tone at bin k0 must concentrate energy in bin k0.
         N    = 64
@@ -61,11 +69,13 @@ class TestFFT(unittest.TestCase):
             s   = snr_db(ref, nat)
             if s > best:
                 best, best_off = s, off
+        self.assertGreater(best, 76.5, f"tone frame SNR={best:.1f} dB")
         nat  = reorder_bitrev(out[best_off:best_off + N], bits)
         mag  = np.abs(nat)
         self.assertEqual(int(np.argmax(mag)), k0)
         self.assertGreater(mag[k0]/np.sort(mag)[-2], 50.0)  # >34 dB above next bin.
 
+    # verify-tier: bound — same N=64 fixed-point bound as test_random_snr (measured 59.9 dB).
     def test_backpressure(self):
         # The SDF state must advance only on real transfers: result must survive stalls.
         N    = 64
@@ -76,9 +86,11 @@ class TestFFT(unittest.TestCase):
         out  = self.run_fft(list(fi)*8, list(fq)*8, N, throttle=0.3, ready=0.6)
         ref  = fft_model(fi, fq)
         snr  = self.best_frame_snr(out, ref, N, bits)
-        self.assertGreater(snr, 45.0, f"backpressure SNR={snr:.1f} dB")
+        self.assertGreater(snr, self.SNR_GATES[N], f"backpressure SNR={snr:.1f} dB")
 
 class TestIFFT(unittest.TestCase):
+    # verify-tier: bound — N=64 inverse-FFT fixed-point bound (measured 57.0 dB at
+    # LITEDSP_SEED=0; gate 3 dB under).
     def test_matches_numpy(self):
         N, bits = 64, 6
         rng = np.random.RandomState(0)
@@ -93,7 +105,7 @@ class TestIFFT(unittest.TestCase):
         for off in range(len(out) - N):
             nat = reorder_bitrev(out[off:off + N], bits)
             best = max(best, snr_db(ref, nat))
-        self.assertGreater(best, 40.0)
+        self.assertGreater(best, 54.0, f"IFFT SNR={best:.1f} dB")
 
 if __name__ == "__main__":
     unittest.main()

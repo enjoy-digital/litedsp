@@ -37,7 +37,7 @@ class LiteDSPPSD(LiteXModule):
         step adds one bit to the accumulator RAM and output width (power_width).
     """
     def __init__(self, N=64, fft_latency=None, data_width=16, avg_log2=4, with_csr=True):
-        check((N & (N - 1)) == 0, "expected (N & (N - 1)) == 0")
+        check(N >= 2 and (N & (N - 1)) == 0, "N must be a power of two >= 2.")
         latency = (N - 1) if fft_latency is None else fft_latency  # Upstream FFT fill to skip.
         self.N           = N
         self.bits        = N.bit_length() - 1

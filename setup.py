@@ -23,7 +23,7 @@ setup(
     python_requires               = "~=3.7",
     install_requires              = ["migen", "litex", "pyyaml"],
     extras_require                = {
-        "develop": ["setuptools"],
+        "develop": ["setuptools", "hypothesis"],
         "design":  ["numpy"],      # Filter coefficient design (litedsp/filter/design.py).
         "gui":     ["dearpygui"],  # Flow-graph editor (litedsp/gui).
     },

@@ -10,9 +10,12 @@ import numpy as np
 
 from litedsp.filter.farrow import LiteDSPFarrowInterpolator
 
-from test.common import run_stream, column, snr_db
+from test.common import run_stream, column, snr_db, assert_snr
 
 class TestFarrow(unittest.TestCase):
+    # verify-tier: bound — cubic interpolation of an oversampled tone at mu=0.5 vs the ideal
+    # fractionally-delayed cosine (integer alignment searched, amplitude/phase fixed by the
+    # stimulus). Measured 87.5 dB (LITEDSP_SEED=0); gate 3 dB under.
     def test_fractional_delay(self):
         n  = 2000
         f  = 0.02
@@ -24,11 +27,13 @@ class TestFarrow(unittest.TestCase):
             ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
         y = column(cap, "i", 16).astype(float)[16:]
         # Compare to the ideal cosine sampled at a fractional offset (search integer alignment).
-        best = -np.inf
+        best_snr, best_ref = -np.inf, None
         for d in range(0, 25):
             ref = 15000*np.cos(2*np.pi*f*(np.arange(len(y)) + d + mu))
-            best = max(best, snr_db(ref, y))
-        self.assertGreater(best, 35.0)
+            s   = snr_db(ref, y)
+            if s > best_snr:
+                best_snr, best_ref = s, ref
+        assert_snr(self, best_ref, y, 84.0, "farrow fractional delay")
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,6 +13,12 @@ from litedsp.analysis.fft_iter import LiteDSPFFTIter
 from test.common import run_stream, column, snr_db
 
 class TestFFTIter(unittest.TestCase):
+    # Fixed-point bound: each radix-2 pass halves the amplitude (1/N overall) and adds a
+    # round-half-up step, so quantization noise accumulates and SNR falls with log2(N). Gates
+    # are set 3 dB under the values measured at LITEDSP_SEED=0 (65.8/58.5/52.2 dB).
+    SNR_GATES = {16: 62.5, 64: 55.0, 256: 49.0}
+
+    # verify-tier: bound — per-size SNR against numpy's FFT (1/N-scaled).
     def test_matches_numpy(self):
         for N in [16, 64, 256]:
             rng = np.random.RandomState(N)
@@ -23,8 +29,10 @@ class TestFFTIter(unittest.TestCase):
                 sink_throttle=0.0, source_ready_rate=1.0)
             out = column(cap, "i", 16) + 1j*column(cap, "q", 16)
             ref = np.fft.fft(x)/N
-            self.assertGreater(snr_db(ref, out), 45.0, f"N={N}")
+            snr = snr_db(ref, out)
+            self.assertGreater(snr, self.SNR_GATES[N], f"N={N} SNR={snr:.1f} dB")
 
+    # verify-tier: bound — a pure tone at bin k0 must peak in bin k0.
     def test_tone_bin(self):
         N, k0 = 64, 9
         t = np.arange(N)

@@ -25,6 +25,35 @@ def make_signal(L, sps_hi, sps, offset, seed):
     return d, np.round(x*11000).astype(complex)
 
 class TestTimingRecovery(unittest.TestCase):
+    # Convergence bound: the mu loop is proportional with gain_mu = 0.1 (tau ~ 1/gain_mu = 10
+    # symbols) and gain_omega = gain_mu**2/4 (critically damped omega loop, tau ~ 2/gain_mu =
+    # 20 symbols). 5x the slower time constant covers acquisition from a worst-case half-symbol
+    # offset: SETTLE = 100 symbols (measured: M&M error-free from symbol ~7, Gardner from ~48,
+    # at LITEDSP_SEED=0).
+    SETTLE = 100
+
+    def assert_converged(self, d, y, settle=SETTLE):
+        """Assert symbol decisions are error-free after ``settle`` symbols (alignment searched)."""
+        ri, rq = np.sign(y.real).astype(int), np.sign(y.imag).astype(int)
+        di, dq = np.sign(d.real).astype(int), np.sign(d.imag).astype(int)
+        # Locate the decisions within the data on a post-lock window (offset + per-axis sign
+        # ambiguity), then check every symbol from `settle` on against the aligned data.
+        half, seg = len(y)//2, 200
+        best = (np.inf, None)
+        for off in range(0, len(d) - seg):
+            for si in (1, -1):
+                for sq in (1, -1):
+                    err = (np.mean(ri[half:half+seg] != si*di[off:off+seg]) +
+                           np.mean(rq[half:half+seg] != sq*dq[off:off+seg]))
+                    if err < best[0]:
+                        best = (err, (off - half, si, sq))
+        delta = best[1][0]                               # d index = y index + delta.
+        ks = np.arange(max(settle, -delta), min(len(y), len(d) - delta))
+        errors = int(np.count_nonzero((ri[ks] != best[1][1]*di[ks + delta]) |
+                                      (rq[ks] != best[1][2]*dq[ks + delta])))
+        self.assertEqual(errors, 0,
+            f"{errors} symbol decision errors after {settle}-symbol settle")
+
     def run_mm(self, x, sps=2, ted="mm"):
         dut = LiteDSPTimingRecovery(data_width=16, sps=sps, gain_mu=0.1, ted=ted, with_csr=False)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
@@ -33,6 +62,7 @@ class TestTimingRecovery(unittest.TestCase):
             sink_throttle=0.0, source_ready_rate=1.0)
         return to_signed(column(cap, "i"), 16) + 1j*to_signed(column(cap, "q"), 16)
 
+    # verify-tier: bound — eye metrics + error-free decisions after the derived settle length.
     def test_eye_opens(self):
         d, x = make_signal(L=900, sps_hi=32, sps=2, offset=7, seed=0)
         y = self.run_mm(x)
@@ -42,7 +72,9 @@ class TestTimingRecovery(unittest.TestCase):
             m, s = np.mean(np.abs(axis)), np.std(np.abs(axis))
             self.assertGreater(m, 2000)
             self.assertLess(s/m, 0.25)
+        self.assert_converged(d, y)
 
+    # verify-tier: bound — eye metrics + error-free decisions after the derived settle length.
     def test_eye_opens_gardner(self):
         d, x = make_signal(L=900, sps_hi=32, sps=2, offset=7, seed=4)
         y = self.run_mm(x, ted="gardner")
@@ -51,7 +83,9 @@ class TestTimingRecovery(unittest.TestCase):
             m, s = np.mean(np.abs(axis)), np.std(np.abs(axis))
             self.assertGreater(m, 2000)
             self.assertLess(s/m, 0.25)
+        self.assert_converged(d, y)
 
+    # verify-tier: bound.
     def test_symbol_error_rate(self):
         d, x = make_signal(L=900, sps_hi=32, sps=2, offset=7, seed=1)
         y = self.run_mm(x)

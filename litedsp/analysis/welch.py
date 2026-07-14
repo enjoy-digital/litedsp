@@ -10,7 +10,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common          import iq_layout, real_layout
+from litedsp.common          import check, iq_layout, real_layout
 from litedsp.analysis.window import LiteDSPWindow
 from litedsp.analysis.fft    import LiteDSPFFT
 from litedsp.analysis.psd    import LiteDSPPSD
@@ -31,6 +31,7 @@ class LiteDSPWelchPSD(LiteXModule):
         more averaging lowers the variance of the estimate but lengthens the update interval.
     """
     def __init__(self, N=256, data_width=16, avg_log2=2, window="hann", with_csr=True):
+        check(N >= 2 and (N & (N - 1)) == 0, "N must be a power of two >= 2.")
         self.N = N
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.latency = None  # Variable (frame-accumulating composite).

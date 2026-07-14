@@ -39,6 +39,7 @@ class LiteDSPIQClockDomainCrossing(LiteXModule):
         the cost of buffer registers/RAM.
     """
     def __init__(self, cd_from="sys", cd_to="sys", data_width=16, depth=8):
+        check(depth >= 1, "expected depth >= 1")
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.latency = 0  # Elastic (CDC FIFO): no sample-index offset.

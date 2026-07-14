@@ -83,9 +83,17 @@ class LiteDSPWindow(LiteXModule):
         # Windowed sample = sample * coeff, rescaled.
         # -------------------------------------------
         coeff = Signal((data_width, True))
-        self.comb += coeff.eq(rp.dat_r)
-        res_i, _ = scaled(self.sink.i*coeff, data_width - 1, data_width)
-        res_q, _ = scaled(self.sink.q*coeff, data_width - 1, data_width)
+        # Full-width product Signals: an inline product would be sized by its assignment
+        # context in the emitted Verilog and truncate (found by Verilator co-simulation).
+        prod_i = Signal((2*data_width, True))
+        prod_q = Signal((2*data_width, True))
+        self.comb += [
+            coeff.eq(rp.dat_r),
+            prod_i.eq(self.sink.i*coeff),
+            prod_q.eq(self.sink.q*coeff),
+        ]
+        res_i, _ = scaled(prod_i, data_width - 1, data_width)
+        res_q, _ = scaled(prod_q, data_width - 1, data_width)
         self.sync += If(adv,
             self.source.i.eq(res_i),
             self.source.q.eq(res_q),

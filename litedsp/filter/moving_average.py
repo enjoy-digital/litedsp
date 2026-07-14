@@ -52,7 +52,14 @@ class LiteDSPMovingAverage(LiteXModule):
 
         # Datapath.
         # ---------
+        # The RAM delay line is not cleared by reset (BRAM contents survive), so the subtract
+        # path is gated by a primed counter until the pointer has wrapped once: post-reset
+        # behavior is then identical to a freshly-built block (zeros assumed in the window).
         acc_width = data_width + length_log2 + 1  # Sum of L samples: log2(L) growth + sign.
+        primed    = Signal()                      # Delay line contains L valid samples.
+        fill      = Signal(max=L + 1)             # Samples written since reset (stops at L).
+        self.comb += primed.eq(fill == L)
+        self.sync += If(xfer & ~primed, fill.eq(fill + 1))
         for field in ["i", "q"]:
             x   = getattr(self.sink, field)
             mem = Memory(data_width, L)
@@ -65,7 +72,7 @@ class LiteDSPMovingAverage(LiteXModule):
             acc_next = Signal((acc_width, True))
             self.comb += [
                 rp.adr.eq(ptr), wp.adr.eq(ptr),
-                old.eq(rp.dat_r),
+                old.eq(Mux(primed, rp.dat_r, 0)),
                 acc_next.eq(acc + x - old),
                 wp.dat_w.eq(x), wp.we.eq(xfer),
             ]

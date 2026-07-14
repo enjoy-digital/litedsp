@@ -55,10 +55,13 @@ class LiteDSPDelay(LiteXModule):
         i_pipe = [Signal((data_width, True)) for _ in range(depth)]
         q_pipe = [Signal((data_width, True)) for _ in range(depth)]
         v_pipe = Signal(depth)
+        # depth == 1 shifts valid alone (an empty v_pipe[:-1] slice emits illegal Verilog —
+        # found by the full-registry Verilator lint sweep).
+        v_next = self.sink.valid if depth == 1 else Cat(self.sink.valid, v_pipe[:-1])
         self.sync += If(adv,
             i_pipe[0].eq(self.sink.i),
             q_pipe[0].eq(self.sink.q),
-            v_pipe.eq(Cat(self.sink.valid, v_pipe[:-1])),
+            v_pipe.eq(v_next),
             *[i_pipe[k].eq(i_pipe[k - 1]) for k in range(1, depth)],
             *[q_pipe[k].eq(q_pipe[k - 1]) for k in range(1, depth)],
         )

@@ -153,7 +153,7 @@ class LiteDSPFFT(LiteXModule):
         Compute the inverse FFT (conjugated, exp(+j) twiddles); output remains 1/N-scaled.
     """
     def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, with_csr=True):
-        check((N & (N - 1)) == 0, "N must be a power of two.")
+        check(N >= 2 and (N & (N - 1)) == 0, "N must be a power of two >= 2.")
         self.N          = N
         self.bits       = N.bit_length() - 1
         self.data_width = data_width

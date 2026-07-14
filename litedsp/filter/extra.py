@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled, saturated, add_bypass, add_bypass_csr
+from litedsp.common import check, iq_layout, scaled, saturated, add_bypass, add_bypass_csr
 
 # Tunable Notch ------------------------------------------------------------------------------------
 
@@ -105,6 +105,7 @@ class LiteDSPCombFilter(LiteXModule):
         the per-I/Q circular delay-line memory (depth x data_width bits).
     """
     def __init__(self, depth=8, data_width=16, with_csr=True):
+        check(depth >= 1, "expected depth >= 1")
         self.depth  = depth
         self.latency = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))

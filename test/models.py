@@ -97,6 +97,38 @@ def power_model(i, q, window=1):
     blocks = p[:n].reshape(-1, window)
     return blocks.sum(axis=1)//window
 
+# Clipper ------------------------------------------------------------------------------------------
+
+def clipper_model(i, q, threshold, data_width=16):
+    """Reference for litedsp.level.clipper.LiteDSPClipper (clamp I/Q to [-threshold, +threshold])."""
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    return np.clip(i, -threshold, threshold), np.clip(q, -threshold, threshold)
+
+# Squelch ------------------------------------------------------------------------------------------
+
+def squelch_model(i, q, open_threshold, close_threshold):
+    """Reference for litedsp.level.squelch.LiteDSPSquelch (hysteresis power gate).
+
+    Power is the instantaneous ``i*i + q*q``; the gate opens at power >= open_threshold and
+    closes at power < close_threshold. The gate state applied to sample n is the state after
+    samples 0..n-1 (the HW output mux reads the pre-update gate register), so sample n's own
+    power affects sample n+1 onward.
+    """
+    i, q  = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    out_i = np.zeros(len(i), np.int64)
+    out_q = np.zeros(len(i), np.int64)
+    gate  = 0
+    for n in range(len(i)):
+        if gate:
+            out_i[n] = i[n]
+            out_q[n] = q[n]
+        p = int(i[n])*int(i[n]) + int(q[n])*int(q[n])
+        if p >= open_threshold:
+            gate = 1
+        elif p < close_threshold:
+            gate = 0
+    return out_i, out_q
+
 # CIC ----------------------------------------------------------------------------------------------
 
 def _cic_growth(R, N, M):
@@ -264,6 +296,32 @@ def dc_offset_model(x, mu=10, data_width=16):
         mean   = mean + (v - est)
     return out
 
+# AGC ----------------------------------------------------------------------------------------------
+
+def agc_model(i, q, target, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2):
+    """Reference for litedsp.level.agc.LiteDSPAGC (bit-exact).
+
+    Per accepted sample: apply the current gain (round-half-up + saturate), measure the output
+    magnitude (alpha-max-beta-min), then integrate ``gain += (target - |y|) >> mu`` clamped to
+    ``[0, gain_max]``. The gateware loop pauses with the stream, so the sequence is
+    handshake-invariant and this model holds under backpressure too. Returns (i, q).
+    """
+    gain_width = gain_frac + data_width
+    if gain_max is None:
+        gain_max = (1 << gain_width) - 1
+    gain = 1 << gain_frac                               # Start at 1.0 (Q?.gain_frac).
+    out_i = np.zeros(len(i), np.int64)
+    out_q = np.zeros(len(q), np.int64)
+    for n, (xi, xq) in enumerate(zip(np.asarray(i, np.int64), np.asarray(q, np.int64))):
+        yi = int(np_scaled(int(xi)*gain, gain_frac, data_width))
+        yq = int(np_scaled(int(xq)*gain, gain_frac, data_width))
+        ai, aq   = abs(yi), abs(yq)
+        mag      = (ai + (aq >> beta_shift)) if ai > aq else (aq + (ai >> beta_shift))
+        gain     = min(max(gain + ((target - mag) >> mu), 0), gain_max)  # >> is arithmetic.
+        out_i[n] = yi
+        out_q[n] = yq
+    return out_i, out_q
+
 # Magnitude ----------------------------------------------------------------------------------------
 
 def magnitude_model(i, q, beta_shift=2):
@@ -273,6 +331,95 @@ def magnitude_model(i, q, beta_shift=2):
     hi = np.maximum(ai, aq)
     lo = np.minimum(ai, aq)
     return hi + (lo >> beta_shift)
+
+# Envelope Detector --------------------------------------------------------------------------------
+
+def envelope_detector_model(i, q, attack=2, release=6, data_width=16, beta_shift=2):
+    """Reference for litedsp.level.peak.LiteDSPEnvelopeDetector (gap-free input stream).
+
+    Per sample: ``env += (|x| - env) >> attack`` when rising, ``>> release`` when falling
+    (arithmetic shifts, matching the signed Migen shifts), with |x| the alpha-max-beta-min
+    magnitude. Bit-exact against the HW when the input stream has no bubbles: the HW envelope
+    register also steps on input-idle cycles (it re-evaluates the stale magnitude while the
+    pipeline advances), i.e. it converges in cycle time rather than sample time. Output-side
+    backpressure freezes the whole pipeline and is therefore safe.
+    """
+    mag = magnitude_model(i, q, beta_shift)
+    env = 0
+    out = np.zeros(len(mag), np.int64)
+    for n, m in enumerate(mag):
+        delta = int(m) - env
+        env  += delta >> (attack if delta >= 0 else release)  # Python >> is arithmetic (floor).
+        out[n] = env
+    return out
+
+# Slicer -------------------------------------------------------------------------------------------
+
+def slicer_model(i, q, bits_per_axis=1, spacing=8192, data_width=16):
+    """Reference for litedsp.comm.slicer.LiteDSPSlicer. Returns (i, q, symbol) arrays.
+
+    Per axis: k = number of decision boundaries (at (2j - L + 2)*spacing, j = 0..L-2) at/below
+    x; decided point = (2k - (L-1))*spacing. Symbol index is [q_bits | i_bits]. The point
+    register is data_width bits wide, so out-of-range constellation points wrap like the HW.
+    """
+    L    = 1 << bits_per_axis
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    def decide(x):
+        k = np.zeros(len(x), np.int64)
+        for j in range(L - 1):
+            k += (x >= (2*j - L + 2)*spacing)
+        point = (2*k - (L - 1))*spacing
+        point = ((point + (1 << (data_width - 1))) & ((1 << data_width) - 1)) - (1 << (data_width - 1))
+        return k, point
+    ki, pi = decide(i)
+    kq, pq = decide(q)
+    return pi, pq, (kq << bits_per_axis) | ki
+
+# Differential Encoder / Decoder -------------------------------------------------------------------
+
+def diff_encode_model(symbols, modulus=4):
+    """Reference for litedsp.comm.diff.LiteDSPDifferentialEncoder: out[n] = (in[n] + out[n-1]) mod M."""
+    acc = 0
+    out = np.zeros(len(symbols), np.int64)
+    for n, s in enumerate(symbols):
+        acc    = (acc + int(s)) % modulus
+        out[n] = acc
+    return out
+
+def diff_decode_model(symbols, modulus=4):
+    """Reference for litedsp.comm.diff.LiteDSPDifferentialDecoder: out[n] = (in[n] - in[n-1]) mod M."""
+    prev = 0
+    out  = np.zeros(len(symbols), np.int64)
+    for n, s in enumerate(symbols):
+        out[n] = (int(s) - prev) % modulus
+        prev   = int(s)
+    return out
+
+# Stream Ops ---------------------------------------------------------------------------------------
+
+def _np_wrapped(v, width):
+    """Wrap to signed ``width``-bit two's-complement (register truncation, no saturation)."""
+    v = np.asarray(v, np.int64) & ((1 << width) - 1)
+    return np.where(v >= (1 << (width - 1)), v - (1 << width), v)
+
+def conjugate_model(i, q, data_width=16):
+    """Reference for litedsp.stream.ops.LiteDSPConjugate (q -> -q; -full-scale wraps, no saturation)."""
+    return np.asarray(i, np.int64), _np_wrapped(-np.asarray(q, np.int64), data_width)
+
+def swap_iq_model(i, q, data_width=16):
+    """Reference for litedsp.stream.ops.LiteDSPSwapIQ (i <-> q)."""
+    return np.asarray(q, np.int64), np.asarray(i, np.int64)
+
+def negate_model(i, q, data_width=16):
+    """Reference for litedsp.stream.ops.LiteDSPNegate (-full-scale wraps, no saturation)."""
+    return (_np_wrapped(-np.asarray(i, np.int64), data_width),
+            _np_wrapped(-np.asarray(q, np.int64), data_width))
+
+def iq_add_model(a_i, a_q, b_i, b_q, data_width=16):
+    """Reference for litedsp.stream.ops.LiteDSPIQAdd (saturating complex add)."""
+    a_i, a_q = np.asarray(a_i, np.int64), np.asarray(a_q, np.int64)
+    b_i, b_q = np.asarray(b_i, np.int64), np.asarray(b_q, np.int64)
+    return np_saturated(a_i + b_i, data_width), np_saturated(a_q + b_q, data_width)
 
 # Combine ------------------------------------------------------------------------------------------
 

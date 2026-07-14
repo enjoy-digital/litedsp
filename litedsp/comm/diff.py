@@ -12,6 +12,8 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
+from litedsp.common import check
+
 # Differential Encoder -----------------------------------------------------------------------------
 
 @ResetInserter()
@@ -25,6 +27,7 @@ class LiteDSPDifferentialEncoder(LiteXModule):
         indices (2 = DBPSK, 4 = DQPSK).
     """
     def __init__(self, modulus=4, with_csr=True):
+        check(modulus >= 2, "expected modulus >= 2")
         bits = (modulus - 1).bit_length()
         self.modulus = modulus
         self.latency = 1
@@ -66,6 +69,7 @@ class LiteDSPDifferentialDecoder(LiteXModule):
         ceil(log2(M))-bit symbol indices (2 = DBPSK, 4 = DQPSK).
     """
     def __init__(self, modulus=4, with_csr=True):
+        check(modulus >= 2, "expected modulus >= 2")
         bits = (modulus - 1).bit_length()
         self.modulus = modulus
         self.latency = 1

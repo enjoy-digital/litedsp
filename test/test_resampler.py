@@ -10,9 +10,12 @@ import numpy as np
 
 from litedsp.filter.resampler import LiteDSPRationalResampler
 
-from test.common import run_stream, column, snr_db
+from test.common import run_stream, column, assert_snr
 
 class TestRationalResampler(unittest.TestCase):
+    # verify-tier: bound — the output must be a clean tone at f*M/L: least-squares-fit the
+    # expected sinusoid (amplitude/phase are the only free parameters), so the residual is the
+    # resampler's passband distortion. Measured 87.5 dB (LITEDSP_SEED=0); gate 3 dB under.
     def test_ratio(self):
         L, M, n = 3, 2, 600
         f = 0.05
@@ -22,13 +25,12 @@ class TestRationalResampler(unittest.TestCase):
         cap = run_stream(dut, [{"i": int(x[k]), "q": 0} for k in range(n)], n_out,
             ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
         y = column(cap, "i", 16).astype(float)[40:]
-        # Output tone at f*M/L; should be a clean sinusoid (compare to ideal, search phase).
-        fout = f*M/L
-        best = -np.inf
-        for ph in np.linspace(0, 2*np.pi, 16, endpoint=False):
-            ref = np.std(y)*np.sqrt(2)*np.cos(2*np.pi*fout*np.arange(len(y)) + ph)
-            best = max(best, snr_db(ref, y))
-        self.assertGreater(best, 15.0)   # Resampled tone preserved (crude amplitude-fit metric).
+        # Output tone at f*M/L; should be a clean sinusoid (compare to the LS-fitted ideal).
+        fout  = f*M/L
+        t     = np.arange(len(y))
+        basis = np.column_stack([np.cos(2*np.pi*fout*t), np.sin(2*np.pi*fout*t)])
+        ref   = basis @ np.linalg.lstsq(basis, y, rcond=None)[0]
+        assert_snr(self, ref, y, 84.0, "rational resampler tone")
 
 if __name__ == "__main__":
     unittest.main()

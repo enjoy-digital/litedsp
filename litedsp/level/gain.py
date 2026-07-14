@@ -55,8 +55,15 @@ class LiteDSPGain(LiteXModule):
 
         # Products and per-shift round+saturate results.
         # ----------------------------------------------
-        prod_i = self.sink.i * self.gain
-        prod_q = self.sink.q * self.gain
+        # Full-width product Signals: an inline expression would be sized by its 16-bit
+        # assignment context in the emitted Verilog and silently truncate the product
+        # (found by Verilator co-simulation; Migen's simulator evaluates full-width).
+        prod_i = Signal((data_width + gain_frac + 2, True))
+        prod_q = Signal((data_width + gain_frac + 2, True))
+        self.comb += [
+            prod_i.eq(self.sink.i * self.gain),
+            prod_q.eq(self.sink.q * self.gain),
+        ]
         res_i, res_q = Signal((data_width, True)), Signal((data_width, True))
         ovf          = Signal()
         cases = {}

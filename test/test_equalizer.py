@@ -13,6 +13,11 @@ from litedsp.filter.equalizer import LiteDSPLMSEqualizer
 from test.common import run_stream, column, to_signed
 
 class TestLMSEqualizer(unittest.TestCase):
+    # verify-tier: bound — converged MSE gated against the Wiener floor: for h = [1, 0.45,
+    # -0.25, 0.1], the optimal 7-tap delay-3 linear equalizer has MMSE = 0.135*amp**2 (solve
+    # R w = p with R[a,b] = Es*sum_m h[m]*h[m+a-b], p[a] = Es*h[delay-a], Es = 2*amp**2,
+    # MMSE = Es - w.p). The LMS (mu_shift=20) measured at 0.99x MMSE (LITEDSP_SEED=0);
+    # gate at 1.5x. Eye opening measured at 0.25*amp; gate at amp/8.
     def test_trained_isi(self):
         n_taps = 7
         delay  = n_taps//2
@@ -39,10 +44,18 @@ class TestLMSEqualizer(unittest.TestCase):
         ser  = np.mean(dec != ref)
         self.assertLess(ser, 0.02)
 
-        # Equalization actually helped: residual error well below the raw ISI distortion.
+        # Equalization actually helped: residual error well below the raw ISI distortion
+        # (measured ratio ~32x at LITEDSP_SEED=0; gate at 16x).
         err_eq  = np.mean(np.abs(y[tail] - d[tail])**2)
         err_raw = np.mean(np.abs(x[N-1000:] - d[N-1000:])**2)
-        self.assertLess(err_eq, err_raw/4)
+        self.assertLess(err_eq, err_raw/16)
+
+        # Converged MSE sits at the Wiener floor (derivation above the test).
+        self.assertLess(err_eq, 1.5*0.135*amp**2)
+
+        # Eye opening: every post-convergence decision clears the slicer threshold by amp/8.
+        eye = min(np.min(np.abs(y[tail].real)), np.min(np.abs(y[tail].imag)))
+        self.assertGreater(eye, amp/8)
 
 if __name__ == "__main__":
     unittest.main()

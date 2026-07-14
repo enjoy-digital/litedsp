@@ -26,9 +26,9 @@ def build(verilog, tb_cpp, top, build_dir, cflags=None):
     subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
     return os.path.join(obj, "V" + top)
 
-def run(binary, args):
-    """Run a built Verilator binary with string-ified args."""
-    subprocess.check_call([binary] + [str(a) for a in args])
+def run(binary, args, cwd=None):
+    """Run a built Verilator binary with string-ified args (``cwd``: where $readmem files live)."""
+    subprocess.check_call([os.path.abspath(binary)] + [str(a) for a in args], cwd=cwd)
 
 def lint(verilog, top):
     """Lint a Verilog file with Verilator (catches width/latch/comb-loop issues). Returns ok."""

@@ -43,6 +43,7 @@ class LiteDSPCapture(LiteXModule):
     def __init__(self, depth=1024, data_width=16, with_csr=True, with_irq=False,
         with_wishbone=False):
         check(data_width <= 16, "expected data_width <= 16")  # I/Q packed in one 32-bit word.
+        check(depth >= 1, "expected depth >= 1")
         self.depth  = depth
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))

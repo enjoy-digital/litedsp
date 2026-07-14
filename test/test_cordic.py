@@ -11,9 +11,17 @@ import numpy as np
 
 from litedsp.generation.cordic import LiteDSPCORDIC
 
-from test.common import run_stream, column, snr_db
+from test.common import run_stream, column, assert_snr
 
 class TestCORDIC(unittest.TestCase):
+    # Fixed-point bound: stages = data_width = 16 iterations give ~1 bit of convergence each,
+    # but the result is rounded to 16 bits after the Q1.15 1/K gain compensation (and the
+    # angle LUT is quantized to angle_width), leaving ~12 effective bits, i.e. ~74 dB. Gates
+    # are set 3 dB under the values measured at LITEDSP_SEED=0 (the pipeline is pure
+    # feedforward, so the outputs are stall-invariant and stable across seed rotation):
+    # rotation 73.9, sincos 77.8/78.7, vectoring mag 74.4, vectoring angle 76.4 dB.
+
+    # verify-tier: bound.
     def test_rotation(self):
         dw, aw = 16, 16
         dut = LiteDSPCORDIC(data_width=dw, angle_width=aw, mode="rotation", with_csr=False)
@@ -30,8 +38,9 @@ class TestCORDIC(unittest.TestCase):
         ang = np.array(zs)/(1 << aw)*2*np.pi
         tx  = np.array(xs)*np.cos(ang) - np.array(ys)*np.sin(ang)
         ty  = np.array(xs)*np.sin(ang) + np.array(ys)*np.cos(ang)
-        self.assertGreater(snr_db(tx + 1j*ty, gx + 1j*gy), 40.0)
+        assert_snr(self, tx + 1j*ty, gx + 1j*gy, 70.5, "rotation")
 
+    # verify-tier: bound.
     def test_sincos(self):
         dw, aw = 16, 16
         dut = LiteDSPCORDIC(data_width=dw, angle_width=aw, mode="rotation", with_csr=False)
@@ -43,9 +52,10 @@ class TestCORDIC(unittest.TestCase):
         gx = column(cap, "x", dw).astype(float)
         gy = column(cap, "y", dw).astype(float)
         ang = np.array(zs)/(1 << aw)*2*np.pi
-        self.assertGreater(snr_db(amp*np.cos(ang), gx), 40.0)
-        self.assertGreater(snr_db(amp*np.sin(ang), gy), 40.0)
+        assert_snr(self, amp*np.cos(ang), gx, 74.5, "cos")
+        assert_snr(self, amp*np.sin(ang), gy, 75.5, "sin")
 
+    # verify-tier: bound.
     def test_vectoring(self):
         dw, aw = 16, 16
         dut = LiteDSPCORDIC(data_width=dw, angle_width=aw, mode="vectoring", with_csr=False)
@@ -61,9 +71,9 @@ class TestCORDIC(unittest.TestCase):
         true_mag = np.hypot(xs, ys)
         true_ang = np.arctan2(ys, xs)
         # Magnitude: high SNR. Angle: compare on the unit circle (wrap-aware), big vectors only.
-        self.assertGreater(snr_db(true_mag, gmag), 40.0)
+        assert_snr(self, true_mag, gmag, 71.0, "magnitude")
         big = true_mag > 1500
-        self.assertGreater(snr_db(np.exp(1j*true_ang[big]), np.exp(1j*gang[big])), 40.0)
+        assert_snr(self, np.exp(1j*true_ang[big]), np.exp(1j*gang[big]), 73.0, "angle")
 
 if __name__ == "__main__":
     unittest.main()

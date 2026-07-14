@@ -10,7 +10,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common       import iq_layout
+from litedsp.common       import check, iq_layout
 from litedsp.stream.split import LiteDSPSplit
 from litedsp.mixing.ddc   import LiteDSPDDC
 
@@ -32,6 +32,8 @@ class LiteDSPChannelizer(LiteXModule):
     """
     def __init__(self, n_channels=4, decimation=None, data_width=16, method="fir",
         phase_bits=32, with_csr=True):
+        check(n_channels >= 1, "expected n_channels >= 1")
+        check(decimation is None or decimation >= 1, "expected decimation >= 1")
         if decimation is None:
             decimation = n_channels                       # Critically sampled.
         self.n_channels = n_channels
