@@ -84,6 +84,7 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7): see `doc/resources.md`.
 | Tests (`test/`)    | Golden-model harness: NumPy reference models, bit-exact/SNR checks under randomized backpressure | `python3 -m unittest discover -s test` |
 | Sim (`sim/`)       | Verilator (real HDL) co-simulation vs the NumPy models + full-registry lint sweep | `python3 sim/run_blocks.py` |
 | Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
+| Char (`char/`)     | Quality characterization: SFDR/ENOB, ripple/attenuation, CIC droop error, image rejection, IMD3, settling — measured on the golden models, gated on quality budgets | `python3 char/run_char.py` |
 | Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |
 
 [> Getting started
@@ -123,6 +124,7 @@ Assembled-chain demos live in `examples/`.
 | `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |
 | `doc/flow.md`             | Netlist format, flow/GUI usage, IP core generation          |
 | `doc/resources.md`        | Per-block LUT/FF/BRAM/DSP + fmax table (generated)          |
+| `doc/characterization.md` | Per-block quality metrics: measured + guaranteed (generated)|
 | `doc/implementation.md`   | The impl/ flows and budget gating                           |
 | `CONTRIBUTING.md`         | New-block checklist, tests, commit conventions              |
 

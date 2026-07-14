@@ -60,3 +60,7 @@ Additional contracts introduced with the harmonization:
   backpressure) under `unittest`, Verilator co-simulation and lint sweep (`sim/`), Yosys/
   nextpnr + Vivado implementation gated on resource/fmax budgets (`impl/`), board-level
   benches on litex-boards targets (`bench/`).
+- Quality characterization suite (`char/`): datasheet-grade metrics (SFDR/ENOB, ripple/
+  attenuation, CIC droop error, image rejection, IMD3, AGC settling, window sidelobes)
+  measured on the golden models and gated on direction-aware quality budgets
+  (`char/budgets.json`), with a generated report (`doc/characterization.md`).
