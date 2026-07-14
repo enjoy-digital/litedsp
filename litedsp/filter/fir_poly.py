@@ -33,7 +33,7 @@ def _pow2_ceil(n):
 # Decimating FIR -----------------------------------------------------------------------------------
 
 @ResetInserter()
-class FIRDecimator(LiteXModule):
+class LiteDSPFIRDecimator(LiteXModule):
     """Decimate-by-R complex FIR with a single time-shared MAC per I/Q.
 
     Collects R input samples then MACs the N taps over the sample window to produce one output
@@ -148,7 +148,7 @@ class FIRDecimator(LiteXModule):
 # Interpolating FIR --------------------------------------------------------------------------------
 
 @ResetInserter()
-class FIRInterpolator(LiteXModule):
+class LiteDSPFIRInterpolator(LiteXModule):
     """Interpolate-by-L complex FIR with a single time-shared MAC per I/Q (polyphase).
 
     For each input it emits L outputs, output ``p`` computed from polyphase sub-filter

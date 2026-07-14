@@ -21,7 +21,7 @@ from litedsp.common import iq_layout, saturated
 # Combine ------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Combine(LiteXModule):
+class LiteDSPCombine(LiteXModule):
     """Sum ``n_channels`` complex I/Q streams into one, with per-channel enable and saturation.
 
     The internal accumulator grows to fit the worst-case sum (``data_width + ceil(log2(N))``)

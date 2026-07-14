@@ -14,15 +14,15 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
 from litedsp.common   import iq_layout, scaled
-from litedsp.control  import PILoop
+from litedsp.control  import LiteDSPPILoop
 
 # Carrier Recovery Loop ----------------------------------------------------------------------------
 
 @ResetInserter()
-class CarrierLoop(LiteXModule):
+class LiteDSPCarrierLoop(LiteXModule):
     """Carrier recovery: derotate the input with an internal NCO driven by a PI loop.
 
-    Each sample is derotated by ``exp(-j*phase)``; the phase error feeds a :class:`PILoop` whose
+    Each sample is derotated by ``exp(-j*phase)``; the phase error feeds a :class:`LiteDSPPILoop` whose
     output advances the NCO phase (a 2nd-order loop that locks frequency and phase). The
     derotated (baseband) signal is the output. ``decision_directed=False`` (PLL) uses the
     derotated imaginary part as the error (residual-carrier / tone); ``True`` (Costas) uses
@@ -79,7 +79,7 @@ class CarrierLoop(LiteXModule):
         err_scaled = Signal((phase_bits + 2, True))
         self.comb += err_scaled.eq(err << (phase_bits - data_width))
 
-        self.pi = PILoop(error_width=phase_bits + 2, out_width=phase_bits + 2,
+        self.pi = LiteDSPPILoop(error_width=phase_bits + 2, out_width=phase_bits + 2,
             kp_shift=kp_shift, ki_shift=ki_shift)
         self.comb += [self.pi.error.eq(err_scaled), self.pi.ce.eq(xfer)]
         self.sync += If(xfer, phase.eq(phase + self.pi.out))
@@ -100,14 +100,14 @@ class CarrierLoop(LiteXModule):
 
 # Convenience aliases ------------------------------------------------------------------------------
 
-class PLL(CarrierLoop):
+class LiteDSPPLL(LiteDSPCarrierLoop):
     """Phase-locked loop for a residual carrier / tone (PLL phase detector)."""
     def __init__(self, **kwargs):
         kwargs.pop("decision_directed", None)
-        CarrierLoop.__init__(self, decision_directed=False, **kwargs)
+        LiteDSPCarrierLoop.__init__(self, decision_directed=False, **kwargs)
 
-class Costas(CarrierLoop):
+class LiteDSPCostas(LiteDSPCarrierLoop):
     """Costas loop for suppressed-carrier BPSK (decision-directed phase detector)."""
     def __init__(self, **kwargs):
         kwargs.pop("decision_directed", None)
-        CarrierLoop.__init__(self, decision_directed=True, **kwargs)
+        LiteDSPCarrierLoop.__init__(self, decision_directed=True, **kwargs)

@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, scaled
 # IQ Imbalance Correction --------------------------------------------------------------------------
 
 @ResetInserter()
-class IQBalance(LiteXModule):
+class LiteDSPIQBalance(LiteXModule):
     """Correct I/Q gain & phase imbalance with a 2x2 matrix, plus an estimator for calibration.
 
     Datapath: ``I' = I``, ``Q' = (c1*I + c2*Q) >> frac`` (round + saturate). The defaults

@@ -41,7 +41,7 @@ def _tw_rom(N, func, width):
 
 # Iterative FFT ------------------------------------------------------------------------------------
 
-class FFTIter(LiteXModule):
+class LiteDSPFFTIter(LiteXModule):
     """Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped)."""
     def __init__(self, N, data_width=16, twiddle_width=16, with_csr=True):
         assert (N & (N - 1)) == 0 and N >= 4

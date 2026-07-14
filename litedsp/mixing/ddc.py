@@ -11,13 +11,13 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common           import iq_layout
-from litedsp.generation.nco   import NCO
-from litedsp.mixing.mixer     import Mixer, MIXER_MODE_DOWN
-from litedsp.rate.decimator   import Decimator
+from litedsp.generation.nco   import LiteDSPNCO
+from litedsp.mixing.mixer     import LiteDSPMixer, MIXER_MODE_DOWN
+from litedsp.rate.decimator   import LiteDSPDecimator
 
 # Digital Down-Converter ---------------------------------------------------------------------------
 
-class DDC(LiteXModule):
+class LiteDSPDDC(LiteXModule):
     """Digital down-converter: NCO + complex mixer (down) + decimator.
 
     Tunes a band centered at the NCO frequency down to baseband and decimates. The tuning word
@@ -31,9 +31,9 @@ class DDC(LiteXModule):
 
         # # #
 
-        self.nco   = NCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
-        self.mixer = Mixer(data_width=data_width, with_csr=False)
-        self.decim = Decimator(data_width=data_width, factor=decimation, method=method,
+        self.nco   = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
+        self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)
+        self.decim = LiteDSPDecimator(data_width=data_width, factor=decimation, method=method,
             with_csr=with_csr)
         self.latency = self.decim.latency
         self.comb += [

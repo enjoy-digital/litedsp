@@ -18,7 +18,7 @@ from litedsp.common import iq_layout, scaled, saturated
 # Tunable Notch ------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Notch(LiteXModule):
+class LiteDSPNotch(LiteXModule):
     """Tunable 2nd-order notch (zeros on the unit circle, poles at radius ``r``).
 
     Notch frequency set at runtime by ``cos_w0`` (= cos(2*pi*f0), signed Q.``frac``). ``r`` (build
@@ -70,7 +70,7 @@ class Notch(LiteXModule):
 # Comb Filter --------------------------------------------------------------------------------------
 
 @ResetInserter()
-class CombFilter(LiteXModule):
+class LiteDSPCombFilter(LiteXModule):
     """Feed-forward comb ``y[n] = x[n] - x[n-D]`` (nulls at multiples of fs/D), per I/Q."""
     def __init__(self, depth=8, data_width=16, with_csr=True):
         self.depth  = depth
@@ -105,7 +105,7 @@ class CombFilter(LiteXModule):
 # Allpass ------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Allpass(LiteXModule):
+class LiteDSPAllpass(LiteXModule):
     """1st-order allpass ``y[n] = -a*x[n] + x[n-1] + a*y[n-1]`` (flat magnitude), per I/Q."""
     def __init__(self, data_width=16, frac=14, with_csr=True):
         self.frac = frac

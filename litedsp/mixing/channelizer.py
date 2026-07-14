@@ -11,12 +11,12 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common       import iq_layout
-from litedsp.stream.split import Split
-from litedsp.mixing.ddc   import DDC
+from litedsp.stream.split import LiteDSPSplit
+from litedsp.mixing.ddc   import LiteDSPDDC
 
 # Channelizer (uniform DFT filterbank) -------------------------------------------------------------
 
-class Channelizer(LiteXModule):
+class LiteDSPChannelizer(LiteXModule):
     """Split a wide band into ``n_channels`` uniformly-spaced sub-channels.
 
     Implemented as a bank of DDCs (one per channel, tuned to ``k/n_channels`` and decimated):
@@ -33,14 +33,14 @@ class Channelizer(LiteXModule):
 
         # # #
 
-        self.split = Split(n=n_channels, data_width=data_width)
+        self.split = LiteDSPSplit(n=n_channels, data_width=data_width)
         self.comb += self.sink.connect(self.split.sink)
 
         self.ddcs    = []
         self.sources = []
         mask = (1 << phase_bits) - 1
         for k in range(n_channels):
-            ddc = DDC(data_width=data_width, decimation=decimation, method=method,
+            ddc = LiteDSPDDC(data_width=data_width, decimation=decimation, method=method,
                 phase_bits=phase_bits, with_csr=False)
             ddc.nco.phase_inc.reset = int(round(k/n_channels*(1 << phase_bits))) & mask
             self.add_module(name=f"ddc{k}", module=ddc)

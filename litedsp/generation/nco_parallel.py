@@ -12,17 +12,17 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
 from litedsp.common         import iq_layout, iq_lanes
-from litedsp.generation.nco import NCO
+from litedsp.generation.nco import LiteDSPNCO
 
 import math
 
 # Parallel NCO ---------------------------------------------------------------------------------------
 
 @ResetInserter()
-class ParallelNCO(LiteXModule):
+class LiteDSPParallelNCO(LiteXModule):
     """NCO emitting ``n_samples`` consecutive samples per beat (multi-sample-per-cycle datapaths).
 
-    Same phase/LUT scheme as :class:`~litedsp.generation.nco.NCO`: the accumulator steps
+    Same phase/LUT scheme as :class:`~litedsp.generation.nco.LiteDSPNCO`: the accumulator steps
     ``n_samples * phase_inc`` per accepted beat and lane ``k`` addresses its own cos/sin ROM
     pair at ``phase + (k+1)*phase_inc``, so the flattened lane sequence is bit-identical to the
     serial NCO output at the same ``phase_inc`` (n ROM pairs traded for n samples/cycle).
@@ -54,8 +54,8 @@ class ParallelNCO(LiteXModule):
 
         # Per-lane cos/sin ROMs at phase + (k+1)*phase_inc.
         # -------------------------------------------------
-        cos_init = NCO.build_lut(lut_depth, data_width, math.cos)
-        sin_init = NCO.build_lut(lut_depth, data_width, math.sin)
+        cos_init = LiteDSPNCO.build_lut(lut_depth, data_width, math.cos)
+        sin_init = LiteDSPNCO.build_lut(lut_depth, data_width, math.sin)
         for k, (i, q) in enumerate(iq_lanes(self.source, data_width, n_samples)):
             lane_phase = Signal(phase_bits)
             self.comb += lane_phase.eq(phase + self.phase_inc*(k + 1))

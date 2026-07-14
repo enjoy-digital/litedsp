@@ -11,12 +11,12 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common        import real_layout, iq_layout
-from litedsp.filter.fir    import FIRFilter
+from litedsp.filter.fir    import LiteDSPFIRFilter
 from litedsp.filter.design import hilbert_coefficients
 
 # Hilbert Transformer ------------------------------------------------------------------------------
 
-class Hilbert(LiteXModule):
+class LiteDSPHilbert(LiteXModule):
     """Real -> analytic (complex) signal via a Hilbert FIR.
 
     Two equal-length FIRs run on the real input: the I path is a pure delay (group delay
@@ -33,8 +33,8 @@ class Hilbert(LiteXModule):
 
         # # #
 
-        self.fir_i = FIRFilter(n_taps, data_width=data_width)   # Delay path (matches group delay).
-        self.fir_q = FIRFilter(n_taps, data_width=data_width)   # Hilbert (90 deg) path.
+        self.fir_i = LiteDSPFIRFilter(n_taps, data_width=data_width)   # Delay path (matches group delay).
+        self.fir_q = LiteDSPFIRFilter(n_taps, data_width=data_width)   # Hilbert (90 deg) path.
         self.latency = self.fir_i.latency
 
         center = (n_taps - 1)//2

@@ -11,13 +11,13 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common         import iq_layout
-from litedsp.filter.cic     import CICDecimator
-from litedsp.filter.fir_poly import FIRDecimator
+from litedsp.filter.cic     import LiteDSPCICDecimator
+from litedsp.filter.fir_poly import LiteDSPFIRDecimator
 from litedsp.filter.design  import firwin_lowpass
 
 # Decimator ----------------------------------------------------------------------------------------
 
-class Decimator(LiteXModule):
+class LiteDSPDecimator(LiteXModule):
     """Integer decimator: anti-alias filter + rate drop.
 
     ``method="cic"`` (default) uses a portable CIC (efficient for large factors); ``method="fir"``
@@ -34,11 +34,11 @@ class Decimator(LiteXModule):
         # # #
 
         if method == "cic":
-            self.core = CICDecimator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
+            self.core = LiteDSPCICDecimator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
         else:
             n_taps = n_taps or (8*factor + 1)
             coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width)
-            self.core = FIRDecimator(n_taps, factor, data_width=data_width,
+            self.core = LiteDSPFIRDecimator(n_taps, factor, data_width=data_width,
                 coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency
         self.comb += [

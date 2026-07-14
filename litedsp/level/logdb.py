@@ -16,7 +16,7 @@ from litedsp.common import real_layout
 # Log2 ---------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Log2(LiteXModule):
+class LiteDSPLog2(LiteXModule):
     """Fixed-point base-2 logarithm of an unsigned input (priority-encoder + mantissa).
 
     ``log2(x) ~= msb_position + fraction`` where the fraction is the ``frac_bits`` bits just
@@ -55,16 +55,16 @@ class Log2(LiteXModule):
 
 # Log-Power (dB) -----------------------------------------------------------------------------------
 
-class LogPower(LiteXModule):
+class LiteDSPLogPower(LiteXModule):
     """Power-to-dB: ``10*log10(x) = 3.0103 * log2(x)`` (x is a power value, unsigned).
 
-    Internally a :class:`Log2` followed by a constant scale. Output is dB in Q?.``out_frac``.
+    Internally a :class:`LiteDSPLog2` followed by a constant scale. Output is dB in Q?.``out_frac``.
     """
     def __init__(self, in_width=32, out_frac=4, with_csr=True):
         self.sink   = stream.Endpoint(real_layout(in_width))
         DB_PER_BIT  = 3.010299957                              # 10*log10(2).
         # # #
-        self.log2 = Log2(in_width=in_width, frac_bits=8, with_csr=False)
+        self.log2 = LiteDSPLog2(in_width=in_width, frac_bits=8, with_csr=False)
         scale     = int(round(DB_PER_BIT*(1 << out_frac)))     # dB per log2-unit, Q(out_frac+).
         self.out_width = self.log2.out_width + scale.bit_length()
         self.source = stream.Endpoint([("data", self.out_width)])

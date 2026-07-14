@@ -25,8 +25,8 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common         import iq_layout, real_layout
-from litedsp.comm.fm_demod  import FMDemod
-from litedsp.filter.fir_poly import FIRDecimator
+from litedsp.comm.fm_demod  import LiteDSPFMDemod
+from litedsp.filter.fir_poly import LiteDSPFIRDecimator
 from litedsp.filter.design  import firwin_lowpass
 
 # FM receiver: FM demod -> low-pass decimate (audio). --------------------------------------------
@@ -37,10 +37,10 @@ class FMReceiver(LiteXModule):
 
         # # #
 
-        self.demod = FMDemod(data_width=data_width, angle_width=data_width, with_csr=False)
+        self.demod = LiteDSPFMDemod(data_width=data_width, angle_width=data_width, with_csr=False)
         # Decimate the (real) demodulated signal: feed it as I, take I out.
         coeffs = firwin_lowpass(8*audio_decim + 1, 0.4/audio_decim, data_width=data_width)
-        self.audio = FIRDecimator(8*audio_decim + 1, audio_decim, data_width=data_width,
+        self.audio = LiteDSPFIRDecimator(8*audio_decim + 1, audio_decim, data_width=data_width,
             coefficients=coeffs, with_csr=False)
         self.source = self.audio.source
         self.comb += [

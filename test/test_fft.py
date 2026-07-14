@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.analysis.fft import FFT, bit_reverse
+from litedsp.analysis.fft import LiteDSPFFT, bit_reverse
 
 from test.common import run_stream, column, snr_db
 from test.models import fft_model
@@ -19,7 +19,7 @@ def reorder_bitrev(frame, bits):
 
 class TestFFT(unittest.TestCase):
     def run_fft(self, xi, xq, N, data_width=16, throttle=0.0, ready=1.0):
-        dut = FFT(N=N, data_width=data_width, with_csr=False)
+        dut = LiteDSPFFT(N=N, data_width=data_width, with_csr=False)
         samples = [{"i": int(xi[k]), "q": int(xq[k])} for k in range(len(xi))]
         captured = run_stream(dut, samples, len(xi) - 1, ["i", "q"], ["i", "q"],
             sink_throttle=throttle, source_ready_rate=ready)
@@ -77,6 +77,23 @@ class TestFFT(unittest.TestCase):
         ref  = fft_model(fi, fq)
         snr  = self.best_frame_snr(out, ref, N, bits)
         self.assertGreater(snr, 45.0, f"backpressure SNR={snr:.1f} dB")
+
+class TestIFFT(unittest.TestCase):
+    def test_matches_numpy(self):
+        N, bits = 64, 6
+        rng = np.random.RandomState(0)
+        X = (rng.randint(-6000, 6000, N) + 1j*rng.randint(-6000, 6000, N))
+        dut = LiteDSPFFT(N=N, data_width=16, inverse=True, with_csr=False)
+        samples = [{"i": int(X[k].real), "q": int(X[k].imag)} for k in range(N)]*5
+        cap = run_stream(dut, samples, len(samples) - 1, ["i", "q"], ["i", "q"],
+            sink_throttle=0.0, source_ready_rate=1.0)
+        out = column(cap, "i", 16) + 1j*column(cap, "q", 16)
+        ref = np.fft.ifft(X)
+        best = -np.inf
+        for off in range(len(out) - N):
+            nat = reorder_bitrev(out[off:off + N], bits)
+            best = max(best, snr_db(ref, nat))
+        self.assertGreater(best, 40.0)
 
 if __name__ == "__main__":
     unittest.main()

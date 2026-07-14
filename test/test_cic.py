@@ -11,14 +11,14 @@ import numpy as np
 
 from migen import passive
 
-from litedsp.filter.cic import CICDecimator, CICInterpolator, CICDecimatorRuntime, cic_shift
+from litedsp.filter.cic import LiteDSPCICDecimator, LiteDSPCICInterpolator, LiteDSPCICDecimatorRuntime, cic_shift
 
 from test.common import run_stream, column
 from test.models import cic_decimator_model, cic_interpolator_model
 
 class TestCICDecimator(unittest.TestCase):
     def run_dec(self, xi, xq, R, N, M=1):
-        dut = CICDecimator(data_width=16, R=R, N=N, M=M, with_csr=False)
+        dut = LiteDSPCICDecimator(data_width=16, R=R, N=N, M=M, with_csr=False)
         n_out = len(xi)//R
         samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
@@ -48,7 +48,7 @@ class TestCICDecimator(unittest.TestCase):
 
 class TestCICDecimatorRuntime(unittest.TestCase):
     def run_dec(self, xi, xq, R, N):
-        dut = CICDecimatorRuntime(data_width=16, r_max=8192, N=N, iq=True, with_csr=False)
+        dut = LiteDSPCICDecimatorRuntime(data_width=16, r_max=8192, N=N, iq=True, with_csr=False)
         n_out = len(xi)//R
 
         @passive
@@ -77,7 +77,7 @@ class TestCICDecimatorRuntime(unittest.TestCase):
 
 class TestCICInterpolator(unittest.TestCase):
     def run_int(self, xi, xq, R, N, M=1):
-        dut = CICInterpolator(data_width=16, R=R, N=N, M=M, with_csr=False)
+        dut = LiteDSPCICInterpolator(data_width=16, R=R, N=N, M=M, with_csr=False)
         n_out = len(xi)*R
         samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],

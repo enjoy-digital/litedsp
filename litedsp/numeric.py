@@ -13,7 +13,7 @@ from litex.soc.interconnect import stream
 # Integer Square Root ------------------------------------------------------------------------------
 
 @ResetInserter()
-class ISqrt(LiteXModule):
+class LiteDSPISqrt(LiteXModule):
     """Unsigned integer square root (floor), restoring algorithm.
 
     For an ``in_width``-bit input the result is ``ceil(in_width/2)`` bits. Two implementations,

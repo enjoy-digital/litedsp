@@ -19,12 +19,12 @@ from migen import run_simulation
 
 from litex.gen import LiteXModule
 
-from litedsp.stream.adapt           import IQSerialToParallel, IQParallelToSerial
-from litedsp.generation.nco_parallel import ParallelNCO
-from litedsp.mixing.mixer_parallel  import ParallelMixer
-from litedsp.mixing.ddc_parallel    import ParallelDDC
-from litedsp.filter.fir_parallel    import ParallelFIRFilter, ParallelFIRFilterComplex
-from litedsp.filter.cic_parallel    import ParallelCICDecimator
+from litedsp.stream.adapt           import LiteDSPIQSerialToParallel, LiteDSPIQParallelToSerial
+from litedsp.generation.nco_parallel import LiteDSPParallelNCO
+from litedsp.mixing.mixer_parallel  import LiteDSPParallelMixer
+from litedsp.mixing.ddc_parallel    import LiteDSPParallelDDC
+from litedsp.filter.fir_parallel    import LiteDSPParallelFIRFilter, LiteDSPParallelFIRFilterComplex
+from litedsp.filter.cic_parallel    import LiteDSPParallelCICDecimator
 
 from test.common import stream_driver, stream_capture, to_signed
 from test.models import (nco_model, mixer_model, fir_model, fir_complex_model,
@@ -58,8 +58,8 @@ class TestSerialParallelAdapters(unittest.TestCase):
         n_samples = 4
         class Loop(LiteXModule):
             def __init__(self):
-                self.s2p = IQSerialToParallel(n_samples=n_samples, data_width=16)
-                self.p2s = IQParallelToSerial(n_samples=n_samples, data_width=16)
+                self.s2p = LiteDSPIQSerialToParallel(n_samples=n_samples, data_width=16)
+                self.p2s = LiteDSPIQParallelToSerial(n_samples=n_samples, data_width=16)
                 self.sink, self.source = self.s2p.sink, self.p2s.source
                 self.comb += self.s2p.source.connect(self.p2s.sink)
         dut  = Loop()
@@ -77,7 +77,7 @@ class TestSerialParallelAdapters(unittest.TestCase):
 
     def test_lane_order(self):
         n_samples = 2
-        dut = IQSerialToParallel(n_samples=n_samples, data_width=16)
+        dut = LiteDSPIQSerialToParallel(n_samples=n_samples, data_width=16)
         samples = [{"i": k + 1, "q": 0} for k in range(8)]
         cap = []
         run_simulation(dut, [
@@ -93,7 +93,7 @@ class TestParallelNCO(unittest.TestCase):
     def test_matches_serial_model(self):
         n_samples, n_beats = 4, 32
         phase_inc = 0x0891_2345
-        dut = ParallelNCO(n_samples=n_samples, data_width=16, with_csr=False)
+        dut = LiteDSPParallelNCO(n_samples=n_samples, data_width=16, with_csr=False)
         dut.phase_inc.reset = phase_inc
         cap = []
         run_simulation(dut, [stream_capture(dut.source, cap, n_beats, ("i", "q"), ready_rate=0.7)])
@@ -115,7 +115,7 @@ class TestParallelMixer(unittest.TestCase):
             return [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
                      "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
                     for k in range(0, len(x), n_samples)]
-        dut = ParallelMixer(n_samples=n_samples, data_width=16, with_csr=False)  # mode=0: down.
+        dut = LiteDSPParallelMixer(n_samples=n_samples, data_width=16, with_csr=False)  # mode=0: down.
         cap = []
         run_simulation(dut, [
             stream_driver(dut.sink_a, beats(a), ("i", "q"), throttle=0.2),
@@ -138,7 +138,7 @@ class TestParallelFIR(unittest.TestCase):
             prng   = random.Random(2)
             coeffs = [prng.randint(-8000, 8000) for _ in range(n_taps)]
             x      = [prng.randint(-20000, 20000) for _ in range(n_samples*n_beats)]
-            dut = ParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=16)
+            dut = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=16)
             for t in range(n_taps):
                 dut.coeffs[t].reset = coeffs[t]           # Signed; do not mask.
             beats = [{"data": pack_lanes(x[k:k + n_samples])}
@@ -159,7 +159,7 @@ class TestParallelFIRComplex(unittest.TestCase):
         coeffs = [prng.randint(-8000, 8000) for _ in range(n_taps)]
         x      = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
                   for _ in range(n_samples*n_beats)]
-        dut = ParallelFIRFilterComplex(n_samples=n_samples, n_taps=n_taps, data_width=16,
+        dut = LiteDSPParallelFIRFilterComplex(n_samples=n_samples, n_taps=n_taps, data_width=16,
             coefficients=coeffs, with_csr=False)
         beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
                   "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
@@ -184,7 +184,7 @@ class TestParallelCIC(unittest.TestCase):
             prng = random.Random(4)
             x    = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
                     for _ in range(n_samples*n_beats)]
-            dut  = ParallelCICDecimator(n_samples=n_samples, data_width=16, R=R, N=N,
+            dut  = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=16, R=R, N=N,
                 with_csr=False)
             beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
                       "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
@@ -211,7 +211,7 @@ class TestParallelDDC(unittest.TestCase):
         prng = random.Random(5)
         x    = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
                 for _ in range(n_samples*n_beats)]
-        dut = ParallelDDC(n_samples=n_samples, data_width=16, decimation=R, cic_stages=N,
+        dut = LiteDSPParallelDDC(n_samples=n_samples, data_width=16, decimation=R, cic_stages=N,
             with_csr=False)
         dut.nco.phase_inc.reset = phase_inc
         beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),

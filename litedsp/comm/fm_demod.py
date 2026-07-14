@@ -11,11 +11,11 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common            import iq_layout, real_layout, scaled
-from litedsp.generation.cordic import CORDIC
+from litedsp.generation.cordic import LiteDSPCORDIC
 
 # FM Demodulator -----------------------------------------------------------------------------------
 
-class FMDemod(LiteXModule):
+class LiteDSPFMDemod(LiteXModule):
     """FM discriminator: instantaneous frequency = ``angle(x[n] * conj(x[n-1]))``.
 
     Computes the complex product of each sample with the conjugate of the previous one
@@ -28,7 +28,7 @@ class FMDemod(LiteXModule):
 
         # # #
 
-        self.cordic = CORDIC(data_width=data_width, angle_width=angle_width,
+        self.cordic = LiteDSPCORDIC(data_width=data_width, angle_width=angle_width,
             mode="vectoring", with_csr=False)
         self.latency = self.cordic.latency
 

@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.comm.timing_recovery import TimingRecovery
+from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
 from litedsp.filter.design        import rrc_coefficients
 
 from test.common import run_stream, column, to_signed
@@ -26,7 +26,7 @@ def make_signal(L, sps_hi, sps, offset, seed):
 
 class TestTimingRecovery(unittest.TestCase):
     def run_mm(self, x, sps=2, ted="mm"):
-        dut = TimingRecovery(data_width=16, sps=sps, gain_mu=0.1, ted=ted, with_csr=False)
+        dut = LiteDSPTimingRecovery(data_width=16, sps=sps, gain_mu=0.1, ted=ted, with_csr=False)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         n_out = len(x)//sps - 8
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],

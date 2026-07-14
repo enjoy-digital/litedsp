@@ -11,11 +11,11 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common            import iq_layout, real_layout
-from litedsp.generation.cordic import CORDIC
+from litedsp.generation.cordic import LiteDSPCORDIC
 
 # Phase Detector -----------------------------------------------------------------------------------
 
-class PhaseDetect(LiteXModule):
+class LiteDSPPhaseDetect(LiteXModule):
     """Instantaneous phase ``atan2(Q, I)`` of an I/Q stream (CORDIC vectoring).
 
     Building block for carrier/timing loops. Output is the angle in signed phase units
@@ -27,7 +27,7 @@ class PhaseDetect(LiteXModule):
 
         # # #
 
-        self.cordic = CORDIC(data_width=data_width, angle_width=angle_width,
+        self.cordic = LiteDSPCORDIC(data_width=data_width, angle_width=angle_width,
             mode="vectoring", with_csr=False)
         self.latency = self.cordic.latency
         self.comb += [

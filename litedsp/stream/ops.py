@@ -38,23 +38,23 @@ class _IQMap(LiteXModule):
 
 # Operations ---------------------------------------------------------------------------------------
 
-class Conjugate(_IQMap):
+class LiteDSPConjugate(_IQMap):
     """Complex conjugate: ``q -> -q``."""
     def map_q(self): return -self.sink.q
 
-class SwapIQ(_IQMap):
+class LiteDSPSwapIQ(_IQMap):
     """Swap I and Q (a +/-90 deg rotation / spectrum mirror)."""
     def map_i(self): return self.sink.q
     def map_q(self): return self.sink.i
 
-class Negate(_IQMap):
+class LiteDSPNegate(_IQMap):
     """Negate both components."""
     def map_i(self): return -self.sink.i
     def map_q(self): return -self.sink.q
 
 # Two-input operations -----------------------------------------------------------------------------
 
-class IQAdd(LiteXModule):
+class LiteDSPIQAdd(LiteXModule):
     """Saturating complex adder: ``source = a + b`` (e.g. signal + noise test paths).
 
     Joint handshake: a transfer needs both inputs valid (both advance together). The sums are

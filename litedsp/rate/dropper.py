@@ -6,9 +6,9 @@
 
 """Naive integer rate changers (no filtering).
 
-``Downsampler`` keeps one of every ``factor`` samples; ``Upsampler`` emits ``factor`` output
+``LiteDSPDownsampler`` keeps one of every ``factor`` samples; ``LiteDSPUpsampler`` emits ``factor`` output
 samples per input (sample-and-hold or zero-stuff). They do **no** anti-alias / anti-image
-filtering — pair them with a FIR/CIC (e.g. filter then ``Downsampler``, or ``Upsampler`` then
+filtering — pair them with a FIR/CIC (e.g. filter then ``LiteDSPDownsampler``, or ``LiteDSPUpsampler`` then
 filter), or use the polyphase rate blocks when those land.
 """
 
@@ -24,7 +24,7 @@ from litedsp.common import iq_layout
 # Downsampler --------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Downsampler(LiteXModule):
+class LiteDSPDownsampler(LiteXModule):
     """Keep one of every ``factor`` I/Q samples (naive decimation, no anti-alias filter)."""
     def __init__(self, data_width=16, factor_bits=16, with_csr=True):
         self.data_width = data_width
@@ -70,7 +70,7 @@ class Downsampler(LiteXModule):
 # Upsampler ----------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Upsampler(LiteXModule):
+class LiteDSPUpsampler(LiteXModule):
     """Emit ``factor`` I/Q samples per input: sample-and-hold (default) or zero-stuff."""
     def __init__(self, data_width=16, factor_bits=16, zero_stuff=False, with_csr=True):
         self.data_width = data_width

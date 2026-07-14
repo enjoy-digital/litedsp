@@ -17,7 +17,7 @@ from litedsp.common import iq_layout, scaled
 # Automatic Gain Control ---------------------------------------------------------------------------
 
 @ResetInserter()
-class AGC(LiteXModule):
+class LiteDSPAGC(LiteXModule):
     """Automatic gain control: drives |output| toward ``target``.
 
     Estimates the input magnitude (alpha-max-beta-min), integrates the error into a gain

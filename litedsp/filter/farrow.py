@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, scaled
 # Farrow Fractional Interpolator -------------------------------------------------------------------
 
 @ResetInserter()
-class FarrowInterpolator(LiteXModule):
+class LiteDSPFarrowInterpolator(LiteXModule):
     """Cubic (Catmull-Rom) Farrow fractional-delay interpolator with runtime ``mu``.
 
     Interpolates between samples at fractional position ``mu`` (Q.``frac_bits``, 0..1) using a

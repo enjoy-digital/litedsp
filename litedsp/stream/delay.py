@@ -15,7 +15,7 @@ from litedsp.common import iq_layout
 # Delay / Align ------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Delay(LiteXModule):
+class LiteDSPDelay(LiteXModule):
     """Delay an I/Q stream by ``depth`` cycles (data and valid travel together).
 
     A simple pipeline of register stages used to time-align parallel branches by a known

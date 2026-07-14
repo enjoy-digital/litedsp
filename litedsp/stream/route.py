@@ -15,7 +15,7 @@ from litedsp.common import iq_layout
 
 # Channel Mux / Demux ------------------------------------------------------------------------------
 
-class ChannelMux(LiteXModule):
+class LiteDSPChannelMux(LiteXModule):
     """Route one of ``n`` I/Q sinks to a single source, selected by ``sel`` (runtime)."""
     def __init__(self, n=2, data_width=16, with_csr=True):
         self.n      = n
@@ -42,7 +42,7 @@ class ChannelMux(LiteXModule):
             self._sel = CSRStorage(self.sel.nbits, name="sel", description="Selected input channel.")
             self.comb += self.sel.eq(self._sel.storage)
 
-class ChannelDemux(LiteXModule):
+class LiteDSPChannelDemux(LiteXModule):
     """Route a single I/Q sink to one of ``n`` sources, selected by ``sel`` (runtime)."""
     def __init__(self, n=2, data_width=16, with_csr=True):
         self.n       = n

@@ -11,14 +11,14 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common             import iq_layout, real_layout
-from litedsp.analysis.magnitude import Magnitude
+from litedsp.analysis.magnitude import LiteDSPMagnitude
 
 # AM Demodulator -----------------------------------------------------------------------------------
 
-class AMDemod(LiteXModule):
+class LiteDSPAMDemod(LiteXModule):
     """AM envelope demodulator: ``|x|`` (magnitude) with the carrier DC removed.
 
-    A :class:`Magnitude` followed by a multiplier-free 1st-order DC blocker (pole
+    A :class:`LiteDSPMagnitude` followed by a multiplier-free 1st-order DC blocker (pole
     ``1 - 2**-pole_shift``). Output is the recovered modulating signal (signed).
     """
     def __init__(self, data_width=16, pole_shift=8, with_csr=True):
@@ -26,7 +26,7 @@ class AMDemod(LiteXModule):
 
         # # #
 
-        self.mag = Magnitude(data_width=data_width, with_csr=False)
+        self.mag = LiteDSPMagnitude(data_width=data_width, with_csr=False)
         W        = self.mag.out_width + 1
         self.source = stream.Endpoint(real_layout(W))
         self.latency = self.mag.latency + 1

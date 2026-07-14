@@ -15,7 +15,7 @@ from litex.soc.interconnect import stream
 # Differential Encoder -----------------------------------------------------------------------------
 
 @ResetInserter()
-class DifferentialEncoder(LiteXModule):
+class LiteDSPDifferentialEncoder(LiteXModule):
     """``out[n] = (in[n] + out[n-1]) mod M`` (symbol indices)."""
     def __init__(self, modulus=4, with_csr=True):
         bits = (modulus - 1).bit_length()
@@ -44,7 +44,7 @@ class DifferentialEncoder(LiteXModule):
 # Differential Decoder -----------------------------------------------------------------------------
 
 @ResetInserter()
-class DifferentialDecoder(LiteXModule):
+class LiteDSPDifferentialDecoder(LiteXModule):
     """``out[n] = (in[n] - in[n-1]) mod M`` (inverse of the encoder)."""
     def __init__(self, modulus=4, with_csr=True):
         bits = (modulus - 1).bit_length()

@@ -8,10 +8,10 @@ import unittest
 
 import numpy as np
 
-from litedsp.rate.decimator import Decimator
-from litedsp.rate.interpolator import Interpolator
-from litedsp.mixing.ddc import DDC
-from litedsp.mixing.duc import DUC
+from litedsp.rate.decimator import LiteDSPDecimator
+from litedsp.rate.interpolator import LiteDSPInterpolator
+from litedsp.mixing.ddc import LiteDSPDDC
+from litedsp.mixing.duc import LiteDSPDUC
 
 from test.common import run_stream, column
 
@@ -21,7 +21,7 @@ def tone(n, f, amp=12000, phase=0.0):
 
 class TestDecimator(unittest.TestCase):
     def run_dec(self, x, factor, method):
-        dut = Decimator(data_width=16, factor=factor, method=method, with_csr=False)
+        dut = LiteDSPDecimator(data_width=16, factor=factor, method=method, with_csr=False)
         n_out = len(x)//factor - dut.latency - 2
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         cap = run_stream(dut, samples, max(8, n_out), ["i", "q"], ["i", "q"],
@@ -40,7 +40,7 @@ class TestInterpolator(unittest.TestCase):
     def test_image_reject(self):
         # Interpolate a baseband tone; spectral images near fs/factor must be suppressed.
         factor, n = 4, 200
-        dut = Interpolator(data_width=16, factor=factor, method="fir", with_csr=False)
+        dut = LiteDSPInterpolator(data_width=16, factor=factor, method="fir", with_csr=False)
         x   = tone(n, 0.05, amp=10000)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         cap = run_stream(dut, samples, n*factor, ["i", "q"], ["i", "q"],
@@ -57,7 +57,7 @@ class TestDDC(unittest.TestCase):
     def test_tune_to_baseband(self):
         decim, n = 4, 4*400
         f = 0.10
-        dut = DDC(data_width=16, decimation=decim, method="fir", with_csr=False)
+        dut = LiteDSPDDC(data_width=16, decimation=decim, method="fir", with_csr=False)
         dut.nco.phase_inc.reset = int(round(f*(1 << 32))) & 0xffffffff  # down-mix by f.
         x = tone(n, f, amp=12000)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
@@ -73,7 +73,7 @@ class TestDUC(unittest.TestCase):
     def test_upconvert(self):
         interp, n = 4, 300
         f_out = 0.10
-        dut = DUC(data_width=16, interpolation=interp, method="fir", with_csr=False)
+        dut = LiteDSPDUC(data_width=16, interpolation=interp, method="fir", with_csr=False)
         dut.nco.phase_inc.reset = int(round(f_out*(1 << 32))) & 0xffffffff
         x = np.full(n, 9000 + 0j)                      # Baseband DC.
         samples = [{"i": int(v.real), "q": int(v.imag)} for v in x]

@@ -1,10 +1,12 @@
-name: Release (PyPI)
+name: PyPI
 
-# Publishes to PyPI on version tags (e.g. v0.1.0) via PyPI trusted publishing (OIDC — configure
-# the publisher once at https://pypi.org/manage/account/publishing/: repository
-# enjoy-digital/litedsp, workflow release.yml, environment pypi). No API token secrets needed.
+# Publishes to PyPI on version tags (e.g. v2026.07) or manual dispatch, via PyPI trusted
+# publishing (OIDC — configure the publisher once at
+# https://pypi.org/manage/account/publishing/: repository enjoy-digital/litedsp,
+# workflow pypi.yml, environment pypi). No API token secrets needed.
 
 on:
+  workflow_dispatch:
   push:
     tags: ["v*"]
 

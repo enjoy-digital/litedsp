@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, saturated
 # DC Offset Correction -----------------------------------------------------------------------------
 
 @ResetInserter()
-class DCOffset(LiteXModule):
+class LiteDSPDCOffset(LiteXModule):
     """Estimate and remove a DC offset per I/Q with a leaky-integrator mean.
 
     ``mean += (x - mean) >> mu`` (pole ``1 - 2**-mu``); output ``x - round(mean)``. Larger

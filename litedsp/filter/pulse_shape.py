@@ -11,12 +11,12 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common          import iq_layout
-from litedsp.filter.fir_poly import FIRInterpolator
+from litedsp.filter.fir_poly import LiteDSPFIRInterpolator
 from litedsp.filter.design   import rrc_coefficients
 
 # Pulse Shaper -------------------------------------------------------------------------------------
 
-class PulseShaper(LiteXModule):
+class LiteDSPPulseShaper(LiteXModule):
     """Root-raised-cosine pulse-shaping interpolator (``sps`` samples/symbol).
 
     An interpolating polyphase FIR loaded with RRC taps: maps a 1-sample-per-symbol I/Q stream
@@ -33,7 +33,7 @@ class PulseShaper(LiteXModule):
 
         n_taps    = sps*span + 1
         coeffs    = rrc_coefficients(sps, span, beta, data_width=data_width, gain=sps)
-        self.core = FIRInterpolator(n_taps, sps, data_width=data_width,
+        self.core = LiteDSPFIRInterpolator(n_taps, sps, data_width=data_width,
             coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency
         self.comb += [self.sink.connect(self.core.sink), self.core.source.connect(self.source)]

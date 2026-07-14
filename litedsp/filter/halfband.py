@@ -18,12 +18,12 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common          import iq_layout
-from litedsp.filter.fir_poly import FIRDecimator, FIRInterpolator
+from litedsp.filter.fir_poly import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
 from litedsp.filter.design   import halfband_coefficients
 
 # Half-band Decimator ------------------------------------------------------------------------------
 
-class HalfbandDecimator(LiteXModule):
+class LiteDSPHalfbandDecimator(LiteXModule):
     """Decimate-by-2 half-band FIR."""
     def __init__(self, n_taps=23, data_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -32,13 +32,13 @@ class HalfbandDecimator(LiteXModule):
         # # #
 
         coeffs    = halfband_coefficients(n_taps, data_width=data_width)
-        self.core = FIRDecimator(n_taps, 2, data_width=data_width, coefficients=coeffs, with_csr=with_csr)
+        self.core = LiteDSPFIRDecimator(n_taps, 2, data_width=data_width, coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency
         self.comb += [self.sink.connect(self.core.sink), self.core.source.connect(self.source)]
 
 # Half-band Interpolator ---------------------------------------------------------------------------
 
-class HalfbandInterpolator(LiteXModule):
+class LiteDSPHalfbandInterpolator(LiteXModule):
     """Interpolate-by-2 half-band FIR."""
     def __init__(self, n_taps=23, data_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -47,6 +47,6 @@ class HalfbandInterpolator(LiteXModule):
         # # #
 
         coeffs    = halfband_coefficients(n_taps, data_width=data_width, gain=2.0)
-        self.core = FIRInterpolator(n_taps, 2, data_width=data_width, coefficients=coeffs, with_csr=with_csr)
+        self.core = LiteDSPFIRInterpolator(n_taps, 2, data_width=data_width, coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency
         self.comb += [self.sink.connect(self.core.sink), self.core.source.connect(self.source)]

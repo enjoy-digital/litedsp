@@ -29,7 +29,7 @@ def cordic_gain(stages):
 # CORDIC -------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class CORDIC(LiteXModule):
+class LiteDSPCORDIC(LiteXModule):
     """Pipelined CORDIC (one iteration per stage), gain-compensated, full-circle.
 
     ``mode="rotation"``: rotate ``(x, y)`` by ``z`` -> ``(x, y)``. With ``y=0`` and ``x`` at

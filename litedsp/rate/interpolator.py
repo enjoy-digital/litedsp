@@ -11,13 +11,13 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common          import iq_layout
-from litedsp.filter.cic      import CICInterpolator
-from litedsp.filter.fir_poly import FIRInterpolator
+from litedsp.filter.cic      import LiteDSPCICInterpolator
+from litedsp.filter.fir_poly import LiteDSPFIRInterpolator
 from litedsp.filter.design   import firwin_lowpass
 
 # Interpolator -------------------------------------------------------------------------------------
 
-class Interpolator(LiteXModule):
+class LiteDSPInterpolator(LiteXModule):
     """Integer interpolator: rate expand + anti-image filter.
 
     ``method="cic"`` (default) uses a portable CIC; ``method="fir"`` uses a polyphase
@@ -34,11 +34,11 @@ class Interpolator(LiteXModule):
         # # #
 
         if method == "cic":
-            self.core = CICInterpolator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
+            self.core = LiteDSPCICInterpolator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
         else:
             n_taps = n_taps or (8*factor + 1)
             coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width, gain=factor)
-            self.core = FIRInterpolator(n_taps, factor, data_width=data_width,
+            self.core = LiteDSPFIRInterpolator(n_taps, factor, data_width=data_width,
                 coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency
         self.comb += [

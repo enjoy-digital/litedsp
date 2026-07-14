@@ -32,12 +32,12 @@ from litex.soc.integration.soc_core import SoCMini
 from litex.soc.integration.builder  import Builder
 from litex.soc.cores.led            import LedChaser
 
-from litedsp.generation.nco    import NCO
-from litedsp.generation.source import NoiseSource
-from litedsp.stream.ops        import IQAdd
-from litedsp.mixing.ddc        import DDC
-from litedsp.stream.capture    import Capture
-from litedsp.stream.csr_io     import CSRReader
+from litedsp.generation.nco    import LiteDSPNCO
+from litedsp.generation.source import LiteDSPNoiseSource
+from litedsp.stream.ops        import LiteDSPIQAdd
+from litedsp.mixing.ddc        import LiteDSPDDC
+from litedsp.stream.capture    import LiteDSPCapture
+from litedsp.stream.csr_io     import LiteDSPCSRReader
 
 # Boards -------------------------------------------------------------------------------------------
 
@@ -80,12 +80,12 @@ class BenchSoC(SoCMini):
         self.add_uartbone()
 
         # DSP chain: tone + noise -> DDC -> capture -> CSR readout ----------------------------------
-        self.nco     = NCO(data_width=16)                     # Test tone (phase_inc CSR).
-        self.noise   = NoiseSource(data_width=16, shift=4)    # AWGN floor.
-        self.adder   = IQAdd(data_width=16)
-        self.ddc     = DDC(data_width=16, decimation=8)       # Tune (nco phase_inc) + /8.
-        self.capture = Capture(depth=capture_depth, data_width=16, with_wishbone=True)
-        self.reader  = CSRReader(data_width=16)
+        self.nco     = LiteDSPNCO(data_width=16)                     # Test tone (phase_inc CSR).
+        self.noise   = LiteDSPNoiseSource(data_width=16, shift=4)    # AWGN floor.
+        self.adder   = LiteDSPIQAdd(data_width=16)
+        self.ddc     = LiteDSPDDC(data_width=16, decimation=8)       # Tune (nco phase_inc) + /8.
+        self.capture = LiteDSPCapture(depth=capture_depth, data_width=16, with_wishbone=True)
+        self.reader  = LiteDSPCSRReader(data_width=16)
         # Fast readout: the capture buffer as a memory-mapped window (one sample per word).
         self.bus.add_slave(name="capture_mem", slave=self.capture.bus,
             region=SoCRegion(origin=0x3000_0000, size=self.capture.mem_size, cached=False))

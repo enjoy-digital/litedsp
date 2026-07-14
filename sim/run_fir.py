@@ -20,7 +20,7 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from litedsp.filter.fir    import FIRFilterComplex
+from litedsp.filter.fir    import LiteDSPFIRFilterComplex
 from litedsp.filter.design import firwin_lowpass
 
 from litedsp.verilog import to_verilog
@@ -29,7 +29,7 @@ from test.models   import fir_complex_model
 
 def main(n_taps=17, n=200, build_dir="/tmp/litedsp_sim"):
     coeffs = firwin_lowpass(n_taps, 0.2)
-    dut = FIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs, with_csr=False)
+    dut = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs, with_csr=False)
     ios = {dut.bypass, dut.sink.valid, dut.sink.ready, dut.sink.i, dut.sink.q,
            dut.source.valid, dut.source.ready, dut.source.i, dut.source.q}
     verilog = to_verilog(dut, ios, "fir", build_dir)

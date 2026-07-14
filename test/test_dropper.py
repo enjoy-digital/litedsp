@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.rate.dropper import Downsampler, Upsampler
+from litedsp.rate.dropper import LiteDSPDownsampler, LiteDSPUpsampler
 
 from test.common import run_stream, column
 from test.models import decimate_model, interpolate_model
@@ -23,7 +23,7 @@ class TestDropper(unittest.TestCase):
     def test_downsample(self):
         for factor in [1, 2, 3, 5]:
             xi, xq = self.rand_iq(240, factor)
-            dut = Downsampler(data_width=16, with_csr=False)
+            dut = LiteDSPDownsampler(data_width=16, with_csr=False)
             dut.factor.reset = factor
             n_out = len(xi)//factor
             samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
@@ -38,7 +38,7 @@ class TestDropper(unittest.TestCase):
     def test_upsample_hold(self):
         for factor in [1, 2, 4]:
             xi, xq = self.rand_iq(80, factor + 10)
-            dut = Upsampler(data_width=16, zero_stuff=False, with_csr=False)
+            dut = LiteDSPUpsampler(data_width=16, zero_stuff=False, with_csr=False)
             dut.factor.reset = factor
             n_out = len(xi)*factor
             samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
@@ -51,7 +51,7 @@ class TestDropper(unittest.TestCase):
     def test_upsample_zero(self):
         for factor in [2, 4]:
             xi, xq = self.rand_iq(80, factor + 20)
-            dut = Upsampler(data_width=16, zero_stuff=True, with_csr=False)
+            dut = LiteDSPUpsampler(data_width=16, zero_stuff=True, with_csr=False)
             dut.factor.reset = factor
             n_out = len(xi)*factor
             samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]

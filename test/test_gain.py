@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.level.gain import Gain
+from litedsp.level.gain import LiteDSPGain
 
 from test.common import run_stream, column
 from test.models import gain_model
@@ -17,7 +17,7 @@ from test.models import gain_model
 class TestGain(unittest.TestCase):
     def run_gain(self, x_i, x_q, gain, shift, bypass=0, data_width=16):
         n   = len(x_i)
-        dut = Gain(data_width=data_width, with_csr=False)
+        dut = LiteDSPGain(data_width=data_width, with_csr=False)
         dut.gain.reset   = gain
         dut.shift.reset  = shift
         dut.bypass.reset = bypass
@@ -55,7 +55,7 @@ class TestGain(unittest.TestCase):
     def test_saturation_flag(self):
         # Large samples with gain ~4 must overflow and set the sticky flag.
         n   = 64
-        dut = Gain(data_width=16, with_csr=False)
+        dut = LiteDSPGain(data_width=16, with_csr=False)
         dut.gain.reset  = (1 << 14)*4    # ~4.0 in Q2.14 (overflows for big inputs).
         dut.shift.reset = 0
         samples = [{"i": 30000, "q": -30000} for _ in range(n)]

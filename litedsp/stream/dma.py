@@ -6,8 +6,8 @@
 
 """DMA capture/replay: bridge I/Q streams to/from system memory.
 
-``DMACapture`` packs an I/Q stream into memory words (:class:`~litedsp.stream.adapt.IQPack`) and
-writes them to a base/length memory window through a DMA writer; ``DMAReplay`` reads a window back
+``LiteDSPDMACapture`` packs an I/Q stream into memory words (:class:`~litedsp.stream.adapt.LiteDSPIQPack`) and
+writes them to a base/length memory window through a DMA writer; ``LiteDSPDMAReplay`` reads a window back
 and unpacks it into an I/Q stream, with optional looping for continuous replay. This upgrades
 capture/replay from CSR-window depth to sustained-rate, memory-sized buffers.
 
@@ -21,7 +21,7 @@ Two backends, selected by the constructor argument:
 Control is the standard LiteX DMA register set (``base``/``length`` in bytes, ``enable``,
 ``done``, ``loop``, ``offset``), exposed as CSRs with ``with_csr=True`` (default) or — Wishbone
 backend only — as plain control Signals with ``with_csr=False`` per the LiteDSP convention.
-While disabled, ``DMACapture`` drops incoming samples (no backpressure on a free-running chain).
+While disabled, ``LiteDSPDMACapture`` drops incoming samples (no backpressure on a free-running chain).
 """
 
 from migen import *
@@ -31,7 +31,7 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common       import iq_layout
-from litedsp.stream.adapt import IQPack, IQUnpack
+from litedsp.stream.adapt import LiteDSPIQPack, LiteDSPIQUnpack
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ def _word_ratio(word_width, data_width):
 
 # DMA Capture --------------------------------------------------------------------------------------
 
-class DMACapture(LiteXModule):
+class LiteDSPDMACapture(LiteXModule):
     """Capture an I/Q stream to a memory window through DMA (Wishbone ``bus=`` or LiteDRAM ``port=``)."""
     def __init__(self, data_width=16, bus=None, port=None, fifo_depth=16, with_csr=True):
         assert (bus is None) != (port is None), "provide exactly one of bus= (Wishbone) / port= (LiteDRAM)"
@@ -74,7 +74,7 @@ class DMACapture(LiteXModule):
             self.loop,   self.offset = self.writer.loop, self.writer.offset
 
         # Samples -> memory words.
-        self.pack = IQPack(ratio=_word_ratio(word_width, data_width), data_width=data_width)
+        self.pack = LiteDSPIQPack(ratio=_word_ratio(word_width, data_width), data_width=data_width)
         self.comb += [
             self.sink.connect(self.pack.sink),
             self.pack.source.connect(self.writer.sink),
@@ -82,7 +82,7 @@ class DMACapture(LiteXModule):
 
 # DMA Replay ---------------------------------------------------------------------------------------
 
-class DMAReplay(LiteXModule):
+class LiteDSPDMAReplay(LiteXModule):
     """Replay an I/Q stream from a memory window through DMA (Wishbone ``bus=`` or LiteDRAM ``port=``)."""
     def __init__(self, data_width=16, bus=None, port=None, fifo_depth=16, with_csr=True):
         assert (bus is None) != (port is None), "provide exactly one of bus= (Wishbone) / port= (LiteDRAM)"
@@ -114,7 +114,7 @@ class DMAReplay(LiteXModule):
             self.loop,   self.offset = self.reader.loop, self.reader.offset
 
         # Memory words -> samples.
-        self.unpack = IQUnpack(ratio=_word_ratio(word_width, data_width), data_width=data_width)
+        self.unpack = LiteDSPIQUnpack(ratio=_word_ratio(word_width, data_width), data_width=data_width)
         self.comb += [
             self.reader.source.connect(self.unpack.sink),
             self.unpack.source.connect(self.source),

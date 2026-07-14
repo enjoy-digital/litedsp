@@ -8,8 +8,8 @@ import unittest
 
 import numpy as np
 
-from litedsp.comm.fm_demod import FMDemod
-from litedsp.comm.am_demod import AMDemod
+from litedsp.comm.fm_demod import LiteDSPFMDemod
+from litedsp.comm.am_demod import LiteDSPAMDemod
 
 from test.common import run_stream, column, to_signed
 
@@ -26,7 +26,7 @@ class TestFMDemod(unittest.TestCase):
         f_dev = 0.05
         phase = 2*np.pi*np.cumsum(f_dev*msg)
         x = 14000*np.exp(1j*phase)
-        dut = FMDemod(data_width=16, angle_width=16, with_csr=False)
+        dut = LiteDSPFMDemod(data_width=16, angle_width=16, with_csr=False)
         cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
             n - 4, ["i", "q"], ["data"], sink_throttle=0.0, source_ready_rate=1.0)
         y = to_signed(column(cap, "data"), 16).astype(float)[64:]
@@ -40,7 +40,7 @@ class TestAMDemod(unittest.TestCase):
         msg = np.cos(2*np.pi*fm*np.arange(n))
         env = 12000 + 6000*msg
         x   = env*np.exp(1j*2*np.pi*fc*np.arange(n))
-        dut = AMDemod(data_width=16, pole_shift=9, with_csr=False)
+        dut = LiteDSPAMDemod(data_width=16, pole_shift=9, with_csr=False)
         cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
             n - 4, ["i", "q"], ["data"], sink_throttle=0.0, source_ready_rate=1.0)
         w = dut.source.data.nbits

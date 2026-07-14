@@ -14,10 +14,10 @@ import unittest
 
 from migen import run_simulation, passive
 
-from litedsp.level.squelch    import Squelch
-from litedsp.level.agc        import AGC
-from litedsp.stream.capture   import Capture
-from litedsp.analysis.detect  import EnergyDetector
+from litedsp.level.squelch    import LiteDSPSquelch
+from litedsp.level.agc        import LiteDSPAGC
+from litedsp.stream.capture   import LiteDSPCapture
+from litedsp.analysis.detect  import LiteDSPEnergyDetector
 
 @passive
 def feed_iq(sink, samples):
@@ -42,7 +42,7 @@ def wait_pending(ev_source, timeout=200):
 
 class TestIRQ(unittest.TestCase):
     def test_squelch_open_close_events(self):
-        dut = Squelch(data_width=16, with_csr=False, with_irq=True)
+        dut = LiteDSPSquelch(data_width=16, with_csr=False, with_irq=True)
         dut.open_threshold.reset  = 1000
         dut.close_threshold.reset = 500
         samples = [(0, 0)]*4 + [(2000, 0)]*8 + [(0, 0)]*8   # quiet -> loud -> quiet.
@@ -55,7 +55,7 @@ class TestIRQ(unittest.TestCase):
         run_simulation(dut, [feed_iq(dut.sink, samples), check(), always_ready(dut.source)])
 
     def test_energy_detector_event(self):
-        dut = EnergyDetector(data_width=16, avg_shift=2, with_csr=False, with_irq=True)
+        dut = LiteDSPEnergyDetector(data_width=16, avg_shift=2, with_csr=False, with_irq=True)
         samples = [(10, 0)]*32 + [(20000, 0)]*4             # noise -> strong signal.
 
         def check():
@@ -65,7 +65,7 @@ class TestIRQ(unittest.TestCase):
         run_simulation(dut, [feed_iq(dut.sink, samples), check(), always_ready(dut.source)])
 
     def test_capture_done_event(self):
-        dut = Capture(depth=8, data_width=16, with_csr=False, with_irq=True)
+        dut = LiteDSPCapture(depth=8, data_width=16, with_csr=False, with_irq=True)
         dut.threshold.reset = 100
         samples = [(0, 0)]*4 + [(1000 + k, 0) for k in range(16)]
 
@@ -77,7 +77,7 @@ class TestIRQ(unittest.TestCase):
 
     def test_agc_railed_event(self):
         # Tiny gain_max + weak input: the loop integrates up and hits the clamp.
-        dut = AGC(data_width=16, gain_frac=8, mu=2, gain_max=300, with_csr=False, with_irq=True)
+        dut = LiteDSPAGC(data_width=16, gain_frac=8, mu=2, gain_max=300, with_csr=False, with_irq=True)
         samples = [(10, 0)]*64
 
         def check():

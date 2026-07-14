@@ -11,9 +11,9 @@ import numpy as np
 
 from migen import run_simulation, passive
 
-from litedsp.analysis.stats     import Stats
-from litedsp.analysis.histogram import Histogram
-from litedsp.analysis.peak_bin  import PeakBin
+from litedsp.analysis.stats     import LiteDSPStats
+from litedsp.analysis.histogram import LiteDSPHistogram
+from litedsp.analysis.peak_bin  import LiteDSPPeakBin
 
 from test.common import run_stream, column, stream_capture, to_signed
 
@@ -21,7 +21,7 @@ class TestStats(unittest.TestCase):
     def test_window(self):
         w = 6
         N = 1 << w
-        dut = Stats(data_width=16, window_log2=w, with_csr=False)
+        dut = LiteDSPStats(data_width=16, window_log2=w, with_csr=False)
         prng = random.Random(1)
         x = [prng.randint(-20000, 20000) for _ in range(N)]
         cap = run_stream(dut, [{"data": v} for v in x], 1,
@@ -37,7 +37,7 @@ class TestHistogram(unittest.TestCase):
     def test_counts(self):
         bits, w = 4, 8
         B, N = 1 << bits, 1 << 8
-        dut = Histogram(data_width=16, bits=bits, window_log2=w, with_csr=False)
+        dut = LiteDSPHistogram(data_width=16, bits=bits, window_log2=w, with_csr=False)
         prng = random.Random(2)
         x = [prng.randint(-32768, 32767) for _ in range(N)]
         cap = run_stream(dut, [{"data": v} for v in x], B, ["data"], ["data"],
@@ -49,7 +49,7 @@ class TestHistogram(unittest.TestCase):
 
 class TestPeakBin(unittest.TestCase):
     def test_argmax(self):
-        dut = PeakBin(data_width=32, index_width=8, with_csr=False)
+        dut = LiteDSPPeakBin(data_width=32, index_width=8, with_csr=False)
         frames = [[10, 50, 30, 200, 40, 5, 7, 8],
                   [3, 3, 3, 3, 9, 3, 3, 3]]
 

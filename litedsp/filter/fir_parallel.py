@@ -13,15 +13,15 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common     import iq_layout, real_layout, real_lanes, scaled
-from litedsp.filter.fir import _adder_tree, FIRCoefficients
+from litedsp.filter.fir import _adder_tree, LiteDSPFIRCoefficients
 
 # Parallel FIR Filter (real) -------------------------------------------------------------------------
 
-class ParallelFIRFilter(LiteXModule):
+class LiteDSPParallelFIRFilter(LiteXModule):
     """Real FIR over ``n_samples`` lanes per beat (multi-sample-per-cycle datapaths).
 
     Computes the same ``y[k] = sum_t coeffs[t] * x[k-t]`` as
-    :class:`~litedsp.filter.fir.FIRFilter` on the flattened lane stream (lane 0 = first
+    :class:`~litedsp.filter.fir.LiteDSPFIRFilter` on the flattened lane stream (lane 0 = first
     sample), producing ``n_samples`` outputs per beat with ``n_samples * n_taps`` multipliers
     and the same rounding/saturation and 3-cycle latency. The sample history advances only on
     real transfers (elastic pipeline), so backpressure never corrupts the convolution.
@@ -88,12 +88,12 @@ class ParallelFIRFilter(LiteXModule):
 # Parallel FIR Filter (complex) ----------------------------------------------------------------------
 
 @ResetInserter()
-class ParallelFIRFilterComplex(LiteXModule):
-    """Complex parallel FIR: identical :class:`ParallelFIRFilter` on I and Q, shared coefficients.
+class LiteDSPParallelFIRFilterComplex(LiteXModule):
+    """Complex parallel FIR: identical :class:`LiteDSPParallelFIRFilter` on I and Q, shared coefficients.
 
     The multi-sample ``i``/``q`` fields are the concatenated lanes, so they map one-to-one onto
     the real filters' multi-sample ``data`` fields. Coefficients are shared/CSR-reloadable via
-    :class:`~litedsp.filter.fir.FIRCoefficients`, as in the serial complex FIR.
+    :class:`~litedsp.filter.fir.LiteDSPFIRCoefficients`, as in the serial complex FIR.
     """
     def __init__(self, n_samples=2, n_taps=32, data_width=16, coefficients=None, shift=None,
         with_csr=True):
@@ -106,11 +106,11 @@ class ParallelFIRFilterComplex(LiteXModule):
 
         # # #
 
-        self.coeffs = FIRCoefficients(n_taps=n_taps, data_width=data_width,
+        self.coeffs = LiteDSPFIRCoefficients(n_taps=n_taps, data_width=data_width,
             coefficients=coefficients, with_csr=with_csr)
-        self.fir_i  = ParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
+        self.fir_i  = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
             shift=shift)
-        self.fir_q  = ParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
+        self.fir_q  = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
             shift=shift)
         self.latency = self.fir_i.latency
 

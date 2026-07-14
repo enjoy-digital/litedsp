@@ -12,12 +12,12 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
 from litedsp.common             import iq_layout, real_layout
-from litedsp.analysis.magnitude import Magnitude
+from litedsp.analysis.magnitude import LiteDSPMagnitude
 
 # Envelope / Peak Detector -------------------------------------------------------------------------
 
 @ResetInserter()
-class EnvelopeDetector(LiteXModule):
+class LiteDSPEnvelopeDetector(LiteXModule):
     """Envelope follower on |I+jQ| with separate attack/release time constants.
 
     ``env += (|x| - env) >> attack`` when rising, ``>> release`` when falling (single-pole
@@ -31,7 +31,7 @@ class EnvelopeDetector(LiteXModule):
 
         # # #
 
-        self.mag = Magnitude(data_width=data_width, with_csr=False)
+        self.mag = LiteDSPMagnitude(data_width=data_width, with_csr=False)
         W        = self.mag.out_width
         self.source = stream.Endpoint(real_layout(W))
         self.latency = self.mag.latency + 1

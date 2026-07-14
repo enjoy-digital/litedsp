@@ -31,11 +31,11 @@ from litex.soc.integration.builder  import Builder
 from litex_boards.platforms import colorlight_5a_75b
 from litex_boards.targets.colorlight_5a_75x import _CRG
 
-from litedsp.generation.nco    import NCO
-from litedsp.generation.source import NoiseSource
-from litedsp.stream.ops        import IQAdd
-from litedsp.mixing.ddc        import DDC
-from litedsp.frontend.udp      import UDPIQStreamer
+from litedsp.generation.nco    import LiteDSPNCO
+from litedsp.generation.source import LiteDSPNoiseSource
+from litedsp.stream.ops        import LiteDSPIQAdd
+from litedsp.mixing.ddc        import LiteDSPDDC
+from litedsp.frontend.udp      import LiteDSPUDPIQStreamer
 
 # Bench SoC ----------------------------------------------------------------------------------------
 
@@ -65,10 +65,10 @@ class BenchSoC(SoCMini):
             data_width=32)
 
         # DSP chain: tone + noise -> DDC -----------------------------------------------------------
-        self.nco   = NCO(data_width=16)                       # Test tone (phase_inc CSR).
-        self.noise = NoiseSource(data_width=16, shift=4)      # AWGN floor.
-        self.adder = IQAdd(data_width=16)
-        self.ddc   = DDC(data_width=16, decimation=decimation)
+        self.nco   = LiteDSPNCO(data_width=16)                       # Test tone (phase_inc CSR).
+        self.noise = LiteDSPNoiseSource(data_width=16, shift=4)      # AWGN floor.
+        self.adder = LiteDSPIQAdd(data_width=16)
+        self.ddc   = LiteDSPDDC(data_width=16, decimation=decimation)
         self.comb += [
             self.nco.source.connect(self.adder.sink_a),
             self.noise.source.connect(self.adder.sink_b),
@@ -76,7 +76,7 @@ class BenchSoC(SoCMini):
         ]
 
         # Data path: I/Q packets to the host over UDP (shares the Etherbone core) -------------------
-        self.iq_streamer = UDPIQStreamer(self.ethcore_etherbone.udp,
+        self.iq_streamer = LiteDSPUDPIQStreamer(self.ethcore_etherbone.udp,
             ip_address=host_ip, udp_port=udp_port,
             data_width=16, word_width=32, samples_per_packet=samples_per_packet)
         self.comb += self.ddc.source.connect(self.iq_streamer.sink)

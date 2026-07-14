@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, rounded
 # Moving Average -----------------------------------------------------------------------------------
 
 @ResetInserter()
-class MovingAverage(LiteXModule):
+class LiteDSPMovingAverage(LiteXModule):
     """Boxcar moving average over ``2**length_log2`` samples (per I/Q), a.k.a. CIC-1.
 
     Maintains a running sum ``acc += x[n] - x[n-L]`` with an L-deep delay line (single adder),

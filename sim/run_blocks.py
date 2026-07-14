@@ -66,52 +66,52 @@ def _rand_cols(n_cols, n, lo=-20000, hi=20000, seed=1):
     return [[prng.randint(lo, hi) for _ in range(n)] for _ in range(n_cols)]
 
 def spec_fir():
-    from litedsp.filter.fir    import FIRFilter
+    from litedsp.filter.fir    import LiteDSPFIRFilter
     from litedsp.filter.design import firwin_lowpass
     n, n_taps = 200, 17
     coeffs = firwin_lowpass(n_taps, 0.2)
-    dut = FIRFilter(n_taps=n_taps, data_width=16)
+    dut = LiteDSPFIRFilter(n_taps=n_taps, data_width=16)
     for t, c in enumerate(coeffs):
         dut.coeffs[t].reset = int(c)
     cols = _rand_cols(1, n)
     return dut, set(), cols, n - 8, lambda c: [models.fir_model(np.array(c[0]), coeffs)]
 
 def spec_cic_decimator():
-    from litedsp.filter.cic import CICDecimator
+    from litedsp.filter.cic import LiteDSPCICDecimator
     n, R, N = 512, 8, 3
-    dut  = CICDecimator(data_width=16, R=R, N=N, with_csr=False)
+    dut  = LiteDSPCICDecimator(data_width=16, R=R, N=N, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n//R - 4, lambda c: [models.cic_decimator_model(np.array(c[0]), R, N),
                                                   models.cic_decimator_model(np.array(c[1]), R, N)]
 
 def spec_cic_interpolator():
-    from litedsp.filter.cic import CICInterpolator
+    from litedsp.filter.cic import LiteDSPCICInterpolator
     n, R, N = 64, 8, 3
-    dut  = CICInterpolator(data_width=16, R=R, N=N, with_csr=False)
+    dut  = LiteDSPCICInterpolator(data_width=16, R=R, N=N, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n*R - 2*R, lambda c: [models.cic_interpolator_model(np.array(c[0]), R, N),
                                                    models.cic_interpolator_model(np.array(c[1]), R, N)]
 
 def spec_dc_blocker():
-    from litedsp.filter.dc_blocker import DCBlocker
+    from litedsp.filter.dc_blocker import LiteDSPDCBlocker
     n    = 300
-    dut  = DCBlocker(data_width=16, with_csr=False)
+    dut  = LiteDSPDCBlocker(data_width=16, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n - 4, lambda c: [models.dc_blocker_model(np.array(c[0])),
                                                models.dc_blocker_model(np.array(c[1]))]
 
 def spec_moving_average():
-    from litedsp.filter.moving_average import MovingAverage
+    from litedsp.filter.moving_average import LiteDSPMovingAverage
     n, length_log2 = 300, 4
-    dut  = MovingAverage(data_width=16, length_log2=length_log2, with_csr=False)
+    dut  = LiteDSPMovingAverage(data_width=16, length_log2=length_log2, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n - 4, lambda c: [models.moving_average_model(np.array(c[0]), length_log2),
                                                models.moving_average_model(np.array(c[1]), length_log2)]
 
 def spec_magnitude():
-    from litedsp.analysis.magnitude import Magnitude
+    from litedsp.analysis.magnitude import LiteDSPMagnitude
     n    = 300
-    dut  = Magnitude(data_width=16, with_csr=False)
+    dut  = LiteDSPMagnitude(data_width=16, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n - 4, lambda c: [models.magnitude_model(np.array(c[0]), np.array(c[1]))]
 

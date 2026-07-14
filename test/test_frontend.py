@@ -12,8 +12,8 @@ from migen import run_simulation
 
 from litex.gen import LiteXModule
 
-from litedsp.frontend.converter import ADCInterface, DACInterface
-from litedsp.frontend.packet    import IQPacketizer, IQDepacketizer
+from litedsp.frontend.converter import LiteDSPADCInterface, LiteDSPDACInterface
+from litedsp.frontend.packet    import LiteDSPIQPacketizer, LiteDSPIQDepacketizer
 
 from test.common import stream_driver, stream_capture
 
@@ -29,7 +29,7 @@ class TestConverter(unittest.TestCase):
         return cap
 
     def test_adc_offset_binary(self):
-        dut = ADCInterface(adc_width=12, data_width=16, fmt="offset_binary")
+        dut = LiteDSPADCInterface(adc_width=12, data_width=16, fmt="offset_binary")
         # Offset-binary 12-bit: 0x000 = -FS, 0x800 = 0, 0xFFF = +FS-1LSB.
         raws = [0x000, 0x800, 0xFFF, 0x801, 0x7FF]
         cap  = self._run(dut, [{"i": r, "q": r ^ 0xFFF} for r in raws], ("i", "q"), ("i", "q"))
@@ -38,7 +38,7 @@ class TestConverter(unittest.TestCase):
             self.assertEqual(c["i"] & 0xFFFF, (e << 4) & 0xFFFF)
 
     def test_adc_twos(self):
-        dut = ADCInterface(adc_width=12, data_width=16, fmt="twos")
+        dut = LiteDSPADCInterface(adc_width=12, data_width=16, fmt="twos")
         raws = [0x000, 0x7FF, 0x800, 0xFFF]                # 0, +max, -min, -1.
         cap  = self._run(dut, [{"i": r, "q": 0} for r in raws], ("i", "q"), ("i", "q"))
         expected = [r - (0x1000 if r & 0x800 else 0) for r in raws]
@@ -49,8 +49,8 @@ class TestConverter(unittest.TestCase):
         # ADC -> DAC at the same width is identity on the raw codes.
         class Chain(LiteXModule):
             def __init__(self):
-                self.adc = ADCInterface(adc_width=12, data_width=16, fmt="offset_binary")
-                self.dac = DACInterface(dac_width=12, data_width=16, fmt="offset_binary")
+                self.adc = LiteDSPADCInterface(adc_width=12, data_width=16, fmt="offset_binary")
+                self.dac = LiteDSPDACInterface(dac_width=12, data_width=16, fmt="offset_binary")
                 self.sink, self.source = self.adc.sink, self.dac.source
                 self.comb += self.adc.source.connect(self.dac.sink)
         dut  = Chain()
@@ -65,7 +65,7 @@ class TestConverter(unittest.TestCase):
 class TestPacket(unittest.TestCase):
     def test_packetizer_words_and_last(self):
         # ratio=2 (64-bit words), 4 samples/packet -> 2 words/packet, last on every 2nd word.
-        dut = IQPacketizer(data_width=16, word_width=64, samples_per_packet=4, with_csr=False)
+        dut = LiteDSPIQPacketizer(data_width=16, word_width=64, samples_per_packet=4, with_csr=False)
         samples = [{"i": k + 1, "q": -(k + 1)} for k in range(8)]
         cap = []
         run_simulation(dut, [
@@ -83,9 +83,9 @@ class TestPacket(unittest.TestCase):
     def test_depacketizer_round_trip(self):
         class Loop(LiteXModule):
             def __init__(self):
-                self.pk  = IQPacketizer(data_width=16, word_width=64, samples_per_packet=4,
+                self.pk  = LiteDSPIQPacketizer(data_width=16, word_width=64, samples_per_packet=4,
                     with_csr=False)
-                self.dpk = IQDepacketizer(data_width=16, word_width=64, with_csr=False)
+                self.dpk = LiteDSPIQDepacketizer(data_width=16, word_width=64, with_csr=False)
                 self.sink, self.source = self.pk.sink, self.dpk.source
                 self.comb += self.pk.source.connect(self.dpk.sink)
         dut = Loop()
@@ -105,8 +105,8 @@ class TestUDP(unittest.TestCase):
     def test_streamer_emits_udp_packets(self):
         from liteeth.core.udp import LiteEthUDPUserPort
         port = LiteEthUDPUserPort(32)
-        from litedsp.frontend.udp import UDPIQStreamer
-        dut = UDPIQStreamer(port, ip_address="192.168.1.100", udp_port=6000,
+        from litedsp.frontend.udp import LiteDSPUDPIQStreamer
+        dut = LiteDSPUDPIQStreamer(port, ip_address="192.168.1.100", udp_port=6000,
             data_width=16, word_width=32, samples_per_packet=4, with_csr=False)
         samples = [{"i": k + 1, "q": k + 101} for k in range(8)]
         cap = []
@@ -124,10 +124,10 @@ class TestUDP(unittest.TestCase):
 
     def test_receiver_round_trip(self):
         from liteeth.core.udp import LiteEthUDPUserPort
-        from litedsp.frontend.udp import UDPIQReceiver
+        from litedsp.frontend.udp import LiteDSPUDPIQReceiver
 
         port = LiteEthUDPUserPort(32)
-        dut  = UDPIQReceiver(port, udp_port=6000, data_width=16, word_width=32, with_csr=False)
+        dut  = LiteDSPUDPIQReceiver(port, udp_port=6000, data_width=16, word_width=32, with_csr=False)
         samples = [(5*k + 1, 5*k + 2) for k in range(8)]
         words   = [{"data": (i & 0xFFFF) | (q & 0xFFFF) << 16, "last": int(k % 4 == 3),
                     "dst_port": 6000} for k, (i, q) in enumerate(samples)]

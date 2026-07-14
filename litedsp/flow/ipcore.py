@@ -6,7 +6,7 @@
 
 """Wrap an assembled chain as an integratable IP core: AXI-Stream data + AXI-Lite config.
 
-``FlowIPCore`` takes a netlist, builds the :class:`~litedsp.flow.builder.FlowChain` with CSRs, and
+``LiteDSPFlowIPCore`` takes a netlist, builds the :class:`~litedsp.flow.builder.LiteDSPFlowChain` with CSRs, and
 adds an AXI-Lite -> CSR bridge over a :class:`~litex.soc.interconnect.csr_bus.CSRBankArray` (one
 bank per block, addressed exactly as LiteX/SoCMini would). The chain's top-level stream endpoints
 are already AXI-Stream-compatible (``valid``=tvalid, ``ready``=tready, ``last``=tlast,
@@ -26,7 +26,7 @@ from litex.soc.interconnect      import csr_bus
 from litex.soc.interconnect.axi  import AXILiteInterface, AXILite2CSR
 from litex.soc.integration.soc   import SoCCSRRegion
 
-from litedsp.flow.builder import FlowChain
+from litedsp.flow.builder import LiteDSPFlowChain
 from litedsp.flow import netlist as netlist_mod
 
 _PAGING = 0x800   # Bytes per CSR bank (LiteX default; bank byte origin = index * paging).
@@ -51,7 +51,7 @@ def _name_axilite(axil, prefix="s_axil"):
 
 # IP core ------------------------------------------------------------------------------------------
 
-class FlowIPCore(LiteXModule):
+class LiteDSPFlowIPCore(LiteXModule):
     def __init__(self, nl, reg=None, csr_data_width=32, axil_address_width=16, csr_base=0):
         assert csr_data_width == 32
         self.netlist            = nl
@@ -60,7 +60,7 @@ class FlowIPCore(LiteXModule):
         self.axil_address_width = axil_address_width
 
         # Chain (CSRs enabled) -- its top endpoints are the AXI-Stream data ports.
-        self.chain = FlowChain(nl, reg=reg, with_csr=True)
+        self.chain = LiteDSPFlowChain(nl, reg=reg, with_csr=True)
 
         # AXI-Lite -> CSR bus -> one CSR bank per block.
         self.axil    = AXILiteInterface(data_width=csr_data_width, address_width=axil_address_width)
@@ -106,11 +106,11 @@ class FlowIPCore(LiteXModule):
 def generate_ip(source, build_dir, name=None, **core_kwargs):
     """Emit the IP Verilog + register map (csv/json/h) into ``build_dir``. Returns ``(path, ip)``.
 
-    ``core_kwargs`` are forwarded to :class:`FlowIPCore` (``csr_base``, ``axil_address_width``, ...).
+    ``core_kwargs`` are forwarded to :class:`LiteDSPFlowIPCore` (``csr_base``, ``axil_address_width``, ...).
     """
     from litedsp.flow.generate import emit_verilog
     nl   = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
-    ip   = FlowIPCore(nl, **core_kwargs)
+    ip   = LiteDSPFlowIPCore(nl, **core_kwargs)
     name = name or (nl.name + "_ip")
     os.makedirs(build_dir, exist_ok=True)
     path = emit_verilog(ip, ip.io_signals(), name, build_dir)   # chdir so .init files land here.

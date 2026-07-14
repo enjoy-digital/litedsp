@@ -7,8 +7,8 @@
 """Bus-driven stream endpoints: inject/observe a chain from the CSR / AXI-Lite side.
 
 These let firmware drive a processing chain and read it back without external data ports —
-useful for bring-up, self-test, and control-plane sample injection. ``CSRSource`` pushes one
-sample per CSR write; ``CSRSink`` exposes the last sample plus a transfer counter; ``NullSink``
+useful for bring-up, self-test, and control-plane sample injection. ``LiteDSPCSRSource`` pushes one
+sample per CSR write; ``LiteDSPCSRSink`` exposes the last sample plus a transfer counter; ``LiteDSPNullSink``
 is an always-ready drain with a counter (terminate a branch / measure throughput).
 """
 
@@ -23,7 +23,7 @@ from litedsp.common import iq_layout
 
 # CSR Source ---------------------------------------------------------------------------------------
 
-class CSRSource(LiteXModule):
+class LiteDSPCSRSource(LiteXModule):
     """Emit one I/Q sample per ``push`` strobe, with the payload set from CSR registers."""
     def __init__(self, data_width=16, with_csr=True):
         self.data_width = data_width
@@ -61,7 +61,7 @@ class CSRSource(LiteXModule):
 
 # CSR Sink -----------------------------------------------------------------------------------------
 
-class CSRSink(LiteXModule):
+class LiteDSPCSRSink(LiteXModule):
     """Always-ready sink that latches the last I/Q sample and counts transfers (CSR-readable)."""
     def __init__(self, data_width=16, with_csr=True):
         self.data_width = data_width
@@ -102,7 +102,7 @@ class CSRSink(LiteXModule):
 
 # CSR Reader ---------------------------------------------------------------------------------------
 
-class CSRReader(LiteXModule):
+class LiteDSPCSRReader(LiteXModule):
     """Bus-paced sink: firmware reads the pending sample over CSR, then pops it.
 
     The stream is backpressured until firmware consumes it, so a whole Capture buffer can be
@@ -137,7 +137,7 @@ class CSRReader(LiteXModule):
 
 # Null Sink ----------------------------------------------------------------------------------------
 
-class NullSink(LiteXModule):
+class LiteDSPNullSink(LiteXModule):
     """Always-ready drain that counts consumed samples (CSR-readable). Terminates a branch."""
     def __init__(self, data_width=16, with_csr=True):
         self.sink  = stream.Endpoint(iq_layout(data_width))

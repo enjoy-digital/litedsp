@@ -1,64 +1,35 @@
 # Changelog
 
 All notable changes to LiteDSP are documented here. Versioning follows the LiteX ecosystem
-conventions (SemVer-ish, `YYYY.MM`-friendly tags may be adopted once aligned with LiteX releases).
+calendar convention (`YYYY.MM`), synchronized with LiteX releases.
 
-## [Unreleased]
+## [2026.07] - 2026-07
 
-### Added
-- Release workflow: version tags publish to PyPI via trusted publishing
-  (`.github/workflows/release.yml`); litedsp registered in `litex_setup` (litex repo,
-  pending upstream push).
-- comm/ growth: `ViterbiDecoder` (hard-decision rate-1/n, matches `ConvEncoder`; verified
-  end-to-end incl. error correction), Gardner TED option on `TimingRecovery`
-  (`ted="gardner"` — non-decision-aided, modulation-agnostic), and `CPInsert`/`CPRemove`
-  OFDM cyclic-prefix blocks.
-- Parallel path completed: `ParallelFIRFilterComplex` (shared CSR coefficients),
-  `ParallelCICDecimator` (integrator cascade unrolled per lane, serial output) and the
-  `ParallelDDC` composite — a full gigasample RX front-end (parallel NCO + mixer + CIC),
-  bit-identical to the serial chain and P&R-verified on ECP5.
-- `CONTRIBUTING.md` (new-block checklist, tests, commit conventions) and `doc/resources.md` —
-  a per-block LUT/FF/BRAM/DSP + Fmax table generated from the implementation budgets
-  (`python3 impl/report.py`).
-- Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock:
-  `iq_layout`/`real_layout` gain an `n_samples` lane dimension (+ `iq_lanes`/`real_lanes`
-  helpers), with `IQSerialToParallel`/`IQParallelToSerial` adapters and the first parallel
-  blocks — `ParallelNCO`, `ParallelMixer`, `ParallelFIRFilter` — each bit-identical to its
-  serial counterpart on the flattened lane stream.
-- GUI live mode: Connect opens a litex_server session on the SoC's `csr.csv`
-  (`litedsp/gui/live.py`) and builds runtime controls for every discovered block — NCO tuning
-  in Hz, FIR tap reload, capture trigger with an in-editor PSD plot.
-- `litedsp/software/`: host-side Python drivers over litex_server (`RemoteClient`) — tune NCOs
-  in Hz, reload FIR taps, trigger/drain captures to NumPy, run DMA windows — with register-map
-  auto-discovery, plus the `litedsp_cli` entry point (`info`/`nco`/`capture`/`spectrum`).
-- `bench/`: board-level proof points (LiteX-ecosystem style) — `spectrum.py` builds a
-  tone+AWGN → DDC → Capture SoC with UARTBone on litex-boards targets (Arty,
-  Colorlight 5A-75B), `test_spectrum.py` drives it from the host and checks the PSD peak;
-  CI elaborates every bench board.
-- `IQAdd` (saturating complex adder) and `CSRReader` (bus-paced buffer readout) stream blocks.
-- `litedsp/frontend/`: boundary adapters — `ADCInterface`/`DACInterface` (raw converter words
-  <-> Q1.(N-1) streams), `IQPacketizer`/`IQDepacketizer` (framed wide-word host-link glue for
-  LitePCIe DMA & co), `UDPIQStreamer`/`UDPIQReceiver` (I/Q sample packets over LiteEth UDP).
-- IRQ support (`with_irq=True`, LiteX `EventManager`) on trigger-type blocks: `Squelch`
-  (gate opened/closed), `EnergyDetector` (signal detected), `Capture` (buffer ready — also new
-  `done` status), `AGC` (gain railed — also new `railed` status), so software no longer polls.
-- `litedsp/stream/dma.py`: `DMACapture`/`DMAReplay` — sustained-rate capture/replay of I/Q
-  streams to/from memory over Wishbone DMA (`litex.soc.cores.dma`) or LiteDRAM native-port DMA
-  (`litedram.frontend.dma`), with the standard base/length/enable/done/loop register set.
-- `litedsp/gen.py`: standalone core generator in the LiteX-ecosystem style (`litedsp_gen
-  config.yml` → Verilog core with AXI-Stream data + AXI-Lite control + `csr.csv`/`csr.json`/
-  `csr.h`), with `examples/ddc_core.yml`.
-- Console scripts: `litedsp_gen`, `litedsp_flow`, `litedsp_gui`.
-- `doc/litex_integration.md`: integrating blocks/chains in a LiteX SoC and in non-LiteX flows.
+First release.
 
-### Changed
-- Verilog emission helper moved into the package (`litedsp/verilog.py`); `sim/verilog.py` is a
-  compatibility shim.
-- GUI moved into the package (`gui/` → `litedsp/gui/`); run it with `litedsp_gui`.
-
-## [0.1.0] - 2026-07
-
-Initial release: portable RF/DSP block toolbox (generation, mixing, filter, rate, level,
-correction, comm, analysis, stream), golden-model test harness, Verilator co-simulation,
-FPGA implementation budgets (ECP5/Artix-7), flow netlist → Verilog/CSR/AXI IP generation and
-DearPyGui flow editor.
+- Portable RF/DSP block toolbox, pure Migen/LiteX (no vendor IP): `generation/` (NCO/DDS,
+  CORDIC, chirp, noise, replay, patterns), `mixing/` (mixer, DDC/DUC, channelizer), `filter/`
+  (FIR direct/symmetric/polyphase, CIC, halfband, IIR biquad, Hilbert, RRC pulse shaping,
+  Farrow/rational/arbitrary resamplers, LMS equalizer, coefficient design), `rate/`, `level/`
+  (gain, AGC, power, RMS, squelch, log/dB), `correction/` (DC offset, I/Q balance, CFO),
+  `comm/` (FM/AM demod, PLL/Costas, timing recovery with M&M or Gardner TED, slicer, mapper,
+  scrambler, CRC, convolutional encoder + hard-decision Viterbi decoder, OFDM cyclic prefix),
+  `analysis/` (window, FFT/IFFT radix-2 SDF + iterative, PSD/Welch, magnitude, Goertzel,
+  statistics, detectors), `stream/` (plumbing, CDC, capture, framing, Wishbone/LiteDRAM DMA)
+  and `frontend/` (ADC/DAC interfaces, I/Q packetizers, LiteEth UDP streaming).
+- Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock — parallel
+  NCO/mixer/FIR/CIC/DDC, bit-identical to their serial counterparts.
+- All public hardware classes carry the `LiteDSP` prefix (`LiteDSPNCO`, `LiteDSPFIRFilter`,
+  ...), following the LiteX ecosystem naming convention.
+- Standardized interfaces: LiteX `stream.Endpoint` with full valid/ready backpressure, uniform
+  `with_csr`/`add_csr()` control, `bypass`, exposed `latency`; parameterized Qm.n fixed-point
+  with shared rounding/saturation/scaling helpers. IRQ support (`with_irq=True`) on
+  trigger-type blocks (squelch, energy detector, capture, AGC).
+- Tooling: `litedsp_flow` (JSON netlist → chain Verilog + CSR map + AXI-Stream/AXI-Lite IP
+  core), `litedsp_gui` (DearPyGui node editor with live mode over litex_server), `litedsp_gen`
+  (YAML → standalone Verilog core + `csr.csv`/`csr.json`/`csr.h`, see `examples/*.yml`) and
+  `litedsp_cli` (host-side drivers: NCO tuning in Hz, FIR tap reload, captures to NumPy).
+- Verification: per-block NumPy golden models (bit-exact or SNR-threshold, randomized
+  backpressure) under `unittest`, Verilator co-simulation and lint sweep (`sim/`), Yosys/
+  nextpnr + Vivado implementation gated on resource/fmax budgets (`impl/`), board-level
+  benches on litex-boards targets (`bench/`).

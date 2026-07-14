@@ -16,7 +16,7 @@ from litedsp.common import real_layout
 # Statistics ---------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Stats(LiteXModule):
+class LiteDSPStats(LiteXModule):
     """Min / max / mean / variance of a real stream over ``2**window_log2`` samples.
 
     Emits one result per window on ``source`` (fields ``min, max, mean, variance``). Input is

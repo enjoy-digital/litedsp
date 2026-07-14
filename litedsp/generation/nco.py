@@ -18,7 +18,7 @@ from litedsp.common import iq_layout
 # NCO ----------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class NCO(LiteXModule):
+class LiteDSPNCO(LiteXModule):
     """Numerically-Controlled Oscillator (a.k.a. DDS).
 
     Generates a complex exponential ``cos(2*pi*f*t) + j*sin(...)`` from a phase accumulator and

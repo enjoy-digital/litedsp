@@ -10,7 +10,7 @@ import numpy as np
 
 from migen import run_simulation
 
-from litedsp.mixing.channelizer import Channelizer
+from litedsp.mixing.channelizer import LiteDSPChannelizer
 
 from test.common import stream_driver, stream_capture, column
 
@@ -20,7 +20,7 @@ class TestChannelizer(unittest.TestCase):
         n = M*160
         k0 = 2                                            # Tone in channel 2.
         x = 12000*np.exp(1j*2*np.pi*(k0/M)*np.arange(n))
-        dut = Channelizer(n_channels=M, decimation=M, data_width=16, method="fir", with_csr=False)
+        dut = LiteDSPChannelizer(n_channels=M, decimation=M, data_width=16, method="fir", with_csr=False)
 
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         n_out = n//M - 20

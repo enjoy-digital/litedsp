@@ -10,7 +10,7 @@ The gigasample rate-change: ``n_samples`` I/Q samples enter per beat, the integr
 is unrolled ``n_samples`` serial steps per clock (wrap-around Hogenauer arithmetic, exactly the
 serial recurrence), and with ``R`` a multiple of ``n_samples`` the decimation snapshot always
 lands on a beat's last lane — so the output is a standard *serial* I/Q stream at ``1/R`` of the
-sample rate, bit-identical to :class:`~litedsp.filter.cic.CICDecimator` on the flattened lanes.
+sample rate, bit-identical to :class:`~litedsp.filter.cic.LiteDSPCICDecimator` on the flattened lanes.
 """
 
 import math
@@ -28,7 +28,7 @@ from litedsp.filter.cic import _growth_bits
 # Parallel CIC Decimator -----------------------------------------------------------------------------
 
 @ResetInserter()
-class ParallelCICDecimator(LiteXModule):
+class LiteDSPParallelCICDecimator(LiteXModule):
     """CIC decimator by ``R`` over ``n_samples``-lane beats; serial output stream."""
     def __init__(self, n_samples=4, data_width=16, R=8, N=3, M=1, with_csr=True):
         assert R >= 2 and N >= 1 and M >= 1

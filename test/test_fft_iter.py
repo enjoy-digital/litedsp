@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.analysis.fft_iter import FFTIter
+from litedsp.analysis.fft_iter import LiteDSPFFTIter
 
 from test.common import run_stream, column, snr_db
 
@@ -17,7 +17,7 @@ class TestFFTIter(unittest.TestCase):
         for N in [16, 64, 256]:
             rng = np.random.RandomState(N)
             x = rng.randint(-8000, 8000, N) + 1j*rng.randint(-8000, 8000, N)
-            dut = FFTIter(N=N, data_width=16, with_csr=False)
+            dut = LiteDSPFFTIter(N=N, data_width=16, with_csr=False)
             samples = [{"i": int(x[k].real), "q": int(x[k].imag)} for k in range(N)]
             cap = run_stream(dut, samples, N, ["i", "q"], ["i", "q"],
                 sink_throttle=0.0, source_ready_rate=1.0)
@@ -29,7 +29,7 @@ class TestFFTIter(unittest.TestCase):
         N, k0 = 64, 9
         t = np.arange(N)
         x = 10000*np.exp(1j*2*np.pi*k0*t/N)
-        dut = FFTIter(N=N, data_width=16, with_csr=False)
+        dut = LiteDSPFFTIter(N=N, data_width=16, with_csr=False)
         cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
             N, ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
         mag = np.abs(column(cap, "i", 16) + 1j*column(cap, "q", 16))

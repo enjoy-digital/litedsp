@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="160" viewBox="0 0 480 160">
+  <!-- LiteDSP logo: name + I/Q waveform motif. -->
+  <rect width="480" height="160" rx="12" fill="#20242b"/>
+  <!-- I/Q waveform: two quadrature sines -->
+  <g fill="none" stroke-width="3" stroke-linecap="round">
+    <path stroke="#4fc3f7" d="M 40 52
+      C 55 22, 85 22, 100 52 S 145 82, 160 52 S 205 22, 220 52 S 265 82, 280 52
+      S 325 22, 340 52 S 385 82, 400 52 C 415 30, 430 30, 440 44"/>
+    <path stroke="#ffb74d" opacity="0.85" d="M 40 52
+      C 47 37, 62 30, 70 30 C 85 30, 115 74, 130 74 S 175 30, 190 30 S 235 74, 250 74
+      S 295 30, 310 30 S 355 74, 370 74 S 415 30, 430 30"/>
+  </g>
+  <text x="50%" y="122" text-anchor="middle"
+        font-family="Verdana, DejaVu Sans, sans-serif" font-size="44" font-weight="bold"
+        fill="#eceff1">Lite<tspan fill="#4fc3f7">DSP</tspan></text>
+  <text x="50%" y="146" text-anchor="middle"
+        font-family="Verdana, DejaVu Sans, sans-serif" font-size="13"
+        fill="#90a4ae">Portable RF/DSP building blocks for FPGAs</text>
+</svg>

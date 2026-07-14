@@ -11,7 +11,7 @@ import numpy as np
 
 from migen import run_simulation
 
-from litedsp.level.power import Power
+from litedsp.level.power import LiteDSPPower
 
 from test.common import stream_driver
 from test.models import power_model
@@ -19,7 +19,7 @@ from test.models import power_model
 class TestPower(unittest.TestCase):
     def run_power(self, x_i, x_q, window_log2, n_updates):
         n   = len(x_i)
-        dut = Power(data_width=16, with_csr=False)
+        dut = LiteDSPPower(data_width=16, with_csr=False)
         dut.window_log2.reset = window_log2
         samples = [{"i": x_i[k], "q": x_q[k]} for k in range(n)]
         updates = []

@@ -15,7 +15,7 @@ from litedsp.common import real_layout
 
 # Peak-Bin Finder ----------------------------------------------------------------------------------
 
-class PeakBin(LiteXModule):
+class LiteDSPPeakBin(LiteXModule):
     """Argmax over a framed real stream (e.g. a PSD/FFT-magnitude frame).
 
     Tracks the maximum value and its index within each frame (delimited by ``sink.first`` /

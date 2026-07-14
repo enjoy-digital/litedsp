@@ -6,7 +6,7 @@
 
 """Hard-decision Viterbi decoder for the rate-1/n convolutional encoder.
 
-Decodes the output of :class:`~litedsp.comm.coding.ConvEncoder` (same ``constraint``/``polys``
+Decodes the output of :class:`~litedsp.comm.coding.LiteDSPConvEncoder` (same ``constraint``/``polys``
 conventions: symbol bit ``k`` is the parity for ``polys[k]``). Fully-parallel add-compare-select
 over the ``2**(K-1)`` states with register-exchange survivor paths of depth ``traceback``
 (default ``8*K``, well past the ~5K convergence rule of thumb), path metrics normalized by the
@@ -66,7 +66,7 @@ def _min_tree(pairs, comb):
 # Viterbi Decoder ------------------------------------------------------------------------------------
 
 @ResetInserter()
-class ViterbiDecoder(LiteXModule):
+class LiteDSPViterbiDecoder(LiteXModule):
     """Hard-decision Viterbi decoder (rate 1/n, register-exchange survivors)."""
     def __init__(self, constraint=7, polys=(0o171, 0o133), traceback=None, metric_width=10,
         with_csr=True):

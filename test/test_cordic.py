@@ -9,14 +9,14 @@ import unittest
 
 import numpy as np
 
-from litedsp.generation.cordic import CORDIC
+from litedsp.generation.cordic import LiteDSPCORDIC
 
 from test.common import run_stream, column, snr_db
 
 class TestCORDIC(unittest.TestCase):
     def test_rotation(self):
         dw, aw = 16, 16
-        dut = CORDIC(data_width=dw, angle_width=aw, mode="rotation", with_csr=False)
+        dut = LiteDSPCORDIC(data_width=dw, angle_width=aw, mode="rotation", with_csr=False)
         prng = random.Random(1)
         n  = 300
         xs = [prng.randint(-12000, 12000) for _ in range(n)]
@@ -34,7 +34,7 @@ class TestCORDIC(unittest.TestCase):
 
     def test_sincos(self):
         dw, aw = 16, 16
-        dut = CORDIC(data_width=dw, angle_width=aw, mode="rotation", with_csr=False)
+        dut = LiteDSPCORDIC(data_width=dw, angle_width=aw, mode="rotation", with_csr=False)
         amp = 30000
         zs  = list(np.linspace(-(1 << (aw-1)), (1 << (aw-1)) - 1, 256).astype(int))
         samples = [{"x": amp, "y": 0, "z": int(z)} for z in zs]
@@ -48,7 +48,7 @@ class TestCORDIC(unittest.TestCase):
 
     def test_vectoring(self):
         dw, aw = 16, 16
-        dut = CORDIC(data_width=dw, angle_width=aw, mode="vectoring", with_csr=False)
+        dut = LiteDSPCORDIC(data_width=dw, angle_width=aw, mode="vectoring", with_csr=False)
         prng = random.Random(2)
         n  = 300
         xs = [prng.randint(-15000, 15000) for _ in range(n)]

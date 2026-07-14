@@ -9,14 +9,14 @@ import unittest
 
 import numpy as np
 
-from litedsp.level.saturate import Saturate
+from litedsp.level.saturate import LiteDSPSaturate
 
 from test.common import run_stream, column, np_scaled
 
 class TestSaturate(unittest.TestCase):
     def run_sat(self, x_i, x_q, in_width, out_width, shift):
         n   = len(x_i)
-        dut = Saturate(data_width=out_width, in_width=in_width, shift=shift, with_csr=False)
+        dut = LiteDSPSaturate(data_width=out_width, in_width=in_width, shift=shift, with_csr=False)
         samples  = [{"i": x_i[k], "q": x_q[k]} for k in range(n)]
         captured = run_stream(dut, samples, n, ["i", "q"], ["i", "q"],
             sink_throttle=0.2, source_ready_rate=0.7)

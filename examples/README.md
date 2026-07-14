@@ -17,4 +17,15 @@ with `python3 examples/<name>.py`.
 
 `wideband_rx`, `loopback_ber`, and `integrated_ip` exercise the chain-glue / bus-I/O / measurement
 blocks (FIFO, pack, pattern source, error counter, framer) and preview the flow-graph → AXI IP-core
-direction (see the project plan / `litedsp/flow/` once it lands).
+direction (see `litedsp/flow/` and `doc/flow.md`).
+
+## Standalone core configs
+
+YAML configurations for the standalone core generator (`litedsp_gen`), producing a Verilog core
+with AXI-Stream data ports + AXI-Lite control port and the `csr.csv`/`csr.json`/`csr.h` register
+map artifacts:
+
+| Config | Chain | Generate |
+|---|---|---|
+| `ddc_core.yml` | NCO → Mixer(down) → FIR → Downsampler | `litedsp_gen examples/ddc_core.yml` |
+| `spectrum_core.yml` | Window(hann) → FFT → PSD | `litedsp_gen examples/spectrum_core.yml` |

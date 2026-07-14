@@ -17,7 +17,7 @@ from litedsp.common import real_layout
 
 # Goertzel -----------------------------------------------------------------------------------------
 
-class Goertzel(LiteXModule):
+class LiteDSPGoertzel(LiteXModule):
     """Single-bin DFT (tone detector) via a 2nd-order resonator — one multiplier.
 
     For bin ``k`` of an ``N``-point window, runs ``s = x + (coeff*s1 - s2)`` with

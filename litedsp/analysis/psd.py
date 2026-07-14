@@ -15,7 +15,7 @@ from litedsp.common import iq_layout, real_layout
 
 # PSD ----------------------------------------------------------------------------------------------
 
-class PSD(LiteXModule):
+class LiteDSPPSD(LiteXModule):
     """Power-spectral-density accumulator for a streaming FFT.
 
     Consumes the (bit-reversed, framed) output of :class:`litedsp.analysis.fft.FFT`, accumulates

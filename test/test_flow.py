@@ -14,12 +14,12 @@ import numpy as np
 from litex.gen import LiteXModule
 
 from litedsp.common           import iq_layout
-from litedsp.filter.dc_blocker import DCBlocker
-from litedsp.level.gain        import Gain
-from litedsp.stream.split      import Split
-from litedsp.stream.combine    import Combine
+from litedsp.filter.dc_blocker import LiteDSPDCBlocker
+from litedsp.level.gain        import LiteDSPGain
+from litedsp.stream.split      import LiteDSPSplit
+from litedsp.stream.combine    import LiteDSPCombine
 from litedsp.flow              import registry, netlist as nlmod
-from litedsp.flow.builder      import FlowChain
+from litedsp.flow.builder      import LiteDSPFlowChain
 from litedsp.flow.generate     import generate
 
 from test.common import run_stream, column
@@ -66,12 +66,12 @@ class TestAssemblyMatchesManual(unittest.TestCase):
                             {"from": "dc.source", "to": "g.sink"},
                             {"from": "g.source", "to": "out0"}],
         })
-        flow = FlowChain(nl, with_csr=False)
+        flow = LiteDSPFlowChain(nl, with_csr=False)
 
         class Manual(LiteXModule):
             def __init__(self):
-                self.dc = DCBlocker(data_width=16, with_csr=False)
-                self.g  = Gain(data_width=16, with_csr=False)
+                self.dc = LiteDSPDCBlocker(data_width=16, with_csr=False)
+                self.g  = LiteDSPGain(data_width=16, with_csr=False)
                 self.sink, self.source = self.dc.sink, self.g.source
                 self.comb += self.dc.source.connect(self.g.sink)
 
@@ -83,7 +83,7 @@ class TestAssemblyMatchesManual(unittest.TestCase):
     def test_fanout_split_matches_manual(self):
         # Fan out a top-level input to two branches (one to the output, one drained); the assembler
         # must insert a Split. No reconvergence, so no latency-balancing needed.
-        from litedsp.stream.csr_io import NullSink
+        from litedsp.stream.csr_io import LiteDSPNullSink
         n = 256
         samples = _samples(n, seed=2)
 
@@ -98,15 +98,15 @@ class TestAssemblyMatchesManual(unittest.TestCase):
                             {"from": "g1.source", "to": "out0"},
                             {"from": "g2.source", "to": "ns.sink"}],
         })
-        flow = FlowChain(nl, with_csr=False)
+        flow = LiteDSPFlowChain(nl, with_csr=False)
         self.assertEqual(len(flow.flow_inserted), 1)        # one auto-inserted Split on in0.
 
         class Manual(LiteXModule):
             def __init__(self):
-                self.g1  = Gain(data_width=16, with_csr=False)
-                self.g2  = Gain(data_width=16, with_csr=False)
-                self.ns  = NullSink(data_width=16, with_csr=False)
-                self.spl = Split(n=2, data_width=16)
+                self.g1  = LiteDSPGain(data_width=16, with_csr=False)
+                self.g2  = LiteDSPGain(data_width=16, with_csr=False)
+                self.ns  = LiteDSPNullSink(data_width=16, with_csr=False)
+                self.spl = LiteDSPSplit(n=2, data_width=16)
                 self.sink, self.source = self.spl.sink, self.g1.source
                 self.comb += [
                     self.spl.sources[0].connect(self.g1.sink),
@@ -136,29 +136,29 @@ class TestAutoDelay(unittest.TestCase):
         })
 
     def test_delay_inserted_no_warning(self):
-        flow = FlowChain(self._mix_netlist(), with_csr=False)
+        flow = LiteDSPFlowChain(self._mix_netlist(), with_csr=False)
         self.assertEqual(flow.flow_inserted, ["delay_mix_sink_a"])
         self.assertEqual(flow.flow_warnings, [])
 
     def test_auto_delay_off_warns(self):
-        flow = FlowChain(self._mix_netlist(), with_csr=False, auto_delay=False)
+        flow = LiteDSPFlowChain(self._mix_netlist(), with_csr=False, auto_delay=False)
         self.assertEqual(flow.flow_inserted, [])
         self.assertEqual(len(flow.flow_warnings), 1)
         self.assertIn("unequal latency", flow.flow_warnings[0])
 
     def test_matches_manual_delay(self):
-        from litedsp.generation.nco import NCO
-        from litedsp.mixing.mixer   import Mixer
-        from litedsp.stream.delay   import Delay
+        from litedsp.generation.nco import LiteDSPNCO
+        from litedsp.mixing.mixer   import LiteDSPMixer
+        from litedsp.stream.delay   import LiteDSPDelay
         n = 256
         samples = _samples(n, seed=3)
-        flow = FlowChain(self._mix_netlist(), with_csr=False)
+        flow = LiteDSPFlowChain(self._mix_netlist(), with_csr=False)
 
         class Manual(LiteXModule):
             def __init__(self):
-                self.lo  = NCO(data_width=16, with_csr=False)
-                self.dly = Delay(depth=1, data_width=16)
-                self.mix = Mixer(data_width=16, with_csr=False)
+                self.lo  = LiteDSPNCO(data_width=16, with_csr=False)
+                self.dly = LiteDSPDelay(depth=1, data_width=16)
+                self.mix = LiteDSPMixer(data_width=16, with_csr=False)
                 self.sink, self.source = self.dly.sink, self.mix.source
                 self.comb += [
                     self.dly.source.connect(self.mix.sink_a),
@@ -181,7 +181,7 @@ class TestValidationAndGenerate(unittest.TestCase):
                             {"from": "b.source", "to": "a.sink"}],
         })
         with self.assertRaises(nlmod.NetlistError):
-            FlowChain(nl, with_csr=False)
+            LiteDSPFlowChain(nl, with_csr=False)
 
     def test_generate_emits_verilog(self):
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -214,8 +214,8 @@ class TestIPCore(unittest.TestCase):
 
     def test_axilite_write_reaches_csr(self):
         from migen import run_simulation
-        from litedsp.flow.ipcore import FlowIPCore
-        ip  = FlowIPCore(self._ddc())
+        from litedsp.flow.ipcore import LiteDSPFlowIPCore
+        ip  = LiteDSPFlowIPCore(self._ddc())
         res = {}
         def tb():
             yield from ip.axil.write(0x800, 0x0abcdef0)          # lo_phase_inc bank base.

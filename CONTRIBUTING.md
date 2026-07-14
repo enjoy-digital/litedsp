@@ -11,8 +11,13 @@ Every block obeys the same streaming + control contract (details and rationale i
 
 1. BSD-2-Clause header; imports grouped Migen → `litex.gen` → CSR/stream → `litedsp`.
 2. `@ResetInserter()` `LiteXModule` (or `stream.PipelinedActor` only for *stateless* maps).
+   Public hardware classes carry the `LiteDSP` prefix (`LiteDSPNCO`, `LiteDSPFIRFilter`, ...),
+   like `LiteEthMAC`/`LiteDRAMDMAReader` in the other LiteX cores. Non-hardware helpers
+   (data descriptors like `Qmn`, flow netlist/metadata classes, GUI classes, host-side
+   drivers in `litedsp/software/`) stay unprefixed, as do functions (`iq_layout`, `rounded`).
 3. Declare endpoints (`sink`/`source`, layouts from `litedsp.common`), plain control Signals,
-   and `self.latency`; then the `# # #` separator; then the hardware.
+   and `self.latency`; then the `# # #` separator; then the hardware. Re-export the class
+   from the subpackage `__init__.py`.
 4. Full `valid`/`ready` backpressure — never drop or duplicate samples under stalls. Stateful
    blocks use an elastic pipeline (see `litedsp/filter/fir.py`).
 5. Round + saturate at every downsizing point via `litedsp.common` (`rounded`/`saturated`/
@@ -43,3 +48,10 @@ elaborates the `bench/` SoCs; keep all three green.
 - Match the surrounding code (alignment, naming, comment density); preserve public names.
 - Update `CHANGELOG.md` for user-visible changes, and `doc/resources.md`
   (`python3 impl/report.py`) when a sweep changes the budgets.
+
+## Releases
+
+- Versioning follows the LiteX ecosystem calendar convention (`YYYY.MM`), kept in sync in
+  `setup.py` and `litedsp/__init__.py`.
+- Pushing a `v<version>` tag (or manually dispatching the `PyPI` workflow) builds and publishes
+  to PyPI via trusted publishing (`.github/workflows/pypi.yml`).

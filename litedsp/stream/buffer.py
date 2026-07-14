@@ -14,7 +14,7 @@ from litedsp.common import iq_layout
 
 # Skid Buffer --------------------------------------------------------------------------------------
 
-class SkidBuffer(LiteXModule):
+class LiteDSPSkidBuffer(LiteXModule):
     """Elastic timing-slack buffer for an I/Q stream (registers both valid and ready paths).
 
     Inserts a pipeline stage on both the valid/payload and ready paths so a long combinational

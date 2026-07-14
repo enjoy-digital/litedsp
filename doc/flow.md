@@ -18,13 +18,13 @@ all code generation is headless and reused identically by the CLI, tests, and th
   enumerated param choices. `registry.registry()` builds them all (cached).
 - **`netlist.py`** — the tool-agnostic JSON format + load/save + validation (unknown
   type/port/param, layout mismatch, raw fan-in, duplicate/invalid ids).
-- **`builder.py`** — `FlowChain`: instantiates each block as a *named submodule* (id = name, so
+- **`builder.py`** — `LiteDSPFlowChain`: instantiates each block as a *named submodule* (id = name, so
   `get_csrs()` auto-prefixes the whole register map), resolves port refs, exposes single-IO
   `.sink`/`.source`.
-- **`glue.py`** — auto-inserts `Split` for fan-out, rejects combinational/feedback loops, and
+- **`glue.py`** — auto-inserts `LiteDSPSplit` for fan-out, rejects combinational/feedback loops, and
   *reports* reconvergent latency imbalance (insert an explicit `delay` block to fix — kept
   non-mutating so generated chains are predictable and bit-identical to hand-wired ones).
-- **`ipcore.py`** — `FlowIPCore`: AXI-Lite→CSR bridge over a `CSRBankArray` (one bank per block,
+- **`ipcore.py`** — `LiteDSPFlowIPCore`: AXI-Lite→CSR bridge over a `CSRBankArray` (one bank per block,
   addressed exactly as LiteX/SoCMini) + the chain's AXI-Stream-compatible data ports.
 
 ## Netlist format
@@ -84,7 +84,7 @@ an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
   tuning, FIR reload, capture + PSD plot) for every discovered block — netlist block ids are
   the register prefixes, so live controls line up with editor nodes.
 - Latency balancing on reconvergent paths is automatic: unequal-latency joins get an exact
-  alignment `Delay` inserted (reported in `flow_inserted`); `auto_delay=False` restores
+  alignment `LiteDSPDelay` inserted (reported in `flow_inserted`); `auto_delay=False` restores
   warn-only behavior.
 - Load/Save round-trips the canvas: node positions are stored in the netlist's `editor`
   section (ignored by codegen) and restored on load, with a grid fallback for hand-written

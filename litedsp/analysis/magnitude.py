@@ -12,12 +12,12 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
 from litedsp.common            import iq_layout, real_layout
-from litedsp.generation.cordic import CORDIC
+from litedsp.generation.cordic import LiteDSPCORDIC
 
 # Magnitude ----------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Magnitude(LiteXModule):
+class LiteDSPMagnitude(LiteXModule):
     """Complex magnitude ``|I + jQ|``.
 
     ``method="approx"`` (default): alpha-max-beta-min,
@@ -37,7 +37,7 @@ class Magnitude(LiteXModule):
         # # #
 
         if method == "cordic":
-            self.cordic = CORDIC(data_width=data_width, mode="vectoring", with_csr=False)
+            self.cordic = LiteDSPCORDIC(data_width=data_width, mode="vectoring", with_csr=False)
             self.latency = self.cordic.latency
             self.comb += [
                 self.cordic.sink.valid.eq(self.sink.valid),

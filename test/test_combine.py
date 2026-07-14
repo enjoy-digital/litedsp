@@ -11,7 +11,7 @@ import numpy as np
 
 from migen import run_simulation
 
-from litedsp.stream.combine import Combine
+from litedsp.stream.combine import LiteDSPCombine
 
 from test.common import stream_driver, stream_capture, column
 from test.models import combine_model
@@ -20,7 +20,7 @@ class TestCombine(unittest.TestCase):
     def run_combine(self, chans_i, chans_q, enable, data_width=16):
         n_channels = len(chans_i)
         n          = len(chans_i[0])
-        dut        = Combine(n_channels=n_channels, data_width=data_width, with_csr=False)
+        dut        = LiteDSPCombine(n_channels=n_channels, data_width=data_width, with_csr=False)
         dut.enable.reset = enable
         captured   = []
         gens = []

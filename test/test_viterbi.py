@@ -4,8 +4,6 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Tests for the Viterbi decoder and the OFDM CP insert/remove blocks."""
-
 import random
 import unittest
 
@@ -13,13 +11,12 @@ from migen import run_simulation
 
 from litex.gen import LiteXModule
 
-from litedsp.comm.coding  import ConvEncoder
-from litedsp.comm.viterbi import ViterbiDecoder
-from litedsp.comm.ofdm    import CPInsert, CPRemove
+from litedsp.comm.coding  import LiteDSPConvEncoder
+from litedsp.comm.viterbi import LiteDSPViterbiDecoder
 
 from test.common import stream_driver, stream_capture
 
-# Python reference encoder (mirrors ConvEncoder) -----------------------------------------------------
+# Python reference encoder (mirrors LiteDSPConvEncoder) ----------------------------------------------
 
 def conv_encode(bits, constraint=7, polys=(0o171, 0o133)):
     reg, out = 0, []
@@ -36,7 +33,7 @@ def conv_encode(bits, constraint=7, polys=(0o171, 0o133)):
 
 class TestViterbi(unittest.TestCase):
     def _decode(self, symbols, n_bits, **kwargs):
-        dut = ViterbiDecoder(with_csr=False, **kwargs)
+        dut = LiteDSPViterbiDecoder(with_csr=False, **kwargs)
         cap = []
         run_simulation(dut, [
             stream_driver(dut.sink, [{"data": s} for s in symbols], ("data",), throttle=0.2),
@@ -51,8 +48,8 @@ class TestViterbi(unittest.TestCase):
 
         class Chain(LiteXModule):
             def __init__(self):
-                self.enc = ConvEncoder(with_csr=False)
-                self.dec = ViterbiDecoder(with_csr=False)
+                self.enc = LiteDSPConvEncoder(with_csr=False)
+                self.dec = LiteDSPViterbiDecoder(with_csr=False)
                 self.sink, self.source = self.enc.sink, self.dec.source
                 self.comb += self.enc.source.connect(self.dec.sink)
 
@@ -80,54 +77,13 @@ class TestViterbi(unittest.TestCase):
         # Sanity: the Python reference encoder matches the HW encoder.
         prng = random.Random(3)
         bits = [prng.randint(0, 1) for _ in range(64)]
-        enc  = ConvEncoder(with_csr=False)
+        enc  = LiteDSPConvEncoder(with_csr=False)
         cap  = []
         run_simulation(enc, [
             stream_driver(enc.sink, [{"data": b} for b in bits], ("data",), throttle=0.1),
             stream_capture(enc.source, cap, len(bits), ("data",), ready_rate=0.9),
         ])
         self.assertEqual([c["data"] for c in cap], conv_encode(bits))
-
-# OFDM CP --------------------------------------------------------------------------------------------
-
-class TestCP(unittest.TestCase):
-    def test_insert(self):
-        N, CP = 16, 4
-        dut = CPInsert(fft_size=N, cp_len=CP, data_width=16, with_csr=False)
-        samples = [{"i": k + 1, "q": -(k + 1)} for k in range(2*N)]   # Two symbols.
-        cap = []
-        run_simulation(dut, [
-            stream_driver(dut.sink, samples, ("i", "q"), throttle=0.2),
-            stream_capture(dut.source, cap, 2*(N + CP), ("i", "q", "first", "last"),
-                ready_rate=0.7),
-        ])
-        for s in range(2):
-            sym  = [k + 1 + s*N for k in range(N)]
-            want = sym[-CP:] + sym                          # Prefix = tail, then the symbol.
-            got  = [c["i"] for c in cap[s*(N + CP):(s + 1)*(N + CP)]]
-            self.assertEqual(got, want)
-        firsts = [k for k, c in enumerate(cap) if c["first"]]
-        lasts  = [k for k, c in enumerate(cap) if c["last"]]
-        self.assertEqual(firsts, [0, N + CP])
-        self.assertEqual(lasts,  [N + CP - 1, 2*(N + CP) - 1])
-
-    def test_remove_round_trip(self):
-        N, CP = 16, 4
-        class Loop(LiteXModule):
-            def __init__(self):
-                self.ins = CPInsert(fft_size=N, cp_len=CP, data_width=16, with_csr=False)
-                self.rem = CPRemove(fft_size=N, cp_len=CP, data_width=16, with_csr=False)
-                self.sink, self.source = self.ins.sink, self.rem.source
-                self.comb += self.ins.source.connect(self.rem.sink)
-        dut = Loop()
-        samples = [{"i": 3*k + 1, "q": -k} for k in range(3*N)]       # Three symbols.
-        cap = []
-        run_simulation(dut, [
-            stream_driver(dut.sink, samples, ("i", "q"), throttle=0.2),
-            stream_capture(dut.source, cap, 3*N, ("i", "q", "first", "last"), ready_rate=0.7),
-        ])
-        self.assertEqual([c["i"] for c in cap], [s["i"] for s in samples])
-        self.assertEqual([k for k, c in enumerate(cap) if c["first"]], [0, N, 2*N])
 
 if __name__ == "__main__":
     unittest.main()

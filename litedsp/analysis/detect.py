@@ -17,7 +17,7 @@ from litedsp.common import iq_layout, real_layout
 # Energy / CFAR Detector ---------------------------------------------------------------------------
 
 @ResetInserter()
-class EnergyDetector(LiteXModule):
+class LiteDSPEnergyDetector(LiteXModule):
     """Signal-presence detector with an adaptive noise floor (CFAR-style).
 
     Passes the I/Q stream through and asserts ``detect`` when instantaneous power exceeds the
@@ -62,7 +62,7 @@ class EnergyDetector(LiteXModule):
 # Frequency Estimator (firmware-assisted parabolic) ------------------------------------------------
 
 @ResetInserter()
-class FrequencyEstimator(LiteXModule):
+class LiteDSPFrequencyEstimator(LiteXModule):
     """Find the peak bin of a framed real spectrum and expose the 3 bins around it.
 
     Per frame (delimited by ``sink.first``/``sink.last``), emits ``index`` (argmax) plus the

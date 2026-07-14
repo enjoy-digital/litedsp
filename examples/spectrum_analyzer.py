@@ -28,9 +28,9 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common         import iq_layout, real_layout
-from litedsp.analysis.window import Window
-from litedsp.analysis.fft    import FFT
-from litedsp.analysis.psd    import PSD
+from litedsp.analysis.window import LiteDSPWindow
+from litedsp.analysis.fft    import LiteDSPFFT
+from litedsp.analysis.psd    import LiteDSPPSD
 
 from test.common import run_stream, column
 
@@ -43,9 +43,9 @@ class SpectrumAnalyzer(LiteXModule):
 
         # # #
 
-        self.window = Window(N, data_width=data_width, window=window, with_csr=False)
-        self.fft    = FFT(N, data_width=data_width, with_csr=False)
-        self.psd    = PSD(N, latency=self.fft.latency, data_width=data_width,
+        self.window = LiteDSPWindow(N, data_width=data_width, window=window, with_csr=False)
+        self.fft    = LiteDSPFFT(N, data_width=data_width, with_csr=False)
+        self.psd    = LiteDSPPSD(N, latency=self.fft.latency, data_width=data_width,
             avg_log2=avg_log2, with_csr=False)
         self.comb += [
             self.sink.connect(self.window.sink),

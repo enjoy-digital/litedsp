@@ -17,7 +17,7 @@ from litedsp.common import iq_layout
 
 # Split / Duplicate --------------------------------------------------------------------------------
 
-class Split(LiteXModule):
+class LiteDSPSplit(LiteXModule):
     """Fan-out one I/Q stream to ``n`` identical sources (all consumed together)."""
     def __init__(self, n=2, data_width=16):
         assert n >= 1

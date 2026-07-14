@@ -17,7 +17,7 @@ from litedsp.common import iq_layout
 # Trigger / Capture (scope) ------------------------------------------------------------------------
 
 @ResetInserter()
-class Capture(LiteXModule):
+class LiteDSPCapture(LiteXModule):
     """Scope-like capture: on a trigger, record ``depth`` I/Q samples to RAM, then stream them out.
 
     Taps the input (always ready, never backpressures the live stream). Triggers on a rising
@@ -26,7 +26,7 @@ class Capture(LiteXModule):
     captured buffer is ready/being read out; with ``with_irq=True`` its rising edge raises an
     interrupt (``ev.done``).
 
-    Readout paths: the ``source`` stream (feed a ``CSRReader`` for CPU-less bridges), or —
+    Readout paths: the ``source`` stream (feed a ``LiteDSPCSRReader`` for CPU-less bridges), or —
     with ``with_wishbone=True`` / ``add_wishbone()`` — a read-only Wishbone window on the
     buffer (``self.bus``, one sample per 32-bit word) for fast memory-mapped drains over
     Etherbone (``soc.bus.add_slave(..., capture.bus, SoCRegion(size=capture.mem_size, ...))``).

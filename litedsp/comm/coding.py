@@ -24,7 +24,7 @@ def _parity(bits):
 # Multiplicative Scrambler / Descrambler -----------------------------------------------------------
 
 @ResetInserter()
-class Scrambler(LiteXModule):
+class LiteDSPScrambler(LiteXModule):
     """Self-synchronizing multiplicative scrambler ``y = x ^ y[-t1] ^ y[-t2] ...`` (bit-serial)."""
     def __init__(self, taps=(18, 23), with_csr=True):
         length = max(taps)
@@ -49,8 +49,8 @@ class Scrambler(LiteXModule):
         self.sync += If(adv, self.source.data.eq(y), self.source.valid.eq(self.sink.valid))
 
 @ResetInserter()
-class Descrambler(LiteXModule):
-    """Inverse of :class:`Scrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing)."""
+class LiteDSPDescrambler(LiteXModule):
+    """Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing)."""
     def __init__(self, taps=(18, 23), with_csr=True):
         length = max(taps)
         self.taps = taps
@@ -76,7 +76,7 @@ class Descrambler(LiteXModule):
 # CRC ----------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class CRC(LiteXModule):
+class LiteDSPCRC(LiteXModule):
     """Bit-serial MSB-first CRC; passes ``data`` through and updates the ``crc`` register.
 
     ``clear`` re-initializes the register to ``init``. Defaults: CRC-16-CCITT
@@ -112,7 +112,7 @@ class CRC(LiteXModule):
 # Convolutional Encoder ----------------------------------------------------------------------------
 
 @ResetInserter()
-class ConvEncoder(LiteXModule):
+class LiteDSPConvEncoder(LiteXModule):
     """Rate-1/2 convolutional encoder (default K=7, G=[0o171, 0o133]).
 
     One input bit -> two coded bits on ``source.data`` (``[g1 | g0]``).

@@ -6,7 +6,7 @@
 
 """Loopback measurement taps: compare a reference stream against a received stream.
 
-``ErrorCounter`` synchronously joins a reference and a received I/Q stream, counts how many
+``LiteDSPErrorCounter`` synchronously joins a reference and a received I/Q stream, counts how many
 samples differ (symbol/sample error rate), and exposes the error + total counts over CSR. Pair
 it with :class:`litedsp.generation.pattern.PatternSource` (PRBS) feeding both a chain-under-test
 and the reference to get a self-checking loopback for bring-up.
@@ -23,7 +23,7 @@ from litedsp.common import iq_layout
 
 # Error Counter ------------------------------------------------------------------------------------
 
-class ErrorCounter(LiteXModule):
+class LiteDSPErrorCounter(LiteXModule):
     """Count mismatches between a reference and a received I/Q stream (synchronous join)."""
     def __init__(self, data_width=16, with_csr=True):
         self.sink_ref = stream.Endpoint(iq_layout(data_width))

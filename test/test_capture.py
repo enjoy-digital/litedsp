@@ -10,14 +10,14 @@ import numpy as np
 
 from migen import run_simulation, passive
 
-from litedsp.stream.capture import Capture
+from litedsp.stream.capture import LiteDSPCapture
 
 from test.common import column, stream_capture
 
 class TestCapture(unittest.TestCase):
     def test_triggered_capture(self):
         depth = 16
-        dut = Capture(depth=depth, data_width=16, with_csr=False)
+        dut = LiteDSPCapture(depth=depth, data_width=16, with_csr=False)
         dut.threshold.reset = 5000
         # Quiet samples, then a sample crossing the threshold, then a ramp.
         quiet = [(100, 0)]*8
@@ -50,7 +50,7 @@ class TestCapture(unittest.TestCase):
 class TestCaptureWishbone(unittest.TestCase):
     def test_memory_mapped_readout(self):
         depth = 8
-        dut = Capture(depth=depth, data_width=16, with_csr=False, with_wishbone=True)
+        dut = LiteDSPCapture(depth=depth, data_width=16, with_csr=False, with_wishbone=True)
         dut.threshold.reset = 100
         data = [(1000 + k, -k) for k in range(depth + 4)]   # First sample (1000) triggers.
 

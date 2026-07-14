@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, saturated, scaled
 # Mueller & Muller Symbol Timing Recovery ----------------------------------------------------------
 
 @ResetInserter()
-class TimingRecovery(LiteXModule):
+class LiteDSPTimingRecovery(LiteXModule):
     """Symbol timing recovery with an interpolation controller (M&M or Gardner detector).
 
     Maintains a samples-per-symbol estimate ``omega`` and a fractional interpolation phase

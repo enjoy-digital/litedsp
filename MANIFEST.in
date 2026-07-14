@@ -1,0 +1,15 @@
+graft litedsp
+
+include CONTRIBUTORS
+include LICENSE
+
+graft doc
+
+prune bench
+prune examples
+prune impl
+prune sim
+prune test
+
+global-exclude *.py[cod]
+global-exclude __pycache__/*

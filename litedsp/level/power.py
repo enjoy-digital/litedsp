@@ -15,12 +15,12 @@ from litedsp.common import iq_layout
 
 # Power --------------------------------------------------------------------------------------------
 
-class Power(LiteXModule):
+class LiteDSPPower(LiteXModule):
     """Average power meter: passes the I/Q stream through and measures mean ``I**2 + Q**2``.
 
     The instantaneous power is accumulated over ``2**window_log2`` accepted samples, then the
     block average (accumulator >> window_log2) is latched into ``power`` and ``update`` pulses.
-    Unlike the original tetra ``Power``, the averaging window is actually implemented.
+    Unlike the original tetra ``LiteDSPPower``, the averaging window is actually implemented.
     """
     def __init__(self, data_width=16, max_window_log2=20, with_csr=True):
         self.data_width      = data_width

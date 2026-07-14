@@ -1,51 +1,69 @@
+```
                           __   _ __      ___  _______
                          / /  (_) /____ / _ \/ __/ _ \
                         / /__/ / __/ -_) // /\ \/ ___/
                        /____/_/\__/\__/____/___/_/
-                       Portable RF DSP blocks for LiteX
+
+                    Copyright 2026 / Enjoy-Digital
+
+              Portable RF/DSP building blocks for FPGAs
+                      powered by Migen & LiteX
+```
+
+[![](https://github.com/enjoy-digital/litedsp/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
 
 [> Intro
 --------
 
-LiteDSP is a toolbox of portable, well-tested RF/DSP building blocks for FPGA, written in
-Migen/LiteX and following the LiteX coding style. Every block is pure HDL (no vendor IP), so
-it simulates end-to-end and runs on any FPGA, and every block shares one standardized
-streaming + control interface so blocks compose by `connect()`.
+LiteDSP provides a toolbox of portable, well-tested RF/DSP building blocks for FPGA, written in
+Migen/LiteX. Every block is pure HDL (no vendor IP), so it simulates end-to-end and runs on any
+FPGA, and every block shares one standardized streaming + control interface so blocks compose by
+`connect()`.
+
+LiteDSP is part of LiteX libraries whose aims are to lower entry level of complex FPGA cores by
+providing simple, elegant and efficient implementations of components used in today's SoC such as
+Ethernet, SATA, PCIe, SDRAM Controller...
+
+The core can be used as a LiteX library or can be integrated with your standard design flow by
+generating the Verilog RTL that you will use as a standard core (see the Generator and Flow
+tooling below).
 
 It is meant both as a ready-to-use library for RF processing on FPGA (mixers, NCO, filters,
 rate conversion, gain/AGC, power, corrections, analysis) and as a clean base to customize
 from for client-specific requirements.
 
-[> Design principles
---------------------
+[> Features
+-----------
 
 - **Portable-only**: pure Migen/LiteX, fully simulatable, FPGA-vendor agnostic.
 - **Standardized interfaces**: LiteX `stream.Endpoint` streaming with full valid/ready
   backpressure; the `with_csr=True` / `add_csr()` control pattern everywhere; uniform
   `bypass`; each block exposes its `latency`. See `doc/interfaces.md`.
 - **Fixed-point rigor**: parameterized Qm.n format (default Q1.15 / 16-bit), shared
-  `Round` / `Saturate` / `Scale` helpers used at every downsizing point. See
+  rounding / saturation / scaling helpers used at every downsizing point. See
   `doc/fixed_point.md`.
 - **Tested**: each block has a NumPy golden reference model; simulation output is compared
   bit-exact or against an SNR threshold, run under `unittest` and CI.
+
+![LiteDSP architecture](doc/architecture.svg)
 
 [> Blocks
 ---------
 
 | Category        | Blocks                                                                      |
 |-----------------|-----------------------------------------------------------------------------|
-| `generation/`   | `NCO` (DDS), `CORDIC`, `Chirp` (linear FM), `NoiseSource` (AWGN), `Replay` (RAM AWG), `PatternSource` (const/counter/PRBS/impulse) |
-| `mixing/`       | `Mixer` (complex, runtime up/down), `DDC`, `DUC`, `Channelizer`               |
-| `filter/`       | `FIRFilter`/`FIRFilterComplex` (direct & symmetric), `FIRDecimator`/`FIRInterpolator` (polyphase), `CICDecimator`/`CICInterpolator` (+ runtime-rate), `HalfbandDecimator`/`HalfbandInterpolator`, `IIRBiquad`/`IIRBiquadCascade` (DF2T), `DCBlocker`, `MovingAverage`, `Hilbert`, `PulseShaper` (RRC), `FarrowInterpolator`, `RationalResampler`, `ArbResampler`, `Notch`, `CombFilter`, `Allpass`, `LMSEqualizer` (delayed LMS), `design.py` (coefficients) |
-| `rate/`         | `Downsampler`, `Upsampler` (naive), `Decimator`, `Interpolator` (CIC/FIR), `Dropper` |
-| `level/`        | `Gain`, `Power`, `Saturate`, `Clipper`, `EnvelopeDetector`, `Squelch`, `AGC`, `RMS`, `Log2`/`LogPower` (dB) |
-| `correction/`   | `DCOffset`, `IQBalance`, `Derotator` (CFO)                                    |
-| `comm/`         | `FMDemod`, `AMDemod`, `PhaseDetect`, `Slicer`, `SymbolMapper`, `DifferentialEncoder`/`Decoder`, `Scrambler`/`Descrambler`, `CRC`, `ConvEncoder`, `ViterbiDecoder` (hard-decision), `Correlator`, `PLL`/`Costas`, `TimingRecovery` (M&M or Gardner TED), `CPInsert`/`CPRemove` (OFDM cyclic prefix) |
-| `analysis/`     | `Window`, `FFT` (radix-2 SDF, `inverse=`), `FFTIter`, `PSD`, `WelchPSD`, `Magnitude` (approx/CORDIC), `Goertzel`, `Stats`, `Histogram`, `PeakBin`, `EnergyDetector`, `FrequencyEstimator`, `ErrorCounter` (SER/BER) |
-| `stream/`       | `Combine`, `Split`, `Delay`, `ChannelMux`/`ChannelDemux`, `Conjugate`/`SwapIQ`/`Negate`/`IQAdd`, offset-binary converters, `IQClockDomainCrossing`, `SkidBuffer`, `StreamFIFO`, `IQPack`/`IQUnpack`, `Capture` (scope, CSR or memory-mapped readout), `CSRSource`/`CSRSink`/`CSRReader`/`NullSink`, `StreamFramer`/`StreamDeframer` (`tlast`), `DMACapture`/`DMAReplay` (Wishbone or LiteDRAM DMA) |
-| `frontend/`     | `ADCInterface`/`DACInterface` (raw converter words), `IQPacketizer`/`IQDepacketizer` (framed host-link words, LitePCIe-ready), `UDPIQStreamer`/`UDPIQReceiver` (I/Q packets over LiteEth UDP) |
-| parallel (*)    | `ParallelNCO`, `ParallelMixer`, `ParallelFIRFilter`/`ParallelFIRFilterComplex`, `ParallelCICDecimator`, `ParallelDDC` composite + `IQSerialToParallel`/`IQParallelToSerial` adapters |
-| misc            | `ISqrt` (`numeric.py`), `PILoop` (`control.py`)                               |
+| `generation/`   | `LiteDSPNCO` (DDS), `LiteDSPCORDIC`, `LiteDSPChirp` (linear FM), `LiteDSPNoiseSource` (AWGN), `LiteDSPReplay` (RAM AWG), `LiteDSPPatternSource` (const/counter/PRBS/impulse) |
+| `mixing/`       | `LiteDSPMixer` (complex, runtime up/down), `LiteDSPDDC`, `LiteDSPDUC`, `LiteDSPChannelizer` |
+| `filter/`       | `LiteDSPFIRFilter`/`LiteDSPFIRFilterComplex` (direct & symmetric), `LiteDSPFIRDecimator`/`LiteDSPFIRInterpolator` (polyphase), `LiteDSPCICDecimator`/`LiteDSPCICInterpolator` (+ runtime-rate), `LiteDSPHalfbandDecimator`/`LiteDSPHalfbandInterpolator`, `LiteDSPIIRBiquad`/`LiteDSPIIRBiquadCascade` (DF2T), `LiteDSPDCBlocker`, `LiteDSPMovingAverage`, `LiteDSPHilbert`, `LiteDSPPulseShaper` (RRC), `LiteDSPFarrowInterpolator`, `LiteDSPRationalResampler`, `LiteDSPArbResampler`, `LiteDSPNotch`, `LiteDSPCombFilter`, `LiteDSPAllpass`, `LiteDSPLMSEqualizer` (delayed LMS), `design.py` (coefficients) |
+| `rate/`         | `LiteDSPDownsampler`, `LiteDSPUpsampler` (naive), `LiteDSPDecimator`, `LiteDSPInterpolator` (CIC/FIR) |
+| `level/`        | `LiteDSPGain`, `LiteDSPPower`, `LiteDSPSaturate`, `LiteDSPClipper`, `LiteDSPEnvelopeDetector`, `LiteDSPSquelch`, `LiteDSPAGC`, `LiteDSPRMS`, `LiteDSPLog2`/`LiteDSPLogPower` (dB) |
+| `correction/`   | `LiteDSPDCOffset`, `LiteDSPIQBalance`, `LiteDSPDerotator` (CFO)               |
+| `comm/`         | `LiteDSPFMDemod`, `LiteDSPAMDemod`, `LiteDSPPhaseDetect`, `LiteDSPSlicer`, `LiteDSPSymbolMapper`, `LiteDSPDifferentialEncoder`/`Decoder`, `LiteDSPScrambler`/`LiteDSPDescrambler`, `LiteDSPCRC`, `LiteDSPConvEncoder`, `LiteDSPViterbiDecoder` (hard-decision), `LiteDSPCorrelator`, `LiteDSPPLL`/`LiteDSPCostas`, `LiteDSPTimingRecovery` (M&M or Gardner TED), `LiteDSPCPInsert`/`LiteDSPCPRemove` (OFDM cyclic prefix) |
+| `analysis/`     | `LiteDSPWindow`, `LiteDSPFFT` (radix-2 SDF, `inverse=`), `LiteDSPFFTIter`, `LiteDSPPSD`, `LiteDSPWelchPSD`, `LiteDSPMagnitude` (approx/CORDIC), `LiteDSPGoertzel`, `LiteDSPStats`, `LiteDSPHistogram`, `LiteDSPPeakBin`, `LiteDSPEnergyDetector`, `LiteDSPFrequencyEstimator`, `LiteDSPErrorCounter` (SER/BER) |
+| `stream/`       | `LiteDSPCombine`, `LiteDSPSplit`, `LiteDSPDelay`, `LiteDSPChannelMux`/`LiteDSPChannelDemux`, `LiteDSPConjugate`/`LiteDSPSwapIQ`/`LiteDSPNegate`/`LiteDSPIQAdd`, offset-binary converters, `LiteDSPIQClockDomainCrossing`, `LiteDSPSkidBuffer`, `LiteDSPStreamFIFO`, `LiteDSPIQPack`/`LiteDSPIQUnpack`, `LiteDSPCapture` (scope, CSR or memory-mapped readout), `LiteDSPCSRSource`/`LiteDSPCSRSink`/`LiteDSPCSRReader`/`LiteDSPNullSink`, `LiteDSPStreamFramer`/`LiteDSPStreamDeframer` (`tlast`), `LiteDSPDMACapture`/`LiteDSPDMAReplay` (Wishbone or LiteDRAM DMA) |
+| `frontend/`     | `LiteDSPADCInterface`/`LiteDSPDACInterface` (raw converter words), `LiteDSPIQPacketizer`/`LiteDSPIQDepacketizer` (framed host-link words, LitePCIe-ready), `LiteDSPUDPIQStreamer`/`LiteDSPUDPIQReceiver` (I/Q packets over LiteEth UDP) |
+| parallel (*)    | `LiteDSPParallelNCO`, `LiteDSPParallelMixer`, `LiteDSPParallelFIRFilter`/`LiteDSPParallelFIRFilterComplex`, `LiteDSPParallelCICDecimator`, `LiteDSPParallelDDC` composite + `LiteDSPIQSerialToParallel`/`LiteDSPIQParallelToSerial` adapters |
+| misc            | `LiteDSPISqrt` (`numeric.py`), `LiteDSPPILoop` (`control.py`)                 |
 
 (*) Multi-sample-per-cycle datapaths (N samples/clk for rates above the fabric clock, e.g. a
 gigasample RX front-end), bit-identical to their serial counterparts. The parallel variants
@@ -62,11 +80,37 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7): see `doc/resources.md`.
 | GUI (`gui/`)       | DearPyGui node editor for flow netlists (GNU-Radio-Companion style), with **live mode**: connect to a running SoC and tune NCOs/gains/FIR taps, watch the PSD | `litedsp_gui` |
 | Generator (`gen.py`) | Standalone core in the LiteX-ecosystem style: YAML → Verilog core + `csr.csv`/`csr.json`/`csr.h` | `litedsp_gen config.yml` |
 | Software (`software/`) | Host-side drivers over `litex_server`: tune in Hz, reload taps, drain captures to NumPy, run DMA windows; register-map auto-discovery | `litedsp_cli info` |
-| Examples (`examples/`) | Assembled chains: DDC/DUC, spectrum analyzer, FM receiver, QPSK RX, wideband RX, PRBS loopback BER, AXI IP preview | `python3 examples/fm_receiver.py` |
+| Examples (`examples/`) | Assembled chains: DDC/DUC, spectrum analyzer, FM receiver, QPSK RX, wideband RX, PRBS loopback BER, AXI IP preview; YAML configs for the generator | `python3 examples/fm_receiver.py` |
 | Tests (`test/`)    | Golden-model harness: NumPy reference models, bit-exact/SNR checks under randomized backpressure | `python3 -m unittest discover -s test` |
 | Sim (`sim/`)       | Verilator (real HDL) co-simulation vs the NumPy models + full-registry lint sweep | `python3 sim/run_blocks.py` |
 | Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
 | Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |
+
+[> Getting started
+------------------
+
+1. Install Python 3.7+ and Verilator (for HDL co-simulation).
+2. Install LiteX and its ecosystem by following the LiteX Wiki [installation guide](https://github.com/enjoy-digital/litex/wiki/Installation).
+3. Install LiteDSP:
+```sh
+git clone https://github.com/enjoy-digital/litedsp
+cd litedsp
+python3 setup.py develop --user
+```
+4. Compose blocks in a LiteX SoC (see `doc/litex_integration.md`):
+```python
+from litedsp.generation.nco import LiteDSPNCO
+from litedsp.mixing.mixer   import LiteDSPMixer
+
+self.nco   = LiteDSPNCO(data_width=16)
+self.mixer = LiteDSPMixer(data_width=16)
+self.comb += self.nco.source.connect(self.mixer.sink_b)
+```
+or generate a standalone Verilog core from a YAML config:
+```sh
+litedsp_gen examples/ddc_core.yml
+```
+Assembled-chain demos live in `examples/`.
 
 [> Documentation
 ----------------
@@ -84,11 +128,44 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7): see `doc/resources.md`.
 [> Tests
 --------
 
-```
+Unit tests are available in `./test/`. To run all the unit tests:
+```sh
 python3 -m unittest discover -s test -v
+```
+Tests can also be run individually:
+```sh
+python3 -m unittest test.test_nco -v
 ```
 
 [> License
 ----------
 
-LiteDSP is released under the BSD-2-Clause license. See `LICENSE`.
+LiteDSP is released under the very permissive two-clause BSD license. Under the terms of this
+license, you are authorized to use LiteDSP for closed-source proprietary designs.
+
+Even though we do not require you to do so, those things are awesome, so please do them if
+possible:
+- tell us that you are using LiteDSP
+- put the LiteDSP logo in your documentation
+- cite LiteDSP in publications related to research it has helped
+- send us feedback and suggestions for improvements
+- send us bug reports when something goes wrong
+- send us the modifications and improvements you have done to LiteDSP.
+
+[> Support and consulting
+-------------------------
+
+We love open-source hardware and like sharing our designs with others.
+
+LiteDSP is developed and maintained by EnjoyDigital.
+
+If you would like to know more about LiteDSP or if you are already a happy user and would like to
+extend it for your needs, EnjoyDigital can provide standard commercial support as well as consulting
+services.
+
+So feel free to contact us, we'd love to work with you! (and please tell us a bit about your project
+so we can quickly see if we can help you or not:)
+
+[> Contact
+----------
+E-mail: florent [AT] enjoy-digital.fr

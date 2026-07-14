@@ -30,16 +30,16 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common            import iq_layout
-from litedsp.generation.nco    import NCO
-from litedsp.mixing.mixer      import Mixer, MIXER_MODE_DOWN
-from litedsp.filter.fir        import FIRFilterComplex
-from litedsp.rate.dropper      import Downsampler
+from litedsp.generation.nco    import LiteDSPNCO
+from litedsp.mixing.mixer      import LiteDSPMixer, MIXER_MODE_DOWN
+from litedsp.filter.fir        import LiteDSPFIRFilterComplex
+from litedsp.rate.dropper      import LiteDSPDownsampler
 
 from test.common import run_stream, column
 
 # DDC ----------------------------------------------------------------------------------------------
 
-class DDC(LiteXModule):
+class LiteDSPDDC(LiteXModule):
     """NCO + Mixer(down) + low-pass FIR + Downsampler."""
     def __init__(self, data_width=16, n_taps=33, decimation=4, lo_phase_inc=0, coefficients=None):
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -47,11 +47,11 @@ class DDC(LiteXModule):
 
         # # #
 
-        self.nco   = NCO(data_width=data_width, with_csr=False)
-        self.mixer = Mixer(data_width=data_width, with_csr=False)
-        self.fir   = FIRFilterComplex(n_taps=n_taps, data_width=data_width,
+        self.nco   = LiteDSPNCO(data_width=data_width, with_csr=False)
+        self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)
+        self.fir   = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=data_width,
             coefficients=coefficients, with_csr=False)
-        self.deci  = Downsampler(data_width=data_width, with_csr=False)
+        self.deci  = LiteDSPDownsampler(data_width=data_width, with_csr=False)
 
         self.comb += [
             self.nco.phase_inc.eq(lo_phase_inc),
@@ -82,7 +82,7 @@ def main():
     lo_bin   = n//8
     phase_inc = (1 << 32)//(n//lo_bin)
 
-    dut = DDC(data_width=data_width, n_taps=n_taps, decimation=decimation,
+    dut = LiteDSPDDC(data_width=data_width, n_taps=n_taps, decimation=decimation,
         lo_phase_inc=phase_inc, coefficients=coeffs)
     dut.nco.phase_inc.reset = phase_inc
 

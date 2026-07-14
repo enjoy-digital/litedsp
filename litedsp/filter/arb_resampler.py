@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, scaled
 # Arbitrary-Ratio Resampler ------------------------------------------------------------------------
 
 @ResetInserter()
-class ArbResampler(LiteXModule):
+class LiteDSPArbResampler(LiteXModule):
     """Arbitrary (non-rational) sample-rate conversion via cubic Farrow + a phase accumulator.
 
     ``ratio = f_in / f_out`` (Q.``frac``): each output advances the fractional phase by ``ratio``;

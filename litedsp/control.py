@@ -10,7 +10,7 @@ from litex.gen import *
 
 # Proportional-Integral Loop Filter ----------------------------------------------------------------
 
-class PILoop(LiteXModule):
+class LiteDSPPILoop(LiteXModule):
     """Proportional-integral loop filter with shift-based gains (for PLL/Costas/timing/AGC).
 
     ``out = (error >> kp_shift) + integral`` where ``integral += (error >> ki_shift)`` each

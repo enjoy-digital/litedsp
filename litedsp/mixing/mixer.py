@@ -25,7 +25,7 @@ MIXER_BYPASS_SINK_B   = 2
 # Mixer --------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Mixer(LiteXModule):
+class LiteDSPMixer(LiteXModule):
     """Complex mixer with runtime up/down mode and bypass.
 
     Multiplies two complex I/Q streams ``sink_a`` and ``sink_b`` and outputs the rescaled

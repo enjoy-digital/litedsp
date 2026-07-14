@@ -37,7 +37,7 @@ def cic_shift(R, N, M=1):
 # CIC Decimator ------------------------------------------------------------------------------------
 
 @ResetInserter()
-class CICDecimator(LiteXModule):
+class LiteDSPCICDecimator(LiteXModule):
     """CIC decimator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N``, rescaled to width."""
     def __init__(self, data_width=16, R=8, N=3, M=1, with_csr=True):
         assert R >= 2 and N >= 1 and M >= 1
@@ -117,10 +117,10 @@ class CICDecimator(LiteXModule):
 # Runtime-rate CIC Decimator -----------------------------------------------------------------------
 
 @ResetInserter()
-class CICDecimatorRuntime(LiteXModule):
+class LiteDSPCICDecimatorRuntime(LiteXModule):
     """CIC decimator with a runtime-settable rate (datapath sized for ``r_max``).
 
-    Unlike :class:`CICDecimator` (whose R/N/M are build-time so the output rescale is exact), this
+    Unlike :class:`LiteDSPCICDecimator` (whose R/N/M are build-time so the output rescale is exact), this
     variant exposes ``rate`` and ``shift`` as runtime controls so the decimation ratio can change
     without a rebuild. Size the integrator/comb datapath for the maximum ratio ``r_max``; the host
     sets ``rate`` and the matching ``shift = cic_shift(rate, N, M)`` together so the processing gain
@@ -208,7 +208,7 @@ class CICDecimatorRuntime(LiteXModule):
 # CIC Interpolator ---------------------------------------------------------------------------------
 
 @ResetInserter()
-class CICInterpolator(LiteXModule):
+class LiteDSPCICInterpolator(LiteXModule):
     """CIC interpolator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N / R``, rescaled."""
     def __init__(self, data_width=16, R=8, N=3, M=1, with_csr=True):
         assert R >= 2 and N >= 1 and M >= 1

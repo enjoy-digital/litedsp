@@ -12,15 +12,15 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
 from litedsp.common  import iq_layout
-from litedsp.numeric import ISqrt
+from litedsp.numeric import LiteDSPISqrt
 
 # RMS ----------------------------------------------------------------------------------------------
 
-class RMS(LiteXModule):
+class LiteDSPRMS(LiteXModule):
     """RMS magnitude over ``2**window_log2`` samples: ``sqrt(mean(I**2 + Q**2))``.
 
     Accumulates instantaneous power over a window, averages (shift), and takes the square root
-    (:class:`ISqrt`). Emits one RMS value per completed window on ``source`` (framed). The
+    (:class:`LiteDSPISqrt`). Emits one RMS value per completed window on ``source`` (framed). The
     input is always accepted (the source is produced once per window).
     """
     def __init__(self, data_width=16, window_log2=8, max_window_log2=20, with_csr=True):
@@ -31,7 +31,7 @@ class RMS(LiteXModule):
         # # #
 
         # Sequential sqrt: RMS emits once per window, so the multi-cycle (small) ISqrt is free.
-        self.isqrt = ISqrt(in_width=2*data_width, pipelined=False, with_csr=False)
+        self.isqrt = LiteDSPISqrt(in_width=2*data_width, pipelined=False, with_csr=False)
         self.source = stream.Endpoint([("data", self.isqrt.out_width)])
         self.window_log2 = Signal(max=max_window_log2 + 1, reset=window_log2)
 

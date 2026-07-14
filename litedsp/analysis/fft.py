@@ -33,7 +33,7 @@ def _twiddle_rom(D, func, twiddle_width):
 
 # FFT Stage (Radix-2 SDF, DIF) ---------------------------------------------------------------------
 
-class FFTStage(LiteXModule):
+class LiteDSPFFTStage(LiteXModule):
     """One radix-2 single-path delay-feedback (SDF) DIF stage.
 
     Delay-feedback length ``D = N >> (stage+1)``. During the store half of each 2D block the
@@ -137,10 +137,10 @@ class FFTStage(LiteXModule):
 
 # FFT (Radix-2 SDF) --------------------------------------------------------------------------------
 
-class FFT(LiteXModule):
+class LiteDSPFFT(LiteXModule):
     """Streaming radix-2 SDF FFT, ``N`` points (power of two), 1 sample/cycle.
 
-    Cascades ``log2(N)`` :class:`FFTStage`s. Output is a 1/N-scaled FFT in **bit-reversed**
+    Cascades ``log2(N)`` :class:`LiteDSPFFTStage`s. Output is a 1/N-scaled FFT in **bit-reversed**
     order (use :func:`bit_reverse` to reorder). ``self.latency`` is the cycles from the first
     input sample of a frame to its first output sample.
     """
@@ -158,7 +158,7 @@ class FFT(LiteXModule):
         self.stages = []
         last = self.sink
         for k in range(self.bits):
-            stage = FFTStage(N, k, data_width=data_width, twiddle_width=twiddle_width, inverse=inverse)
+            stage = LiteDSPFFTStage(N, k, data_width=data_width, twiddle_width=twiddle_width, inverse=inverse)
             self.add_module(name=f"stage{k}", module=stage)
             self.comb += last.connect(stage.sink)
             self.stages.append(stage)

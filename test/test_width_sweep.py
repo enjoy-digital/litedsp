@@ -18,9 +18,9 @@ import numpy as np
 
 from migen import run_simulation
 
-from litedsp.generation.nco import NCO
-from litedsp.mixing.mixer   import Mixer
-from litedsp.filter.fir     import FIRFilter
+from litedsp.generation.nco import LiteDSPNCO
+from litedsp.mixing.mixer   import LiteDSPMixer
+from litedsp.filter.fir     import LiteDSPFIRFilter
 
 from test.common import stream_driver, stream_capture, column
 from test.models import nco_model, mixer_model, fir_model
@@ -31,7 +31,7 @@ class TestWidthSweep(unittest.TestCase):
     def test_nco(self):
         for dw in WIDTHS:
             phase_inc = 0x0731_9CDE
-            dut = NCO(data_width=dw, with_csr=False)
+            dut = LiteDSPNCO(data_width=dw, with_csr=False)
             dut.phase_inc.reset = phase_inc
             cap = []
             run_simulation(dut, [stream_capture(dut.source, cap, 64, ("i", "q"), ready_rate=0.7)])
@@ -46,7 +46,7 @@ class TestWidthSweep(unittest.TestCase):
             n    = 64
             a = [(prng.randint(-hi, hi), prng.randint(-hi, hi)) for _ in range(n)]
             b = [(prng.randint(-hi, hi), prng.randint(-hi, hi)) for _ in range(n)]
-            dut = Mixer(data_width=dw, with_csr=False)     # mode=0: down.
+            dut = LiteDSPMixer(data_width=dw, with_csr=False)     # mode=0: down.
             cap = []
             run_simulation(dut, [
                 stream_driver(dut.sink_a, [{"i": i, "q": q} for (i, q) in a], ("i", "q"), throttle=0.2),
@@ -66,7 +66,7 @@ class TestWidthSweep(unittest.TestCase):
             n_taps = 7
             coeffs = [prng.randint(-hi//4, hi//4) for _ in range(n_taps)]
             x      = [prng.randint(-hi, hi) for _ in range(64)]
-            dut = FIRFilter(n_taps=n_taps, data_width=dw)
+            dut = LiteDSPFIRFilter(n_taps=n_taps, data_width=dw)
             for t in range(n_taps):
                 dut.coeffs[t].reset = coeffs[t]            # Signed; do not mask.
             cap = []

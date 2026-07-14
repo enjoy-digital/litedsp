@@ -26,7 +26,7 @@ from litedsp.common import iq_layout, scaled, saturated
 # IIR Biquad (single section, complex) -------------------------------------------------------------
 
 @ResetInserter()
-class IIRBiquad(LiteXModule):
+class LiteDSPIIRBiquad(LiteXModule):
     """One DF2T biquad section applied to I and Q with shared coefficients.
 
     ``coeffs`` is a dict ``{b0,b1,b2,a1,a2}`` of signed integers in Q?.``frac_bits`` (a1,a2 are
@@ -83,7 +83,7 @@ class IIRBiquad(LiteXModule):
 
 # IIR Biquad cascade -------------------------------------------------------------------------------
 
-class IIRBiquadCascade(LiteXModule):
+class LiteDSPIIRBiquadCascade(LiteXModule):
     """Cascade of DF2T biquad sections (``sections`` = list of coeff dicts)."""
     def __init__(self, data_width=16, sections=None, frac_bits=14, with_csr=True):
         assert sections, "Provide at least one biquad section."
@@ -95,7 +95,7 @@ class IIRBiquadCascade(LiteXModule):
 
         last = self.sink
         for n, sec in enumerate(sections):
-            bq = IIRBiquad(data_width=data_width, coeffs=sec, frac_bits=frac_bits, with_csr=False)
+            bq = LiteDSPIIRBiquad(data_width=data_width, coeffs=sec, frac_bits=frac_bits, with_csr=False)
             self.add_module(name=f"section{n}", module=bq)
             self.comb += last.connect(bq.sink)
             self.sections.append(bq)

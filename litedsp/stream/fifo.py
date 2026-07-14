@@ -22,7 +22,7 @@ from litedsp.common import iq_layout
 
 # Stream FIFO --------------------------------------------------------------------------------------
 
-class StreamFIFO(LiteXModule):
+class LiteDSPStreamFIFO(LiteXModule):
     """First-word-fall-through synchronous FIFO for an I/Q (or custom-``layout``) stream."""
     def __init__(self, depth=16, data_width=16, layout=None, with_csr=True):
         assert depth >= 1

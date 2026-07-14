@@ -33,9 +33,9 @@ from litex.gen import LiteXModule
 from litex.soc.interconnect.axi import AXIStreamInterface
 
 from litedsp.common            import iq_layout
-from litedsp.filter.dc_blocker import DCBlocker
-from litedsp.level.gain        import Gain
-from litedsp.stream.framing    import StreamFramer
+from litedsp.filter.dc_blocker import LiteDSPDCBlocker
+from litedsp.level.gain        import LiteDSPGain
+from litedsp.stream.framing    import LiteDSPStreamFramer
 
 from litedsp.verilog import to_verilog
 
@@ -47,9 +47,9 @@ class IPChain(LiteXModule):
         self.axis_sink   = AXIStreamInterface(layout=iq_layout(data_width))
         self.axis_source = AXIStreamInterface(layout=iq_layout(data_width))
 
-        self.dcblock = DCBlocker(data_width=data_width, with_csr=with_csr)
-        self.gain    = Gain(data_width=data_width, with_csr=with_csr)
-        self.framer  = StreamFramer(length=frame_len, data_width=data_width, with_csr=with_csr)
+        self.dcblock = LiteDSPDCBlocker(data_width=data_width, with_csr=with_csr)
+        self.gain    = LiteDSPGain(data_width=data_width, with_csr=with_csr)
+        self.framer  = LiteDSPStreamFramer(length=frame_len, data_width=data_width, with_csr=with_csr)
 
         # AXI-Stream carries extra param fields (id/dest/user/keep) the DSP endpoints don't use.
         axi_only = {"id", "dest", "user", "keep"}

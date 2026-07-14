@@ -9,14 +9,14 @@ import unittest
 
 import numpy as np
 
-from litedsp.analysis.window import Window, window_coefficients
+from litedsp.analysis.window import LiteDSPWindow, window_coefficients
 
 from test.common import run_stream, column
 from test.models import window_model
 
 class TestWindow(unittest.TestCase):
     def run_window(self, xi, xq, n, window, data_width=16):
-        dut = Window(n=n, data_width=data_width, window=window, with_csr=False)
+        dut = LiteDSPWindow(n=n, data_width=data_width, window=window, with_csr=False)
         samples  = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
         captured = run_stream(dut, samples, len(xi), ["i", "q"], ["i", "q"],
             sink_throttle=0.2, source_ready_rate=0.7)

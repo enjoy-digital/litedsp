@@ -10,22 +10,22 @@ A hand-wired chain is correct by construction; an auto-assembler is not, so this
 stream contract:
 
 - **Fan-out** (one source → many sinks) is illegal raw (a single ``ready``), so a
-  :class:`~litedsp.stream.split.Split` is inserted automatically.
+  :class:`~litedsp.stream.split.LiteDSPSplit` is inserted automatically.
 - **Raw fan-in** (many sources → one sink) is rejected by netlist validation (route through a
   ``combine``/``mixer`` block, which has distinct sink ports).
 - **Combinational loops** are rejected: v1 targets feed-forward chains, so any cycle in the block
   graph is an error.
 - **Latency balancing** on reconvergent paths is automatic (``auto_delay=True``): when the
   branches feeding a multi-input block have unequal cumulative latency, a
-  :class:`~litedsp.stream.delay.Delay` of the exact deficit is inserted on the shorter
+  :class:`~litedsp.stream.delay.LiteDSPDelay` of the exact deficit is inserted on the shorter
   branch(es). Insertions are deterministic (a pure function of the netlist) and reported via
   ``flow_inserted``, so chains stay predictable and bit-identical to hand-wired equivalents
   with explicit delays. Joins the assembler cannot fix (non-I/Q sink ports) — or all joins,
   with ``auto_delay=False`` — are reported as warnings instead.
 """
 
-from litedsp.stream.split import Split
-from litedsp.stream.delay import Delay
+from litedsp.stream.split import LiteDSPSplit
+from litedsp.stream.delay import LiteDSPDelay
 from litedsp.flow.netlist import split_ref, NetlistError
 
 # Cycle detection ----------------------------------------------------------------------------------
@@ -141,7 +141,7 @@ def connect_all(parent, nl, reg, auto_delay=True):
         if d == 0 or _layout_of(parent, dst_ref, reg, nl) != "iq":
             return parent.endpoint(dst_ref)                # Non-I/Q joins fall back to warnings.
         name = "delay_" + _safe(dst_ref)
-        dl   = Delay(depth=d, data_width=nl.data_width)
+        dl   = LiteDSPDelay(depth=d, data_width=nl.data_width)
         setattr(parent, name, dl)
         inserted.append(name)
         parent.comb += dl.source.connect(parent.endpoint(dst_ref))
@@ -156,7 +156,7 @@ def connect_all(parent, nl, reg, auto_delay=True):
         if _layout_of(parent, src_ref, reg, nl) != "iq":
             raise NotImplementedError(f"fan-out of a non-I/Q stream ('{src_ref}') is unsupported in v1")
         name = "split_" + _safe(src_ref)
-        sp   = Split(n=len(dsts), data_width=nl.data_width)
+        sp   = LiteDSPSplit(n=len(dsts), data_width=nl.data_width)
         setattr(parent, name, sp)
         inserted.append(name)
         parent.comb += src_ep.connect(sp.sink)

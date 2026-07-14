@@ -15,8 +15,8 @@ from litedsp.common import iq_layout
 # Symbol Mapper ------------------------------------------------------------------------------------
 
 @ResetInserter()
-class SymbolMapper(LiteXModule):
-    """Map a QAM symbol index to a constellation I/Q point (inverse of :class:`Slicer`).
+class LiteDSPSymbolMapper(LiteXModule):
+    """Map a QAM symbol index to a constellation I/Q point (inverse of :class:`LiteDSPSlicer`).
 
     ``bits_per_axis`` gives ``L = 2**bits_per_axis`` PAM levels per axis at
     ``(2k-(L-1))*spacing``. ``sink.symbol`` is ``[q_bits | i_bits]``. QPSK = ``1``, 16-QAM = ``2``.

@@ -16,7 +16,7 @@ from litedsp.common import iq_layout
 # Clipper / Limiter --------------------------------------------------------------------------------
 
 @ResetInserter()
-class Clipper(LiteXModule):
+class LiteDSPClipper(LiteXModule):
     """Hard limiter: clamp each of I/Q to +/- ``threshold`` (runtime). ``clip`` flags a clip."""
     def __init__(self, data_width=16, with_csr=True):
         self.data_width = data_width

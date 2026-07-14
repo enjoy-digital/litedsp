@@ -38,7 +38,7 @@ def window_coefficients(n, window="hann", data_width=16):
 # Window -------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Window(LiteXModule):
+class LiteDSPWindow(LiteXModule):
     """Apply a length-``n`` window to a complex I/Q stream, framed every ``n`` samples.
 
     Each I/Q sample is multiplied by the real window coefficient for its position in the frame

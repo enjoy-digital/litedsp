@@ -12,12 +12,12 @@ from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
 from litedsp.common         import iq_layout
-from litedsp.generation.nco import NCO
-from litedsp.mixing.mixer   import Mixer, MIXER_MODE_DOWN
+from litedsp.generation.nco import LiteDSPNCO
+from litedsp.mixing.mixer   import LiteDSPMixer, MIXER_MODE_DOWN
 
 # Carrier / Frequency Offset Derotator ---------------------------------------------------------------
 
-class Derotator(LiteXModule):
+class LiteDSPDerotator(LiteXModule):
     """Frequency-shift (derotate) an I/Q stream by ``-phase_inc`` (NCO + down-mixer).
 
     Use with a manual ``phase_inc`` (the NCO CSR) to correct a known CFO, or drive
@@ -29,8 +29,8 @@ class Derotator(LiteXModule):
 
         # # #
 
-        self.nco   = NCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
-        self.mixer = Mixer(data_width=data_width, with_csr=False)
+        self.nco   = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
+        self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)
         self.latency = self.mixer.latency
         self.comb += [
             self.mixer.mode.eq(MIXER_MODE_DOWN),         # a * conj(nco) = derotate by NCO freq.

@@ -6,8 +6,8 @@
 
 """Packetize/depacketize an I/Q stream by marking frame boundaries.
 
-``StreamFramer`` injects ``first``/``last`` every ``length`` samples (CSR-settable), which an
-AXI-Stream wrapper maps directly to ``tlast`` so a DMA sees fixed-size packets. ``StreamDeframer``
+``LiteDSPStreamFramer`` injects ``first``/``last`` every ``length`` samples (CSR-settable), which an
+AXI-Stream wrapper maps directly to ``tlast`` so a DMA sees fixed-size packets. ``LiteDSPStreamDeframer``
 is the pass-through counterpart that counts completed frames (read over CSR) and re-derives a
 ``first`` from incoming ``last`` — useful when consuming externally-framed data.
 """
@@ -23,7 +23,7 @@ from litedsp.common import iq_layout
 
 # Framer -------------------------------------------------------------------------------------------
 
-class StreamFramer(LiteXModule):
+class LiteDSPStreamFramer(LiteXModule):
     """Pass I/Q through, asserting ``first`` at sample 0 and ``last`` at sample ``length-1``."""
     def __init__(self, length=256, data_width=16, max_length=65536, with_csr=True):
         self.length = Signal(max=max_length, reset=length)
@@ -58,7 +58,7 @@ class StreamFramer(LiteXModule):
 
 # Deframer -----------------------------------------------------------------------------------------
 
-class StreamDeframer(LiteXModule):
+class LiteDSPStreamDeframer(LiteXModule):
     """Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each frame."""
     def __init__(self, data_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))

@@ -17,10 +17,10 @@ from litedsp.mixing.mixer import MIXER_MODE_DOWN, MIXER_MODE_UP
 # Parallel Mixer -------------------------------------------------------------------------------------
 
 @ResetInserter()
-class ParallelMixer(LiteXModule):
+class LiteDSPParallelMixer(LiteXModule):
     """Complex mixer over ``n_samples`` lanes per beat (multi-sample-per-cycle datapaths).
 
-    Per-lane arithmetic and rounding are identical to :class:`~litedsp.mixing.mixer.Mixer`
+    Per-lane arithmetic and rounding are identical to :class:`~litedsp.mixing.mixer.LiteDSPMixer`
     (runtime up/down ``mode``, round-half-up + saturate on the product rescale), so a parallel
     path produces the same samples as the serial one — with ``4*n_samples`` multipliers and the
     same fixed 2-cycle latency. Both sinks are consumed together.

@@ -17,7 +17,7 @@ from migen import run_simulation, passive
 
 from litex.soc.interconnect import wishbone
 
-from litedsp.stream.dma import DMACapture, DMAReplay
+from litedsp.stream.dma import LiteDSPDMACapture, LiteDSPDMAReplay
 
 from test.common import stream_driver, stream_capture
 
@@ -91,7 +91,7 @@ class TestDMACapture(unittest.TestCase):
         n    = 16
         base = 0x100
         bus  = wishbone.Interface(data_width=32)
-        dut  = DMACapture(data_width=16, bus=bus, with_csr=False)
+        dut  = LiteDSPDMACapture(data_width=16, bus=bus, with_csr=False)
         dut.base.reset   = base
         dut.length.reset = n*4          # Bytes (one 32-bit word per I/Q sample).
         dut.enable.reset = 1
@@ -110,7 +110,7 @@ class TestDMACapture(unittest.TestCase):
         n    = 16                        # I/Q samples; 2 per 64-bit word.
         base = 0x100
         port = LiteDRAMNativePort("write", address_width=24, data_width=64)
-        dut  = DMACapture(data_width=16, port=port)
+        dut  = LiteDSPDMACapture(data_width=16, port=port)
         dut.writer._base.storage.reset   = base
         dut.writer._length.storage.reset = n*4
         dut.writer._enable.storage.reset = 1
@@ -130,7 +130,7 @@ class TestDMAReplay(unittest.TestCase):
         n    = 16
         base = 0x40
         bus  = wishbone.Interface(data_width=32)
-        dut  = DMAReplay(data_width=16, bus=bus, with_csr=False)
+        dut  = LiteDSPDMAReplay(data_width=16, bus=bus, with_csr=False)
         dut.base.reset   = base
         dut.length.reset = n*4
         dut.enable.reset = 1
@@ -150,7 +150,7 @@ class TestDMAReplay(unittest.TestCase):
         n    = 16
         base = 0x80
         port = LiteDRAMNativePort("read", address_width=24, data_width=64)
-        dut  = DMAReplay(data_width=16, port=port)
+        dut  = LiteDSPDMAReplay(data_width=16, port=port)
         dut.reader._base.storage.reset   = base
         dut.reader._length.storage.reset = n*4
         dut.reader._enable.storage.reset = 1

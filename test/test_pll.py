@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.comm.pll import PLL, Costas
+from litedsp.comm.pll import LiteDSPPLL, LiteDSPCostas
 
 from test.common import run_stream, column
 
@@ -17,7 +17,7 @@ class TestPLL(unittest.TestCase):
         n = 8000
         f = 0.01
         x = 12000*np.exp(1j*2*np.pi*f*np.arange(n))
-        dut = PLL(data_width=16, kp_shift=4, ki_shift=12, with_csr=False)
+        dut = LiteDSPPLL(data_width=16, kp_shift=4, ki_shift=12, with_csr=False)
         cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
             n, ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
         y = column(cap, "i", 16) + 1j*column(cap, "q", 16)
@@ -34,7 +34,7 @@ class TestCostas(unittest.TestCase):
         bits = rng.randint(0, 2, n)
         data = 2*bits - 1                                 # +/-1 BPSK.
         x = 11000*data*np.exp(1j*2*np.pi*f*np.arange(n))
-        dut = Costas(data_width=16, kp_shift=4, ki_shift=12, with_csr=False)
+        dut = LiteDSPCostas(data_width=16, kp_shift=4, ki_shift=12, with_csr=False)
         cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
             n, ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
         di = column(cap, "i", 16).astype(float)[3*n//4:]

@@ -10,7 +10,7 @@ import numpy as np
 
 from migen import run_simulation, passive
 
-from litedsp.analysis.detect import EnergyDetector, FrequencyEstimator
+from litedsp.analysis.detect import LiteDSPEnergyDetector, LiteDSPFrequencyEstimator
 
 from test.common import run_stream, column, stream_capture
 
@@ -20,7 +20,7 @@ class TestEnergyDetector(unittest.TestCase):
         rng = np.random.RandomState(0)
         sig = (rng.randint(-300, 300, n)).astype(complex)        # low noise.
         sig[1000:2000] += 6000*np.exp(1j*2*np.pi*0.05*np.arange(1000))  # burst.
-        dut = EnergyDetector(data_width=16, avg_shift=6, threshold_log2=4, with_csr=False)
+        dut = LiteDSPEnergyDetector(data_width=16, avg_shift=6, threshold_log2=4, with_csr=False)
         det = []
 
         @passive
@@ -41,7 +41,7 @@ class TestEnergyDetector(unittest.TestCase):
 
 class TestFrequencyEstimator(unittest.TestCase):
     def test_peak_and_neighbours(self):
-        dut = FrequencyEstimator(data_width=32, index_width=8, with_csr=False)
+        dut = LiteDSPFrequencyEstimator(data_width=32, index_width=8, with_csr=False)
         frame = [5, 20, 80, 200, 90, 10, 4, 4]         # peak at index 3.
 
         @passive

@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, scaled
 # Saturate -----------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Saturate(LiteXModule):
+class LiteDSPSaturate(LiteXModule):
     """Rescale a complex I/Q stream by a fixed right ``shift`` with round-half-up + saturation.
 
     A thin standalone wrapper around the shared fixed-point helpers, useful as an explicit

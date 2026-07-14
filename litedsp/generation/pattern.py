@@ -27,7 +27,7 @@ PATTERN_IMPULSE = 3
 
 # Pattern Source -----------------------------------------------------------------------------------
 
-class PatternSource(LiteXModule):
+class LiteDSPPatternSource(LiteXModule):
     """I/Q test-pattern generator (constant / counter ramp / PRBS / impulse)."""
     def __init__(self, data_width=16, seed=0x1, with_csr=True):
         self.data_width = data_width

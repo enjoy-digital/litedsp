@@ -16,7 +16,7 @@ from litedsp.common import iq_layout
 
 # Offset-Binary <-> Two's-Complement -------------------------------------------------------------
 
-class OffsetBinaryToTwos(LiteXModule):
+class LiteDSPOffsetBinaryToTwos(LiteXModule):
     """Convert unsigned offset-binary I/Q samples to signed two's-complement (flip the MSB)."""
     def __init__(self, data_width=16):
         self.latency = 0
@@ -31,7 +31,7 @@ class OffsetBinaryToTwos(LiteXModule):
             self.source.q.eq(self.sink.q ^ msb),
         ]
 
-class TwosToOffsetBinary(LiteXModule):
+class LiteDSPTwosToOffsetBinary(LiteXModule):
     """Convert signed two's-complement I/Q samples to unsigned offset-binary (flip the MSB)."""
     def __init__(self, data_width=16):
         self.latency = 0

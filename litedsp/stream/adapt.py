@@ -6,11 +6,11 @@
 
 """Clock-domain crossing and width adaptation for I/Q streams (thin wrappers over LiteX).
 
-``IQPack`` / ``IQUnpack`` bridge the per-sample I/Q layout to a wide flat bus word (e.g. four
+``LiteDSPIQPack`` / ``LiteDSPIQUnpack`` bridge the per-sample I/Q layout to a wide flat bus word (e.g. four
 16-bit I/Q samples in one 128-bit AXI-Stream ``tdata``), which is how a DSP chain meets a wide
-DMA/AXI interface. They are exact inverses, so ``IQUnpack(IQPack(x)) == x``.
+DMA/AXI interface. They are exact inverses, so ``LiteDSPIQUnpack(LiteDSPIQPack(x)) == x``.
 
-``IQSerialToParallel`` / ``IQParallelToSerial`` bridge the per-sample layout to the multi-
+``LiteDSPIQSerialToParallel`` / ``LiteDSPIQParallelToSerial`` bridge the per-sample layout to the multi-
 sample-per-cycle layout (``iq_layout(data_width, n_samples)``) used by the parallel datapath
 blocks, gathering/spreading ``n_samples`` consecutive samples per beat (lane 0 = first sample).
 """
@@ -25,7 +25,7 @@ from litedsp.common import iq_layout, iq_lanes
 
 # Clock-Domain Crossing ----------------------------------------------------------------------------
 
-class IQClockDomainCrossing(LiteXModule):
+class LiteDSPIQClockDomainCrossing(LiteXModule):
     """Cross an I/Q stream between clock domains via a LiteX async FIFO."""
     def __init__(self, cd_from="sys", cd_to="sys", data_width=16, depth=8):
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -42,7 +42,7 @@ class IQClockDomainCrossing(LiteXModule):
 
 # Sample Packing / Unpacking -----------------------------------------------------------------------
 
-class IQPack(LiteXModule):
+class LiteDSPIQPack(LiteXModule):
     """Pack ``ratio`` consecutive I/Q samples into one wide ``data`` word (LSB = first sample)."""
     def __init__(self, ratio=4, data_width=16):
         assert ratio >= 1
@@ -63,8 +63,8 @@ class IQPack(LiteXModule):
             conv.source.connect(self.source),
         ]
 
-class IQUnpack(LiteXModule):
-    """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`IQPack`)."""
+class LiteDSPIQUnpack(LiteXModule):
+    """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`LiteDSPIQPack`)."""
     def __init__(self, ratio=4, data_width=16):
         assert ratio >= 1
         sw          = 2*data_width
@@ -87,7 +87,7 @@ class IQUnpack(LiteXModule):
 
 # Serial <-> Parallel (multi-sample-per-cycle) -------------------------------------------------------
 
-class IQSerialToParallel(LiteXModule):
+class LiteDSPIQSerialToParallel(LiteXModule):
     """Gather ``n_samples`` consecutive I/Q samples into one multi-sample beat (lane 0 first)."""
     def __init__(self, n_samples=2, data_width=16):
         assert n_samples >= 1
@@ -115,7 +115,7 @@ class IQSerialToParallel(LiteXModule):
                 q.eq(conv.source.data[k*sw + data_width:(k + 1)*sw]),
             ]
 
-class IQParallelToSerial(LiteXModule):
+class LiteDSPIQParallelToSerial(LiteXModule):
     """Spread one multi-sample beat back into ``n_samples`` consecutive I/Q samples."""
     def __init__(self, n_samples=2, data_width=16):
         assert n_samples >= 1

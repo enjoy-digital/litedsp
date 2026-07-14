@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, scaled
 # Gain ---------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Gain(LiteXModule):
+class LiteDSPGain(LiteXModule):
     """Runtime-configurable gain for a complex I/Q stream, with bypass and saturation.
 
     The output is ``sample * gain / 2**(gain_frac + shift)`` with round-half-up + saturation.

@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.filter.iir_biquad import IIRBiquad, IIRBiquadCascade
+from litedsp.filter.iir_biquad import LiteDSPIIRBiquad, LiteDSPIIRBiquadCascade
 from litedsp.filter.design     import biquad_sos_quantize
 
 from test.common import run_stream, column
@@ -27,7 +27,7 @@ def rbj_lowpass(fc, Q=0.707):
 class TestIIRBiquad(unittest.TestCase):
     def test_bit_exact_single(self):
         secs, frac = biquad_sos_quantize([rbj_lowpass(0.1)], frac_bits=14)
-        dut  = IIRBiquad(data_width=16, coeffs=secs[0], frac_bits=frac, with_csr=False)
+        dut  = LiteDSPIIRBiquad(data_width=16, coeffs=secs[0], frac_bits=frac, with_csr=False)
         prng = random.Random(1)
         xi = [prng.randint(-20000, 20000) for _ in range(300)]
         xq = [prng.randint(-20000, 20000) for _ in range(300)]
@@ -39,7 +39,7 @@ class TestIIRBiquad(unittest.TestCase):
 
     def test_bit_exact_cascade(self):
         secs, frac = biquad_sos_quantize([rbj_lowpass(0.1), rbj_lowpass(0.1)], frac_bits=14)
-        dut  = IIRBiquadCascade(data_width=16, sections=secs, frac_bits=frac, with_csr=False)
+        dut  = LiteDSPIIRBiquadCascade(data_width=16, sections=secs, frac_bits=frac, with_csr=False)
         prng = random.Random(2)
         xi = [prng.randint(-15000, 15000) for _ in range(300)]
         xq = [prng.randint(-15000, 15000) for _ in range(300)]
@@ -54,7 +54,7 @@ class TestIIRBiquad(unittest.TestCase):
         def tone(f):
             return np.round(15000*np.cos(2*np.pi*f*np.arange(n))).astype(int)
         def run(x):
-            dut = IIRBiquad(data_width=16, coeffs=secs[0], frac_bits=frac, with_csr=False)
+            dut = LiteDSPIIRBiquad(data_width=16, coeffs=secs[0], frac_bits=frac, with_csr=False)
             cap = run_stream(dut, [{"i": int(x[k]), "q": 0} for k in range(n)], n,
                 ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
             return column(cap, "i", 16)[n//2:]

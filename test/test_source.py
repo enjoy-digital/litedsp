@@ -8,14 +8,14 @@ import unittest
 
 import numpy as np
 
-from litedsp.generation.source import Chirp, NoiseSource, Replay
+from litedsp.generation.source import LiteDSPChirp, LiteDSPNoiseSource, LiteDSPReplay
 
 from test.common import run_stream, column, to_signed
 
 class TestChirp(unittest.TestCase):
     def test_frequency_ramps(self):
         n = 2000
-        dut = Chirp(data_width=16, with_csr=False)
+        dut = LiteDSPChirp(data_width=16, with_csr=False)
         dut.start.reset = int(0.01*(1 << 32))
         dut.rate.reset  = int(0.00005*(1 << 32))
         cap = run_stream(dut, None, n, None, ["i", "q"], source_ready_rate=1.0)
@@ -29,7 +29,7 @@ class TestChirp(unittest.TestCase):
 class TestNoiseSource(unittest.TestCase):
     def test_statistics(self):
         n = 8000
-        dut = NoiseSource(data_width=16, n_sum=16, shift=2, with_csr=False)
+        dut = LiteDSPNoiseSource(data_width=16, n_sum=16, shift=2, with_csr=False)
         cap = run_stream(dut, None, n, None, ["i", "q"], source_ready_rate=1.0)
         i = to_signed(column(cap, "i"), 16).astype(float)
         q = to_signed(column(cap, "q"), 16).astype(float)
@@ -43,7 +43,7 @@ class TestNoiseSource(unittest.TestCase):
 class TestReplay(unittest.TestCase):
     def test_loops(self):
         samples = [(100, -100), (200, -200), (300, -300), (400, -400)]
-        dut = Replay(samples, data_width=16, with_csr=False)
+        dut = LiteDSPReplay(samples, data_width=16, with_csr=False)
         cap = run_stream(dut, None, 10, None, ["i", "q"], source_ready_rate=1.0)
         gi = to_signed(column(cap, "i"), 16)
         self.assertEqual(list(gi[:4]), [100, 200, 300, 400])

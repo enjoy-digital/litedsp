@@ -12,7 +12,7 @@ rest of the chain always sees full-scale Q1.(N-1) regardless of the converter re
 symmetrically on the DAC side (round + saturate on the downsize, offset-binary re-encode).
 
 For vendor-specific serdes/DDR capture, wrap the primitive into an ``iq_layout`` raw stream at
-the sample clock and feed it through these adapters (e.g. via ``IQClockDomainCrossing``).
+the sample clock and feed it through these adapters (e.g. via ``LiteDSPIQClockDomainCrossing``).
 """
 
 from migen import *
@@ -25,7 +25,7 @@ from litedsp.common import iq_layout, scaled
 
 # ADC Interface ------------------------------------------------------------------------------------
 
-class ADCInterface(LiteXModule):
+class LiteDSPADCInterface(LiteXModule):
     """Raw ADC I/Q samples -> Q1.(N-1) stream (sign correction + MSB alignment)."""
     def __init__(self, adc_width=12, data_width=16, fmt="offset_binary"):
         assert fmt in ("offset_binary", "twos")
@@ -51,7 +51,7 @@ class ADCInterface(LiteXModule):
 
 # DAC Interface ------------------------------------------------------------------------------------
 
-class DACInterface(LiteXModule):
+class LiteDSPDACInterface(LiteXModule):
     """Q1.(N-1) stream -> raw DAC I/Q samples (round + saturate downsize, format re-encode)."""
     def __init__(self, dac_width=12, data_width=16, fmt="offset_binary"):
         assert fmt in ("offset_binary", "twos")

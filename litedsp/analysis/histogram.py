@@ -15,7 +15,7 @@ from litedsp.common import real_layout
 
 # Histogram ----------------------------------------------------------------------------------------
 
-class Histogram(LiteXModule):
+class LiteDSPHistogram(LiteXModule):
     """Sample-distribution histogram (e.g. for ADC characterization).
 
     Bins by the top ``bits`` of ``(x + 2**(data_width-1))`` (offset to unsigned). Accumulates

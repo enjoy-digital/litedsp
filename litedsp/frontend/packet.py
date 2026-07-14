@@ -6,11 +6,11 @@
 
 """I/Q streams <-> framed wide-word streams: the generic glue toward host links.
 
-``IQPacketizer`` frames the sample stream every ``samples_per_packet`` samples
-(:class:`~litedsp.stream.framing.StreamFramer`) and packs samples into ``word_width``-bit words
-(:class:`~litedsp.stream.adapt.IQPack`, first sample in the LSBs): the resulting
+``LiteDSPIQPacketizer`` frames the sample stream every ``samples_per_packet`` samples
+(:class:`~litedsp.stream.framing.LiteDSPStreamFramer`) and packs samples into ``word_width``-bit words
+(:class:`~litedsp.stream.adapt.LiteDSPIQPack`, first sample in the LSBs): the resulting
 ``data``+``last`` stream maps directly onto UDP payloads (LiteEth), host DMA word streams
-(LitePCIe ``dma.sink``), or any AXI-Stream-with-tlast consumer. ``IQDepacketizer`` is the exact
+(LitePCIe ``dma.sink``), or any AXI-Stream-with-tlast consumer. ``LiteDSPIQDepacketizer`` is the exact
 inverse for the host -> FPGA direction.
 """
 
@@ -21,12 +21,12 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common         import iq_layout
-from litedsp.stream.adapt   import IQPack, IQUnpack
-from litedsp.stream.framing import StreamFramer, StreamDeframer
+from litedsp.stream.adapt   import LiteDSPIQPack, LiteDSPIQUnpack
+from litedsp.stream.framing import LiteDSPStreamFramer, LiteDSPStreamDeframer
 
 # IQ Packetizer ------------------------------------------------------------------------------------
 
-class IQPacketizer(LiteXModule):
+class LiteDSPIQPacketizer(LiteXModule):
     """I/Q stream -> ``word_width``-bit word stream with ``last`` every ``samples_per_packet``."""
     def __init__(self, data_width=16, word_width=32, samples_per_packet=256, with_csr=True):
         ratio = word_width // (2*data_width)
@@ -37,9 +37,9 @@ class IQPacketizer(LiteXModule):
 
         # # #
 
-        self.framer = StreamFramer(length=samples_per_packet, data_width=data_width,
+        self.framer = LiteDSPStreamFramer(length=samples_per_packet, data_width=data_width,
             with_csr=with_csr)
-        self.pack   = IQPack(ratio=ratio, data_width=data_width)
+        self.pack   = LiteDSPIQPack(ratio=ratio, data_width=data_width)
         self.comb += [
             self.sink.connect(self.framer.sink),
             self.framer.source.connect(self.pack.sink),
@@ -48,8 +48,8 @@ class IQPacketizer(LiteXModule):
 
 # IQ Depacketizer ----------------------------------------------------------------------------------
 
-class IQDepacketizer(LiteXModule):
-    """``word_width``-bit word stream -> I/Q stream (inverse of :class:`IQPacketizer`)."""
+class LiteDSPIQDepacketizer(LiteXModule):
+    """``word_width``-bit word stream -> I/Q stream (inverse of :class:`LiteDSPIQPacketizer`)."""
     def __init__(self, data_width=16, word_width=32, with_csr=True):
         ratio = word_width // (2*data_width)
         assert ratio >= 1 and ratio*2*data_width == word_width
@@ -58,8 +58,8 @@ class IQDepacketizer(LiteXModule):
 
         # # #
 
-        self.unpack   = IQUnpack(ratio=ratio, data_width=data_width)
-        self.deframer = StreamDeframer(data_width=data_width, with_csr=with_csr)
+        self.unpack   = LiteDSPIQUnpack(ratio=ratio, data_width=data_width)
+        self.deframer = LiteDSPStreamDeframer(data_width=data_width, with_csr=with_csr)
         self.comb += [
             self.sink.connect(self.unpack.sink),
             self.unpack.source.connect(self.deframer.sink),

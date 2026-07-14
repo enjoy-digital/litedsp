@@ -11,7 +11,7 @@ import numpy as np
 
 from migen import run_simulation
 
-from litedsp.mixing.mixer import Mixer, MIXER_MODE_DOWN, MIXER_MODE_UP, \
+from litedsp.mixing.mixer import LiteDSPMixer, MIXER_MODE_DOWN, MIXER_MODE_UP, \
     MIXER_BYPASS_SINK_A, MIXER_BYPASS_SINK_B
 
 from test.common import stream_driver, stream_capture, column
@@ -20,7 +20,7 @@ from test.models import mixer_model
 class TestMixer(unittest.TestCase):
     def run_mixer(self, a, b, mode=MIXER_MODE_DOWN, bypass=0, data_width=16, n=None):
         n   = n or len(a["i"])
-        dut = Mixer(data_width=data_width, with_csr=False)
+        dut = LiteDSPMixer(data_width=data_width, with_csr=False)
         dut.mode.reset   = mode
         dut.bypass.reset = bypass
 

@@ -6,7 +6,7 @@
 
 """Assemble a netlist into a connected LiteX module.
 
-:class:`FlowChain` instantiates each netlist block as a *named submodule* (submodule name = netlist
+:class:`LiteDSPFlowChain` instantiates each netlist block as a *named submodule* (submodule name = netlist
 id) so that ``get_csrs()`` recursively name-prefixes every block's CSRs into one conflict-free
 register map. Top-level inputs/outputs become plain ``stream.Endpoint``s (wrapped as AXI-Stream by
 the IP core in Phase 2). Connections + fan-out/loop rules are handled by :mod:`litedsp.flow.glue`.
@@ -39,10 +39,10 @@ def _build_kwargs(spec, params, data_width, with_csr):
 
 # Flow chain ---------------------------------------------------------------------------------------
 
-class FlowChain(LiteXModule):
+class LiteDSPFlowChain(LiteXModule):
     """A processing chain built from a :class:`~litedsp.flow.netlist.Netlist`.
 
-    ``auto_delay=True`` (default) inserts alignment ``Delay`` blocks on reconvergent paths with
+    ``auto_delay=True`` (default) inserts alignment ``LiteDSPDelay`` blocks on reconvergent paths with
     unequal branch latency (reported in ``flow_inserted``); with ``auto_delay=False`` unbalanced
     joins are only warned about (``flow_warnings``).
     """

@@ -19,14 +19,14 @@ import os
 import argparse
 
 from litedsp.flow import netlist as netlist_mod
-from litedsp.flow.builder import FlowChain
+from litedsp.flow.builder import LiteDSPFlowChain
 
 # Code generation ----------------------------------------------------------------------------------
 
 def build_chain(source, with_csr=False):
-    """Return a :class:`FlowChain` from a Netlist object or a netlist JSON path."""
+    """Return a :class:`LiteDSPFlowChain` from a Netlist object or a netlist JSON path."""
     nl = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
-    return FlowChain(nl, with_csr=with_csr)
+    return LiteDSPFlowChain(nl, with_csr=with_csr)
 
 def emit_verilog(dut, ios, name, build_dir):
     """Run to_verilog from inside build_dir so Migen's Memory ``.init`` files land beside the .v."""
@@ -44,7 +44,7 @@ def emit_verilog(dut, ios, name, build_dir):
 def generate(source, build_dir, name=None, with_csr=False):
     """Assemble ``source`` and emit chain Verilog into ``build_dir``. Returns ``(path, chain)``."""
     nl    = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
-    chain = FlowChain(nl, with_csr=with_csr)
+    chain = LiteDSPFlowChain(nl, with_csr=with_csr)
     name  = name or nl.name
     path  = emit_verilog(chain, chain.io_signals(), name, build_dir)
     return path, chain

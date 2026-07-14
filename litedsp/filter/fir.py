@@ -26,7 +26,7 @@ def _adder_tree(terms):
 
 # FIR Coefficients ---------------------------------------------------------------------------------
 
-class FIRCoefficients(LiteXModule):
+class LiteDSPFIRCoefficients(LiteXModule):
     """Holds the ``n_taps`` FIR coefficients, with an optional per-tap CSR interface.
 
     Coefficients are signed Qm.n (same width as samples). The default is a unit impulse
@@ -57,7 +57,7 @@ class FIRCoefficients(LiteXModule):
 
 # FIR Filter (real) --------------------------------------------------------------------------------
 
-class FIRFilter(LiteXModule):
+class LiteDSPFIRFilter(LiteXModule):
     """Pipelined single-rate real FIR filter with stream I/O and round+saturate output.
 
     Computes ``y[k] = sum_t coeffs[t] * x[k-t]`` with a fixed 3-cycle latency. With
@@ -134,7 +134,7 @@ class FIRFilter(LiteXModule):
 # FIR Filter (complex) -----------------------------------------------------------------------------
 
 @ResetInserter()
-class FIRFilterComplex(LiteXModule):
+class LiteDSPFIRFilterComplex(LiteXModule):
     """Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + CSR."""
     def __init__(self, n_taps=32, data_width=16, symmetric=False, coefficients=None,
         shift=None, with_csr=True):
@@ -147,10 +147,10 @@ class FIRFilterComplex(LiteXModule):
 
         # # #
 
-        self.coeffs = FIRCoefficients(n_taps=n_taps, data_width=data_width,
+        self.coeffs = LiteDSPFIRCoefficients(n_taps=n_taps, data_width=data_width,
             coefficients=coefficients, with_csr=with_csr)
-        self.fir_i  = FIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric, shift=shift)
-        self.fir_q  = FIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric, shift=shift)
+        self.fir_i  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric, shift=shift)
+        self.fir_q  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric, shift=shift)
         self.latency = self.fir_i.latency
 
         self.comb += [

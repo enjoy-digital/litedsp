@@ -9,79 +9,79 @@
 Each entry gives the class, the default construction kwargs (also the GUI's default param values),
 a category, a display name, and any enumerated parameter choices. :class:`BlockSpec`s are built
 lazily by reflection (see :mod:`litedsp.flow.metadata`). Blocks needing exotic constructor data
-(``Replay`` samples, raw coefficient lists) are omitted; everything graph-composable is here.
+(``LiteDSPReplay`` samples, raw coefficient lists) are omitted; everything graph-composable is here.
 """
 
 from litedsp.flow.metadata import reflect
 
-from litedsp.generation.nco        import NCO
-from litedsp.generation.cordic     import CORDIC
-from litedsp.generation.source     import Chirp, NoiseSource
-from litedsp.generation.pattern    import PatternSource
-from litedsp.mixing.mixer          import Mixer
-from litedsp.mixing.ddc            import DDC
-from litedsp.mixing.duc            import DUC
-from litedsp.mixing.channelizer    import Channelizer
-from litedsp.filter.fir            import FIRFilter, FIRFilterComplex
-from litedsp.filter.fir_poly       import FIRDecimator, FIRInterpolator
-from litedsp.filter.cic            import CICDecimator, CICInterpolator
-from litedsp.filter.halfband       import HalfbandDecimator, HalfbandInterpolator
-from litedsp.filter.hilbert        import Hilbert
-from litedsp.filter.iir_biquad     import IIRBiquad, IIRBiquadCascade
-from litedsp.filter.dc_blocker     import DCBlocker
-from litedsp.filter.moving_average import MovingAverage
-from litedsp.filter.farrow         import FarrowInterpolator
-from litedsp.filter.equalizer      import LMSEqualizer
-from litedsp.filter.extra          import Notch, CombFilter, Allpass
-from litedsp.filter.pulse_shape    import PulseShaper
-from litedsp.filter.resampler      import RationalResampler
-from litedsp.filter.arb_resampler  import ArbResampler
-from litedsp.rate.decimator        import Decimator
-from litedsp.rate.interpolator     import Interpolator
-from litedsp.rate.dropper          import Downsampler, Upsampler
-from litedsp.level.gain            import Gain
-from litedsp.level.power           import Power
-from litedsp.level.agc             import AGC
-from litedsp.level.saturate        import Saturate
-from litedsp.level.clipper         import Clipper
-from litedsp.level.rms             import RMS
-from litedsp.level.squelch         import Squelch
-from litedsp.level.peak            import EnvelopeDetector
-from litedsp.level.logdb           import Log2, LogPower
-from litedsp.correction.dc_offset  import DCOffset
-from litedsp.correction.iq_balance import IQBalance
-from litedsp.correction.cfo        import Derotator
-from litedsp.comm.fm_demod         import FMDemod
-from litedsp.comm.am_demod         import AMDemod
-from litedsp.comm.slicer           import Slicer
-from litedsp.comm.mapper           import SymbolMapper
-from litedsp.comm.correlator       import Correlator
-from litedsp.comm.timing_recovery  import TimingRecovery
-from litedsp.comm.pll              import CarrierLoop
-from litedsp.comm.phase_detect     import PhaseDetect
-from litedsp.comm.diff             import DifferentialEncoder, DifferentialDecoder
-from litedsp.analysis.window       import Window
-from litedsp.analysis.fft          import FFT
-from litedsp.analysis.fft_iter     import FFTIter
-from litedsp.analysis.psd          import PSD
-from litedsp.analysis.welch        import WelchPSD
-from litedsp.analysis.magnitude    import Magnitude
-from litedsp.analysis.goertzel     import Goertzel
-from litedsp.analysis.stats        import Stats
-from litedsp.analysis.histogram    import Histogram
-from litedsp.analysis.detect       import EnergyDetector
-from litedsp.analysis.measure      import ErrorCounter
-from litedsp.stream.combine        import Combine
-from litedsp.stream.split          import Split
-from litedsp.stream.delay          import Delay
-from litedsp.stream.buffer         import SkidBuffer
-from litedsp.stream.route          import ChannelMux, ChannelDemux
-from litedsp.stream.capture        import Capture
-from litedsp.stream.ops            import Conjugate, SwapIQ, Negate
-from litedsp.stream.fifo           import StreamFIFO
-from litedsp.stream.adapt          import IQPack, IQUnpack, IQClockDomainCrossing
-from litedsp.stream.csr_io         import CSRSource, CSRSink, NullSink
-from litedsp.stream.framing        import StreamFramer, StreamDeframer
+from litedsp.generation.nco        import LiteDSPNCO
+from litedsp.generation.cordic     import LiteDSPCORDIC
+from litedsp.generation.source     import LiteDSPChirp, LiteDSPNoiseSource
+from litedsp.generation.pattern    import LiteDSPPatternSource
+from litedsp.mixing.mixer          import LiteDSPMixer
+from litedsp.mixing.ddc            import LiteDSPDDC
+from litedsp.mixing.duc            import LiteDSPDUC
+from litedsp.mixing.channelizer    import LiteDSPChannelizer
+from litedsp.filter.fir            import LiteDSPFIRFilter, LiteDSPFIRFilterComplex
+from litedsp.filter.fir_poly       import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
+from litedsp.filter.cic            import LiteDSPCICDecimator, LiteDSPCICInterpolator
+from litedsp.filter.halfband       import LiteDSPHalfbandDecimator, LiteDSPHalfbandInterpolator
+from litedsp.filter.hilbert        import LiteDSPHilbert
+from litedsp.filter.iir_biquad     import LiteDSPIIRBiquad, LiteDSPIIRBiquadCascade
+from litedsp.filter.dc_blocker     import LiteDSPDCBlocker
+from litedsp.filter.moving_average import LiteDSPMovingAverage
+from litedsp.filter.farrow         import LiteDSPFarrowInterpolator
+from litedsp.filter.equalizer      import LiteDSPLMSEqualizer
+from litedsp.filter.extra          import LiteDSPNotch, LiteDSPCombFilter, LiteDSPAllpass
+from litedsp.filter.pulse_shape    import LiteDSPPulseShaper
+from litedsp.filter.resampler      import LiteDSPRationalResampler
+from litedsp.filter.arb_resampler  import LiteDSPArbResampler
+from litedsp.rate.decimator        import LiteDSPDecimator
+from litedsp.rate.interpolator     import LiteDSPInterpolator
+from litedsp.rate.dropper          import LiteDSPDownsampler, LiteDSPUpsampler
+from litedsp.level.gain            import LiteDSPGain
+from litedsp.level.power           import LiteDSPPower
+from litedsp.level.agc             import LiteDSPAGC
+from litedsp.level.saturate        import LiteDSPSaturate
+from litedsp.level.clipper         import LiteDSPClipper
+from litedsp.level.rms             import LiteDSPRMS
+from litedsp.level.squelch         import LiteDSPSquelch
+from litedsp.level.peak            import LiteDSPEnvelopeDetector
+from litedsp.level.logdb           import LiteDSPLog2, LiteDSPLogPower
+from litedsp.correction.dc_offset  import LiteDSPDCOffset
+from litedsp.correction.iq_balance import LiteDSPIQBalance
+from litedsp.correction.cfo        import LiteDSPDerotator
+from litedsp.comm.fm_demod         import LiteDSPFMDemod
+from litedsp.comm.am_demod         import LiteDSPAMDemod
+from litedsp.comm.slicer           import LiteDSPSlicer
+from litedsp.comm.mapper           import LiteDSPSymbolMapper
+from litedsp.comm.correlator       import LiteDSPCorrelator
+from litedsp.comm.timing_recovery  import LiteDSPTimingRecovery
+from litedsp.comm.pll              import LiteDSPCarrierLoop
+from litedsp.comm.phase_detect     import LiteDSPPhaseDetect
+from litedsp.comm.diff             import LiteDSPDifferentialEncoder, LiteDSPDifferentialDecoder
+from litedsp.analysis.window       import LiteDSPWindow
+from litedsp.analysis.fft          import LiteDSPFFT
+from litedsp.analysis.fft_iter     import LiteDSPFFTIter
+from litedsp.analysis.psd          import LiteDSPPSD
+from litedsp.analysis.welch        import LiteDSPWelchPSD
+from litedsp.analysis.magnitude    import LiteDSPMagnitude
+from litedsp.analysis.goertzel     import LiteDSPGoertzel
+from litedsp.analysis.stats        import LiteDSPStats
+from litedsp.analysis.histogram    import LiteDSPHistogram
+from litedsp.analysis.detect       import LiteDSPEnergyDetector
+from litedsp.analysis.measure      import LiteDSPErrorCounter
+from litedsp.stream.combine        import LiteDSPCombine
+from litedsp.stream.split          import LiteDSPSplit
+from litedsp.stream.delay          import LiteDSPDelay
+from litedsp.stream.buffer         import LiteDSPSkidBuffer
+from litedsp.stream.route          import LiteDSPChannelMux, LiteDSPChannelDemux
+from litedsp.stream.capture        import LiteDSPCapture
+from litedsp.stream.ops            import LiteDSPConjugate, LiteDSPSwapIQ, LiteDSPNegate
+from litedsp.stream.fifo           import LiteDSPStreamFIFO
+from litedsp.stream.adapt          import LiteDSPIQPack, LiteDSPIQUnpack, LiteDSPIQClockDomainCrossing
+from litedsp.stream.csr_io         import LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPNullSink
+from litedsp.stream.framing        import LiteDSPStreamFramer, LiteDSPStreamDeframer
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -89,102 +89,102 @@ _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
 # (key, class, kwargs, category, display_name, choices) -- kwargs also seed the GUI defaults.
 ENTRIES = [
     # generation -----------------------------------------------------------------------------------
-    ("nco",            NCO,            {},                              "generation", "NCO (DDS)",          None),
-    ("cordic_rot",     CORDIC,         {"mode": "rotation"},            "generation", "CORDIC (rotate)",   {"mode": ["rotation", "vectoring"]}),
-    ("cordic_vec",     CORDIC,         {"mode": "vectoring"},           "generation", "CORDIC (vector)",   {"mode": ["rotation", "vectoring"]}),
-    ("chirp",          Chirp,          {},                              "generation", "Chirp (LFM)",       None),
-    ("noise_source",   NoiseSource,    {},                              "generation", "Noise (AWGN)",      None),
-    ("pattern_source", PatternSource,  {},                              "generation", "Pattern source",    None),
+    ("nco",                LiteDSPNCO,                   {},                                     "generation", "NCO (DDS)",             None),
+    ("cordic_rot",         LiteDSPCORDIC,                {"mode": "rotation"},                   "generation", "CORDIC (rotate)",       {"mode": ["rotation", "vectoring"]}),
+    ("cordic_vec",         LiteDSPCORDIC,                {"mode": "vectoring"},                  "generation", "CORDIC (vector)",       {"mode": ["rotation", "vectoring"]}),
+    ("chirp",              LiteDSPChirp,                 {},                                     "generation", "Chirp (LFM)",           None),
+    ("noise_source",       LiteDSPNoiseSource,           {},                                     "generation", "Noise (AWGN)",          None),
+    ("pattern_source",     LiteDSPPatternSource,         {},                                     "generation", "Pattern source",        None),
     # mixing ---------------------------------------------------------------------------------------
-    ("mixer",          Mixer,          {},                              "mixing", "Mixer (complex)",       None),
-    ("ddc",            DDC,            {"decimation": 8},               "mixing", "DDC",                   _METHOD),
-    ("duc",            DUC,            {"interpolation": 8},            "mixing", "DUC",                   _METHOD),
-    ("channelizer",    Channelizer,    {"n_channels": 4, "decimation": 4}, "mixing", "Channelizer",       _METHOD),
+    ("mixer",              LiteDSPMixer,                 {},                                     "mixing",     "Mixer (complex)",       None),
+    ("ddc",                LiteDSPDDC,                   {"decimation": 8},                      "mixing",     "DDC",                   _METHOD),
+    ("duc",                LiteDSPDUC,                   {"interpolation": 8},                   "mixing",     "DUC",                   _METHOD),
+    ("channelizer",        LiteDSPChannelizer,           {"n_channels": 4, "decimation": 4},     "mixing",     "Channelizer",           _METHOD),
     # filter ---------------------------------------------------------------------------------------
-    ("fir_real",       FIRFilter,         {"n_taps": 32},               "filter", "FIR (real)",           None),
-    ("fir_complex",    FIRFilterComplex,  {"n_taps": 32},               "filter", "FIR (complex)",        None),
-    ("fir_decimator",  FIRDecimator,      {"n_taps": 32, "R": 8},       "filter", "FIR decimator",        None),
-    ("fir_interpolator", FIRInterpolator, {"n_taps": 32, "L": 8},       "filter", "FIR interpolator",     None),
-    ("cic_decimator",  CICDecimator,      {"R": 8, "N": 3},             "filter", "CIC decimator",        None),
-    ("cic_interpolator", CICInterpolator, {"R": 8, "N": 3},             "filter", "CIC interpolator",     None),
-    ("halfband_dec",   HalfbandDecimator, {},                           "filter", "Halfband decimator",   None),
-    ("halfband_int",   HalfbandInterpolator, {},                        "filter", "Halfband interpolator",None),
-    ("hilbert",        Hilbert,           {},                           "filter", "Hilbert",              None),
-    ("iir_biquad",     IIRBiquad,         {},                           "filter", "IIR biquad",           None),
-    ("dc_blocker",     DCBlocker,         {},                           "filter", "DC blocker",           None),
-    ("moving_average", MovingAverage,     {},                           "filter", "Moving average",       None),
-    ("farrow",         FarrowInterpolator,{},                           "filter", "Farrow interpolator",  None),
-    ("equalizer",      LMSEqualizer,      {"n_taps": 7},                "filter", "LMS equalizer",        None),
-    ("notch",          Notch,             {},                           "filter", "Notch",                None),
-    ("comb_filter",    CombFilter,        {},                           "filter", "Comb filter",          None),
-    ("allpass",        Allpass,           {},                           "filter", "Allpass",              None),
-    ("pulse_shaper",   PulseShaper,       {},                           "filter", "Pulse shaper (RRC)",   None),
-    ("rational_resampler", RationalResampler, {"L": 3, "M": 2},         "filter", "Rational resampler",   None),
-    ("arb_resampler",  ArbResampler,      {},                           "filter", "Arbitrary resampler",  None),
+    ("fir_real",           LiteDSPFIRFilter,             {"n_taps": 32},                         "filter",     "FIR (real)",            None),
+    ("fir_complex",        LiteDSPFIRFilterComplex,      {"n_taps": 32},                         "filter",     "FIR (complex)",         None),
+    ("fir_decimator",      LiteDSPFIRDecimator,          {"n_taps": 32, "R": 8},                 "filter",     "FIR decimator",         None),
+    ("fir_interpolator",   LiteDSPFIRInterpolator,       {"n_taps": 32, "L": 8},                 "filter",     "FIR interpolator",      None),
+    ("cic_decimator",      LiteDSPCICDecimator,          {"R": 8, "N": 3},                       "filter",     "CIC decimator",         None),
+    ("cic_interpolator",   LiteDSPCICInterpolator,       {"R": 8, "N": 3},                       "filter",     "CIC interpolator",      None),
+    ("halfband_dec",       LiteDSPHalfbandDecimator,     {},                                     "filter",     "Halfband decimator",    None),
+    ("halfband_int",       LiteDSPHalfbandInterpolator,  {},                                     "filter",     "Halfband interpolator", None),
+    ("hilbert",            LiteDSPHilbert,               {},                                     "filter",     "Hilbert",               None),
+    ("iir_biquad",         LiteDSPIIRBiquad,             {},                                     "filter",     "IIR biquad",            None),
+    ("dc_blocker",         LiteDSPDCBlocker,             {},                                     "filter",     "DC blocker",            None),
+    ("moving_average",     LiteDSPMovingAverage,         {},                                     "filter",     "Moving average",        None),
+    ("farrow",             LiteDSPFarrowInterpolator,    {},                                     "filter",     "Farrow interpolator",   None),
+    ("equalizer",          LiteDSPLMSEqualizer,          {"n_taps": 7},                          "filter",     "LMS equalizer",         None),
+    ("notch",              LiteDSPNotch,                 {},                                     "filter",     "Notch",                 None),
+    ("comb_filter",        LiteDSPCombFilter,            {},                                     "filter",     "Comb filter",           None),
+    ("allpass",            LiteDSPAllpass,               {},                                     "filter",     "Allpass",               None),
+    ("pulse_shaper",       LiteDSPPulseShaper,           {},                                     "filter",     "Pulse shaper (RRC)",    None),
+    ("rational_resampler", LiteDSPRationalResampler,     {"L": 3, "M": 2},                       "filter",     "Rational resampler",    None),
+    ("arb_resampler",      LiteDSPArbResampler,          {},                                     "filter",     "Arbitrary resampler",   None),
     # rate -----------------------------------------------------------------------------------------
-    ("decimator",      Decimator,         {"factor": 8},                "rate", "Decimator",              _METHOD),
-    ("interpolator",   Interpolator,      {"factor": 8},                "rate", "Interpolator",           _METHOD),
-    ("downsampler",    Downsampler,       {},                           "rate", "Downsampler",            None),
-    ("upsampler",      Upsampler,         {},                           "rate", "Upsampler",              None),
+    ("decimator",          LiteDSPDecimator,             {"factor": 8},                          "rate",       "Decimator",             _METHOD),
+    ("interpolator",       LiteDSPInterpolator,          {"factor": 8},                          "rate",       "Interpolator",          _METHOD),
+    ("downsampler",        LiteDSPDownsampler,           {},                                     "rate",       "Downsampler",           None),
+    ("upsampler",          LiteDSPUpsampler,             {},                                     "rate",       "Upsampler",             None),
     # level ----------------------------------------------------------------------------------------
-    ("gain",           Gain,              {},                           "level", "Gain",                  None),
-    ("power",          Power,             {},                           "level", "Power meter",           None),
-    ("agc",            AGC,               {},                           "level", "AGC",                   None),
-    ("saturate",       Saturate,          {},                           "level", "Saturate",             None),
-    ("clipper",        Clipper,           {},                           "level", "Clipper",              None),
-    ("rms",            RMS,               {},                           "level", "RMS",                   None),
-    ("squelch",        Squelch,           {},                           "level", "Squelch",              None),
-    ("envelope",       EnvelopeDetector,  {},                           "level", "Envelope detector",     None),
-    ("log2",           Log2,              {},                           "level", "Log2",                  None),
-    ("log_power",      LogPower,          {},                           "level", "Log power (dB)",        None),
+    ("gain",               LiteDSPGain,                  {},                                     "level",      "Gain",                  None),
+    ("power",              LiteDSPPower,                 {},                                     "level",      "Power meter",           None),
+    ("agc",                LiteDSPAGC,                   {},                                     "level",      "AGC",                   None),
+    ("saturate",           LiteDSPSaturate,              {},                                     "level",      "Saturate",              None),
+    ("clipper",            LiteDSPClipper,               {},                                     "level",      "Clipper",               None),
+    ("rms",                LiteDSPRMS,                   {},                                     "level",      "RMS",                   None),
+    ("squelch",            LiteDSPSquelch,               {},                                     "level",      "Squelch",               None),
+    ("envelope",           LiteDSPEnvelopeDetector,      {},                                     "level",      "Envelope detector",     None),
+    ("log2",               LiteDSPLog2,                  {},                                     "level",      "Log2",                  None),
+    ("log_power",          LiteDSPLogPower,              {},                                     "level",      "Log power (dB)",        None),
     # correction -----------------------------------------------------------------------------------
-    ("dc_offset",      DCOffset,          {},                           "correction", "DC offset",        None),
-    ("iq_balance",     IQBalance,         {},                           "correction", "I/Q balance",      None),
-    ("derotator",      Derotator,         {},                           "correction", "Derotator (CFO)",  None),
+    ("dc_offset",          LiteDSPDCOffset,              {},                                     "correction", "DC offset",             None),
+    ("iq_balance",         LiteDSPIQBalance,             {},                                     "correction", "I/Q balance",           None),
+    ("derotator",          LiteDSPDerotator,             {},                                     "correction", "Derotator (CFO)",       None),
     # comm -----------------------------------------------------------------------------------------
-    ("fm_demod",       FMDemod,           {},                           "comm", "FM demod",               None),
-    ("am_demod",       AMDemod,           {},                           "comm", "AM demod",               None),
-    ("slicer",         Slicer,            {},                           "comm", "Slicer",                 None),
-    ("symbol_mapper",  SymbolMapper,      {},                           "comm", "Symbol mapper",          None),
-    ("correlator",     Correlator,        {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm", "Correlator",   None),
-    ("timing_recovery",TimingRecovery,    {},                           "comm", "Timing recovery (M&M)",  None),
-    ("carrier_loop",   CarrierLoop,       {},                           "comm", "Carrier loop (PLL)",     None),
-    ("phase_detect",   PhaseDetect,       {},                           "comm", "Phase detector",         None),
-    ("diff_encoder",   DifferentialEncoder, {},                         "comm", "Differential encoder",   None),
-    ("diff_decoder",   DifferentialDecoder, {},                         "comm", "Differential decoder",   None),
+    ("fm_demod",           LiteDSPFMDemod,               {},                                     "comm",       "FM demod",              None),
+    ("am_demod",           LiteDSPAMDemod,               {},                                     "comm",       "AM demod",              None),
+    ("slicer",             LiteDSPSlicer,                {},                                     "comm",       "Slicer",                None),
+    ("symbol_mapper",      LiteDSPSymbolMapper,          {},                                     "comm",       "Symbol mapper",         None),
+    ("correlator",         LiteDSPCorrelator,            {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Correlator",            None),
+    ("timing_recovery",    LiteDSPTimingRecovery,        {},                                     "comm",       "Timing recovery (M&M)", None),
+    ("carrier_loop",       LiteDSPCarrierLoop,           {},                                     "comm",       "Carrier loop (PLL)",    None),
+    ("phase_detect",       LiteDSPPhaseDetect,           {},                                     "comm",       "Phase detector",        None),
+    ("diff_encoder",       LiteDSPDifferentialEncoder,   {},                                     "comm",       "Differential encoder",  None),
+    ("diff_decoder",       LiteDSPDifferentialDecoder,   {},                                     "comm",       "Differential decoder",  None),
     # analysis -------------------------------------------------------------------------------------
-    ("window",         Window,            {"n": 64},                    "analysis", "Window",             _WINDOW),
-    ("fft",            FFT,               {"N": 64},                    "analysis", "FFT (SDF)",          None),
-    ("fft_iter",       FFTIter,           {"N": 64},                    "analysis", "FFT (iterative)",    None),
-    ("psd",            PSD,               {"N": 64, "latency": 63},     "analysis", "PSD",                None),
-    ("welch",          WelchPSD,          {"N": 64},                    "analysis", "Welch PSD",          _WINDOW),
-    ("magnitude",      Magnitude,         {},                           "analysis", "Magnitude (approx)", {"method": ["approx", "cordic"]}),
-    ("magnitude_cordic", Magnitude,       {"method": "cordic"},         "analysis", "Magnitude (CORDIC)", {"method": ["approx", "cordic"]}),
-    ("goertzel",       Goertzel,          {"N": 64, "k": 8},            "analysis", "Goertzel",           None),
-    ("stats",          Stats,             {},                           "analysis", "Stats",              None),
-    ("histogram",      Histogram,         {},                           "analysis", "Histogram",          None),
-    ("energy_detector",EnergyDetector,    {},                           "analysis", "Energy detector",    None),
-    ("error_counter",  ErrorCounter,      {},                           "analysis", "Error counter",      None),
+    ("window",             LiteDSPWindow,                {"n": 64},                              "analysis",   "Window",                _WINDOW),
+    ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             None),
+    ("fft_iter",           LiteDSPFFTIter,               {"N": 64},                              "analysis",   "FFT (iterative)",       None),
+    ("psd",                LiteDSPPSD,                   {"N": 64, "latency": 63},               "analysis",   "PSD",                   None),
+    ("welch",              LiteDSPWelchPSD,              {"N": 64},                              "analysis",   "Welch PSD",             _WINDOW),
+    ("magnitude",          LiteDSPMagnitude,             {},                                     "analysis",   "Magnitude (approx)",    {"method": ["approx", "cordic"]}),
+    ("magnitude_cordic",   LiteDSPMagnitude,             {"method": "cordic"},                   "analysis",   "Magnitude (CORDIC)",    {"method": ["approx", "cordic"]}),
+    ("goertzel",           LiteDSPGoertzel,              {"N": 64, "k": 8},                      "analysis",   "Goertzel",              None),
+    ("stats",              LiteDSPStats,                 {},                                     "analysis",   "Stats",                 None),
+    ("histogram",          LiteDSPHistogram,             {},                                     "analysis",   "Histogram",             None),
+    ("energy_detector",    LiteDSPEnergyDetector,        {},                                     "analysis",   "Energy detector",       None),
+    ("error_counter",      LiteDSPErrorCounter,          {},                                     "analysis",   "Error counter",         None),
     # stream ---------------------------------------------------------------------------------------
-    ("combine",        Combine,           {"n_channels": 2},            "stream", "Combine (sum)",        None),
-    ("split",          Split,             {"n": 2},                     "stream", "Split (fan-out)",      None),
-    ("delay",          Delay,             {"depth": 1},                 "stream", "Delay",                None),
-    ("skid_buffer",    SkidBuffer,        {},                           "stream", "Skid buffer",          None),
-    ("channel_mux",    ChannelMux,        {"n": 2},                     "stream", "Channel mux",          None),
-    ("channel_demux",  ChannelDemux,      {"n": 2},                     "stream", "Channel demux",        None),
-    ("capture",        Capture,           {"depth": 256},               "stream", "Capture (scope)",      None),
-    ("conjugate",      Conjugate,         {},                           "stream", "Conjugate",            None),
-    ("swap_iq",        SwapIQ,            {},                           "stream", "Swap I/Q",             None),
-    ("negate",         Negate,            {},                           "stream", "Negate",               None),
-    ("stream_fifo",    StreamFIFO,        {},                           "stream", "Stream FIFO",          None),
-    ("iq_pack",        IQPack,            {},                           "stream", "I/Q pack",             None),
-    ("iq_unpack",      IQUnpack,          {},                           "stream", "I/Q unpack",           None),
-    ("cdc",            IQClockDomainCrossing, {},                       "stream", "Clock-domain crossing",None),
-    ("csr_source",     CSRSource,         {},                           "stream", "CSR source",           None),
-    ("csr_sink",       CSRSink,           {},                           "stream", "CSR sink",             None),
-    ("null_sink",      NullSink,          {},                           "stream", "Null sink",            None),
-    ("framer",         StreamFramer,      {},                           "stream", "Framer",               None),
-    ("deframer",       StreamDeframer,    {},                           "stream", "Deframer",             None),
+    ("combine",            LiteDSPCombine,               {"n_channels": 2},                      "stream",     "Combine (sum)",         None),
+    ("split",              LiteDSPSplit,                 {"n": 2},                               "stream",     "Split (fan-out)",       None),
+    ("delay",              LiteDSPDelay,                 {"depth": 1},                           "stream",     "Delay",                 None),
+    ("skid_buffer",        LiteDSPSkidBuffer,            {},                                     "stream",     "Skid buffer",           None),
+    ("channel_mux",        LiteDSPChannelMux,            {"n": 2},                               "stream",     "Channel mux",           None),
+    ("channel_demux",      LiteDSPChannelDemux,          {"n": 2},                               "stream",     "Channel demux",         None),
+    ("capture",            LiteDSPCapture,               {"depth": 256},                         "stream",     "Capture (scope)",       None),
+    ("conjugate",          LiteDSPConjugate,             {},                                     "stream",     "Conjugate",             None),
+    ("swap_iq",            LiteDSPSwapIQ,                {},                                     "stream",     "Swap I/Q",              None),
+    ("negate",             LiteDSPNegate,                {},                                     "stream",     "Negate",                None),
+    ("stream_fifo",        LiteDSPStreamFIFO,            {},                                     "stream",     "Stream FIFO",           None),
+    ("iq_pack",            LiteDSPIQPack,                {},                                     "stream",     "I/Q pack",              None),
+    ("iq_unpack",          LiteDSPIQUnpack,              {},                                     "stream",     "I/Q unpack",            None),
+    ("cdc",                LiteDSPIQClockDomainCrossing, {},                                     "stream",     "Clock-domain crossing", None),
+    ("csr_source",         LiteDSPCSRSource,             {},                                     "stream",     "CSR source",            None),
+    ("csr_sink",           LiteDSPCSRSink,               {},                                     "stream",     "CSR sink",              None),
+    ("null_sink",          LiteDSPNullSink,              {},                                     "stream",     "Null sink",             None),
+    ("framer",             LiteDSPStreamFramer,          {},                                     "stream",     "Framer",                None),
+    ("deframer",           LiteDSPStreamDeframer,        {},                                     "stream",     "Deframer",              None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

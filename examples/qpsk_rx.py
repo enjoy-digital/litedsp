@@ -26,9 +26,9 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common               import iq_layout
-from litedsp.filter.fir           import FIRFilterComplex
-from litedsp.comm.timing_recovery import TimingRecovery
-from litedsp.comm.slicer          import Slicer
+from litedsp.filter.fir           import LiteDSPFIRFilterComplex
+from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
+from litedsp.comm.slicer          import LiteDSPSlicer
 from litedsp.filter.design        import rrc_coefficients
 
 from test.common import run_stream, column, to_signed
@@ -41,10 +41,10 @@ class QPSKReceiver(LiteXModule):
 
         # # #
 
-        self.mf = FIRFilterComplex(n_taps=sps*span + 1, data_width=data_width,
+        self.mf = LiteDSPFIRFilterComplex(n_taps=sps*span + 1, data_width=data_width,
             coefficients=rrc_coefficients(sps, span, beta, data_width=data_width), with_csr=False)
-        self.timing = TimingRecovery(data_width=data_width, sps=sps, gain_mu=0.1, with_csr=False)
-        self.slicer = Slicer(data_width=data_width, bits_per_axis=1, spacing=4000, with_csr=False)
+        self.timing = LiteDSPTimingRecovery(data_width=data_width, sps=sps, gain_mu=0.1, with_csr=False)
+        self.slicer = LiteDSPSlicer(data_width=data_width, bits_per_axis=1, spacing=4000, with_csr=False)
         self.source = self.slicer.source
         self.comb += [
             self.sink.connect(self.mf.sink),

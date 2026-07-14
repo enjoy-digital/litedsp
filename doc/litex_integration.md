@@ -7,19 +7,19 @@ automatically. This document shows the three integration levels, from "a block i
 
 ## 1. Blocks inside a LiteX SoC (the native way)
 
-Add a block (or a composite like `DDC`) as a submodule of your SoC; with `with_csr=True`
+Add a block (or a composite like `LiteDSPDDC`) as a submodule of your SoC; with `with_csr=True`
 (the default) its configuration/status registers appear in the SoC CSR map under the
 attribute name, and are then accessible from software (`csr.h`), `litex_server`, etc.:
 
 ```python
-from litedsp.mixing.ddc import DDC
+from litedsp.mixing.ddc import LiteDSPDDC
 
 class MySoC(SoCCore):
     def __init__(self, platform, **kwargs):
         SoCCore.__init__(self, platform, **kwargs)
 
         # DDC: NCO tuning + complex down-mix + /8 CIC decimation, controlled over CSR.
-        self.ddc = DDC(data_width=16, decimation=8)
+        self.ddc = LiteDSPDDC(data_width=16, decimation=8)
         self.comb += [
             adc.source.connect(self.ddc.sink),      # Any iq_layout stream source.
             self.ddc.source.connect(dma.sink),      # Any iq_layout stream sink.
@@ -37,17 +37,17 @@ Conventions (see `interfaces.md` for the full contract):
 ## 2. Flow netlists (chains) inside a LiteX SoC
 
 A whole processing chain described as a flow netlist (JSON, written by hand or with the
-`litedsp_gui` editor) can be instantiated in a SoC through `FlowChain`; each block's CSRs are
+`litedsp_gui` editor) can be instantiated in a SoC through `LiteDSPFlowChain`; each block's CSRs are
 prefixed by its netlist id:
 
 ```python
-from litedsp.flow.builder import FlowChain
+from litedsp.flow.builder import LiteDSPFlowChain
 from litedsp.flow import netlist
 
 class MySoC(SoCCore):
     def __init__(self, platform, **kwargs):
         SoCCore.__init__(self, platform, **kwargs)
-        self.chain = FlowChain(netlist.load("rx_chain.json"), with_csr=True)
+        self.chain = LiteDSPFlowChain(netlist.load("rx_chain.json"), with_csr=True)
         # Top-level netlist I/Os are endpoints: chain.endpoint("rx_in"), chain.endpoint("bb_out"),
         # aliased to chain.sink / chain.source for single-input/single-output chains.
 ```
@@ -68,13 +68,13 @@ to drive it from software. See `litedsp/gen.py` and `flow.md` for the config/net
 
 `litedsp/frontend/` holds the boundary adapters:
 
-- **Converters**: `ADCInterface` / `DACInterface` adapt raw converter words (two's-complement or
+- **Converters**: `LiteDSPADCInterface` / `LiteDSPDACInterface` adapt raw converter words (two's-complement or
   offset-binary, any resolution ≤ `data_width`) to the chain's left-aligned Q1.(N-1) streams.
-- **Memory**: `litedsp/stream/dma.py` `DMACapture` / `DMAReplay` move streams to/from memory over
+- **Memory**: `litedsp/stream/dma.py` `LiteDSPDMACapture` / `LiteDSPDMAReplay` move streams to/from memory over
   Wishbone DMA or a LiteDRAM native port (`soc.sdram.crossbar.get_port()`).
-- **Ethernet**: `UDPIQStreamer` / `UDPIQReceiver` send/receive fixed-size UDP sample packets
+- **Ethernet**: `LiteDSPUDPIQStreamer` / `LiteDSPUDPIQReceiver` send/receive fixed-size UDP sample packets
   through a LiteEth UDP core.
-- **PCIe (or any tlast DMA)**: `IQPacketizer` / `IQDepacketizer` produce/consume a framed
+- **PCIe (or any tlast DMA)**: `LiteDSPIQPacketizer` / `LiteDSPIQDepacketizer` produce/consume a framed
   `data`+`last` word stream that connects directly to a LitePCIe DMA endpoint:
 
 ```python
@@ -85,7 +85,7 @@ self.comb += [
 ]
 ```
 
-For debug-style visibility (rather than data transport), `Capture` + the `analysis/` blocks play
+For debug-style visibility (rather than data transport), `LiteDSPCapture` + the `analysis/` blocks play
 the role LiteScope plays for logic: trigger, record, inspect over the bridge.
 
 ## Software access

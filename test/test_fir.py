@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.filter.fir import FIRFilter, FIRFilterComplex
+from litedsp.filter.fir import LiteDSPFIRFilter, LiteDSPFIRFilterComplex
 
 from test.common import run_stream, column, snr_db
 from test.models import fir_model, fir_complex_model
@@ -24,7 +24,7 @@ def design_lowpass(n_taps, cutoff=0.25, data_width=16):
 
 class TestFIR(unittest.TestCase):
     def run_real_fir(self, coeffs, x, n_taps, data_width=16, symmetric=False):
-        dut = FIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric)
+        dut = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric)
         for t in range(n_taps):
             dut.coeffs[t].reset = coeffs[t]  # Signed; do not mask (would corrupt negatives).
         samples  = [{"data": int(v)} for v in x]
@@ -54,7 +54,7 @@ class TestFIR(unittest.TestCase):
     def test_complex_bit_exact(self):
         n_taps = 17
         coeffs = design_lowpass(n_taps)
-        dut    = FIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs, with_csr=False)
+        dut    = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs, with_csr=False)
         prng   = random.Random(3)
         x_i    = [prng.randint(-30000, 30000) for _ in range(200)]
         x_q    = [prng.randint(-30000, 30000) for _ in range(200)]

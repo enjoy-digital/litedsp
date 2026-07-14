@@ -15,7 +15,7 @@ from litedsp.common import iq_layout
 # Symbol Slicer ------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Slicer(LiteXModule):
+class LiteDSPSlicer(LiteXModule):
     """Hard-decision QAM slicer: map each of I/Q to the nearest PAM level.
 
     ``bits_per_axis`` sets ``L = 2**bits_per_axis`` levels per axis at positions

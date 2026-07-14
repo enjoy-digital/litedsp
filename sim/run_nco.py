@@ -19,14 +19,14 @@ import numpy as np
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from litedsp.generation.nco import NCO
+from litedsp.generation.nco import LiteDSPNCO
 
 from litedsp.verilog import to_verilog
 from sim.verilator import build, run
 from test.models   import nco_model
 
 def main(phase_inc=0x01234567, n=256, build_dir="/tmp/litedsp_sim"):
-    dut = NCO(data_width=16, with_csr=False)
+    dut = LiteDSPNCO(data_width=16, with_csr=False)
     ios = {dut.phase_inc, dut.source.valid, dut.source.ready, dut.source.i, dut.source.q}
     verilog = to_verilog(dut, ios, "nco", build_dir)
     binary  = build(verilog, os.path.join(ROOT, "sim", "nco_tb.cpp"), "nco", build_dir)

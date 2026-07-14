@@ -22,7 +22,7 @@ from litedsp.common import iq_layout
 # Chirp (Linear FM) --------------------------------------------------------------------------------
 
 @ResetInserter()
-class Chirp(LiteXModule):
+class LiteDSPChirp(LiteXModule):
     """Linear-FM (chirp) I/Q generator: the instantaneous frequency ramps by ``rate`` per sample.
 
     A phase accumulator driven by a frequency accumulator (``freq += rate``; ``phase += freq``)
@@ -69,7 +69,7 @@ class Chirp(LiteXModule):
 # AWGN Noise ---------------------------------------------------------------------------------------
 
 @ResetInserter()
-class NoiseSource(LiteXModule):
+class LiteDSPNoiseSource(LiteXModule):
     """Approximate-Gaussian (AWGN) complex noise via summed xorshift32 streams (CLT).
 
     ``n_sum`` independent xorshift32 PRNGs per axis; their signed top bits are summed and scaled
@@ -112,7 +112,7 @@ class NoiseSource(LiteXModule):
 # RAM Replay (AWG) ---------------------------------------------------------------------------------
 
 @ResetInserter()
-class Replay(LiteXModule):
+class LiteDSPReplay(LiteXModule):
     """Replay a preloaded I/Q waveform from RAM, looping. ``samples`` is a list of (i, q)."""
     def __init__(self, samples, data_width=16, with_csr=True):
         n = len(samples)

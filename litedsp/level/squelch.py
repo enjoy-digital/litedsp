@@ -17,7 +17,7 @@ from litedsp.common import iq_layout
 # Squelch ------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class Squelch(LiteXModule):
+class LiteDSPSquelch(LiteXModule):
     """Mute the I/Q stream when instantaneous power ``I**2 + Q**2`` is below threshold.
 
     Hysteresis: opens above ``open_threshold``, closes below ``close_threshold`` (set

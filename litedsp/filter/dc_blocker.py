@@ -16,7 +16,7 @@ from litedsp.common import iq_layout, saturated
 # DC Blocker ---------------------------------------------------------------------------------------
 
 @ResetInserter()
-class DCBlocker(LiteXModule):
+class LiteDSPDCBlocker(LiteXModule):
     """Multiplier-free 1st-order DC-removal IIR (per I/Q).
 
     ``y[n] = x[n] - x[n-1] + y[n-1] - (y[n-1] >> pole_shift)`` (pole at ``1 - 2**-pole_shift``,

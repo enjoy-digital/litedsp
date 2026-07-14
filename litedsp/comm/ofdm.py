@@ -6,9 +6,9 @@
 
 """OFDM cyclic-prefix insertion/removal.
 
-``CPInsert`` buffers one ``fft_size`` symbol and emits it with its last ``cp_len`` samples
+``LiteDSPCPInsert`` buffers one ``fft_size`` symbol and emits it with its last ``cp_len`` samples
 prepended (TX side, between the IFFT and the DAC front-end); the input is stalled while a
-symbol drains, so upstream backpressure does the rate expansion. ``CPRemove`` is the RX
+symbol drains, so upstream backpressure does the rate expansion. ``LiteDSPCPRemove`` is the RX
 counterpart: drop ``cp_len`` samples, pass ``fft_size`` (framed with ``first``/``last`` for the
 FFT). Symbol boundaries are counted from the first sample after reset — align upstream (frame
 detector / ``first`` markers) before these blocks.
@@ -26,7 +26,7 @@ from litedsp.common import iq_layout
 # CP Insert ------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class CPInsert(LiteXModule):
+class LiteDSPCPInsert(LiteXModule):
     """Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out."""
     def __init__(self, fft_size=64, cp_len=16, data_width=16, with_csr=True):
         assert 0 < cp_len < fft_size
@@ -100,7 +100,7 @@ class CPInsert(LiteXModule):
 # CP Remove ------------------------------------------------------------------------------------------
 
 @ResetInserter()
-class CPRemove(LiteXModule):
+class LiteDSPCPRemove(LiteXModule):
     """Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out."""
     def __init__(self, fft_size=64, cp_len=16, data_width=16, with_csr=True):
         assert 0 < cp_len < fft_size

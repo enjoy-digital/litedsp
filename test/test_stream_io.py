@@ -16,12 +16,12 @@ from migen import Module, run_simulation, passive
 from litex.gen import LiteXModule
 
 from litedsp.common              import iq_layout
-from litedsp.stream.fifo         import StreamFIFO
-from litedsp.stream.adapt        import IQPack, IQUnpack
-from litedsp.stream.csr_io       import CSRSource, CSRSink, CSRReader, NullSink
-from litedsp.stream.framing      import StreamFramer, StreamDeframer
-from litedsp.generation.pattern  import PatternSource, PATTERN_COUNTER, PATTERN_PRBS
-from litedsp.analysis.measure    import ErrorCounter
+from litedsp.stream.fifo         import LiteDSPStreamFIFO
+from litedsp.stream.adapt        import LiteDSPIQPack, LiteDSPIQUnpack
+from litedsp.stream.csr_io       import LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPCSRReader, LiteDSPNullSink
+from litedsp.stream.framing      import LiteDSPStreamFramer, LiteDSPStreamDeframer
+from litedsp.generation.pattern  import LiteDSPPatternSource, PATTERN_COUNTER, PATTERN_PRBS
+from litedsp.analysis.measure    import LiteDSPErrorCounter
 
 from test.common import run_stream, column
 
@@ -37,7 +37,7 @@ class TestStreamFIFO(unittest.TestCase):
     def test_passthrough(self):
         n = 200
         samples, xi, xq = _iq_samples(n, seed=1)
-        dut = StreamFIFO(depth=16, data_width=16, with_csr=False)
+        dut = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
         cap = run_stream(dut, samples, n, ["i", "q"], ["i", "q"],
             sink_throttle=0.3, source_ready_rate=0.6)
         self.assertTrue(np.array_equal(column(cap, "i", 16), xi))
@@ -51,8 +51,8 @@ class TestIQPackUnpack(unittest.TestCase):
 
         class Dut(LiteXModule):
             def __init__(self):
-                self.pack   = IQPack(ratio=ratio, data_width=16)
-                self.unpack = IQUnpack(ratio=ratio, data_width=16)
+                self.pack   = LiteDSPIQPack(ratio=ratio, data_width=16)
+                self.unpack = LiteDSPIQUnpack(ratio=ratio, data_width=16)
                 self.sink   = self.pack.sink
                 self.source = self.unpack.source
                 self.comb += self.pack.source.connect(self.unpack.sink)
@@ -65,13 +65,13 @@ class TestIQPackUnpack(unittest.TestCase):
 
 class TestPatternSource(unittest.TestCase):
     def test_counter(self):
-        dut = PatternSource(data_width=16, with_csr=False)
+        dut = LiteDSPPatternSource(data_width=16, with_csr=False)
         # mode defaults to COUNTER; capture a clean ramp.
         cap = run_stream(dut, None, 16, [], ["i"], source_ready_rate=1.0)
         self.assertEqual(column(cap, "i", 16).tolist(), list(range(16)))
 
     def test_prbs_nonconstant(self):
-        dut = PatternSource(data_width=16, seed=0xACE1, with_csr=False)
+        dut = LiteDSPPatternSource(data_width=16, seed=0xACE1, with_csr=False)
         def setup():
             yield dut.mode.eq(PATTERN_PRBS)
         cap = run_stream(dut, None, 64, [], ["i"], source_ready_rate=1.0, extra=[setup()])
@@ -84,8 +84,8 @@ class TestCSRSourceSink(unittest.TestCase):
         n = 8
         class Dut(LiteXModule):
             def __init__(self):
-                self.src  = CSRSource(data_width=16, with_csr=False)
-                self.snk  = CSRSink(data_width=16, with_csr=False)
+                self.src  = LiteDSPCSRSource(data_width=16, with_csr=False)
+                self.snk  = LiteDSPCSRSink(data_width=16, with_csr=False)
                 self.comb += self.src.source.connect(self.snk.sink)
 
         dut = Dut()
@@ -109,7 +109,7 @@ class TestCSRSourceSink(unittest.TestCase):
 class TestCSRReader(unittest.TestCase):
     def test_paced_readout(self):
         n   = 8
-        dut = CSRReader(data_width=16, with_csr=False)
+        dut = LiteDSPCSRReader(data_width=16, with_csr=False)
         samples = [{"i": 10*k + 1, "q": -(10*k + 1)} for k in range(n)]
         got = []
         def reader():
@@ -129,7 +129,7 @@ class TestNullSink(unittest.TestCase):
     def test_counts_all(self):
         n = 50
         samples, _, _ = _iq_samples(n, seed=3)
-        dut = NullSink(data_width=16, with_csr=False)
+        dut = LiteDSPNullSink(data_width=16, with_csr=False)
         result = {}
         def feed():
             for s in samples:
@@ -145,7 +145,7 @@ class TestNullSink(unittest.TestCase):
 
 class TestErrorCounter(unittest.TestCase):
     def _run(self, ref, rx):
-        dut = ErrorCounter(data_width=16, with_csr=False)
+        dut = LiteDSPErrorCounter(data_width=16, with_csr=False)
         out = {}
         @passive
         def drive(ep, samples):
@@ -181,7 +181,7 @@ class TestFraming(unittest.TestCase):
     def test_framer_marks_boundaries(self):
         length, n = 8, 64
         samples, _, _ = _iq_samples(n, seed=4)
-        dut = StreamFramer(length=length, data_width=16, with_csr=False)
+        dut = LiteDSPStreamFramer(length=length, data_width=16, with_csr=False)
         cap = run_stream(dut, samples, n, ["i", "q"], ["i", "q", "first", "last"],
             sink_throttle=0.1, source_ready_rate=0.9)
         last = column(cap, "last")
@@ -194,7 +194,7 @@ class TestFraming(unittest.TestCase):
         samples, _, _ = _iq_samples(n, seed=5)
         for k, s in enumerate(samples):
             s["last"] = 1 if (k % length) == (length - 1) else 0
-        dut = StreamDeframer(data_width=16, with_csr=False)
+        dut = LiteDSPStreamDeframer(data_width=16, with_csr=False)
         result = {}
         @passive
         def feed():

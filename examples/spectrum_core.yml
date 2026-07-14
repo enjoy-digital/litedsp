@@ -1,0 +1,34 @@
+#
+# This file is part of LiteDSP.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+# LiteDSP standalone core example: a spectrum-analysis chain (Hann window + FFT + PSD) exposed as
+# an AXI-Stream (data) + AXI-Lite (control) core. Generate with:
+#
+#   litedsp_gen examples/spectrum_core.yml --output-dir build
+#
+# The flow section uses the netlist schema (litedsp/flow/netlist.py); a "netlist: file.json"
+# reference can be used instead of an inline flow.
+
+# Core ---------------------------------------------------------------------
+name     : spectrum_core
+csr_base : 0x0
+
+# Flow ---------------------------------------------------------------------
+flow:
+  name       : spectrum
+  data_width : 16
+  clock_ns   : 10.0
+  inputs     : [{id: iq_in,   layout: iq}]
+  outputs    : [{id: psd_out, layout: real}]
+  blocks:
+    - {id: win, type: window, params: {n: 256, window: hann}}
+    - {id: fft, type: fft,    params: {N: 256}}
+    - {id: psd, type: psd,    params: {N: 256, latency: 255}}
+  connections:
+    - {from: iq_in,      to: win.sink}
+    - {from: win.source, to: fft.sink}
+    - {from: fft.source, to: psd.sink}
+    - {from: psd.source, to: psd_out}

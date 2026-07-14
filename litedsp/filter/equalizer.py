@@ -17,7 +17,7 @@ from litedsp.filter.fir import _adder_tree
 # Complex LMS Equalizer ----------------------------------------------------------------------------
 
 @ResetInserter()
-class LMSEqualizer(LiteXModule):
+class LiteDSPLMSEqualizer(LiteXModule):
     """Adaptive complex FIR equalizer (LMS), trained or decision-directed.
 
     Filters ``x`` with ``n_taps`` complex weights and adapts them to minimize ``|d - y|``:

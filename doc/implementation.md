@@ -37,7 +37,7 @@ the ECP5 Yosys synth across all blocks on every push (portability/compile-clean)
   Lesson: *async-read memories never map to BRAM; large RAMs must be synchronous-read and ≤2 ports.*
 - **`nco_qw` (quarter-wave NCO) trades BRAM for logic at small depths.** At `lut_depth=1024` the
   N/4+1 table (257×16) maps to ~674 LUTs instead of BRAM; the 4× ROM saving only pays off at
-  larger depths / wider data. The full-LUT `NCO` (2 BRAM) is preferable for `lut_depth≤1024`.
+  larger depths / wider data. The full-LUT `LiteDSPNCO` (2 BRAM) is preferable for `lut_depth≤1024`.
 - **`lms_equalizer` over-provisioned its weight width.** Weights were stored as `wfrac+data_width`
   = 30 bits, so every weight×sample FIR tap needed two 18×18 DSPs and a 30-bit-wide adder tree —
   but a stable equalizer's weights are O(1), i.e. 16 of those bits were sign extension. Bounding
@@ -48,13 +48,13 @@ the ECP5 Yosys synth across all blocks on every push (portability/compile-clean)
   `fm_demod` are fully-unrolled 16-stage CORDIC pipelines (the cost of 1 sample/cycle — a folded
   iterative CORDIC would trade ~8× area for ~16× fewer samples/s, an opt-in, not a free win);
   `iir_biquad`'s ECP5 LUTs come from constant-coefficient multiplies that Vivado packs into DSPs
-  but yosys partly expands to shift-add fabric (vendor mapping, not algorithm); the SDF `FFT`'s
+  but yosys partly expands to shift-add fabric (vendor mapping, not algorithm); the SDF `LiteDSPFFT`'s
   delay lines are dense SRLs on Xilinx (1475 LUT) and LUT-RAM on ECP5 (2987 LUT) — moving them to
   BRAM would help ECP5 but *hurt* Xilinx, so they're left as-is.
-- **`rms` used an unrolled square root where it has thousands of idle cycles.** `ISqrt` was
+- **`rms` used an unrolled square root where it has thousands of idle cycles.** `LiteDSPISqrt` was
   fully unrolled (one combinational compare-subtract per result bit, ~16×34-bit) for 1-sample/cycle
   streaming, but RMS emits only once per `2**window_log2` window. Adding a `pipelined=False`
-  sequential `ISqrt` (one stage reused over `out_width` cycles) and using it in RMS dropped
+  sequential `LiteDSPISqrt` (one stage reused over `out_width` cycles) and using it in RMS dropped
   **Xilinx 1166 → 262 LUT** (4.5×); on ECP5 the remaining cost is the runtime-window barrel
   shifter (`acc >> window_log2`), an intentional CSR feature, not waste. Lesson: *match the
   unrolling factor to the actual throughput need.*

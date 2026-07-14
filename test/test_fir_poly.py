@@ -9,7 +9,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.filter.fir_poly import FIRDecimator, FIRInterpolator
+from litedsp.filter.fir_poly import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
 from litedsp.filter.design   import firwin_lowpass
 
 from test.common import run_stream, column
@@ -22,7 +22,7 @@ class TestFIRDecimator(unittest.TestCase):
             prng   = random.Random(n_taps)
             x_i    = [prng.randint(-25000, 25000) for _ in range(R*30)]
             x_q    = [prng.randint(-25000, 25000) for _ in range(R*30)]
-            dut    = FIRDecimator(n_taps, R, data_width=16, coefficients=coeffs, with_csr=False)
+            dut    = LiteDSPFIRDecimator(n_taps, R, data_width=16, coefficients=coeffs, with_csr=False)
             n_out  = len(x_i)//R
             samples = [{"i": x_i[k], "q": x_q[k]} for k in range(len(x_i))]
             cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
@@ -39,7 +39,7 @@ class TestFIRInterpolator(unittest.TestCase):
             prng   = random.Random(n_taps + 1)
             x_i    = [prng.randint(-8000, 8000) for _ in range(40)]
             x_q    = [prng.randint(-8000, 8000) for _ in range(40)]
-            dut    = FIRInterpolator(n_taps, L, data_width=16, coefficients=coeffs, with_csr=False)
+            dut    = LiteDSPFIRInterpolator(n_taps, L, data_width=16, coefficients=coeffs, with_csr=False)
             n_out  = len(x_i)*L
             samples = [{"i": x_i[k], "q": x_q[k]} for k in range(len(x_i))]
             cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
