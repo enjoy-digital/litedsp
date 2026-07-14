@@ -70,3 +70,27 @@ jobs:
           python3 sim/run_blocks.py
           python3 sim/run_nco.py
           python3 sim/run_fir.py
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Check generated docs are in sync
+        run: |
+          python3 -m litedsp.flow.docgen --check
+          python3 impl/report.py --check

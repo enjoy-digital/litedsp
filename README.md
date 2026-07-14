@@ -117,6 +117,7 @@ Assembled-chain demos live in `examples/`.
 
 | Document                  | Content                                                    |
 |---------------------------|------------------------------------------------------------|
+| `doc/blocks/index.md`     | **Block catalog**: one generated datasheet per block (parameters, ports, register map, resources) |
 | `doc/interfaces.md`       | The block contract: streaming, control, conventions checklist |
 | `doc/fixed_point.md`      | Qm.n conventions, rounding/saturation rules                 |
 | `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |

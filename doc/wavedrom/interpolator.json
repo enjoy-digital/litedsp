@@ -1,0 +1,10 @@
+{
+  "head": {"text": "interpolate-by-4: four outputs per accepted input (input stalls between)"},
+  "signal": [
+    {"name": "clk",          "wave": "p........"},
+    {"name": "sink.valid",   "wave": "01......."},
+    {"name": "sink.ready",   "wave": "01...0..."},
+    {"name": "source.valid", "wave": "0.1......"},
+    {"name": "source.data",  "wave": "x.====...", "data": ["y0", "y1", "y2", "y3"]}
+  ]
+}

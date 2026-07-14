@@ -62,6 +62,14 @@ def _latency_str(spec):
         return "variable (data-dependent)"
     return f"{spec.latency} sample{'s' if spec.latency != 1 else ''}"
 
+def _overview(doc_full):
+    """Docstring prose without the numpydoc Parameters section (rendered as a table instead)."""
+    lines = doc_full.splitlines()
+    for i in range(len(lines) - 1):
+        if lines[i].strip() == "Parameters" and set(lines[i + 1].strip()) == {"-"}:
+            return "\n".join(lines[:i]).rstrip()
+    return doc_full
+
 # Datasheet ----------------------------------------------------------------------------------------
 
 def block_page(spec, budgets):
@@ -80,7 +88,7 @@ def block_page(spec, budgets):
     if spec.doc_full:
         out.append("## Overview")
         out.append("")
-        out.append(spec.doc_full)
+        out.append(_overview(spec.doc_full))
         out.append("")
     if spec.params:
         out.append("## Parameters")

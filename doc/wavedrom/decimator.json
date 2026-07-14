@@ -1,0 +1,10 @@
+{
+  "head": {"text": "decimate-by-4: one output per 4 accepted inputs"},
+  "signal": [
+    {"name": "clk",          "wave": "p........"},
+    {"name": "sink.valid",   "wave": "01......0"},
+    {"name": "sink.data",    "wave": "x========", "data": ["x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7"]},
+    {"name": "source.valid", "wave": "0....1..."},
+    {"name": "source.data",  "wave": "x....=...", "data": ["y0"]}
+  ]
+}

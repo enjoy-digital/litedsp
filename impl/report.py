@@ -76,11 +76,25 @@ def budgets_markdown(budgets):
 
 if __name__ == "__main__":
     import os
+    import sys
     import json
+    import argparse
+    parser = argparse.ArgumentParser(description="Regenerate doc/resources.md from impl/budgets.json.")
+    parser.add_argument("--check", action="store_true", help="Fail if doc/resources.md is stale (CI).")
+    args = parser.parse_args()
+
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     with open(os.path.join(root, "impl", "budgets.json")) as f:
         budgets = json.load(f)
-    path = os.path.join(root, "doc", "resources.md")
+    path    = os.path.join(root, "doc", "resources.md")
+    content = budgets_markdown(budgets)
+    if args.check:
+        current = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
+        if current != content:
+            print("doc/resources.md is stale — regenerate with python3 impl/report.py")
+            sys.exit(1)
+        print("doc/resources.md is up to date.")
+        sys.exit(0)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(budgets_markdown(budgets))
+        f.write(content)
     print(f"Generated: {path} ({len(budgets)} modules)")
