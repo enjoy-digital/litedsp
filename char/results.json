@@ -1,0 +1,36 @@
+{
+  "agc": {
+    "settling_samples": 34.0,
+    "steady_state_error_pct": 0.725
+  },
+  "cic": {
+    "droop_err_r16_n3_db": 0.0,
+    "droop_err_r16_n4_db": 0.0,
+    "droop_err_r4_n3_db": 0.0,
+    "droop_err_r4_n4_db": 0.0,
+    "droop_err_r8_n3_db": 0.0,
+    "droop_err_r8_n4_db": 0.0
+  },
+  "clipper": {
+    "imd3_dbc": 15.452
+  },
+  "cordic": {
+    "enob_bits": 12.705
+  },
+  "fir": {
+    "passband_ripple_db": 0.019,
+    "stopband_atten_db": 54.973
+  },
+  "mixer": {
+    "image_rejection_db": 117.56
+  },
+  "nco": {
+    "enob_bits": 8.85,
+    "noise_floor_dbfs": -52.025,
+    "sfdr_db": 58.611,
+    "sfdr_lut_exact_db": 103.473
+  },
+  "window": {
+    "sidelobe_level_db": 31.471
+  }
+}
