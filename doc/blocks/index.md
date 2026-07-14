@@ -109,7 +109,7 @@
 | [FFT (SDF)](fft.md) | `LiteDSPFFT` | 63 | 28 | Streaming radix-2 SDF FFT, ``N`` points (power of two), 1 sample/cycle. |
 | [FFT (iterative)](fft_iter.md) | `LiteDSPFFTIter` | 704 | 4 | Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped). |
 | [PSD](psd.md) | `LiteDSPPSD` | var | 2 | Power-spectral-density accumulator for a streaming FFT. |
-| [Welch PSD](welch.md) | `LiteDSPWelchPSD` | var | — | Windowed, averaged power spectral density: Window -> FFT -> PSD. |
+| [Welch PSD](welch.md) | `LiteDSPWelchPSD` | var | — | Windowed, averaged power spectral density: Window -> FFT -> PSD, with segment overlap. |
 | [Magnitude (approx)](magnitude.md) | `LiteDSPMagnitude` | 1 | 0 | Complex magnitude ``|I + jQ|``. |
 | [Magnitude (CORDIC)](magnitude_cordic.md) | `LiteDSPMagnitude` | 18 | 1 | Complex magnitude ``|I + jQ|``. |
 | [Goertzel](goertzel.md) | `LiteDSPGoertzel` | var | 17 | Single-bin DFT (tone detector) via a 2nd-order resonator — one multiplier. |

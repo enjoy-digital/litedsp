@@ -11,6 +11,8 @@ rounding/saturation, same accumulation order) so tests can compare simulation ou
 it either bit-exactly (structural blocks) or above an SNR threshold (arithmetic blocks).
 """
 
+import math
+
 import numpy as np
 
 from test.common import np_rounded, np_saturated, np_scaled
@@ -442,6 +444,44 @@ def fft_model(frame_i, frame_q, data_width=16):
     x = np.asarray(frame_i, float) + 1j*np.asarray(frame_q, float)
     return np.fft.fft(x)/len(x)
 
+def _bit_reverse(k, bits):
+    r = 0
+    for _ in range(bits):
+        r = (r << 1) | (k & 1)
+        k >>= 1
+    return r
+
+def fft_fixed_model(frame_i, frame_q, data_width=16, twiddle_width=16):
+    """Bit-exact reference for litedsp.analysis.fft.LiteDSPFFT (radix-2 SDF, DIF).
+
+    Iterative in-place DIF with the gateware's fixed-point arithmetic per stage: butterfly sum
+    scaled by 1/2 (round half-up + saturate), difference multiplied by the quantized Q1.(W-1)
+    twiddle and rescaled. Returns (i, q) int arrays in the FFT's **bit-reversed** output order.
+    """
+    xi    = np.asarray(frame_i, np.int64).copy()
+    xq    = np.asarray(frame_q, np.int64).copy()
+    N     = len(xi)
+    bits  = N.bit_length() - 1
+    scale = (1 << (twiddle_width - 1)) - 1
+    for s in range(bits):
+        D  = N >> (s + 1)
+        tr = np.array([int(round(math.cos(-math.pi*p/D)*scale)) for p in range(D)], np.int64)
+        ti = np.array([int(round(math.sin(-math.pi*p/D)*scale)) for p in range(D)], np.int64)
+        for b in range(0, N, 2*D):
+            for p in range(D):
+                ai, aq = xi[b + p],     xq[b + p]
+                bi, bq = xi[b + p + D], xq[b + p + D]
+                dr, di = ai - bi, aq - bq
+                xi[b + p] = np_scaled(ai + bi, 1, data_width)
+                xq[b + p] = np_scaled(aq + bq, 1, data_width)
+                if D > 1:
+                    xi[b + p + D] = np_scaled(dr*tr[p] - di*ti[p], twiddle_width, data_width)
+                    xq[b + p + D] = np_scaled(dr*ti[p] + di*tr[p], twiddle_width, data_width)
+                else:
+                    xi[b + p + D] = np_scaled(dr, 1, data_width)
+                    xq[b + p + D] = np_scaled(di, 1, data_width)
+    return xi, xq
+
 # Window -------------------------------------------------------------------------------------------
 
 def window_model(i, q, coeffs, data_width=16):
@@ -451,6 +491,67 @@ def window_model(i, q, coeffs, data_width=16):
     w      = np.array([coeffs[k % n] for k in range(len(i))], dtype=np.int64)
     shift  = data_width - 1
     return np_scaled(i*w, shift, data_width), np_scaled(q*w, shift, data_width)
+
+# PSD ----------------------------------------------------------------------------------------------
+
+def psd_model(i, q, N, avg_log2=4, mode=0, clears=()):
+    """Reference for litedsp.analysis.psd.LiteDSPPSD (per-bin power combining, all modes).
+
+    ``i``/``q`` are the FFT-output samples in arrival (bit-reversed) order; one spectrum is
+    emitted per ``2**avg_log2`` frames, in natural bin order. ``mode``: 0 = linear average,
+    1 = exponential/leaky, 2 = max-hold, 3 = min-hold. ``clears`` is a set of frame indices
+    that re-initialize the accumulator (mirroring a ``clear`` pulse during the preceding
+    frame). Returns the list of emitted spectra.
+    """
+    i, q    = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    bits    = N.bit_length() - 1
+    acc     = np.zeros(N, dtype=np.int64)
+    spectra = []
+    frame_cnt = 0
+    for f in range(len(i)//N):
+        init = (f == 0) or (f in clears) or ((mode == 0) and (frame_cnt == 0))
+        for k in range(N):
+            inst = int(i[f*N + k])**2 + int(q[f*N + k])**2
+            a    = _bit_reverse(k, bits)
+            if init:
+                acc[a] = inst
+            elif mode == 0:
+                acc[a] = acc[a] + inst
+            elif mode == 1:
+                acc[a] = acc[a] + ((inst - acc[a]) >> avg_log2)
+            elif mode == 2:
+                acc[a] = max(acc[a], inst)
+            else:
+                acc[a] = min(acc[a], inst)
+        frame_cnt += 1
+        if frame_cnt == (1 << avg_log2):
+            frame_cnt = 0
+            spectra.append((acc >> avg_log2).copy() if mode == 0 else acc.copy())
+    return spectra
+
+# Welch PSD ----------------------------------------------------------------------------------------
+
+def welch_model(i, q, N, avg_log2=2, window="hann", overlap=0, data_width=16):
+    """Reference for litedsp.analysis.welch.LiteDSPWelchPSD (Window -> FFT -> PSD, overlapped).
+
+    Segments ``i``/``q`` into ``N``-sample segments with a hop of ``N*(100-overlap)/100``
+    samples, windows each segment (window_model), transforms it (fft_fixed_model) and
+    combines per-bin power (psd_model, linear mode). Bit-exact against the gateware chain.
+    Returns the list of emitted spectra (natural bin order), one per ``2**avg_log2`` segments.
+    """
+    from litedsp.analysis.window import window_coefficients
+    coeffs = window_coefficients(N, window, data_width)
+    i, q   = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    step   = N - (N*overlap)//100
+    si, sq = [], []
+    for start in range(0, len(i) - N + 1, step):
+        wi, wq = window_model(i[start:start + N], q[start:start + N], coeffs, data_width)
+        fi, fq = fft_fixed_model(wi, wq, data_width)
+        si.append(fi)
+        sq.append(fq)
+    if not si:
+        return []
+    return psd_model(np.concatenate(si), np.concatenate(sq), N, avg_log2=avg_log2, mode=0)
 
 # Dropper (naive rate change) ----------------------------------------------------------------------
 

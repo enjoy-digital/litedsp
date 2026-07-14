@@ -11,6 +11,17 @@ Root-raised-cosine pulse-shaping interpolator (``sps`` samples/symbol).
 An interpolating polyphase FIR loaded with RRC taps: maps a 1-sample-per-symbol I/Q stream
 to ``sps`` samples/symbol with matched-filter pulse shaping. Use the same RRC at RX.
 
+Matched-pair performance
+------------------------
+Validated as a TX -> RX pair (this shaper followed by a complex FIR loaded with the same
+unit-energy ``rrc_coefficients`` taps, ``test/test_matched_pair.py``): the composite
+raised cosine at the default config (sps=4, span=8, beta=0.35, Q1.15) measures -39.8 dB
+worst symbol-spaced ISI sidelobe and -36.5 dB EVM on random QPSK at the optimal sampling
+instant; sps=2, span=10, beta=0.25 measures -41.9 dB ISI and -38.4 dB EVM. The floor is
+set by RRC truncation (finite span), not tap quantization (< 0.1 dB): increase ``span``
+for a lower ISI floor (more taps/latency); smaller ``beta`` narrows the spectrum but
+slows sidelobe decay, needing a longer span for the same floor.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |

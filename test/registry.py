@@ -106,8 +106,8 @@ VSPEC = {
     "window":             _v("window_model", cosim=True),
     "fft":                _v("fft_model"),                     # SNR-thresholded (fixed point).
     "fft_iter":           _v(rate=None),
-    "psd":                _v(latency="variable", rate=None),
-    "welch":              _v(latency="variable", rate=None),
+    "psd":                _v("psd_model",   latency="variable", rate=None),
+    "welch":              _v("welch_model", latency="variable", rate=None),
     "magnitude":          _v("magnitude_model", cosim=True),
     "magnitude_cordic":   _v(),
     "goertzel":           _v(latency="variable", rate=None),
