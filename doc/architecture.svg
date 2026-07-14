@@ -1,79 +1,98 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="860" height="480" viewBox="0 0 860 480"
-     font-family="Verdana, DejaVu Sans, sans-serif">
-  <!-- LiteDSP architecture: converters -> DSP blocks -> analysis/streaming -> host, tooling around. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"
+     font-family="Arial, Helvetica, sans-serif">
+  <!-- LiteDSP architecture, drawn in the LiteX diagram style (grayscale boxes + soft shadows). -->
   <defs>
-    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-      <path d="M0,0 L8,4 L0,8 z" fill="#607d8b"/>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#595959"/>
     </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.4"/></feComponentTransfer>
+      <feOffset dx="1.5" dy="2.5" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
   <style>
-    .box   { fill: #eceff1; stroke: #607d8b; stroke-width: 1.5; rx: 6; }
-    .cat   { fill: #ffffff; stroke: #90a4ae; stroke-width: 1; rx: 4; }
-    .tool  { fill: #fff8e1; stroke: #ffb300; stroke-width: 1.5; rx: 6; }
-    .title { font-size: 15px; font-weight: bold; fill: #263238; }
-    .label { font-size: 12px; fill: #37474f; }
-    .small { font-size: 11px; fill: #546e7a; }
-    .flow  { stroke: #607d8b; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .box    { fill: #eeeeee; stroke: #595959; stroke-width: 2; }
+    .inner  { fill: #f3f3f3; stroke: #595959; stroke-width: 1; }
+    .white  { fill: #ffffff; stroke: #595959; stroke-width: 2; }
+    .title  { font-size: 17px; font-weight: bold; fill: #000000; }
+    .label  { font-size: 13px; fill: #000000; }
+    .small  { font-size: 11.5px; fill: #595959; }
+    .flow   { stroke: #595959; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .ctrl   { stroke: #595959; stroke-width: 1.5; fill: none; stroke-dasharray: 1,3;
+              marker-end: url(#arrow); }
   </style>
 
-  <text x="430" y="28" text-anchor="middle" class="title">LiteDSP architecture</text>
+  <rect x="0" y="0" width="960" height="540" fill="#ffffff"/>
+  <text x="480" y="34" text-anchor="middle" class="title" font-size="20">LiteDSP architecture</text>
 
   <!-- Frontend (left) -->
-  <rect x="20" y="70" width="130" height="120" class="box" rx="6"/>
-  <text x="85" y="92" text-anchor="middle" class="title">frontend/</text>
-  <text x="85" y="115" text-anchor="middle" class="label">ADC / DAC</text>
-  <text x="85" y="133" text-anchor="middle" class="label">I/Q packetizers</text>
-  <text x="85" y="151" text-anchor="middle" class="label">UDP (LiteEth)</text>
-  <text x="85" y="169" text-anchor="middle" class="small">converter boundary</text>
+  <rect x="30" y="85" width="150" height="130" rx="8" class="box" filter="url(#shadow)"/>
+  <text x="105" y="110" text-anchor="middle" class="title">frontend/</text>
+  <text x="105" y="135" text-anchor="middle" class="label">ADC / DAC</text>
+  <text x="105" y="154" text-anchor="middle" class="label">I/Q packetizers</text>
+  <text x="105" y="173" text-anchor="middle" class="label">UDP (LiteEth)</text>
+  <text x="105" y="197" text-anchor="middle" class="small">converter boundary</text>
 
   <!-- DSP blocks (center) -->
-  <rect x="190" y="55" width="380" height="240" class="box" rx="6"/>
-  <text x="380" y="78" text-anchor="middle" class="title">DSP blocks (stream.Endpoint + CSR)</text>
+  <rect x="220" y="65" width="430" height="270" rx="8" class="box" filter="url(#shadow)"/>
+  <text x="435" y="92" text-anchor="middle" class="title">DSP blocks</text>
+  <text x="435" y="110" text-anchor="middle" class="small">stream.Endpoint + CSR control</text>
   <g>
-    <rect x="205" y="95"  width="110" height="36" class="cat" rx="4"/>
-    <text x="260" y="117" text-anchor="middle" class="label">generation/</text>
-    <rect x="325" y="95"  width="110" height="36" class="cat" rx="4"/>
-    <text x="380" y="117" text-anchor="middle" class="label">mixing/</text>
-    <rect x="445" y="95"  width="110" height="36" class="cat" rx="4"/>
-    <text x="500" y="117" text-anchor="middle" class="label">filter/</text>
-    <rect x="205" y="143" width="110" height="36" class="cat" rx="4"/>
-    <text x="260" y="165" text-anchor="middle" class="label">rate/</text>
-    <rect x="325" y="143" width="110" height="36" class="cat" rx="4"/>
-    <text x="380" y="165" text-anchor="middle" class="label">level/</text>
-    <rect x="445" y="143" width="110" height="36" class="cat" rx="4"/>
-    <text x="500" y="165" text-anchor="middle" class="label">correction/</text>
-    <rect x="205" y="191" width="110" height="36" class="cat" rx="4"/>
-    <text x="260" y="213" text-anchor="middle" class="label">comm/</text>
-    <rect x="325" y="191" width="110" height="36" class="cat" rx="4"/>
-    <text x="380" y="213" text-anchor="middle" class="label">analysis/</text>
-    <rect x="445" y="191" width="110" height="36" class="cat" rx="4"/>
-    <text x="500" y="213" text-anchor="middle" class="label">stream/</text>
+    <rect x="238" y="122" width="125" height="40" rx="5" class="inner"/>
+    <text x="300" y="147" text-anchor="middle" class="label">generation/</text>
+    <rect x="372" y="122" width="125" height="40" rx="5" class="inner"/>
+    <text x="434" y="147" text-anchor="middle" class="label">mixing/</text>
+    <rect x="506" y="122" width="125" height="40" rx="5" class="inner"/>
+    <text x="568" y="147" text-anchor="middle" class="label">filter/</text>
+    <rect x="238" y="174" width="125" height="40" rx="5" class="inner"/>
+    <text x="300" y="199" text-anchor="middle" class="label">rate/</text>
+    <rect x="372" y="174" width="125" height="40" rx="5" class="inner"/>
+    <text x="434" y="199" text-anchor="middle" class="label">level/</text>
+    <rect x="506" y="174" width="125" height="40" rx="5" class="inner"/>
+    <text x="568" y="199" text-anchor="middle" class="label">correction/</text>
+    <rect x="238" y="226" width="125" height="40" rx="5" class="inner"/>
+    <text x="300" y="251" text-anchor="middle" class="label">comm/</text>
+    <rect x="372" y="226" width="125" height="40" rx="5" class="inner"/>
+    <text x="434" y="251" text-anchor="middle" class="label">analysis/</text>
+    <rect x="506" y="226" width="125" height="40" rx="5" class="inner"/>
+    <text x="568" y="251" text-anchor="middle" class="label">stream/</text>
   </g>
-  <text x="380" y="255" text-anchor="middle" class="small">Q1.15 fixed-point | valid/ready backpressure | bypass | latency</text>
-  <text x="380" y="275" text-anchor="middle" class="small">serial + parallel (N samples/clk) variants</text>
+  <text x="435" y="292" text-anchor="middle" class="small">Q1.15 fixed-point &#183; valid/ready backpressure &#183; bypass &#183; latency</text>
+  <text x="435" y="312" text-anchor="middle" class="small">serial + parallel (N samples/clk) variants</text>
 
-  <!-- Host / SoC (right) -->
-  <rect x="610" y="70" width="230" height="120" class="box" rx="6"/>
-  <text x="725" y="92" text-anchor="middle" class="title">LiteX SoC / host</text>
-  <text x="725" y="115" text-anchor="middle" class="label">CSR bus (control/status)</text>
-  <text x="725" y="133" text-anchor="middle" class="label">Capture / DMA (Wishbone, LiteDRAM)</text>
-  <text x="725" y="151" text-anchor="middle" class="label">Etherbone / litex_server</text>
-  <text x="725" y="169" text-anchor="middle" class="small">software/ drivers + litedsp_cli</text>
+  <!-- LiteX SoC / host (right) -->
+  <rect x="690" y="85" width="240" height="130" rx="8" class="box" filter="url(#shadow)"/>
+  <text x="810" y="110" text-anchor="middle" class="title">LiteX SoC / host</text>
+  <text x="810" y="135" text-anchor="middle" class="label">CSR bus (control / status)</text>
+  <text x="810" y="154" text-anchor="middle" class="label">Capture / DMA (Wishbone, LiteDRAM)</text>
+  <text x="810" y="173" text-anchor="middle" class="label">Etherbone / litex_server</text>
+  <text x="810" y="197" text-anchor="middle" class="small">software/ drivers + litedsp_cli</text>
 
-  <!-- Flows -->
-  <path class="flow" d="M 150 130 L 190 130"/>
-  <path class="flow" d="M 570 130 L 610 130"/>
+  <!-- Data flow -->
+  <path class="flow" d="M 180 150 L 216 150"/>
+  <path class="flow" d="M 650 150 L 686 150"/>
+  <!-- Control path (dashed, CSR) -->
+  <path class="ctrl" d="M 810 215 L 810 250 L 654 250"/>
+  <text x="740" y="242" text-anchor="middle" class="small">CSR</text>
 
   <!-- Tooling (bottom) -->
-  <rect x="20" y="340" width="820" height="110" class="tool" rx="6"/>
-  <text x="430" y="363" text-anchor="middle" class="title">Tooling</text>
-  <text x="120"  y="390" text-anchor="middle" class="label">Flow (litedsp_flow)</text>
-  <text x="120"  y="408" text-anchor="middle" class="small">JSON netlist → chain / AXI IP</text>
-  <text x="330" y="390" text-anchor="middle" class="label">GUI (litedsp_gui)</text>
-  <text x="330" y="408" text-anchor="middle" class="small">node editor + live mode</text>
-  <text x="540" y="390" text-anchor="middle" class="label">Generator (litedsp_gen)</text>
-  <text x="540" y="408" text-anchor="middle" class="small">YAML → standalone Verilog core</text>
-  <text x="740" y="390" text-anchor="middle" class="label">Test / Sim / Impl / Bench</text>
-  <text x="740" y="408" text-anchor="middle" class="small">golden models, Verilator, P&amp;R budgets</text>
-  <path class="flow" d="M 380 340 L 380 295"/>
+  <rect x="30" y="380" width="900" height="120" rx="8" class="white" filter="url(#shadow)"/>
+  <text x="480" y="406" text-anchor="middle" class="title">Tooling</text>
+  <g>
+    <rect x="50"  y="420" width="200" height="62" rx="5" class="inner"/>
+    <text x="150" y="444" text-anchor="middle" class="label">Flow (litedsp_flow)</text>
+    <text x="150" y="464" text-anchor="middle" class="small">JSON netlist &#8594; chain / AXI IP</text>
+    <rect x="270" y="420" width="200" height="62" rx="5" class="inner"/>
+    <text x="370" y="444" text-anchor="middle" class="label">GUI (litedsp_gui)</text>
+    <text x="370" y="464" text-anchor="middle" class="small">node editor + live mode</text>
+    <rect x="490" y="420" width="200" height="62" rx="5" class="inner"/>
+    <text x="590" y="444" text-anchor="middle" class="label">Generator (litedsp_gen)</text>
+    <text x="590" y="464" text-anchor="middle" class="small">YAML &#8594; standalone Verilog core</text>
+    <rect x="710" y="420" width="200" height="62" rx="5" class="inner"/>
+    <text x="810" y="444" text-anchor="middle" class="label">Test / Sim / Impl / Bench</text>
+    <text x="810" y="464" text-anchor="middle" class="small">golden models, Verilator, P&amp;R budgets</text>
+  </g>
+  <path class="flow" d="M 435 376 L 435 339"/>
 </svg>

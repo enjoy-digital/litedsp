@@ -1,16 +1,16 @@
 ```
-                          __   _ __      ___  _______
-                         / /  (_) /____ / _ \/ __/ _ \
-                        / /__/ / __/ -_) // /\ \/ ___/
-                       /____/_/\__/\__/____/___/_/
+                                     __   _ __      ___  _______
+                                    / /  (_) /____ / _ \/ __/ _ \
+                                   / /__/ / __/ -_) // /\ \/ ___/
+                                  /____/_/\__/\__/____/___/_/
 
-                    Copyright 2026 / Enjoy-Digital
+                                   Copyright 2026 / Enjoy-Digital
 
-              Portable RF/DSP building blocks for FPGAs
-                      powered by Migen & LiteX
+                             Portable RF/DSP building blocks for FPGAs
+                                      powered by Migen & LiteX
 ```
 
-[![](https://github.com/enjoy-digital/litedsp/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg)
+[![](https://github.com/enjoy-digital/litedsp/actions/workflows/ci.yml/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enjoy-digital/litedsp)
 
 [> Intro
 --------
