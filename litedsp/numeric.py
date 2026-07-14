@@ -36,6 +36,8 @@ class LiteDSPISqrt(LiteXModule):
 
         # # #
 
+        # Pipelined: one combinational stage per result bit.
+        # --------------------------------------------------
         if pipelined:
             self.latency = 1
             adv = Signal()
@@ -65,6 +67,7 @@ class LiteDSPISqrt(LiteXModule):
             return
 
         # Sequential: one restoring stage reused over R cycles.
+        # -----------------------------------------------------
         self.latency = R
         x    = Signal(in_width)
         rem  = Signal(in_width + 2)
@@ -80,6 +83,9 @@ class LiteDSPISqrt(LiteXModule):
             trial.eq((res << 2) | 1),
             ge.eq(rem_new >= trial),
         ]
+
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.sink.ready.eq(1),

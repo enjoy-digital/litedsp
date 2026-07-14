@@ -49,6 +49,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -57,6 +59,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
             xfer.eq(self.sink.valid & adv),
         ]
 
+        # Input Shift Register.
+        # ---------------------
         # Input shift register: tap 0 = current sample, taps 1.. = history.
         regs_r = [Signal((data_width, True)) for _ in range(n_taps - 1)]
         regs_i = [Signal((data_width, True)) for _ in range(n_taps - 1)]
@@ -69,6 +73,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 *[regs_i[k].eq(regs_i[k-1]) for k in range(1, n_taps - 1)],
             )
 
+        # Complex FIR.
+        # ------------
         wr = [Signal((ww, True)) for _ in range(n_taps)]
         wi = [Signal((ww, True)) for _ in range(n_taps)]
         wr[n_taps//2].reset = 1 << wfrac                 # Center tap = 1.0.
@@ -79,6 +85,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
         yi = scaled(yi_full, wfrac, data_width)[0]
         yq = scaled(yq_full, wfrac, data_width)[0]
 
+        # LMS Update.
+        # -----------
         # Delayed-LMS update: register the error with its input-window snapshot, apply it on
         # the next accepted sample: w_k += mu * e[n-1] * conj(x[n-1-k]).
         ei_d = Signal((data_width + 1, True))
@@ -99,12 +107,16 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 wi[k].eq(saturated(wi[k] + ((eq_d*xr_d[k] - ei_d*xi_d[k]) >> mu_shift), ww)),
             )
 
+        # Output.
+        # -------
         self.sync += If(adv,
             self.source.i.eq(yi),
             self.source.q.eq(yq),
             self.source.valid.eq(self.sink.valid),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self._train = CSRStorage(1, reset=1, name="train", description="Enable LMS adaptation.")
             self.comb += self.train.eq(self._train.storage)

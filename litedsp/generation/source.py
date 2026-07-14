@@ -36,6 +36,8 @@ class LiteDSPChirp(LiteXModule):
 
         # # #
 
+        # Cos/Sin ROMs.
+        # -------------
         addr_bits = int(math.log2(lut_depth))
         scale     = (1 << (data_width - 1)) - 1
         cos = Memory(data_width, lut_depth, init=[int(round(math.cos(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
@@ -43,6 +45,8 @@ class LiteDSPChirp(LiteXModule):
         crp, srp = cos.get_port(async_read=True), sin.get_port(async_read=True)
         self.specials += cos, sin, crp, srp
 
+        # Frequency/Phase Accumulators.
+        # -----------------------------
         phase = Signal(phase_bits)
         freq  = Signal(phase_bits)
         ce    = Signal()
@@ -53,6 +57,9 @@ class LiteDSPChirp(LiteXModule):
             phase.eq(phase + freq),
             valid.eq(1),
         )
+
+        # Output.
+        # -------
         self.comb += [
             crp.adr.eq(phase[phase_bits - addr_bits:]),
             srp.adr.eq(phase[phase_bits - addr_bits:]),
@@ -61,6 +68,8 @@ class LiteDSPChirp(LiteXModule):
             self.source.q.eq(srp.dat_r),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self._start = CSRStorage(phase_bits, description="Chirp start frequency word.")
             self._rate  = CSRStorage(phase_bits, description="Chirp frequency rate per sample.")
@@ -81,9 +90,13 @@ class LiteDSPNoiseSource(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         ce = Signal()
         self.comb += ce.eq(self.source.ready | ~self.source.valid)
 
+        # Xorshift32 Sum.
+        # ---------------
         def axis(base):
             acc = Signal((data_width + n_sum.bit_length() + 1, True))
             terms = []
@@ -100,6 +113,8 @@ class LiteDSPNoiseSource(LiteXModule):
             self.comb += acc.eq(reduce(lambda p, q: p + q, terms))
             return acc
 
+        # Output.
+        # -------
         out_i = Signal((data_width, True))
         out_q = Signal((data_width, True))
         self.comb += [out_i.eq(axis(0) >> shift), out_q.eq(axis(1) >> shift)]
@@ -120,10 +135,15 @@ class LiteDSPReplay(LiteXModule):
 
         # # #
 
+        # Memory.
+        # -------
         mask = (1 << data_width) - 1
         mem  = Memory(2*data_width, n, init=[((q & mask) << data_width) | (i & mask) for (i, q) in samples])
         rp   = mem.get_port(async_read=True)
         self.specials += mem, rp
+
+        # Output.
+        # -------
         addr = Signal(max=n)
         self.comb += [
             rp.adr.eq(addr),

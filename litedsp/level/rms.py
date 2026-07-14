@@ -30,11 +30,15 @@ class LiteDSPRMS(LiteXModule):
 
         # # #
 
+        # ISqrt Core.
+        # -----------
         # Sequential sqrt: RMS emits once per window, so the multi-cycle (small) ISqrt is free.
         self.isqrt = LiteDSPISqrt(in_width=2*data_width, pipelined=False, with_csr=False)
         self.source = stream.Endpoint([("data", self.isqrt.out_width)])
         self.window_log2 = Signal(max=max_window_log2 + 1, reset=window_log2)
 
+        # Accumulator.
+        # ------------
         inst  = Signal(2*data_width + 1)
         acc   = Signal(acc_width)
         count = Signal(max_window_log2 + 1)
@@ -60,8 +64,13 @@ class LiteDSPRMS(LiteXModule):
                 )
             )
         ]
+
+        # Output.
+        # -------
         self.comb += self.isqrt.source.connect(self.source)
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

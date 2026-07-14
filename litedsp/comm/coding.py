@@ -35,6 +35,8 @@ class LiteDSPScrambler(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         reg  = Signal(length)
@@ -43,6 +45,9 @@ class LiteDSPScrambler(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         y = Signal()
         self.comb += y.eq(self.sink.data ^ _parity([reg[t - 1] for t in taps]))
         self.sync += If(xfer, reg.eq(Cat(y, reg[:-1])))        # Feed scrambled bit back.
@@ -60,6 +65,8 @@ class LiteDSPDescrambler(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         reg  = Signal(length)
@@ -68,6 +75,9 @@ class LiteDSPDescrambler(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         x = Signal()
         self.comb += x.eq(self.sink.data ^ _parity([reg[t - 1] for t in taps]))
         self.sync += If(xfer, reg.eq(Cat(self.sink.data, reg[:-1])))   # Feed received bit.
@@ -91,6 +101,8 @@ class LiteDSPCRC(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -98,6 +110,9 @@ class LiteDSPCRC(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         fb  = Signal()
         nxt = Signal(width)
         self.comb += [
@@ -126,6 +141,8 @@ class LiteDSPConvEncoder(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         reg  = Signal(constraint - 1)
@@ -134,6 +151,9 @@ class LiteDSPConvEncoder(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         full = Cat(self.sink.data, reg)                    # [x[n], x[n-1], ..., x[n-K+1]].
         outs = []
         for g in polys:

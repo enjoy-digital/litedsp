@@ -33,6 +33,8 @@ class LiteDSPStreamFramer(LiteXModule):
 
         # # #
 
+        # Datapath.
+        # ---------
         cnt  = Signal(max=max_length)
         xfer = Signal()
         self.comb += [
@@ -44,10 +46,15 @@ class LiteDSPStreamFramer(LiteXModule):
             self.source.last.eq(cnt == (self.length - 1)),
             xfer.eq(self.source.valid & self.source.ready),
         ]
+
+        # Sample Counter.
+        # ---------------
         self.sync += If(xfer,
             If(cnt == (self.length - 1), cnt.eq(0)).Else(cnt.eq(cnt + 1)),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -69,6 +76,8 @@ class LiteDSPStreamDeframer(LiteXModule):
 
         # # #
 
+        # Datapath.
+        # ---------
         in_frame = Signal()                       # 0 -> next sample starts a frame.
         xfer     = Signal()
         self.comb += [
@@ -80,6 +89,9 @@ class LiteDSPStreamDeframer(LiteXModule):
             self.source.last.eq(self.sink.last),
             xfer.eq(self.source.valid & self.source.ready),
         ]
+
+        # Frame Counter.
+        # --------------
         self.sync += [
             If(self.clear, self.frames.eq(0)),
             If(xfer,
@@ -88,6 +100,8 @@ class LiteDSPStreamDeframer(LiteXModule):
             )
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

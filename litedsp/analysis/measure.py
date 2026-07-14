@@ -34,6 +34,8 @@ class LiteDSPErrorCounter(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         # Consume a pair only when both inputs are valid (lock-step comparison).
         consume = Signal()
         self.comb += [
@@ -41,9 +43,15 @@ class LiteDSPErrorCounter(LiteXModule):
             self.sink_ref.ready.eq(consume),
             self.sink_rx.ready.eq(consume),
         ]
+
+        # Comparison.
+        # -----------
         mismatch = Signal()
         self.comb += mismatch.eq((self.sink_ref.i != self.sink_rx.i) |
                                  (self.sink_ref.q != self.sink_rx.q))
+
+        # Counters.
+        # ---------
         self.sync += [
             If(self.clear,
                 self.errors.eq(0),
@@ -54,6 +62,8 @@ class LiteDSPErrorCounter(LiteXModule):
             )
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

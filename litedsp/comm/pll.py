@@ -37,6 +37,8 @@ class LiteDSPCarrierLoop(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -46,6 +48,7 @@ class LiteDSPCarrierLoop(LiteXModule):
         ]
 
         # NCO phase accumulator + cos/sin LUT (async read).
+        # -------------------------------------------------
         addr_bits = int(math.log2(lut_depth))
         scale     = (1 << (data_width - 1)) - 1
         cos_init  = [int(round(math.cos(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width) - 1)
@@ -66,11 +69,13 @@ class LiteDSPCarrierLoop(LiteXModule):
         ]
 
         # Derotate: d = input * exp(-j*phase) = (i*cos + q*sin) + j(q*cos - i*sin).
+        # -------------------------------------------------------------------------
         i, q = self.sink.i, self.sink.q
         d_i, _ = scaled(i*cos + q*sin, data_width - 1, data_width)
         d_q, _ = scaled(q*cos - i*sin, data_width - 1, data_width)
 
         # Phase error, scaled up into phase-rate units so the PI loop spans the full range.
+        # ---------------------------------------------------------------------------------
         err = Signal((data_width + 1, True))
         if decision_directed:
             self.comb += err.eq(Mux(d_i >= 0, d_q, -d_q))     # Costas (BPSK).
@@ -79,17 +84,23 @@ class LiteDSPCarrierLoop(LiteXModule):
         err_scaled = Signal((phase_bits + 2, True))
         self.comb += err_scaled.eq(err << (phase_bits - data_width))
 
+        # PI Loop.
+        # --------
         self.pi = LiteDSPPILoop(error_width=phase_bits + 2, out_width=phase_bits + 2,
             kp_shift=kp_shift, ki_shift=ki_shift)
         self.comb += [self.pi.error.eq(err_scaled), self.pi.ce.eq(xfer)]
         self.sync += If(xfer, phase.eq(phase + self.pi.out))
 
+        # Output.
+        # -------
         self.sync += If(adv,
             self.source.i.eq(d_i),
             self.source.q.eq(d_q),
             self.source.valid.eq(self.sink.valid),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

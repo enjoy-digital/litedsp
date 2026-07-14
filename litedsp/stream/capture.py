@@ -44,6 +44,8 @@ class LiteDSPCapture(LiteXModule):
 
         # # #
 
+        # Memory.
+        # -------
         mem = Memory(2*data_width, depth)
         self.mem      = mem
         self.mem_size = depth*4                            # Bytes (one 32-bit word per sample).
@@ -51,6 +53,8 @@ class LiteDSPCapture(LiteXModule):
         rp  = mem.get_port(async_read=True)
         self.specials += mem, wp, rp
 
+        # Signals.
+        # --------
         wptr = Signal(max=depth)
         rptr = Signal(max=depth)
         above = Signal()
@@ -58,6 +62,8 @@ class LiteDSPCapture(LiteXModule):
         self.comb += above.eq(self.sink.i > self.threshold)
         self.sync += If(self.sink.valid, prev_above.eq(above))
 
+        # Datapath.
+        # ---------
         self.comb += [
             self.sink.ready.eq(1),                                  # Non-intrusive tap.
             # Slice (not mask): `signed & mask` widens to N+1 bits and would shift Q up a bit.
@@ -67,6 +73,8 @@ class LiteDSPCapture(LiteXModule):
             self.source.q.eq(rp.dat_r[data_width:]),
         ]
 
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="ARM")
         fsm.act("ARM",
             self.armed.eq(1),
@@ -94,6 +102,8 @@ class LiteDSPCapture(LiteXModule):
             )
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self._threshold = CSRStorage(data_width, name="threshold", description="Trigger level (I).")
             self._force     = CSRStorage(1, name="force", description="Force trigger.")
@@ -107,6 +117,9 @@ class LiteDSPCapture(LiteXModule):
                 self._status.fields.armed.eq(self.armed),
                 self._status.fields.done.eq(self.done),
             ]
+
+        # IRQ / Wishbone.
+        # ---------------
         if with_irq:
             self.add_irq()
         if with_wishbone:

@@ -31,6 +31,8 @@ class LiteDSPRationalResampler(LiteXModule):
 
         # # #
 
+        # Polyphase Cores.
+        # ----------------
         cutoff = 0.4/max(L, M)
         ntaps_i = (n_taps or (8*L + 1))
         ntaps_d = (n_taps or (8*M + 1))
@@ -40,6 +42,9 @@ class LiteDSPRationalResampler(LiteXModule):
         self.decim  = LiteDSPFIRDecimator(ntaps_d, M, data_width=data_width,
             coefficients=firwin_lowpass(ntaps_d, cutoff, data_width=data_width),
             with_csr=False)
+
+        # Datapath.
+        # ---------
         self.comb += [
             self.sink.connect(self.interp.sink),
             self.interp.source.connect(self.decim.sink),

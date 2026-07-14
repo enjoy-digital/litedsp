@@ -56,6 +56,8 @@ class LiteDSPFIRDecimator(LiteXModule):
 
         # # #
 
+        # Memories.
+        # ---------
         depth = _pow2_ceil(n_taps + R)
         mask  = depth - 1
         acc_w = 2*data_width + (n_taps - 1).bit_length() + 1
@@ -69,6 +71,8 @@ class LiteDSPFIRDecimator(LiteXModule):
         rip, rqp = mi.get_port(async_read=True),    mq.get_port(async_read=True)
         self.specials += crom, mi, mq, crp, cwp, wip, wqp, rip, rqp
 
+        # Coefficient Reload.
+        # -------------------
         # Coefficient-reload interface (write taps sequentially; default = the build-time taps).
         self.coeff_data = Signal(data_width)
         self.coeff_we   = Signal()
@@ -78,6 +82,8 @@ class LiteDSPFIRDecimator(LiteXModule):
         self.sync += If(self.coeff_rst, cwptr.eq(0)).Elif(self.coeff_we,
             If(cwptr == (n_taps - 1), cwptr.eq(0)).Else(cwptr.eq(cwptr + 1)))
 
+        # Signals.
+        # --------
         wptr  = Signal(max=depth)
         decim = Signal(max=R) if R > 1 else Signal()
         t     = Signal(max=n_taps + 1)
@@ -93,6 +99,8 @@ class LiteDSPFIRDecimator(LiteXModule):
             ci.eq(rip.dat_r), cq.eq(rqp.dat_r), cc.eq(crp.dat_r),
         ]
 
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="LOAD")
         fsm.act("LOAD",
             self.sink.ready.eq(1),
@@ -126,6 +134,8 @@ class LiteDSPFIRDecimator(LiteXModule):
             If(self.source.ready, NextState("LOAD")),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -172,6 +182,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
 
         # # #
 
+        # Memories.
+        # ---------
         depth = _pow2_ceil(sub + 1)
         acc_w = 2*data_width + (sub if sub > 1 else 1).bit_length() + 1
 
@@ -189,6 +201,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
         rip, rqp = mi.get_port(async_read=True),    mq.get_port(async_read=True)
         self.specials += crom, mi, mq, crp, wip, wqp, rip, rqp
 
+        # Signals.
+        # --------
         wptr  = Signal(max=depth)
         phase = Signal(max=L) if L > 1 else Signal()
         k     = Signal(max=sub + 1)
@@ -208,6 +222,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
         out_i, _ = scaled(acc_i, shift, data_width)
         out_q, _ = scaled(acc_q, shift, data_width)
 
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="LOAD")
         fsm.act("LOAD",
             self.sink.ready.eq(1),
@@ -245,6 +261,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
             )
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

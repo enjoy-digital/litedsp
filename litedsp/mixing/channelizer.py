@@ -33,9 +33,13 @@ class LiteDSPChannelizer(LiteXModule):
 
         # # #
 
+        # Input Split.
+        # ------------
         self.split = LiteDSPSplit(n=n_channels, data_width=data_width)
         self.comb += self.sink.connect(self.split.sink)
 
+        # DDC Bank.
+        # ---------
         self.ddcs    = []
         self.sources = []
         mask = (1 << phase_bits) - 1

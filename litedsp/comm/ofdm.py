@@ -37,15 +37,21 @@ class LiteDSPCPInsert(LiteXModule):
 
         # # #
 
+        # Memory.
+        # -------
         mem = Memory(2*data_width, fft_size)
         wp  = mem.get_port(write_capable=True)
         rp  = mem.get_port(async_read=True)
         self.specials += mem, wp, rp
 
+        # Signals.
+        # --------
         wptr = Signal(max=fft_size)
         rptr = Signal(max=fft_size)
         out_cnt = Signal(max=fft_size + cp_len)
 
+        # Datapath.
+        # ---------
         self.comb += [
             wp.adr.eq(wptr),
             wp.dat_w.eq(Cat(self.sink.i[:data_width], self.sink.q[:data_width])),
@@ -54,6 +60,8 @@ class LiteDSPCPInsert(LiteXModule):
             self.source.q.eq(rp.dat_r[data_width:]),
         ]
 
+        # FSM.
+        # ----
         self.fsm = fsm = FSM(reset_state="FILL")
         fsm.act("FILL",
             self.sink.ready.eq(1),
@@ -84,6 +92,8 @@ class LiteDSPCPInsert(LiteXModule):
             )
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -112,6 +122,8 @@ class LiteDSPCPRemove(LiteXModule):
 
         # # #
 
+        # Datapath.
+        # ---------
         cnt      = Signal(max=fft_size + cp_len)
         in_cp    = Signal()
         xfer     = Signal()
@@ -129,6 +141,8 @@ class LiteDSPCPRemove(LiteXModule):
             If(cnt == (fft_size + cp_len - 1), cnt.eq(0)).Else(cnt.eq(cnt + 1)),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

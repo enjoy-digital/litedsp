@@ -34,6 +34,8 @@ class LiteDSPMovingAverage(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -42,6 +44,8 @@ class LiteDSPMovingAverage(LiteXModule):
             xfer.eq(self.sink.valid & adv),
         ]
 
+        # Datapath.
+        # ---------
         acc_width = data_width + length_log2 + 1
         for field in ["i", "q"]:
             x   = getattr(self.sink, field)
@@ -65,6 +69,8 @@ class LiteDSPMovingAverage(LiteXModule):
             )
             self.sync += If(adv, getattr(self.source, field).eq(rounded(acc_next, length_log2)))
 
+        # Output.
+        # -------
         valid_pipe = Signal()
         self.sync += If(adv, valid_pipe.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid_pipe)

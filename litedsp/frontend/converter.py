@@ -38,10 +38,15 @@ class LiteDSPADCInterface(LiteXModule):
 
         shift = data_width - adc_width
         msb   = 1 << (adc_width - 1)
+
+        # Handshake.
+        # ----------
         self.comb += [
             self.source.valid.eq(self.sink.valid), self.sink.ready.eq(self.source.ready),
             self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
         ]
+        # Datapath.
+        # ---------
         for raw, out in [(self.sink.i, self.source.i), (self.sink.q, self.source.q)]:
             signed_raw = Signal((adc_width, True))
             self.comb += [
@@ -64,10 +69,15 @@ class LiteDSPDACInterface(LiteXModule):
 
         shift = data_width - dac_width
         msb   = 1 << (dac_width - 1)
+
+        # Handshake.
+        # ----------
         self.comb += [
             self.source.valid.eq(self.sink.valid), self.sink.ready.eq(self.source.ready),
             self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
         ]
+        # Rounding/Saturation.
+        # --------------------
         for inp, out in [(self.sink.i, self.source.i), (self.sink.q, self.source.q)]:
             trunc, _ = scaled(inp, shift, dac_width)
             self.comb += out.eq(trunc ^ msb if fmt == "offset_binary" else trunc)

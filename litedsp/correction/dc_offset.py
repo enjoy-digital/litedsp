@@ -34,6 +34,8 @@ class LiteDSPDCOffset(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -42,6 +44,8 @@ class LiteDSPDCOffset(LiteXModule):
             xfer.eq(self.sink.valid & adv),
         ]
 
+        # Datapath.
+        # ---------
         for field, mean in [("i", self.mean_i), ("q", self.mean_q)]:
             x   = getattr(self.sink, field)
             est = Signal((data_width, True))
@@ -51,6 +55,8 @@ class LiteDSPDCOffset(LiteXModule):
                 getattr(self.source, field).eq(saturated(x - est, data_width)),
             )
 
+        # Output.
+        # -------
         valid = Signal()
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)

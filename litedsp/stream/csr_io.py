@@ -34,6 +34,8 @@ class LiteDSPCSRSource(LiteXModule):
 
         # # #
 
+        # Output Register.
+        # ----------------
         self.sync += [
             If(self.push,
                 self.source.valid.eq(1),
@@ -44,6 +46,8 @@ class LiteDSPCSRSource(LiteXModule):
             )
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -73,6 +77,8 @@ class LiteDSPCSRSink(LiteXModule):
 
         # # #
 
+        # Datapath.
+        # ---------
         self.comb += self.sink.ready.eq(1)
         self.sync += [
             If(self.clear, self.count.eq(0)),
@@ -83,6 +89,8 @@ class LiteDSPCSRSink(LiteXModule):
             )
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -146,12 +154,16 @@ class LiteDSPNullSink(LiteXModule):
 
         # # #
 
+        # Counter.
+        # --------
         self.comb += self.sink.ready.eq(1)
         self.sync += [
             If(self.clear, self.count.eq(0)),
             If(self.sink.valid & ~self.clear, self.count.eq(self.count + 1)),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

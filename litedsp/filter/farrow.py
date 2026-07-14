@@ -34,6 +34,8 @@ class LiteDSPFarrowInterpolator(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -44,6 +46,8 @@ class LiteDSPFarrowInterpolator(LiteXModule):
         mu = Signal((frac_bits + 1, True))
         self.comb += mu.eq(self.mu)
 
+        # Datapath.
+        # ---------
         for field in ["i", "q"]:
             xin = getattr(self.sink, field)
             xm1 = Signal((data_width, True))     # x[n-3] .. x[n] window (xm1 oldest).
@@ -78,10 +82,14 @@ class LiteDSPFarrowInterpolator(LiteXModule):
                     scaled(a0_d2*(1 << frac_bits) + mu*y1, frac_bits, data_width)[0]),
             )
 
+        # Valid Pipeline.
+        # ---------------
         valid_pipe = Signal(self.latency)
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
         self.comb += self.source.valid.eq(valid_pipe[-1])
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

@@ -38,17 +38,23 @@ class LiteDSPPatternSource(LiteXModule):
 
         # # #
 
+        # Signals.
+        # --------
         adv  = Signal()
         cnt  = Signal(data_width)
         lfsr = Signal(data_width, reset=seed & ((1 << data_width) - 1) or 1)
         first = Signal(reset=1)                  # Distinguishes the impulse's first sample.
         self.comb += adv.eq(self.source.ready | ~self.source.valid)
 
+        # LFSR.
+        # -----
         # Maximal-length Fibonacci LFSR: shift left, XOR the tap mask back in when the MSB is set.
         fb        = lfsr[-1]
         taps      = {16: 0xB400, 12: 0xE08, 8: 0xB8}.get(data_width, 0xB400)
         lfsr_next = (lfsr << 1) ^ Mux(fb, Constant(taps, data_width), 0)
 
+        # Pattern Select.
+        # ---------------
         i_pat = Signal((data_width, True))
         q_pat = Signal((data_width, True))
         self.comb += Case(self.mode, {
@@ -58,6 +64,8 @@ class LiteDSPPatternSource(LiteXModule):
             PATTERN_IMPULSE: [i_pat.eq(Mux(first, (1 << (data_width - 1)) - 1, 0)), q_pat.eq(0)],
         })
 
+        # Output.
+        # -------
         self.sync += If(adv,
             self.source.valid.eq(1),
             self.source.i.eq(i_pat),
@@ -67,6 +75,8 @@ class LiteDSPPatternSource(LiteXModule):
             first.eq(0),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

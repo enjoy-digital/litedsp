@@ -45,16 +45,22 @@ class LiteDSPIIRBiquad(LiteXModule):
 
         # # #
 
+        # Coefficients.
+        # -------------
         b0, b1, b2 = coeffs["b0"], coeffs["b1"], coeffs["b2"]
         a1, a2     = coeffs["a1"], coeffs["a2"]
         SW         = self.state_width
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
         ]
 
+        # Datapath.
+        # ---------
         # The recursive loop s -> y -> a·y -> s' is a single pass per sample by nature; hoist
         # the feed-forward b·x products into a registered intake stage so only one multiply
         # level remains inside it.
@@ -77,6 +83,8 @@ class LiteDSPIIRBiquad(LiteXModule):
             )
             self.sync += If(adv, getattr(self.source, field).eq(y))
 
+        # Valid Pipeline.
+        # ---------------
         valid_pipe = Signal(2)
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[0])))
         self.comb += self.source.valid.eq(valid_pipe[1])

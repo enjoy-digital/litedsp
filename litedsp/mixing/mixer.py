@@ -97,7 +97,7 @@ class LiteDSPMixer(LiteXModule):
         )
 
         # Output: rescale product (round + saturate) or bypass a delayed input.
-        # --------------------------------------------------------------------
+        # ---------------------------------------------------------------------
         mix_i, _ = scaled(i_full, shift, data_width)
         mix_q, _ = scaled(q_full, shift, data_width)
         self.comb += Case(self.bypass, {

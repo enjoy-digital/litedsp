@@ -40,7 +40,7 @@ class LiteDSPPSD(LiteXModule):
         bits = self.bits
 
         # Accumulator RAM (one bin per FFT output), async read + sync write.
-        # -----------------------------------------------------------------
+        # ------------------------------------------------------------------
         acc_mem = Memory(self.power_width, N)
         acc_wp  = acc_mem.get_port(write_capable=True)
         acc_rp  = acc_mem.get_port(async_read=True)

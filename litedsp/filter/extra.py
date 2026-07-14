@@ -32,10 +32,14 @@ class LiteDSPNotch(LiteXModule):
 
         # # #
 
+        # Coefficients.
+        # -------------
         rq   = int(round(r*(1 << frac)))
         r2q  = int(round(r*r*(1 << frac)))
         gq   = int(round(((1 + r*r)/2)*(1 << frac)))      # Passband normalization.
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -43,6 +47,9 @@ class LiteDSPNotch(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         two_cos = Signal((data_width + 2, True))
         b1      = Signal((data_width + 2, True))          # -g*2cos.
         a1      = Signal((data_width + 2, True))          # +2r*cos (= r*2cos).
@@ -59,10 +66,15 @@ class LiteDSPNotch(LiteXModule):
             y  = scaled(yf, frac, data_width)[0]
             self.sync += If(xfer, x2.eq(x1), x1.eq(x), y2.eq(y1), y1.eq(y))
             self.sync += If(adv, getattr(self.source, f).eq(y))
+
+        # Output.
+        # -------
         valid = Signal()
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
 
+        # CSR.
+        # ----
         if with_csr:
             self._cos = CSRStorage(data_width, name="cos_w0", description="cos(2*pi*f0), Q.frac.")
             self.comb += self.cos_w0.eq(self._cos.storage)
@@ -80,6 +92,8 @@ class LiteDSPCombFilter(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -87,6 +101,9 @@ class LiteDSPCombFilter(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         for f in ["i", "q"]:
             x   = getattr(self.sink, f)
             mem = Memory(data_width, depth)
@@ -98,6 +115,9 @@ class LiteDSPCombFilter(LiteXModule):
             self.comb += [rp.adr.eq(ptr), wp.adr.eq(ptr), old.eq(rp.dat_r), wp.dat_w.eq(x), wp.we.eq(xfer)]
             self.sync += If(xfer, If(ptr == (depth - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
             self.sync += If(adv, getattr(self.source, f).eq(saturated(x - old, data_width)))
+
+        # Output.
+        # -------
         valid = Signal()
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
@@ -116,6 +136,8 @@ class LiteDSPAllpass(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -123,6 +145,9 @@ class LiteDSPAllpass(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
+
+        # Datapath.
+        # ---------
         for f in ["i", "q"]:
             x  = getattr(self.sink, f)
             x1 = Signal((data_width, True))
@@ -130,10 +155,15 @@ class LiteDSPAllpass(LiteXModule):
             y  = scaled(-self.a*x + (x1 << frac) + self.a*y1, frac, data_width)[0]
             self.sync += If(xfer, x1.eq(x), y1.eq(y))
             self.sync += If(adv, getattr(self.source, f).eq(y))
+
+        # Output.
+        # -------
         valid = Signal()
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
 
+        # CSR.
+        # ----
         if with_csr:
             self._a = CSRStorage(data_width, reset=self.a.reset.value, name="a",
                 description="Allpass coefficient (Q.frac).")

@@ -31,13 +31,19 @@ class LiteDSPDelay(LiteXModule):
 
         # # #
 
+        # Passthrough.
+        # ------------
         if depth == 0:
             self.comb += self.sink.connect(self.source)
             return
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
+        # Delay Pipeline.
+        # ---------------
         i_pipe = [Signal((data_width, True)) for _ in range(depth)]
         q_pipe = [Signal((data_width, True)) for _ in range(depth)]
         v_pipe = Signal(depth)
@@ -48,6 +54,9 @@ class LiteDSPDelay(LiteXModule):
             *[i_pipe[k].eq(i_pipe[k - 1]) for k in range(1, depth)],
             *[q_pipe[k].eq(q_pipe[k - 1]) for k in range(1, depth)],
         )
+
+        # Output.
+        # -------
         self.comb += [
             self.source.valid.eq(v_pipe[-1]),
             self.source.i.eq(i_pipe[-1]),

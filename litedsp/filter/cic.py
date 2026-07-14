@@ -52,6 +52,8 @@ class LiteDSPCICDecimator(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv    = Signal()
         is_out = Signal()
         xfer   = Signal()
@@ -64,6 +66,8 @@ class LiteDSPCICDecimator(LiteXModule):
         ]
         self.sync += If(xfer, If(is_out, decim.eq(0)).Else(decim.eq(decim + 1)))
 
+        # Datapath.
+        # ---------
         for field in ["i", "q"]:
             x = getattr(self.sink, field)
 
@@ -100,10 +104,14 @@ class LiteDSPCICDecimator(LiteXModule):
                 ),
             ]
 
+        # Output.
+        # -------
         self.sync += [
             If(xfer & is_out, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0)),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -151,6 +159,8 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv    = Signal()
         is_out = Signal()
         xfer   = Signal()
@@ -165,6 +175,8 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
         ]
         self.sync += If(xfer, If(is_out, decim.eq(0)).Else(decim.eq(decim + 1)))
 
+        # Datapath.
+        # ---------
         bias = Signal(W)
         self.comb += bias.eq(Mux(self.shift == 0, 0, (1 << self.shift) >> 1))
 
@@ -193,8 +205,12 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
             self.comb += shifted.eq((c + bias) >> self.shift)
             self.sync += If(xfer & is_out, getattr(self.source, field).eq(saturated(shifted, data_width)))
 
+        # Output.
+        # -------
         self.sync += If(xfer & is_out, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0))
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -223,6 +239,8 @@ class LiteDSPCICInterpolator(LiteXModule):
 
         # # #
 
+        # Control.
+        # --------
         adv   = Signal()
         first = Signal()        # Start of an output group (consume one input).
         phase = Signal(max=R)
@@ -239,6 +257,8 @@ class LiteDSPCICInterpolator(LiteXModule):
             If(phase == (R - 1), phase.eq(0)).Else(phase.eq(phase + 1)),
         )
 
+        # Datapath.
+        # ---------
         for field in ["i", "q"]:
             x = getattr(self.sink, field)
 
@@ -275,8 +295,12 @@ class LiteDSPCICInterpolator(LiteXModule):
             out, _ = scaled(nxt[N - 1], growth, data_width)
             self.sync += If(emit, getattr(self.source, field).eq(out))
 
+        # Output.
+        # -------
         self.sync += If(emit, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0))
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

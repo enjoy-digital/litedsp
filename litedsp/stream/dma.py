@@ -53,6 +53,7 @@ class LiteDSPDMACapture(LiteXModule):
         # # #
 
         # DMA writer backend.
+        # -------------------
         if bus is not None:
             from litex.soc.cores.dma import WishboneDMAWriter
             self.bus    = bus
@@ -68,12 +69,14 @@ class LiteDSPDMACapture(LiteXModule):
             word_width  = port.data_width
 
         # Control Signal aliases (Wishbone backend, with_csr=False).
+        # ----------------------------------------------------------
         if not with_csr:
             self.base,   self.length = self.writer.base, self.writer.length
             self.enable, self.done   = self.writer.enable, self.writer.done
             self.loop,   self.offset = self.writer.loop, self.writer.offset
 
         # Samples -> memory words.
+        # ------------------------
         self.pack = LiteDSPIQPack(ratio=_word_ratio(word_width, data_width), data_width=data_width)
         self.comb += [
             self.sink.connect(self.pack.sink),
@@ -92,6 +95,7 @@ class LiteDSPDMAReplay(LiteXModule):
         # # #
 
         # DMA reader backend.
+        # -------------------
         if bus is not None:
             from litex.soc.cores.dma import WishboneDMAReader
             self.bus    = bus
@@ -108,12 +112,14 @@ class LiteDSPDMAReplay(LiteXModule):
             word_width  = port.data_width
 
         # Control Signal aliases (Wishbone backend, with_csr=False).
+        # ----------------------------------------------------------
         if not with_csr:
             self.base,   self.length = self.reader.base, self.reader.length
             self.enable, self.done   = self.reader.enable, self.reader.done
             self.loop,   self.offset = self.reader.loop, self.reader.offset
 
         # Memory words -> samples.
+        # ------------------------
         self.unpack = LiteDSPIQUnpack(ratio=_word_ratio(word_width, data_width), data_width=data_width)
         self.comb += [
             self.reader.source.connect(self.unpack.sink),

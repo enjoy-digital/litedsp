@@ -35,6 +35,8 @@ class LiteDSPGoertzel(LiteXModule):
 
         # # #
 
+        # Resonator.
+        # ----------
         s1, s2 = Signal((SW, True)), Signal((SW, True))
         count  = Signal(max=N)
         s      = Signal((SW, True))
@@ -42,6 +44,9 @@ class LiteDSPGoertzel(LiteXModule):
             self.sink.ready.eq(1),
             s.eq(self.sink.data + ((coeff*s1) >> coeff_frac) - s2),
         ]
+
+        # Power Pipeline.
+        # ---------------
         # Power from the final states (new s1 = s, new s2 = s1), computed over a 2-stage
         # registered pipeline after the window boundary — done combinationally it chained three
         # multiplies onto the resonator and was the block's critical path. Bit-identical result,
@@ -73,6 +78,8 @@ class LiteDSPGoertzel(LiteXModule):
             ),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

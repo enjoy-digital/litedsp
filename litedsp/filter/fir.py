@@ -82,7 +82,7 @@ class LiteDSPFIRFilter(LiteXModule):
         # # #
 
         # Handshake: drain when output can accept; consume an input on each drained beat.
-        # ------------------------------------------------------------------------------
+        # -------------------------------------------------------------------------------
         adv  = Signal()  # Pipeline drains (output slot free or being consumed).
         xfer = Signal()  # A real input sample is consumed this beat.
         self.comb += [
@@ -92,7 +92,7 @@ class LiteDSPFIRFilter(LiteXModule):
         ]
 
         # Sample shift register (advances only on real transfers; regs[0] = newest).
-        # -------------------------------------------------------------------------
+        # --------------------------------------------------------------------------
         regs = [Signal((data_width, True)) for _ in range(n_taps)]
         self.sync += If(xfer, regs[0].eq(self.sink.data))
         for t in range(1, n_taps):
@@ -126,7 +126,7 @@ class LiteDSPFIRFilter(LiteXModule):
         self.comb += self.source.data.eq(out)
 
         # Valid pipeline (matches the 3 register stages, drains on each beat).
-        # -------------------------------------------------------------------
+        # --------------------------------------------------------------------
         valid_pipe = Signal(self.latency)
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
         self.comb += self.source.valid.eq(valid_pipe[-1])

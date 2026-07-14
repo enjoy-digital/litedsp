@@ -33,6 +33,8 @@ class LiteDSPArbResampler(LiteXModule):
 
         # # #
 
+        # Control.
+        # --------
         phase  = Signal(frac + ratio_int)
         primed = Signal()
         cnt    = Signal(3)
@@ -46,6 +48,8 @@ class LiteDSPArbResampler(LiteXModule):
         ]
         mu = phase[:frac]
 
+        # Datapath.
+        # ---------
         for f in ["i", "q"]:
             xin = getattr(self.sink, f)
             xm1, x0, x1, x2 = (Signal((data_width, True)) for _ in range(4))
@@ -66,6 +70,8 @@ class LiteDSPArbResampler(LiteXModule):
             ]
             self.comb += getattr(self.source, f).eq(scaled(x0*(1 << frac) + mu*y1, frac, data_width)[0])
 
+        # Phase Accumulator.
+        # ------------------
         self.sync += [
             If(self.sink.valid & consuming,
                 If(cnt < 4, cnt.eq(cnt + 1)),
@@ -76,6 +82,8 @@ class LiteDSPArbResampler(LiteXModule):
             ),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self._ratio = CSRStorage(frac + ratio_int, reset=ONE, name="ratio",
                 description="Resampling ratio f_in/f_out (Q.frac).")

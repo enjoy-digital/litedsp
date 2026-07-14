@@ -26,6 +26,8 @@ class LiteDSPChannelMux(LiteXModule):
 
         # # #
 
+        # Mux.
+        # ----
         cases = {}
         for k in range(n):
             cases[k] = [
@@ -38,6 +40,8 @@ class LiteDSPChannelMux(LiteXModule):
             ]
         self.comb += Case(self.sel, cases)   # Unselected sinks: ready stays 0.
 
+        # CSR.
+        # ----
         if with_csr:
             self._sel = CSRStorage(self.sel.nbits, name="sel", description="Selected input channel.")
             self.comb += self.sel.eq(self._sel.storage)
@@ -53,6 +57,8 @@ class LiteDSPChannelDemux(LiteXModule):
 
         # # #
 
+        # Demux.
+        # ------
         cases = {}
         for k in range(n):
             cases[k] = [
@@ -65,6 +71,8 @@ class LiteDSPChannelDemux(LiteXModule):
             ]
         self.comb += Case(self.sel, cases)   # Unselected sources: valid stays 0.
 
+        # CSR.
+        # ----
         if with_csr:
             self._sel = CSRStorage(self.sel.nbits, name="sel", description="Selected output channel.")
             self.comb += self.sel.eq(self._sel.storage)

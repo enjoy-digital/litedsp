@@ -35,15 +35,22 @@ class LiteDSPStreamFIFO(LiteXModule):
 
         # # #
 
+        # FIFO.
+        # -----
         self.fifo = fifo = stream.SyncFIFO(layout, depth)
         self.comb += [
             self.sink.connect(fifo.sink),
             fifo.source.connect(self.source),
             self.level.eq(fifo.level),
         ]
+
+        # Overflow.
+        # ---------
         # Overflow = master pushed (valid) while the FIFO could not accept (ready low).
         self.sync += If(self.sink.valid & ~self.sink.ready, self.overflow.eq(1))
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

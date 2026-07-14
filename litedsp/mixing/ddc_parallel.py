@@ -39,12 +39,17 @@ class LiteDSPParallelDDC(LiteXModule):
 
         # # #
 
+        # Submodules.
+        # -----------
         self.nco   = LiteDSPParallelNCO(n_samples=n_samples, phase_bits=phase_bits,
             data_width=data_width, with_csr=with_csr)
         self.mixer = LiteDSPParallelMixer(n_samples=n_samples, data_width=data_width, with_csr=False)
         self.decim = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=data_width,
             R=decimation, N=cic_stages, with_csr=with_csr)
         self.latency = self.mixer.latency + self.decim.latency
+
+        # Datapath.
+        # ---------
         self.comb += [
             self.mixer.mode.eq(MIXER_MODE_DOWN),
             self.sink.connect(self.mixer.sink_a),

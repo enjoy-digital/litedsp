@@ -33,14 +33,20 @@ class LiteDSPHistogram(LiteXModule):
 
         # # #
 
+        # Memory.
+        # -------
         mem = Memory(count_width, B)               # Zero-initialized.
         wp  = mem.get_port(write_capable=True)
         rp  = mem.get_port(async_read=True)
         self.specials += mem, wp, rp
 
+        # Binning.
+        # --------
         bin_addr = Signal(bits)
         self.comb += bin_addr.eq((self.sink.data + (1 << (data_width - 1)))[data_width - bits:])
 
+        # FSM.
+        # ----
         sample   = Signal(window_log2 + 1)
         read_cnt = Signal(bits)
         accept   = Signal()

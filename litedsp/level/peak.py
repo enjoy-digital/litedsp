@@ -31,15 +31,21 @@ class LiteDSPEnvelopeDetector(LiteXModule):
 
         # # #
 
+        # Magnitude.
+        # ----------
         self.mag = LiteDSPMagnitude(data_width=data_width, with_csr=False)
         W        = self.mag.out_width
         self.source = stream.Endpoint(real_layout(W))
         self.latency = self.mag.latency + 1
         self.comb += self.sink.connect(self.mag.sink)
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.mag.source.ready.eq(adv)]
 
+        # Envelope Follower.
+        # ------------------
         env   = Signal(W)
         m     = Signal((W + 1, True))
         delta = Signal((W + 1, True))

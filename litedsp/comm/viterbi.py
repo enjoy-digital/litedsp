@@ -82,6 +82,8 @@ class LiteDSPViterbiDecoder(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -91,11 +93,13 @@ class LiteDSPViterbiDecoder(LiteXModule):
         ]
 
         # Path metrics (state 0 favored at reset: the encoder starts zeroed) + survivors.
+        # -------------------------------------------------------------------------------
         big     = 1 << (metric_width - 2)
         metrics = [Signal(metric_width, reset=(0 if s == 0 else big)) for s in range(n_states)]
         survs   = [Signal(traceback) for s in range(n_states)]
 
         # Hamming branch metrics for every possible expected symbol value.
+        # ----------------------------------------------------------------
         bm = {}
         for sym in range(1 << n_bits):
             s = Signal(max=n_bits + 1)
@@ -103,6 +107,7 @@ class LiteDSPViterbiDecoder(LiteXModule):
             bm[sym] = s
 
         # ACS: per-state add-compare-select (ties keep predecessor 0).
+        # ------------------------------------------------------------
         preds    = _transitions(constraint, polys)
         new_ms   = []
         new_ss   = []
@@ -122,10 +127,13 @@ class LiteDSPViterbiDecoder(LiteXModule):
             new_ss.append(sv)
 
         # Normalize by the global minimum (also selects the best survivor for the output).
+        # --------------------------------------------------------------------------------
         best_m, best_sv = _min_tree([(new_ms[s], new_ss[s]) for s in range(n_states)], self.comb)
         self.sync += If(xfer, *[metrics[s].eq(new_ms[s] - best_m) for s in range(n_states)],
                               *[survs[s].eq(new_ss[s]) for s in range(n_states)])
 
+        # Output.
+        # -------
         # Output: the oldest bit of the best path, once the exchange registers are full (the
         # bit for input 0 reaches the survivor MSB on the traceback-th consumed symbol).
         warmup = Signal(max=traceback + 1, reset=traceback - 1)
@@ -135,6 +143,8 @@ class LiteDSPViterbiDecoder(LiteXModule):
             If(xfer & (warmup != 0), warmup.eq(warmup - 1)),
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

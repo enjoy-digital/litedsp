@@ -76,7 +76,7 @@ class LiteDSPCORDIC(LiteXModule):
         z = [Signal((Wz, True)) for _ in range(stages + 1)]
 
         # Pre-rotation into the convergence region, registered as stage 0.
-        # ---------------------------------------------------------------
+        # ----------------------------------------------------------------
         x_pre, y_pre, z_pre = Signal((W, True)), Signal((W, True)), Signal((Wz, True))
         if mode == "rotation":
             zin   = self.sink.z

@@ -31,11 +31,16 @@ class LiteDSPDDC(LiteXModule):
 
         # # #
 
+        # Submodules.
+        # -----------
         self.nco   = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)
         self.decim = LiteDSPDecimator(data_width=data_width, factor=decimation, method=method,
             with_csr=with_csr)
         self.latency = self.decim.latency
+
+        # Datapath.
+        # ---------
         self.comb += [
             self.mixer.mode.eq(MIXER_MODE_DOWN),
             self.sink.connect(self.mixer.sink_a),

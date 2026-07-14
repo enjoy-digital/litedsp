@@ -55,6 +55,8 @@ class LiteDSPFFTIter(LiteXModule):
 
         # # #
 
+        # Memories.
+        # ---------
         # Sample RAMs (I and Q): two synchronous-read R/W ports each -> one TDP BRAM per memory.
         mi, mq = Memory(data_width, N), Memory(data_width, N)
         ai, bi = mi.get_port(write_capable=True), mi.get_port(write_capable=True)
@@ -65,6 +67,8 @@ class LiteDSPFFTIter(LiteXModule):
         sin_rp  = sin_rom.get_port(async_read=True)
         self.specials += mi, mq, ai, bi, aq, bq, cos_rom, sin_rom, cos_rp, sin_rp
 
+        # Address Generation.
+        # -------------------
         s   = Signal(max=max(2, S))
         b   = Signal(max=max(2, N//2))
         idx = Signal(max=N)
@@ -81,6 +85,8 @@ class LiteDSPFFTIter(LiteXModule):
             cos_rp.adr.eq(j << (S - 1 - s)), sin_rp.adr.eq(j << (S - 1 - s)),
         ]
 
+        # Datapath.
+        # ---------
         # Butterfly arithmetic (operands are the registered reads from the previous cycle).
         # The twiddle product is registered in its own cycle (BFLY_CALC) so each clock carries
         # one multiply level: read -> product register -> write.
@@ -100,6 +106,7 @@ class LiteDSPFFTIter(LiteXModule):
         dif_q, _ = scaled(Aq - pi, 1, data_width)
 
         # FSM and single-driver port wiring.
+        # ----------------------------------
         self.fsm = fsm = FSM(reset_state="LOAD")
         load  = fsm.ongoing("LOAD")
         read  = fsm.ongoing("BFLY_READ")
@@ -147,6 +154,8 @@ class LiteDSPFFTIter(LiteXModule):
             )
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self._latency = CSRStatus(32, reset=self.latency, name="latency",
                 description="Iterative FFT burst latency (cycles).")

@@ -37,12 +37,16 @@ class LiteDSPSaturate(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
         ]
 
+        # Rounding/Saturation.
+        # --------------------
         res_i, ovf_i = scaled(self.sink.i, shift, data_width)
         res_q, ovf_q = scaled(self.sink.q, shift, data_width)
         self.sync += If(adv,
@@ -50,6 +54,9 @@ class LiteDSPSaturate(LiteXModule):
             self.source.q.eq(res_q),
             self.source.valid.eq(self.sink.valid),
         )
+
+        # Saturation Flag.
+        # ----------------
         self.sync += [
             If(self.clear_sat,
                 self.sat.eq(0),
@@ -58,6 +65,8 @@ class LiteDSPSaturate(LiteXModule):
             )
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

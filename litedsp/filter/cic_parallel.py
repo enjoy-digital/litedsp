@@ -46,6 +46,8 @@ class LiteDSPParallelCICDecimator(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         beats_per_out = R // n_samples
 
         adv    = Signal()
@@ -63,6 +65,8 @@ class LiteDSPParallelCICDecimator(LiteXModule):
             self.comb += is_out.eq(decim == (beats_per_out - 1))
             self.sync += If(xfer, If(is_out, decim.eq(0)).Else(decim.eq(decim + 1)))
 
+        # Datapath.
+        # ---------
         for field in ["i", "q"]:
             lanes = [l[0] if field == "i" else l[1]
                      for l in iq_lanes(self.sink, data_width, n_samples)]
@@ -102,10 +106,14 @@ class LiteDSPParallelCICDecimator(LiteXModule):
             out, _ = scaled(c, growth, data_width)
             self.sync += If(xfer & is_out, getattr(self.source, field).eq(out))
 
+        # Output.
+        # -------
         self.sync += [
             If(xfer & is_out, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0)),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

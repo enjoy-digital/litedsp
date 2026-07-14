@@ -37,21 +37,30 @@ class LiteDSPSquelch(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
+        # Gate Hysteresis.
+        # ----------------
         power = Signal(self.power_width)
         self.comb += power.eq(self.sink.i*self.sink.i + self.sink.q*self.sink.q)
         self.sync += If(self.sink.valid & adv,
             If(power >= self.open_threshold, self.open.eq(1)
             ).Elif(power < self.close_threshold, self.open.eq(0)),
         )
+
+        # Output.
+        # -------
         self.sync += If(adv,
             self.source.i.eq(Mux(self.open, self.sink.i, 0)),
             self.source.q.eq(Mux(self.open, self.sink.q, 0)),
             self.source.valid.eq(self.sink.valid),
         )
 
+        # CSR / IRQ.
+        # ----------
         if with_csr:
             self.add_csr()
         if with_irq:

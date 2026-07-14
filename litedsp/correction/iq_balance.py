@@ -39,6 +39,8 @@ class LiteDSPIQBalance(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         i, q = self.sink.i, self.sink.q
@@ -49,6 +51,7 @@ class LiteDSPIQBalance(LiteXModule):
         ]
 
         # Correction datapath.
+        # --------------------
         qc, _ = scaled(self.c1*i + self.c2*q, coeff_frac, data_width)
         self.sync += If(adv,
             self.source.i.eq(i),
@@ -57,6 +60,7 @@ class LiteDSPIQBalance(LiteXModule):
         )
 
         # Estimator over a window (latched for firmware).
+        # -----------------------------------------------
         count = Signal(window_log2 + 1)
         ii    = Signal(acc_w)
         qq    = Signal(acc_w)
@@ -72,6 +76,8 @@ class LiteDSPIQBalance(LiteXModule):
             )
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

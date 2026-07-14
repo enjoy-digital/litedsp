@@ -58,7 +58,7 @@ class LiteDSPMagnitude(LiteXModule):
         ]
 
         # |I|, |Q| (one bit wider to hold the magnitude of the most-negative value).
-        # ------------------------------------------------------------------------
+        # --------------------------------------------------------------------------
         ai = Signal(data_width + 1)
         aq = Signal(data_width + 1)
         self.comb += [

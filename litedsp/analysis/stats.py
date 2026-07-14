@@ -35,6 +35,8 @@ class LiteDSPStats(LiteXModule):
 
         # # #
 
+        # Signals.
+        # --------
         N      = 1 << window_log2
         x      = self.sink.data
         count  = Signal(window_log2 + 1)
@@ -45,6 +47,8 @@ class LiteDSPStats(LiteXModule):
         last   = Signal()
         self.comb += [self.sink.ready.eq(1), last.eq(count == (N - 1))]
 
+        # Accumulation / Output.
+        # ----------------------
         meanf = Signal((data_width, True))
         self.comb += meanf.eq((acc + x) >> window_log2)
         self.sync += [

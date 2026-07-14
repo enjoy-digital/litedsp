@@ -34,20 +34,29 @@ class LiteDSPLog2(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
+        # Priority Encoder.
+        # -----------------
         x   = Signal(in_width)
         self.comb += x.eq(self.sink.data)
         msb = Signal(max=in_width)
         for i in range(in_width):
             self.comb += If(x[i], msb.eq(i))                   # Highest set bit (last wins).
 
+        # Mantissa Extraction.
+        # --------------------
         shifted = Signal(2*in_width)
         self.comb += shifted.eq(x << (in_width - 1 - msb))     # Align MSB to bit in_width-1.
         mant = shifted[in_width - 1 - frac_bits:in_width - 1]
         res  = Signal(self.out_width)
         self.comb += If(x != 0, res.eq(Cat(mant, msb)))        # msb*2**frac + mantissa.
+
+        # Output.
+        # -------
         self.sync += If(adv,
             self.source.data.eq(res),
             self.source.valid.eq(self.sink.valid),
@@ -64,17 +73,26 @@ class LiteDSPLogPower(LiteXModule):
         self.sink   = stream.Endpoint(real_layout(in_width))
         DB_PER_BIT  = 3.010299957                              # 10*log10(2).
         # # #
+
+        # Log2 Core.
+        # ----------
         self.log2 = LiteDSPLog2(in_width=in_width, frac_bits=8, with_csr=False)
         scale     = int(round(DB_PER_BIT*(1 << out_frac)))     # dB per log2-unit, Q(out_frac+).
         self.out_width = self.log2.out_width + scale.bit_length()
         self.source = stream.Endpoint([("data", self.out_width)])
         self.latency = self.log2.latency + 1
         self.comb += self.sink.connect(self.log2.sink)
+
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.log2.source.ready.eq(adv),
         ]
+
+        # Output.
+        # -------
         self.sync += If(adv,
             # log2 is Q?.8; scale is Q?.out_frac dB/unit -> dB in Q?.(8+out_frac), then >>8.
             self.source.data.eq((self.log2.source.data*scale) >> 8),

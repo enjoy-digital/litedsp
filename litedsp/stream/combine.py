@@ -41,7 +41,7 @@ class LiteDSPCombine(LiteXModule):
         # # #
 
         # Synchronous join: consume all sinks together when output can accept.
-        # -------------------------------------------------------------------
+        # --------------------------------------------------------------------
         all_valid = reduce(and_, [s.valid for s in self.sinks])
         advance   = Signal()
         consume   = Signal()

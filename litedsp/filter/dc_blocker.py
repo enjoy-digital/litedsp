@@ -32,6 +32,8 @@ class LiteDSPDCBlocker(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -40,6 +42,8 @@ class LiteDSPDCBlocker(LiteXModule):
             xfer.eq(self.sink.valid & adv),
         ]
 
+        # Datapath.
+        # ---------
         for field in ["i", "q"]:
             x      = getattr(self.sink, field)
             x_prev = Signal((data_width, True))
@@ -52,6 +56,8 @@ class LiteDSPDCBlocker(LiteXModule):
             )
             self.sync += If(adv, getattr(self.source, field).eq(y_next))
 
+        # Output.
+        # -------
         valid_pipe = Signal()
         self.sync += If(adv, valid_pipe.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid_pipe)

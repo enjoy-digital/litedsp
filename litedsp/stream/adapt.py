@@ -97,6 +97,8 @@ class LiteDSPIQSerialToParallel(LiteXModule):
 
         # # #
 
+        # Datapath.
+        # ---------
         self.conv = conv = stream.Converter(sw, sw*n_samples)
         self.comb += [
             conv.sink.valid.eq(self.sink.valid),
@@ -109,6 +111,9 @@ class LiteDSPIQSerialToParallel(LiteXModule):
             self.source.first.eq(conv.source.first),
             self.source.last.eq(conv.source.last),
         ]
+
+        # Output Lanes.
+        # -------------
         for k, (i, q) in enumerate(iq_lanes(self.source, data_width, n_samples)):
             self.comb += [
                 i.eq(conv.source.data[k*sw:k*sw + data_width]),
@@ -125,10 +130,15 @@ class LiteDSPIQParallelToSerial(LiteXModule):
 
         # # #
 
+        # Input Lanes.
+        # ------------
         self.conv = conv = stream.Converter(sw*n_samples, sw)
         word = Signal(sw*n_samples)
         for k, (i, q) in enumerate(iq_lanes(self.sink, data_width, n_samples)):
             self.comb += word[k*sw:(k + 1)*sw].eq(Cat(i, q))
+
+        # Datapath.
+        # ---------
         self.comb += [
             conv.sink.valid.eq(self.sink.valid),
             self.sink.ready.eq(conv.sink.ready),

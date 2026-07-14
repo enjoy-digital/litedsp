@@ -45,11 +45,16 @@ class LiteDSPUDPIQStreamer(LiteXModule):
 
         from liteeth.frontend.stream import LiteEthStream2UDPTX
 
+        # Submodules.
+        # -----------
         words_per_packet = samples_per_packet*2*data_width//word_width
         self.packetizer  = LiteDSPIQPacketizer(data_width=data_width, word_width=word_width,
             samples_per_packet=samples_per_packet, with_csr=with_csr)
         self.tx = LiteEthStream2UDPTX(ip_address=ip_address, udp_port=udp_port,
             data_width=word_width, fifo_depth=words_per_packet)
+
+        # Datapath.
+        # ---------
         port = _get_port(udp, udp_port, word_width)
         self.comb += [
             self.sink.connect(self.packetizer.sink),
@@ -69,10 +74,15 @@ class LiteDSPUDPIQReceiver(LiteXModule):
 
         from liteeth.frontend.stream import LiteEthUDP2StreamRX
 
+        # Submodules.
+        # -----------
         self.rx = LiteEthUDP2StreamRX(udp_port=udp_port, data_width=word_width,
             fifo_depth=fifo_depth)
         self.depacketizer = LiteDSPIQDepacketizer(data_width=data_width, word_width=word_width,
             with_csr=with_csr)
+
+        # Datapath.
+        # ---------
         port = _get_port(udp, udp_port, word_width)
         self.comb += [
             port.source.connect(self.rx.sink),

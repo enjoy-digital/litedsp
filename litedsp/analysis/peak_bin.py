@@ -28,13 +28,20 @@ class LiteDSPPeakBin(LiteXModule):
 
         # # #
 
+        # Signals.
+        # --------
         idx      = Signal(index_width)
         best_idx = Signal(index_width)
         best_val = Signal(data_width)
+
+        # Handshake.
+        # ----------
         self.comb += self.sink.ready.eq(self.source.ready | ~self.source.valid)
         xfer = Signal()
         self.comb += xfer.eq(self.sink.valid & self.sink.ready)
 
+        # Datapath.
+        # ---------
         cur_better = Signal()
         self.comb += cur_better.eq(self.sink.first | (self.sink.data > best_val))
         new_idx = Signal(index_width)
@@ -43,6 +50,9 @@ class LiteDSPPeakBin(LiteXModule):
             new_idx.eq(Mux(cur_better, idx, best_idx)),
             new_val.eq(Mux(cur_better, self.sink.data, best_val)),
         ]
+
+        # Output.
+        # -------
         self.sync += [
             If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
             If(xfer,

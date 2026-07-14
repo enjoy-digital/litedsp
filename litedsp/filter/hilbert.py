@@ -33,15 +33,21 @@ class LiteDSPHilbert(LiteXModule):
 
         # # #
 
+        # FIR Paths.
+        # ----------
         self.fir_i = LiteDSPFIRFilter(n_taps, data_width=data_width)   # Delay path (matches group delay).
         self.fir_q = LiteDSPFIRFilter(n_taps, data_width=data_width)   # Hilbert (90 deg) path.
         self.latency = self.fir_i.latency
 
+        # Coefficients.
+        # -------------
         center = (n_taps - 1)//2
         self.fir_i.coeffs[center].reset = (1 << (data_width - 1)) - 1   # Unit delay tap.
         for t, c in enumerate(hilbert_coefficients(n_taps, data_width=data_width)):
             self.fir_q.coeffs[t].reset = c
 
+        # Datapath.
+        # ---------
         self.comb += [
             self.fir_i.sink.valid.eq(self.sink.valid),
             self.fir_q.sink.valid.eq(self.sink.valid),

@@ -43,6 +43,8 @@ class LiteDSPTimingRecovery(LiteXModule):
 
         # # #
 
+        # Constants.
+        # ----------
         ONE       = 1 << frac
         gm_q      = int(round(gain_mu*ONE))
         go_q      = int(round(gain_omega*ONE))
@@ -51,6 +53,8 @@ class LiteDSPTimingRecovery(LiteXModule):
         omega_lim = int(round(0.05*sps*ONE))
         iw        = frac + 4                              # mu/omega width (a few integer bits).
 
+        # Signals.
+        # --------
         # State. Gardner keeps one extra window sample for the midpoint interpolation.
         nw    = 4 if ted == "mm" else 5
         need  = Signal(4, reset=nw)                      # Inputs to consume before next output.
@@ -60,6 +64,8 @@ class LiteDSPTimingRecovery(LiteXModule):
         wi    = [Signal((data_width, True)) for _ in range(nw)]
         last_r, last_q = Signal((data_width, True)), Signal((data_width, True))
 
+        # Handshake.
+        # ----------
         # The interpolator registers below are free-running and settle iteratively once the
         # window/mu stop changing; emission waits SETTLE cycles after the last consumed sample
         # so only one multiply level remains per clock (was: three chained multiplies, the
@@ -82,6 +88,8 @@ class LiteDSPTimingRecovery(LiteXModule):
             ),
         ]
 
+        # Interpolator.
+        # -------------
         # Cubic (Catmull-Rom) interpolation at mu (fractional part) between wr[1], wr[2],
         # registered per multiply stage (valid SETTLE cycles after window/mu are stable).
         mu_f = mu[:frac]
@@ -105,6 +113,8 @@ class LiteDSPTimingRecovery(LiteXModule):
         yq = interp(wi[nw-4:])
         self.comb += [self.source.i.eq(yr), self.source.q.eq(yq)]
 
+        # Timing Error.
+        # -------------
         err = Signal((data_width + 3, True))             # Registered (the 4th settle stage).
         if ted == "mm":
             # M&M timing error (slices are +/-1, so no multiplies): e = sgn(last)·y − sgn(y)·last.
@@ -131,6 +141,7 @@ class LiteDSPTimingRecovery(LiteXModule):
             self.sync += err.eq(Mux(nominal, saturated(gs, data_width + 3), 0))
 
         # Loop update + interpolation controller (on each emitted symbol).
+        # ----------------------------------------------------------------
         omega_n = Signal((iw, True))
         mu_n    = Signal((iw + 1, True))
         self.comb += [
@@ -160,6 +171,8 @@ class LiteDSPTimingRecovery(LiteXModule):
             ),
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self._omega = CSRStatus(iw, name="omega", description="Samples/symbol estimate (Q.frac).")
             self.comb += self._omega.status.eq(omega)

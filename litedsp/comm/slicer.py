@@ -35,9 +35,13 @@ class LiteDSPSlicer(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
+        # Decision.
+        # ---------
         def decide(x):
             # k = number of decision boundaries (at (2j-L+2)*spacing) at/below x.
             k = Signal(max=max(2, L))
@@ -49,6 +53,9 @@ class LiteDSPSlicer(LiteXModule):
 
         ki, pi = decide(self.sink.i)
         kq, pq = decide(self.sink.q)
+
+        # Output.
+        # -------
         self.sync += If(adv,
             self.source.i.eq(pi), self.source.q.eq(pq),
             self.source.symbol.eq(Cat(ki, kq)),

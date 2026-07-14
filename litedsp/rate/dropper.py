@@ -35,6 +35,8 @@ class LiteDSPDownsampler(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         advance = Signal()
         keep    = Signal()
         count   = Signal(factor_bits)
@@ -46,9 +48,15 @@ class LiteDSPDownsampler(LiteXModule):
             self.sink.ready.eq(Mux(keep, advance, 1)),
             consume.eq(self.sink.valid & self.sink.ready),
         ]
+
+        # Sample Counter.
+        # ---------------
         self.sync += If(consume,
             If(count == (self.factor - 1), count.eq(0)).Else(count.eq(count + 1))
         )
+
+        # Output.
+        # -------
         self.sync += [
             If(consume & keep,
                 self.source.i.eq(self.sink.i),
@@ -59,6 +67,8 @@ class LiteDSPDownsampler(LiteXModule):
             )
         ]
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 
@@ -81,6 +91,8 @@ class LiteDSPUpsampler(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         advance = Signal()
         first   = Signal()
         phase   = Signal(factor_bits)
@@ -91,6 +103,9 @@ class LiteDSPUpsampler(LiteXModule):
             first.eq(phase == 0),
             self.sink.ready.eq(first & advance),  # Consume one input per output group.
         ]
+
+        # Output.
+        # -------
         self.sync += If(advance,
             If(first,
                 If(self.sink.valid,
@@ -111,6 +126,8 @@ class LiteDSPUpsampler(LiteXModule):
             )
         )
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

@@ -41,7 +41,7 @@ class LiteDSPParallelFIRFilter(LiteXModule):
         # # #
 
         # Handshake: drain when output can accept; consume an input on each drained beat.
-        # ------------------------------------------------------------------------------
+        # -------------------------------------------------------------------------------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -58,7 +58,7 @@ class LiteDSPParallelFIRFilter(LiteXModule):
 
         # Sample window (w[m] = x[newest - m]), shifted by n_samples per real transfer —
         # the parallel equivalent of the serial FIR's shift register.
-        # -------------------------------------------------------------------------------
+        # -----------------------------------------------------------
         w = [Signal((data_width, True)) for _ in range(n_taps - 1 + n_samples)]
         for m in range(len(w)):
             new = s[n_samples - 1 - m] if m < n_samples else w[m - n_samples]
@@ -80,7 +80,7 @@ class LiteDSPParallelFIRFilter(LiteXModule):
             self.comb += o_lane.eq(out)
 
         # Valid pipeline (matches the 3 register stages, drains on each beat).
-        # -------------------------------------------------------------------
+        # --------------------------------------------------------------------
         valid_pipe = Signal(self.latency)
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
         self.comb += self.source.valid.eq(valid_pipe[-1])

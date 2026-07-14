@@ -33,10 +33,14 @@ class LiteDSPEnergyDetector(LiteXModule):
 
         # # #
 
+        # Passthrough.
+        # ------------
         self.comb += self.sink.connect(self.source)
         xfer = Signal()
         self.comb += xfer.eq(self.sink.valid & self.sink.ready)
 
+        # Power / Noise Floor.
+        # --------------------
         pw    = Signal(2*data_width + 1)
         # Start high so the floor converges DOWN to the noise level (avoids the bootstrap where
         # floor=0 makes everything look like signal and the floor never adapts).
@@ -47,6 +51,8 @@ class LiteDSPEnergyDetector(LiteXModule):
             floor.eq(floor + ((pw - floor) >> avg_shift)),
         )
 
+        # CSR / IRQ.
+        # ----------
         if with_csr:
             self._status = CSRStatus(fields=[CSRField("detect", size=1, description="Signal present.")])
             self.comb += self._status.fields.detect.eq(self.detect)
@@ -79,6 +85,8 @@ class LiteDSPFrequencyEstimator(LiteXModule):
 
         # # #
 
+        # Signals.
+        # --------
         idx       = Signal(index_width)
         best_idx  = Signal(index_width)
         best_val  = Signal(data_width)
@@ -87,9 +95,14 @@ class LiteDSPFrequencyEstimator(LiteXModule):
         prev      = Signal(data_width)
         cap_right = Signal()                          # Next sample is the peak's right neighbour.
 
+        # Handshake.
+        # ----------
         self.comb += self.sink.ready.eq(self.source.ready | ~self.source.valid)
         xfer = Signal()
         self.comb += xfer.eq(self.sink.valid & self.sink.ready)
+
+        # Peak Tracking.
+        # --------------
         better = Signal()
         self.comb += better.eq(self.sink.first | (self.sink.data > best_val))
 

@@ -44,6 +44,8 @@ class LiteDSPAGC(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         self.comb += [
@@ -53,6 +55,7 @@ class LiteDSPAGC(LiteXModule):
         ]
 
         # Apply current (registered) gain.
+        # --------------------------------
         out_i, _ = scaled(self.sink.i*self.gain, gain_frac, data_width)
         out_q, _ = scaled(self.sink.q*self.gain, gain_frac, data_width)
         self.sync += If(adv,
@@ -61,6 +64,8 @@ class LiteDSPAGC(LiteXModule):
             self.source.valid.eq(self.sink.valid),
         )
 
+        # Magnitude Measurement.
+        # ----------------------
         # Measure the *output* magnitude (alpha-max-beta-min) to close the loop.
         ai, aq = Signal(data_width + 1), Signal(data_width + 1)
         self.comb += [
@@ -71,6 +76,7 @@ class LiteDSPAGC(LiteXModule):
         self.comb += mag.eq(Mux(ai > aq, ai + (aq >> beta_shift), aq + (ai >> beta_shift)))
 
         # Gain loop (leaky integrator), clamped.
+        # --------------------------------------
         error    = Signal((data_width + 2, True))
         step     = Signal((data_width + 2, True))
         gain_nxt = Signal((gain_width + 2, True))
@@ -86,6 +92,8 @@ class LiteDSPAGC(LiteXModule):
             self.railed.eq((gain_nxt < 0) | (gain_nxt > gain_max)),
         )
 
+        # CSR / IRQ.
+        # ----------
         if with_csr:
             self.add_csr()
         if with_irq:

@@ -31,11 +31,16 @@ class LiteDSPDUC(LiteXModule):
 
         # # #
 
+        # Submodules.
+        # -----------
         self.interp = LiteDSPInterpolator(data_width=data_width, factor=interpolation, method=method,
             with_csr=with_csr)
         self.nco    = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer  = LiteDSPMixer(data_width=data_width, with_csr=False)
         self.latency = self.interp.latency
+
+        # Datapath.
+        # ---------
         self.comb += [
             self.mixer.mode.eq(MIXER_MODE_UP),
             self.sink.connect(self.interp.sink),

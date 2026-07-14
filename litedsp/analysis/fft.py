@@ -61,7 +61,7 @@ class LiteDSPFFTStage(LiteXModule):
         ]
 
         # Phase counter: c selects store(0)/compute(1), p indexes the twiddle.
-        # ------------------------------------------------------------------
+        # --------------------------------------------------------------------
         counter = Signal(dbits + 1)
         c       = Signal()
         self.sync += If(xfer, counter.eq(counter + 1))
@@ -70,7 +70,7 @@ class LiteDSPFFTStage(LiteXModule):
 
         # Delay-feedback line (I and Q), read-before-write for a true D-deep delay.
         # A depth-1 delay is a register pair; deeper delays use a circular memory.
-        # ----------------------------------------------------------------------
+        # ------------------------------------------------------------------------
         fr, fi      = Signal((data_width, True)), Signal((data_width, True))
         store_i     = Signal((data_width, True))
         store_q     = Signal((data_width, True))
@@ -95,7 +95,7 @@ class LiteDSPFFTStage(LiteXModule):
             self.sync += If(xfer, If(ptr == (D - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
 
         # Butterfly: sum (output), difference (twiddled, stored), both scaled by 1/2.
-        # --------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
         sum_i, _ = scaled(fr + xr, 1, data_width)
         sum_q, _ = scaled(fi + xi, 1, data_width)
         dr, di   = Signal((data_width + 1, True)), Signal((data_width + 1, True))

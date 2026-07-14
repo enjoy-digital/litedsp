@@ -26,6 +26,8 @@ class LiteDSPDifferentialEncoder(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         acc  = Signal(bits + 1)
@@ -36,6 +38,9 @@ class LiteDSPDifferentialEncoder(LiteXModule):
             xfer.eq(self.sink.valid & adv),
             nxt.eq(acc + self.sink.data),
         ]
+
+        # Accumulator.
+        # ------------
         wrapped = Signal(bits)
         self.comb += wrapped.eq(Mux(nxt >= modulus, nxt - modulus, nxt))
         self.sync += If(xfer, acc.eq(wrapped))
@@ -55,6 +60,8 @@ class LiteDSPDifferentialDecoder(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv  = Signal()
         xfer = Signal()
         prev = Signal(bits)
@@ -65,6 +72,9 @@ class LiteDSPDifferentialDecoder(LiteXModule):
             xfer.eq(self.sink.valid & adv),
             diff.eq(self.sink.data - prev),
         ]
+
+        # Datapath.
+        # ---------
         wrapped = Signal(bits)
         self.comb += wrapped.eq(Mux(diff < 0, diff + modulus, diff))
         self.sync += If(xfer, prev.eq(self.sink.data))

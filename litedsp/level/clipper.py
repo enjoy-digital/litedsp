@@ -28,9 +28,13 @@ class LiteDSPClipper(LiteXModule):
 
         # # #
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
+        # Clipping Datapath.
+        # ------------------
         thr  = Signal((data_width + 1, True))
         self.comb += thr.eq(self.threshold)
         clipped = Signal()
@@ -44,10 +48,15 @@ class LiteDSPClipper(LiteXModule):
             ]
             self.comb += If(over, clipped.eq(1))
             self.sync += If(adv, getattr(self.source, field).eq(c))
+
+        # Output.
+        # -------
         valid = Signal()
         self.sync += If(adv, valid.eq(self.sink.valid), self.clip.eq(self.sink.valid & clipped))
         self.comb += self.source.valid.eq(valid)
 
+        # CSR.
+        # ----
         if with_csr:
             self.add_csr()
 

@@ -28,10 +28,14 @@ class LiteDSPFMDemod(LiteXModule):
 
         # # #
 
+        # CORDIC.
+        # -------
         self.cordic = LiteDSPCORDIC(data_width=data_width, angle_width=angle_width,
             mode="vectoring", with_csr=False)
         self.latency = self.cordic.latency
 
+        # Conjugate Product.
+        # ------------------
         prev_i = Signal((data_width, True))
         prev_q = Signal((data_width, True))
         i, q   = self.sink.i, self.sink.q
@@ -47,6 +51,9 @@ class LiteDSPFMDemod(LiteXModule):
         self.sync += If(self.sink.valid & self.sink.ready,
             prev_i.eq(i), prev_q.eq(q),
         )
+
+        # Output.
+        # -------
         self.comb += [
             self.source.valid.eq(self.cordic.source.valid),
             self.source.data.eq(self.cordic.source.angle),
