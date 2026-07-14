@@ -22,6 +22,12 @@ class LiteDSPDCBlocker(LiteXModule):
     ``y[n] = x[n] - x[n-1] + y[n-1] - (y[n-1] >> pole_shift)`` (pole at ``1 - 2**-pole_shift``,
     a notch at DC). Larger ``pole_shift`` -> notch closer to DC (slower settling). The feedback
     state is saturated for stability.
+
+    Parameters
+    ----------
+    pole_shift : int
+        Leaky-integrator pole position (pole = 1 - 2**-pole_shift); larger = narrower DC notch
+        but slower settling. Implemented as a bare shift, so any value costs no multiplier.
     """
     def __init__(self, data_width=16, pole_shift=5, with_csr=True):
         self.data_width = data_width

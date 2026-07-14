@@ -26,6 +26,15 @@ class LiteDSPPSD(LiteXModule):
     ``fft_latency`` is the upstream FFT pipeline latency (default ``N-1``, matching
     :class:`litedsp.analysis.fft.LiteDSPFFT`); the first ``fft_latency`` samples (pipeline
     fill) are skipped so frames align.
+
+    Parameters
+    ----------
+    fft_latency : int
+        Upstream FFT pipeline latency in cycles; that many initial fill samples are discarded
+        so bin 0 aligns with frame start. Defaults to N-1 (LiteDSPFFT).
+    avg_log2 : int
+        FFT frames averaged per emitted spectrum, as a power of two (``2**avg_log2``); each
+        step adds one bit to the accumulator RAM and output width (power_width).
     """
     def __init__(self, N=64, fft_latency=None, data_width=16, avg_log2=4, with_csr=True):
         check((N & (N - 1)) == 0, "expected (N & (N - 1)) == 0")

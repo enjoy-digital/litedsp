@@ -21,6 +21,12 @@ class LiteDSPStats(LiteXModule):
 
     Emits one result per window on ``source`` (fields ``min, max, mean, variance``). Input is
     always accepted; the latest completed result is held until consumed.
+
+    Parameters
+    ----------
+    window_log2 : int
+        Samples per measurement window as a power of two (one result every ``2**window_log2``
+        samples); sizes the running-sum and sum-of-squares accumulators (log2(N)-bit growth).
     """
     def __init__(self, data_width=16, window_log2=8, with_csr=True):
         self.data_width  = data_width

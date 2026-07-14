@@ -23,6 +23,15 @@ class LiteDSPIQBalance(LiteXModule):
     (c1=0, c2=1.0) pass through. Estimator accumulators ``E[I^2], E[Q^2], E[I*Q]`` over a
     window are exposed (status) so firmware can compute c1, c2 (Gram-Schmidt) — keeping the
     divide/sqrt off the datapath (portable, cheap).
+
+    Parameters
+    ----------
+    coeff_frac : int
+        Fractional bits of the c1/c2 correction coefficients (1.0 = 2**coeff_frac, the c2
+        reset); sets the gain/phase correction resolution within data_width-bit coefficients.
+    window_log2 : int
+        log2 of the estimator window in samples: the E[I^2]/E[Q^2]/E[I*Q] sums are latched
+        every 2**window_log2 samples; adds window_log2 bits to each accumulator.
     """
     def __init__(self, data_width=16, coeff_frac=14, window_log2=14, with_csr=True):
         self.data_width = data_width

@@ -44,6 +44,12 @@ class LiteDSPWindow(LiteXModule):
     Each I/Q sample is multiplied by the real window coefficient for its position in the frame
     (round + saturate). ``source.first`` / ``source.last`` mark frame boundaries so a
     downstream FFT can align frames. The window is fixed at build time (``window``).
+
+    Parameters
+    ----------
+    n : int
+        Window length in samples (frame size); sets the coefficient ROM depth and must match
+        the downstream FFT size.
     """
     def __init__(self, n, data_width=16, window="hann", with_csr=True):
         self.n          = n

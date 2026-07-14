@@ -36,9 +36,23 @@ class PortSpec:
     layout: str                     # iq | real | raw
 
 @dataclass
+class CsrFieldSpec:
+    name: str
+    size: int
+    offset: int
+    description: str = ""
+    values: list = None             # [(value, description)] enumerations, if any.
+    reset: int = 0
+    pulse: bool = False
+
+@dataclass
 class CsrSpec:
     name: str
     size: int
+    access: str = ""                # "read-write" (CSRStorage) or "read-only" (CSRStatus).
+    reset: int = 0
+    description: str = ""
+    fields: list = field(default_factory=list)  # [CsrFieldSpec]
 
 @dataclass
 class BlockSpec:
@@ -51,8 +65,10 @@ class BlockSpec:
     csrs: list   = field(default_factory=list)   # [CsrSpec]
     latency: object = None
     doc: str = ""
+    doc_full: str = ""                           # Whole cleaned class docstring.
     kwargs: dict = field(default_factory=dict)   # Construction defaults (registry-supplied).
     has_csr: bool = False                        # Accepts a with_csr constructor flag.
+    has_bypass: bool = False                     # Exposes a boolean bypass control.
 
     def port(self, name):
         for p in self.ports:
@@ -67,6 +83,30 @@ class BlockSpec:
     @property
     def sources(self):
         return [p for p in self.ports if p.direction == "source"]
+
+# Parameter Glossary -------------------------------------------------------------------------------
+#
+# Descriptions for the ubiquitous constructor parameters, so block docstrings only need to
+# document their block-specific parameters (a numpydoc "Parameters" section, parsed below).
+
+PARAM_GLOSSARY = {
+    "data_width":    "Sample width in bits (signed Qm.n; default Q1.15).",
+    "n_samples":     "Samples per beat (multi-sample-per-cycle parallel datapaths).",
+    "n_taps":        "Number of FIR taps.",
+    "coefficients":  "Coefficient list (signed integers, quantized via litedsp.filter.design).",
+    "decimation":    "Integer decimation factor.",
+    "interpolation": "Integer interpolation factor.",
+    "n_stages":      "Number of CIC integrator/comb stages (N in the literature).",
+    "diff_delay":    "CIC comb differential delay (M in the literature).",
+    "frac_bits":     "Fractional bits of the coefficient/control fixed-point format.",
+    "frac":          "Fractional bits of the control fixed-point format.",
+    "phase_bits":    "Phase accumulator width in bits.",
+    "shift":         "Output rescale shift (defaults to data_width - 1).",
+    "window":        "Window function (rect/hann/hamming/blackman).",
+    "N":             "Transform size (power of two).",
+    "method":        "Core implementation selector.",
+    "with_irq":      "Add a LiteX EventManager interrupt on the block's trigger event.",
+}
 
 # Reflection helpers -------------------------------------------------------------------------------
 
@@ -97,17 +137,71 @@ def _kind(value):
 def _accepts_with_csr(cls):
     return "with_csr" in inspect.signature(_real_init(cls)).parameters
 
+def _doc_params(doc):
+    """Parse a numpydoc-style ``Parameters`` section into ``{name: description}``."""
+    out   = {}
+    lines = (doc or "").splitlines()
+    try:
+        start = next(i for i, l in enumerate(lines)
+                     if l.strip() == "Parameters" and i + 1 < len(lines)
+                     and set(lines[i + 1].strip()) == {"-"})
+    except StopIteration:
+        return out
+    name = None
+    for l in lines[start + 2:]:
+        s = l.strip()
+        if not s:
+            continue
+        if not l.startswith((" ", "\t")) or set(s) == {"-"}:
+            if set(s) == {"-"}:
+                break  # Next underlined section.
+        if " : " in s or (s.replace("_", "").isalnum() and not l.startswith("        ")):
+            name = s.split(" : ")[0].strip()
+            out[name] = ""
+        elif name:
+            out[name] = (out[name] + " " + s).strip()
+    return out
+
 def _params(cls, kwargs, choices):
     """ParamSpec list from the constructor signature; ``kwargs`` override defaults shown in the GUI."""
     specs = []
+    doc   = inspect.getdoc(cls) or ""
+    descs = _doc_params(doc)
     for name, p in inspect.signature(_real_init(cls)).parameters.items():
         if name in ("self", "with_csr") or p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
             continue
         default = kwargs[name] if name in kwargs else (None if p.default is p.empty else p.default)
         ch      = choices.get(name)
         kind    = _kind(default) if default is not None else ("str" if ch else "none")
-        specs.append(ParamSpec(name=name, default=default, kind=kind, choices=ch))
+        desc    = descs.get(name) or PARAM_GLOSSARY.get(name, "")
+        specs.append(ParamSpec(name=name, default=default, kind=kind, choices=ch, desc=desc))
     return specs
+
+def _csr_fields(csr):
+    """CsrFieldSpec list from a LiteX CSRStorage/CSRStatus with named CSRFields."""
+    agg = getattr(csr, "fields", None)
+    out = []
+    for f in getattr(agg, "fields", []) or []:
+        values = [(str(v), d) for v, d in (f.values or [])] if getattr(f, "values", None) else None
+        reset  = getattr(f, "reset", 0)
+        reset  = getattr(reset, "value", reset)  # Migen Constant -> int.
+        out.append(CsrFieldSpec(name=f.name, size=f.size, offset=f.offset,
+            description=f.description or "", values=values,
+            reset=int(reset or 0), pulse=bool(getattr(f, "pulse", False) is True)))
+    return out
+
+def _csr_spec(csr):
+    """CsrSpec (incl. access/reset/description/fields) from a LiteX CSR object."""
+    kind   = type(csr).__name__
+    access = {"CSRStorage": "read-write", "CSRStatus": "read-only"}.get(kind, "")
+    reset  = 0
+    for attr in ("storage", "status"):
+        sig = getattr(csr, attr, None)
+        if sig is not None:
+            reset = getattr(getattr(sig, "reset", None), "value", 0) or 0
+            break
+    return CsrSpec(name=csr.name, size=csr.size, access=access, reset=reset,
+        description=getattr(csr, "description", "") or "", fields=_csr_fields(csr))
 
 def _layout(ep):
     fields = [n for n, *_ in ep.description.payload_layout]
@@ -152,10 +246,12 @@ def reflect(key, cls, kwargs=None, category="misc", display_name=None, choices=N
         build["with_csr"] = True
     dut = cls(**build)
 
-    ports   = _ports(dut)
-    csrs    = [CsrSpec(c.name, c.size) for c in dut.get_csrs()]
-    latency = getattr(dut, "latency", None)
-    doc     = doc or (cls.__doc__ or "").strip().split("\n")[0]
+    ports    = _ports(dut)
+    csrs     = [_csr_spec(c) for c in dut.get_csrs()]
+    latency  = getattr(dut, "latency", None)
+    doc_full = inspect.getdoc(cls) or ""
+    doc      = doc or doc_full.split("\n")[0]
     return BlockSpec(key=key, cls=cls, display_name=display_name or key, category=category,
-        params=params, ports=ports, csrs=csrs, latency=latency, doc=doc,
-        kwargs=dict(kwargs), has_csr=_accepts_with_csr(cls))
+        params=params, ports=ports, csrs=csrs, latency=latency, doc=doc, doc_full=doc_full,
+        kwargs=dict(kwargs), has_csr=_accepts_with_csr(cls),
+        has_bypass=hasattr(dut, "bypass"))

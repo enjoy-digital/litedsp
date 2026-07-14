@@ -22,6 +22,15 @@ class LiteDSPHistogram(LiteXModule):
     over ``2**window_log2`` samples into a ``2**bits``-entry RAM, then streams the bin counts
     (natural order, framed) while backpressuring the input; each bin is cleared as it is read,
     so the next window starts from zero.
+
+    Parameters
+    ----------
+    bits : int
+        Bin-address width: samples are binned by their top ``bits`` (offset-binary), giving
+        ``2**bits`` bins and sizing the count RAM depth.
+    window_log2 : int
+        Samples accumulated per window as a power of two (``2**window_log2``); sets the bin
+        count width to window_log2 + 1 bits so a single bin can hold a full window.
     """
     def __init__(self, data_width=16, bits=8, window_log2=12, with_csr=True):
         self.data_width = data_width

@@ -30,6 +30,18 @@ class LiteDSPLMSEqualizer(LiteXModule):
     sample's error (registered with its input-window snapshot), so the filter and the update
     each carry one multiply level per cycle instead of chaining y -> e -> update
     combinationally. Convergence is indistinguishable at practical step sizes.
+
+    Parameters
+    ----------
+    wfrac : int
+        Fractional bits of each complex weight (signed Q``wint``.``wfrac``); the center tap is
+        initialized to 1.0 = 2**wfrac. More bits = finer adaptation steps.
+    wint : int
+        Integer bits of each weight; bounds the weight magnitude (updates saturate). Keep
+        wint + wfrac <= 18 so each weight*sample product fits one 18x18 DSP block.
+    mu_shift : int
+        LMS step-size exponent, mu = 2**-mu_shift (update uses a bare right shift). Larger =
+        slower but more stable convergence with lower steady-state misadjustment.
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, with_csr=True):
         check(n_taps >= 1, "expected n_taps >= 1")

@@ -23,6 +23,12 @@ class LiteDSPChannelizer(LiteXModule):
     correct, portable, and composed from tested blocks. ``self.sources[k]`` is sub-channel ``k``
     (baseband, decimated). Resource-optimal sharing via a polyphase-FIR + FFT structure is a
     documented future refinement.
+
+    Parameters
+    ----------
+    n_channels : int
+        Number of uniformly-spaced sub-channels; channel ``k`` is centered at ``k/n_channels``
+        of the input sample rate. Resources scale linearly (one DDC per channel).
     """
     def __init__(self, n_channels=4, decimation=None, data_width=16, method="fir",
         phase_bits=32, with_csr=True):

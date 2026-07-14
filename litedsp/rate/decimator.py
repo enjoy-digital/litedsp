@@ -22,6 +22,12 @@ class LiteDSPDecimator(LiteXModule):
 
     ``method="cic"`` (default) uses a portable CIC (efficient for large factors); ``method="fir"``
     uses a polyphase decimating FIR with a windowed-sinc low-pass (cleaner passband).
+
+    Parameters
+    ----------
+    cutoff : float
+        Anti-alias low-pass cutoff, normalized to the output (decimated) sample rate (0..0.5);
+        used by ``method="fir"`` only (the CIC response is fixed by its structure).
     """
     def __init__(self, data_width=16, decimation=8, method="cic", n_taps=None, cutoff=0.4,
         n_stages=4, with_csr=True):

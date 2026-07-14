@@ -28,7 +28,14 @@ PATTERN_IMPULSE = 3  # Single full-scale sample, then zeros.
 # Pattern Source -----------------------------------------------------------------------------------
 
 class LiteDSPPatternSource(LiteXModule):
-    """I/Q test-pattern generator (constant / counter ramp / PRBS / impulse)."""
+    """I/Q test-pattern generator (constant / counter ramp / PRBS / impulse).
+
+    Parameters
+    ----------
+    seed : int
+        Initial LFSR state for the PRBS pattern (truncated to data_width, forced non-zero —
+        the all-zero state locks the LFSR); makes the sequence reproducible for BER tests.
+    """
     def __init__(self, data_width=16, seed=0x1, with_csr=True):
         self.data_width = data_width
         self.source  = stream.Endpoint(iq_layout(data_width))

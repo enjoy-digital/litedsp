@@ -28,6 +28,12 @@ class LiteDSPCombine(LiteXModule):
     so it never wraps, then the result is saturated back to ``data_width`` — unlike the
     original tetra ``Sum`` which could silently overflow. All enabled inputs are consumed
     together (synchronous join); output appears after a fixed 1-cycle latency.
+
+    Parameters
+    ----------
+    n_channels : int
+        Number of I/Q input streams summed (>= 1). Adds ceil(log2(n_channels)) accumulator
+        guard bits before saturation; all inputs must present a sample for any to transfer.
     """
     def __init__(self, n_channels=2, data_width=16, with_csr=True):
         check(n_channels >= 1, "expected n_channels >= 1")

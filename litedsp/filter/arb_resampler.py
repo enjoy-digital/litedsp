@@ -23,6 +23,12 @@ class LiteDSPArbResampler(LiteXModule):
     whenever the integer part rolls over, one input sample is consumed (window shifts). The
     output is a Catmull-Rom interpolation at the fractional phase. ``ratio < 1`` interpolates,
     ``> 1`` decimates (precede with an anti-alias filter when decimating).
+
+    Parameters
+    ----------
+    ratio_int_bits : int
+        Integer bits of the ratio/phase registers (total width = frac + ratio_int_bits);
+        bounds the maximum decimation ratio f_in/f_out at just under 2**ratio_int_bits.
     """
     def __init__(self, data_width=16, frac=15, ratio_int_bits=8, with_csr=True):
         self.frac = frac

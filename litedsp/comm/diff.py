@@ -16,7 +16,14 @@ from litex.soc.interconnect import stream
 
 @ResetInserter()
 class LiteDSPDifferentialEncoder(LiteXModule):
-    """``out[n] = (in[n] + out[n-1]) mod M`` (symbol indices)."""
+    """``out[n] = (in[n] + out[n-1]) mod M`` (symbol indices).
+
+    Parameters
+    ----------
+    modulus : int
+        Number of symbol values M; arithmetic wraps mod M on ceil(log2(M))-bit symbol
+        indices (2 = DBPSK, 4 = DQPSK).
+    """
     def __init__(self, modulus=4, with_csr=True):
         bits = (modulus - 1).bit_length()
         self.modulus = modulus
@@ -50,7 +57,14 @@ class LiteDSPDifferentialEncoder(LiteXModule):
 
 @ResetInserter()
 class LiteDSPDifferentialDecoder(LiteXModule):
-    """``out[n] = (in[n] - in[n-1]) mod M`` (inverse of the encoder)."""
+    """``out[n] = (in[n] - in[n-1]) mod M`` (inverse of the encoder).
+
+    Parameters
+    ----------
+    modulus : int
+        Number of symbol values M, must match the encoder's; arithmetic wraps mod M on
+        ceil(log2(M))-bit symbol indices (2 = DBPSK, 4 = DQPSK).
+    """
     def __init__(self, modulus=4, with_csr=True):
         bits = (modulus - 1).bit_length()
         self.modulus = modulus

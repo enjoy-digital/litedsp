@@ -30,6 +30,15 @@ class LiteDSPCapture(LiteXModule):
     with ``with_wishbone=True`` / ``add_wishbone()`` — a read-only Wishbone window on the
     buffer (``self.bus``, one sample per 32-bit word) for fast memory-mapped drains over
     Etherbone (``soc.bus.add_slave(..., capture.bus, SoCRegion(size=capture.mem_size, ...))``).
+
+    Parameters
+    ----------
+    depth : int
+        Number of I/Q samples recorded per trigger. Sizes the capture RAM (one 32-bit word
+        per sample, mem_size = 4*depth bytes) and the readout burst length.
+    with_wishbone : bool
+        Add a read-only Wishbone window (``self.bus``) over the capture buffer for fast
+        memory-mapped readout (e.g. over Etherbone) instead of CSR-paced streaming.
     """
     def __init__(self, depth=1024, data_width=16, with_csr=True, with_irq=False,
         with_wishbone=False):

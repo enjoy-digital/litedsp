@@ -20,6 +20,12 @@ class LiteDSPPhaseDetect(LiteXModule):
 
     Building block for carrier/timing loops. Output is the angle in signed phase units
     (full circle = 2**angle_width).
+
+    Parameters
+    ----------
+    angle_width : int
+        Output angle resolution in bits (full circle = 2**angle_width); sets the CORDIC
+        stage count, so latency and resources grow with it.
     """
     def __init__(self, data_width=16, angle_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))

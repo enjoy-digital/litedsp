@@ -20,6 +20,12 @@ class LiteDSPAMDemod(LiteXModule):
 
     A :class:`LiteDSPMagnitude` followed by a multiplier-free 1st-order DC blocker (pole
     ``1 - 2**-pole_shift``). Output is the recovered modulating signal (signed).
+
+    Parameters
+    ----------
+    pole_shift : int
+        DC-blocker pole position: pole = 1 - 2**-pole_shift. Larger values lower the high-pass
+        cutoff (slower carrier-DC settling); implemented as a shift, no multiplier.
     """
     def __init__(self, data_width=16, pole_shift=8, with_csr=True):
         self.sink = stream.Endpoint(iq_layout(data_width))

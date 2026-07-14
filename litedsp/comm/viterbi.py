@@ -67,7 +67,23 @@ def _min_tree(pairs, comb):
 
 @ResetInserter()
 class LiteDSPViterbiDecoder(LiteXModule):
-    """Hard-decision Viterbi decoder (rate 1/n, register-exchange survivors)."""
+    """Hard-decision Viterbi decoder (rate 1/n, register-exchange survivors).
+
+    Parameters
+    ----------
+    constraint : int
+        Constraint length K, matching the encoder's; the fully-parallel ACS spans
+        2**(K-1) states, so resources grow exponentially with K.
+    polys : list
+        Generator polynomials, octal, matching the encoder's (rate 1/len(polys); default
+        (0o171, 0o133): the CCSDS/Voyager K=7 pair).
+    traceback : int
+        Register-exchange survivor depth in symbols = decoding delay (default 8*K, well
+        past the ~5K convergence rule of thumb); each state keeps a traceback-bit register.
+    metric_width : int
+        Path-metric register width in bits; metrics are min-normalized each step, so it
+        only needs headroom for the metric spread plus branch adds.
+    """
     def __init__(self, constraint=7, polys=(0o171, 0o133), traceback=None, metric_width=10,
         with_csr=True):
         n_states  = 1 << (constraint - 1)

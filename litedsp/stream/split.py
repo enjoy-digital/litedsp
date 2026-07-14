@@ -18,7 +18,14 @@ from litedsp.common import check, iq_layout
 # Split / Duplicate --------------------------------------------------------------------------------
 
 class LiteDSPSplit(LiteXModule):
-    """Fan-out one I/Q stream to ``n`` identical sources (all consumed together)."""
+    """Fan-out one I/Q stream to ``n`` identical sources (all consumed together).
+
+    Parameters
+    ----------
+    n : int
+        Number of duplicated output streams (>= 1). The fan-out is atomic, so the slowest
+        branch paces the whole stream (every source sees exactly the same transfers).
+    """
     def __init__(self, n=2, data_width=16):
         check(n >= 1, "expected n >= 1")
         self.n      = n

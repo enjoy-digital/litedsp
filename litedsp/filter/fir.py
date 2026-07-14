@@ -67,6 +67,12 @@ class LiteDSPFIRFilter(LiteXModule):
     Backpressure is handled with an elastic pipeline: the sample shift-register advances only
     on real input transfers (so bubbles never enter the convolution history), while the
     arithmetic stages and the valid pipeline drain on every accepted output beat.
+
+    Parameters
+    ----------
+    symmetric : bool
+        Fold mirrored tap pairs before the multiply, halving the multiplier count (DSP blocks)
+        for linear-phase filters. The provided coefficients must actually be symmetric.
     """
     def __init__(self, n_taps=32, data_width=16, symmetric=False, shift=None):
         check(n_taps > 0, "expected n_taps > 0")
@@ -139,7 +145,14 @@ class LiteDSPFIRFilter(LiteXModule):
 
 @ResetInserter()
 class LiteDSPFIRFilterComplex(LiteXModule):
-    """Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + CSR."""
+    """Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + CSR.
+
+    Parameters
+    ----------
+    symmetric : bool
+        Fold mirrored tap pairs in both the I and Q FIRs, halving the multiplier count (DSP
+        blocks) for linear-phase filters; the coefficients must actually be symmetric.
+    """
     def __init__(self, n_taps=32, data_width=16, symmetric=False, coefficients=None,
         shift=None, with_csr=True):
         check(n_taps > 0, "expected n_taps > 0")

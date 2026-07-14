@@ -20,6 +20,15 @@ class LiteDSPSymbolMapper(LiteXModule):
 
     ``bits_per_axis`` gives ``L = 2**bits_per_axis`` PAM levels per axis at
     ``(2k-(L-1))*spacing``. ``sink.symbol`` is ``[q_bits | i_bits]``. QPSK = ``1``, 16-QAM = ``2``.
+
+    Parameters
+    ----------
+    bits_per_axis : int
+        Bits per I/Q axis: L = 2**bits_per_axis PAM levels per axis (1 = QPSK, 2 = 16-QAM);
+        ``sink.symbol`` is 2*bits_per_axis wide.
+    spacing : int
+        Half the distance between adjacent PAM levels, in output LSBs; levels sit at
+        (2k-(L-1))*spacing. Keep (L-1)*spacing within the signed data_width range.
     """
     def __init__(self, data_width=16, bits_per_axis=1, spacing=8192, with_csr=True):
         self.bits_per_axis = bits_per_axis

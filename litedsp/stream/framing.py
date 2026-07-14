@@ -24,7 +24,17 @@ from litedsp.common import iq_layout
 # Framer -------------------------------------------------------------------------------------------
 
 class LiteDSPStreamFramer(LiteXModule):
-    """Pass I/Q through, asserting ``first`` at sample 0 and ``last`` at sample ``length-1``."""
+    """Pass I/Q through, asserting ``first`` at sample 0 and ``last`` at sample ``length-1``.
+
+    Parameters
+    ----------
+    length : int
+        Reset value of the runtime frame length, in samples; ``last`` is asserted every
+        ``length`` transfers (maps to AXI-Stream ``tlast`` for fixed-size DMA packets).
+    max_length : int
+        Upper bound of the runtime ``length`` setting (exclusive); sizes the sample counter
+        and the length CSR (ceil(log2(max_length)) bits).
+    """
     def __init__(self, length=256, data_width=16, max_length=65536, with_csr=True):
         self.length = Signal(max=max_length, reset=length)  # Frame length in samples (runtime).
         self.sink   = stream.Endpoint(iq_layout(data_width))

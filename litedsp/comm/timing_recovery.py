@@ -29,6 +29,21 @@ class LiteDSPTimingRecovery(LiteXModule):
     (``e = Re{slice(prev)·conj(y) − slice(y)·conj(prev)}``, multiplier-free); ``"gardner"`` —
     non-decision-aided (``e = Re{(y − y_prev)·conj(y_mid)}`` with a second interpolation at
     the symbol midpoint; modulation-agnostic, locks without carrier lock, for ``sps=2``).
+
+    Parameters
+    ----------
+    sps : int
+        Nominal input samples per symbol; ``omega`` starts here and is clamped to
+        sps +/- 5%. The Gardner detector assumes sps = 2.
+    gain_mu : float
+        Proportional gain on the fractional interpolation phase ``mu`` (quantized to
+        Q.frac). Larger = faster timing acquisition, more jitter.
+    gain_omega : float
+        Integral gain on the samples/symbol estimate ``omega`` (quantized to Q.frac;
+        default gain_mu**2/4, the critically-damped choice).
+    ted : str
+        Timing error detector: "mm" (Mueller & Muller, decision-directed, multiplier-free)
+        or "gardner" (non-decision-aided, extra midpoint interpolation, needs sps = 2).
     """
     def __init__(self, data_width=16, sps=2, frac=16, gain_mu=0.1, gain_omega=None, ted="mm",
         with_csr=True):

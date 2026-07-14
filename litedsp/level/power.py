@@ -21,6 +21,12 @@ class LiteDSPPower(LiteXModule):
     The instantaneous power is accumulated over ``2**window_log2`` accepted samples, then the
     block average (accumulator >> window_log2) is latched into ``power`` and ``update`` pulses.
     Unlike the original tetra ``LiteDSPPower``, the averaging window is actually implemented.
+
+    Parameters
+    ----------
+    max_window_log2 : int
+        Upper bound of the runtime ``window_log2`` setting (window up to 2**max_window_log2
+        samples). Sizes the accumulator (2*data_width + max_window_log2 bits) and counter.
     """
     def __init__(self, data_width=16, max_window_log2=20, with_csr=True):
         self.data_width      = data_width

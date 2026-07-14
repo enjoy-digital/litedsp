@@ -24,6 +24,15 @@ class LiteDSPEnergyDetector(LiteXModule):
     estimated noise floor by ``2**threshold_log2``. The floor is a leaky average of power,
     updated only while no signal is detected (so the signal does not raise the floor).
     With ``with_irq=True``, a detection edge raises an interrupt (``ev.detect``).
+
+    Parameters
+    ----------
+    avg_shift : int
+        Leaky-average shift of the noise-floor tracker (``floor += (power - floor) >> avg_shift``);
+        larger values track slower/smoother (time constant ~2**avg_shift samples).
+    threshold_log2 : int
+        Detection threshold as a power-of-two ratio over the noise floor: detect when
+        power > floor * 2**threshold_log2 (~3 dB per step).
     """
     def __init__(self, data_width=16, avg_shift=10, threshold_log2=3, with_csr=True, with_irq=False):
         self.threshold_log2 = threshold_log2

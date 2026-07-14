@@ -27,7 +27,17 @@ from litedsp.common import check, iq_layout
 
 @ResetInserter()
 class LiteDSPCPInsert(LiteXModule):
-    """Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out."""
+    """Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out.
+
+    Parameters
+    ----------
+    fft_size : int
+        OFDM symbol length N in samples (the IFFT size); sets the symbol buffer (memory)
+        depth.
+    cp_len : int
+        Cyclic-prefix length in samples, copied from the symbol tail and prepended
+        (0 < cp_len < fft_size).
+    """
     def __init__(self, fft_size=64, cp_len=16, data_width=16, with_csr=True):
         check(0 < cp_len < fft_size, "expected 0 < cp_len < fft_size")
         self.fft_size = fft_size
@@ -112,7 +122,17 @@ class LiteDSPCPInsert(LiteXModule):
 
 @ResetInserter()
 class LiteDSPCPRemove(LiteXModule):
-    """Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out."""
+    """Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out.
+
+    Parameters
+    ----------
+    fft_size : int
+        OFDM symbol length N in samples passed through per symbol (framed with
+        ``first``/``last`` for the FFT).
+    cp_len : int
+        Cyclic-prefix length in samples, dropped from the head of each symbol
+        (0 < cp_len < fft_size).
+    """
     def __init__(self, fft_size=64, cp_len=16, data_width=16, with_csr=True):
         check(0 < cp_len < fft_size, "expected 0 < cp_len < fft_size")
         self.fft_size = fft_size

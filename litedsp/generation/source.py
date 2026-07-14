@@ -27,6 +27,11 @@ class LiteDSPChirp(LiteXModule):
 
     A phase accumulator driven by a frequency accumulator (``freq += rate``; ``phase += freq``)
     feeding cos/sin ROMs. Useful for radar and calibration sweeps.
+
+    Parameters
+    ----------
+    lut_depth : int
+        Cos/sin lookup ROM depth (power of two); sets the phase-quantization spur floor.
     """
     def __init__(self, phase_bits=32, data_width=16, lut_depth=1024, with_csr=True):
         self.phase_bits = phase_bits
@@ -83,6 +88,15 @@ class LiteDSPNoiseSource(LiteXModule):
 
     ``n_sum`` independent xorshift32 PRNGs per axis; their signed top bits are summed and scaled
     so the output approaches a normal distribution (Irwin-Hall). For BER/AWGN testbenches.
+
+    Parameters
+    ----------
+    n_sum : int
+        Independent xorshift32 streams summed per axis (>= 1); larger values make the
+        distribution more Gaussian at the cost of one 32-bit PRNG each (registers + XORs).
+    seed : int
+        Base seed from which every PRNG's initial state is derived; the noise sequence is
+        deterministic and reproducible for a given seed.
     """
     def __init__(self, data_width=16, n_sum=16, shift=2, seed=0x1234567, with_csr=True):
         check(n_sum >= 1, "expected n_sum >= 1")

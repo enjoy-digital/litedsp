@@ -22,6 +22,12 @@ class LiteDSPSaturate(LiteXModule):
     A thin standalone wrapper around the shared fixed-point helpers, useful as an explicit
     level/scaling stage between blocks. ``shift = 0`` makes it a pure saturating passthrough.
     ``sat`` is a sticky overflow flag (cleared by ``clear_sat``).
+
+    Parameters
+    ----------
+    in_width : int
+        Width in bits of each signed input I/Q component (defaults to data_width). Set it
+        wider than data_width to narrow a grown datapath back down with round + saturate.
     """
     def __init__(self, data_width=16, in_width=None, shift=0, with_csr=True):
         if in_width is None:

@@ -22,6 +22,12 @@ class LiteDSPDCOffset(LiteXModule):
     ``mean += (x - mean) >> mu`` (pole ``1 - 2**-mu``); output ``x - round(mean)``. Larger
     ``mu`` = slower/finer estimate. The current estimates are exposed (``mean_i``/``mean_q``)
     for monitoring; this is the adaptive cousin of the multiplier-free DC blocker.
+
+    Parameters
+    ----------
+    mu : int
+        Leaky-integrator pole shift: mean += (x - mean) >> mu (pole 1 - 2**-mu). Larger mu
+        = slower, finer DC estimate; adds mu fractional bits to each mean accumulator.
     """
     def __init__(self, data_width=16, mu=10, with_csr=True):
         self.data_width = data_width

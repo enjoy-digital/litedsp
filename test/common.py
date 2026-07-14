@@ -12,23 +12,32 @@ that mirror ``litedsp.common`` bit-for-bit, and an SNR metric for comparing simu
 against the NumPy reference models in ``test/models.py``.
 """
 
+import os
 import random
 
 import numpy as np
 
 from migen import run_simulation, passive
 
+# Seed Plumbing ------------------------------------------------------------------------------------
+#
+# All default harness seeds derive from LITEDSP_SEED, so the whole suite can be re-run on a
+# different randomization (nightly seed-rotation campaigns) while staying reproducible:
+# failures report the seed; re-run with LITEDSP_SEED=<seed> to reproduce.
+
+SEED = int(os.environ.get("LITEDSP_SEED", "0"))
+
 # Stream Stimulus / Capture ------------------------------------------------------------------------
 
 @passive
-def stream_driver(endpoint, samples, fields, seed=0, throttle=0.0):
+def stream_driver(endpoint, samples, fields, seed=None, throttle=0.0):
     """Drive ``samples`` into ``endpoint`` (a sink), honoring ready and inserting random gaps.
 
     ``samples`` is a list of dicts keyed by the names in ``fields``. ``throttle`` is the
     probability of inserting an idle (valid=0) cycle before each sample. Marked ``@passive`` so
     the simulation ends when the (active) capture finishes — over-feeding the driver is safe.
     """
-    prng = random.Random(seed)
+    prng = random.Random(SEED if seed is None else seed)
     for sample in samples:
         while throttle and (prng.random() < throttle):
             yield endpoint.valid.eq(0)
@@ -41,12 +50,12 @@ def stream_driver(endpoint, samples, fields, seed=0, throttle=0.0):
             yield
     yield endpoint.valid.eq(0)
 
-def stream_capture(endpoint, captured, n, fields, seed=1, ready_rate=1.0):
+def stream_capture(endpoint, captured, n, fields, seed=None, ready_rate=1.0):
     """Capture ``n`` samples from ``endpoint`` (a source) into ``captured`` (a list of dicts).
 
     ``ready_rate`` is the probability of asserting ready on each cycle (randomized backpressure).
     """
-    prng = random.Random(seed)
+    prng = random.Random((SEED + 1) if seed is None else seed)
     while len(captured) < n:
         yield endpoint.ready.eq(1 if (prng.random() < ready_rate) else 0)
         yield
@@ -58,12 +67,14 @@ def stream_capture(endpoint, captured, n, fields, seed=1, ready_rate=1.0):
     yield endpoint.ready.eq(0)
 
 def run_stream(dut, sink_samples, n_out, sink_fields, source_fields,
-    sink_throttle=0.25, source_ready_rate=0.75, sink_seed=0, source_seed=1, extra=None, vcd=None):
+    sink_throttle=0.25, source_ready_rate=0.75, sink_seed=None, source_seed=None, extra=None,
+    vcd=None, reset_at=None):
     """Run ``dut`` feeding ``sink_samples`` and capturing ``n_out`` outputs.
 
     ``sink_samples`` may be ``None`` for source-only blocks (e.g. NCO). ``extra`` is an
-    optional list of additional generators (e.g. control sequencing). Returns the captured
-    list of dicts.
+    optional list of additional generators (e.g. control sequencing). ``reset_at`` pulses
+    ``dut.reset`` (``@ResetInserter()`` blocks) at that cycle — for reset-mid-stream fuzzing.
+    Returns the captured list of dicts.
     """
     captured   = []
     generators = []
@@ -74,8 +85,20 @@ def run_stream(dut, sink_samples, n_out, sink_fields, source_fields,
         seed=source_seed, ready_rate=source_ready_rate))
     if extra is not None:
         generators += extra
+    if reset_at is not None:
+        generators.append(reset_pulse(dut, reset_at))
     run_simulation(dut, generators, vcd_name=vcd)
     return captured
+
+@passive
+def reset_pulse(dut, at_cycle, width=1):
+    """Pulse ``dut.reset`` for ``width`` cycles at ``at_cycle`` (reset-mid-stream fuzzing)."""
+    for _ in range(at_cycle):
+        yield
+    yield dut.reset.eq(1)
+    for _ in range(width):
+        yield
+    yield dut.reset.eq(0)
 
 # Capture Helpers ----------------------------------------------------------------------------------
 
@@ -131,3 +154,24 @@ def snr_db(reference, measured):
     if noise == 0:
         return np.inf
     return 10*np.log10(signal/noise)
+
+def assert_snr(testcase, reference, measured, min_db, msg=""):
+    """Gate an SNR measurement (the one obvious way — avoids computed-but-unasserted metrics)."""
+    snr = snr_db(reference, measured)
+    testcase.assertGreaterEqual(snr, min_db,
+        f"{msg + ': ' if msg else ''}SNR {snr:.1f} dB < {min_db} dB (LITEDSP_SEED={SEED})")
+    return snr
+
+def measure_lag(reference, measured, max_lag=None):
+    """Sample lag of ``measured`` vs ``reference`` (argmax of cross-correlation).
+
+    Used to verify a block's declared ``self.latency`` (sample-domain) against simulation.
+    """
+    reference = np.asarray(reference, dtype=float)
+    measured  = np.asarray(measured,  dtype=float)
+    n = min(len(reference), len(measured))
+    reference, measured = reference[:n], measured[:n]
+    if max_lag is None:
+        max_lag = n - 1
+    corr = [np.dot(measured[lag:n], reference[:n - lag]) for lag in range(max_lag + 1)]
+    return int(np.argmax(corr))

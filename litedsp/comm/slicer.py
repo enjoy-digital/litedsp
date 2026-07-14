@@ -22,6 +22,15 @@ class LiteDSPSlicer(LiteXModule):
     ``(2k-(L-1))*spacing``. Emits the decided constellation point on ``source`` (I/Q) and the
     symbol index on ``source.symbol`` (``[q_bits | i_bits]``). QPSK = ``bits_per_axis=1``,
     16-QAM = ``2``.
+
+    Parameters
+    ----------
+    bits_per_axis : int
+        Bits decided per I/Q axis: L = 2**bits_per_axis PAM levels per axis (1 = QPSK,
+        2 = 16-QAM); comparator count grows as L-1 per axis.
+    spacing : int
+        Half the distance between adjacent PAM levels, in input LSBs; levels sit at
+        (2k-(L-1))*spacing and decision boundaries at even multiples of spacing.
     """
     def __init__(self, data_width=16, bits_per_axis=1, spacing=8192, with_csr=True):
         self.bits_per_axis = bits_per_axis

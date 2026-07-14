@@ -21,6 +21,12 @@ class LiteDSPDelay(LiteXModule):
     A simple pipeline of register stages used to time-align parallel branches by a known
     latency. Under backpressure all branches stall identically, so the alignment in samples is
     preserved. ``depth = 0`` is a passthrough.
+
+    Parameters
+    ----------
+    depth : int
+        Delay in samples (>= 0; 0 = pure passthrough). Costs one I/Q register stage
+        (2*data_width + 1 flip-flops) per unit of delay.
     """
     def __init__(self, depth=1, data_width=16):
         check(depth >= 0, "expected depth >= 0")

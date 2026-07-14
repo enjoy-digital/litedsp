@@ -23,6 +23,12 @@ class LiteDSPNotch(LiteXModule):
 
     Notch frequency set at runtime by ``cos_w0`` (= cos(2*pi*f0), signed Q.``frac``). ``r`` (build
     time, <1) sets the notch width. Direct-form-I biquad with round + saturate (per I/Q).
+
+    Parameters
+    ----------
+    r : float
+        Pole radius (build time, 0 < r < 1), quantized to Q.frac. Closer to 1 = narrower
+        notch but longer settling/ringing; too close to 1 risks quantization instability.
     """
     def __init__(self, data_width=16, frac=14, r=0.96, with_csr=True):
         self.frac = frac
@@ -90,7 +96,14 @@ class LiteDSPNotch(LiteXModule):
 
 @ResetInserter()
 class LiteDSPCombFilter(LiteXModule):
-    """Feed-forward comb ``y[n] = x[n] - x[n-D]`` (nulls at multiples of fs/D), per I/Q."""
+    """Feed-forward comb ``y[n] = x[n] - x[n-D]`` (nulls at multiples of fs/D), per I/Q.
+
+    Parameters
+    ----------
+    depth : int
+        Comb delay D in samples; nulls fall at integer multiples of fs/depth. Sets the size of
+        the per-I/Q circular delay-line memory (depth x data_width bits).
+    """
     def __init__(self, depth=8, data_width=16, with_csr=True):
         self.depth  = depth
         self.latency = 1

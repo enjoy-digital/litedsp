@@ -22,6 +22,12 @@ class LiteDSPInterpolator(LiteXModule):
 
     ``method="cic"`` (default) uses a portable CIC; ``method="fir"`` uses a polyphase
     interpolating FIR with a windowed-sinc low-pass (gain ``L`` to offset zero-stuff loss).
+
+    Parameters
+    ----------
+    cutoff : float
+        Anti-image low-pass cutoff, normalized to the input (low) sample rate (0..0.5); used
+        by ``method="fir"`` only (the CIC response is fixed by its structure).
     """
     def __init__(self, data_width=16, interpolation=8, method="cic", n_taps=None, cutoff=0.4,
         n_stages=4, with_csr=True):

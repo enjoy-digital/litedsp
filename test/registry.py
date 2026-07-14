@@ -1,0 +1,138 @@
+#
+# This file is part of LiteDSP.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
+"""Verification registry: per-block verification metadata over the flow palette.
+
+The flow registry (:mod:`litedsp.flow.registry`) says what a block *is*; VSPEC says how it is
+*verified*: which golden model backs it (``test/models.py``), how its latency is classified,
+its rate contract, and whether it is eligible for Verilator co-simulation. The meta-test
+(:mod:`test.test_registry_meta`) enforces completeness — a palette block without a VSPEC row,
+or a golden model that is not bound here, fails CI. This is the ratchet that keeps
+verification closed as blocks are added.
+
+Fields
+------
+model : str or None
+    Name of the backing golden model in ``test/models.py`` (bit-exact reference), if any.
+latency : str
+    ``"check"`` (fixed ``self.latency``, verified by test_latency), ``"variable"``
+    (data-dependent, ``self.latency is None``), or ``"n/a"`` (source/sink-only blocks).
+rate : tuple or None
+    ``(out, in)`` steady-state samples-out per samples-in contract (None = data-dependent).
+cosim : bool
+    Eligible for Verilator bit-exact co-simulation (model-backed, standard stream shape).
+"""
+
+def _v(model=None, latency="check", rate=(1, 1), cosim=False):
+    return {"model": model, "latency": latency, "rate": rate, "cosim": cosim}
+
+VSPEC = {
+    # generation (sources: no input -> latency n/a; rate = outputs only).
+    "nco":                _v("nco_model",              latency="n/a", rate=None, cosim=True),
+    "cordic_rot":         _v(latency="check"),
+    "cordic_vec":         _v(latency="check"),
+    "chirp":              _v(latency="n/a", rate=None),
+    "noise_source":       _v(latency="n/a", rate=None),
+    "pattern_source":     _v(latency="n/a", rate=None),
+    # mixing.
+    "mixer":              _v("mixer_model", cosim=True),
+    "ddc":                _v(rate=None),                       # decimation-dependent.
+    "duc":                _v(rate=None),
+    "channelizer":        _v(rate=None),
+    "pfb_channelizer":    _v(rate=None),
+    # filter.
+    "fir_real":           _v("fir_model",              cosim=True),
+    "fir_complex":        _v("fir_complex_model",      cosim=True),
+    "fir_decimator":      _v("fir_decimator_model",    rate=(1, 8),  cosim=True),
+    "fir_interpolator":   _v("fir_interpolator_model", rate=(8, 1),  cosim=True),
+    "cic_decimator":      _v("cic_decimator_model",    rate=(1, 8),  cosim=True),
+    "cic_interpolator":   _v("cic_interpolator_model", rate=(8, 1),  cosim=True),
+    "halfband_dec":       _v(rate=(1, 2)),
+    "halfband_int":       _v(rate=(2, 1)),
+    "hilbert":            _v(),
+    "iir_biquad":         _v("iir_biquad_model",       cosim=True),
+    "dc_blocker":         _v("dc_blocker_model",       cosim=True),
+    "moving_average":     _v("moving_average_model",   cosim=True),
+    "farrow":             _v(),
+    "equalizer":          _v(),
+    "notch":              _v(),
+    "comb_filter":        _v(),
+    "allpass":            _v(),
+    "pulse_shaper":       _v(rate=None),
+    "rational_resampler": _v(latency="variable", rate=(3, 2)),
+    "arb_resampler":      _v(latency="variable", rate=None),
+    # rate.
+    "decimator":          _v(rate=(1, 8)),
+    "interpolator":       _v(rate=(8, 1)),
+    "downsampler":        _v("decimate_model",    rate=None),  # Runtime factor.
+    "upsampler":          _v("interpolate_model", rate=None),
+    # level.
+    "gain":               _v("gain_model",  cosim=True),
+    "power":              _v("power_model", latency="variable", rate=None),
+    "agc":                _v(),
+    "saturate":           _v(),
+    "clipper":            _v(),
+    "rms":                _v(latency="variable", rate=None),
+    "squelch":            _v(),
+    "envelope":           _v(),
+    "log2":               _v("log2_model", cosim=True),
+    "log_power":          _v(),
+    # correction.
+    "dc_offset":          _v("dc_offset_model", cosim=True),
+    "iq_balance":         _v(),
+    "derotator":          _v(),
+    # comm.
+    "fm_demod":           _v(),
+    "am_demod":           _v(),
+    "slicer":             _v(),
+    "symbol_mapper":      _v(),
+    "correlator":         _v(),
+    "timing_recovery":    _v(latency="variable", rate=None),
+    "carrier_loop":       _v(),
+    "phase_detect":       _v(),
+    "diff_encoder":       _v(),
+    "diff_decoder":       _v(),
+    "scrambler":          _v(),
+    "descrambler":        _v(),
+    "crc":                _v(),
+    "conv_encoder":       _v(),
+    "viterbi_decoder":    _v(),
+    "cp_insert":          _v(latency="variable", rate=None),
+    "cp_remove":          _v(rate=None),
+    # analysis.
+    "window":             _v("window_model", cosim=True),
+    "fft":                _v("fft_model"),                     # SNR-thresholded (fixed point).
+    "fft_iter":           _v(rate=None),
+    "psd":                _v(latency="variable", rate=None),
+    "welch":              _v(latency="variable", rate=None),
+    "magnitude":          _v("magnitude_model", cosim=True),
+    "magnitude_cordic":   _v(),
+    "goertzel":           _v(latency="variable", rate=None),
+    "stats":              _v(rate=None),
+    "histogram":          _v(latency="variable", rate=None),
+    "energy_detector":    _v(),
+    "error_counter":      _v(latency="n/a", rate=None),        # Sink-only (CSR results).
+    # stream.
+    "combine":            _v("combine_model"),
+    "split":              _v(),
+    "delay":              _v(),
+    "skid_buffer":        _v(),
+    "channel_mux":        _v(rate=None),
+    "channel_demux":      _v(rate=None),
+    "capture":            _v(latency="variable", rate=None),
+    "conjugate":          _v(),
+    "swap_iq":            _v(),
+    "negate":             _v(),
+    "stream_fifo":        _v(),
+    "iq_pack":            _v(rate=None),
+    "iq_unpack":          _v(rate=None),
+    "cdc":                _v(),
+    "csr_source":         _v(latency="n/a", rate=None),
+    "csr_sink":           _v(latency="n/a", rate=None),
+    "null_sink":          _v(latency="n/a", rate=None),
+    "framer":             _v(),
+    "deframer":           _v(rate=None),
+}

@@ -25,6 +25,21 @@ class LiteDSPAGC(LiteXModule):
     (round + saturate). ``mu`` sets the loop time constant. Gain is Q?.``gain_frac``.
     ``railed`` is asserted while the loop sits at a gain clamp (overload/underrange); with
     ``with_irq=True`` its rising edge raises an interrupt (``ev.railed``).
+
+    Parameters
+    ----------
+    gain_frac : int
+        Fractional bits of the gain (gain register is data_width + gain_frac bits, reset to
+        1.0 = 2**gain_frac). More bits = finer gain resolution but a wider multiplier.
+    mu : int
+        Loop-gain exponent; each accepted sample updates gain by (target - |x|) >> mu. Larger =
+        slower, smoother AGC (longer time constant); smaller = faster but may pump.
+    gain_max : int
+        Upper clamp of the gain integrator, in 2**-gain_frac units. Defaults to the full gain
+        register range (2**(data_width + gain_frac) - 1); lower it to bound the maximum gain.
+    beta_shift : int
+        Beta exponent of the alpha-max-beta-min magnitude estimate (|x| ~ max + min >>
+        beta_shift). 2 is the usual multiplier-free compromise (~4% peak error).
     """
     def __init__(self, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2, with_csr=True,
         with_irq=False):

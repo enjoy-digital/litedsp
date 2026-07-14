@@ -21,6 +21,12 @@ class LiteDSPFMDemod(LiteXModule):
     Computes the complex product of each sample with the conjugate of the previous one
     (a phase-difference vector), then takes its angle with a CORDIC in vectoring mode. No phase
     unwrapping needed. Output is the per-sample phase increment (proportional to frequency).
+
+    Parameters
+    ----------
+    angle_width : int
+        Output angle resolution in bits (full circle = 2**angle_width); sets the CORDIC
+        stage count, so latency and resources grow with it.
     """
     def __init__(self, data_width=16, angle_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))

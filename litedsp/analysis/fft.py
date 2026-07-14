@@ -143,6 +143,14 @@ class LiteDSPFFT(LiteXModule):
     Cascades ``log2(N)`` :class:`LiteDSPFFTStage`s. Output is a 1/N-scaled FFT in **bit-reversed**
     order (use :func:`bit_reverse` to reorder). ``self.latency`` is the cycles from the first
     input sample of a frame to its first output sample.
+
+    Parameters
+    ----------
+    twiddle_width : int
+        Twiddle-factor width in bits (signed Q1.(W-1)); sets the per-stage twiddle ROM width,
+        the complex-multiplier size, and the coefficient-quantization noise floor.
+    inverse : bool
+        Compute the inverse FFT (conjugated, exp(+j) twiddles); output remains 1/N-scaled.
     """
     def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, with_csr=True):
         check((N & (N - 1)) == 0, "N must be a power of two.")

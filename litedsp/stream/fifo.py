@@ -23,7 +23,17 @@ from litedsp.common import check, iq_layout
 # Stream FIFO --------------------------------------------------------------------------------------
 
 class LiteDSPStreamFIFO(LiteXModule):
-    """First-word-fall-through synchronous FIFO for an I/Q (or custom-``layout``) stream."""
+    """First-word-fall-through synchronous FIFO for an I/Q (or custom-``layout``) stream.
+
+    Parameters
+    ----------
+    depth : int
+        FIFO capacity in stream beats (>= 1); size it to the largest burst the consumer can
+        fall behind by, since a push while full sets the sticky ``overflow`` flag.
+    layout : list
+        Stream payload layout as a list of (name, width) fields; defaults to the I/Q layout
+        of ``data_width`` samples. When a custom layout is given, data_width is ignored.
+    """
     def __init__(self, depth=16, data_width=16, layout=None, with_csr=True):
         check(depth >= 1, "expected depth >= 1")
         layout      = layout if layout is not None else iq_layout(data_width)

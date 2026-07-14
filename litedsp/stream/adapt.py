@@ -26,7 +26,18 @@ from litedsp.common import check, iq_layout, iq_lanes
 # Clock-Domain Crossing ----------------------------------------------------------------------------
 
 class LiteDSPIQClockDomainCrossing(LiteXModule):
-    """Cross an I/Q stream between clock domains via a LiteX async FIFO."""
+    """Cross an I/Q stream between clock domains via a LiteX async FIFO.
+
+    Parameters
+    ----------
+    cd_from : str
+        Clock-domain name of the ``sink`` (producer) side, e.g. "sys" or "adc".
+    cd_to : str
+        Clock-domain name of the ``source`` (consumer) side.
+    depth : int
+        Async FIFO depth in samples; deeper absorbs more rate jitter between the domains at
+        the cost of buffer registers/RAM.
+    """
     def __init__(self, cd_from="sys", cd_to="sys", data_width=16, depth=8):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -44,7 +55,14 @@ class LiteDSPIQClockDomainCrossing(LiteXModule):
 # Sample Packing / Unpacking -----------------------------------------------------------------------
 
 class LiteDSPIQPack(LiteXModule):
-    """Pack ``ratio`` consecutive I/Q samples into one wide ``data`` word (LSB = first sample)."""
+    """Pack ``ratio`` consecutive I/Q samples into one wide ``data`` word (LSB = first sample).
+
+    Parameters
+    ----------
+    ratio : int
+        Number of consecutive I/Q samples packed per output word (>= 1); the output ``data``
+        width is 2*data_width*ratio bits, first sample in the LSBs.
+    """
     def __init__(self, ratio=4, data_width=16):
         check(ratio >= 1, "expected ratio >= 1")
         sw          = 2*data_width  # Per-sample width: I + Q.
@@ -68,7 +86,14 @@ class LiteDSPIQPack(LiteXModule):
         ]
 
 class LiteDSPIQUnpack(LiteXModule):
-    """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`LiteDSPIQPack`)."""
+    """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`LiteDSPIQPack`).
+
+    Parameters
+    ----------
+    ratio : int
+        Number of I/Q samples carried per input word (>= 1); the input ``data`` width is
+        2*data_width*ratio bits, first sample taken from the LSBs. Match the packer's ratio.
+    """
     def __init__(self, ratio=4, data_width=16):
         check(ratio >= 1, "expected ratio >= 1")
         sw          = 2*data_width  # Per-sample width: I + Q.

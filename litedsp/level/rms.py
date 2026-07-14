@@ -22,6 +22,15 @@ class LiteDSPRMS(LiteXModule):
     Accumulates instantaneous power over a window, averages (shift), and takes the square root
     (:class:`LiteDSPISqrt`). Emits one RMS value per completed window on ``source`` (framed). The
     input is always accepted (the source is produced once per window).
+
+    Parameters
+    ----------
+    window_log2 : int
+        Reset value of the runtime window setting; the RMS is computed over 2**window_log2
+        samples. Larger = smoother estimate but slower update rate (one output per window).
+    max_window_log2 : int
+        Upper bound of the runtime ``window_log2`` setting. Sizes the power accumulator
+        (2*data_width + max_window_log2 bits) and the sample counter.
     """
     def __init__(self, data_width=16, window_log2=8, max_window_log2=20, with_csr=True):
         self.data_width = data_width

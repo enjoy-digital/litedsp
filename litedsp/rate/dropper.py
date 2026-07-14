@@ -25,7 +25,14 @@ from litedsp.common import iq_layout
 
 @ResetInserter()
 class LiteDSPDownsampler(LiteXModule):
-    """Keep one of every ``factor`` I/Q samples (naive decimation, no anti-alias filter)."""
+    """Keep one of every ``factor`` I/Q samples (naive decimation, no anti-alias filter).
+
+    Parameters
+    ----------
+    factor_bits : int
+        Width in bits of the runtime ``factor`` control/CSR; the maximum decimation factor is
+        2**factor_bits - 1 (factor itself is set at runtime, reset value 1).
+    """
     def __init__(self, data_width=16, factor_bits=16, with_csr=True):
         self.data_width = data_width
         self.latency    = 1
@@ -81,7 +88,17 @@ class LiteDSPDownsampler(LiteXModule):
 
 @ResetInserter()
 class LiteDSPUpsampler(LiteXModule):
-    """Emit ``factor`` I/Q samples per input: sample-and-hold (default) or zero-stuff."""
+    """Emit ``factor`` I/Q samples per input: sample-and-hold (default) or zero-stuff.
+
+    Parameters
+    ----------
+    factor_bits : int
+        Width in bits of the runtime ``factor`` control/CSR; the maximum interpolation factor
+        is 2**factor_bits - 1 (factor itself is set at runtime, reset value 1).
+    zero_stuff : bool
+        Insert zeros between input samples instead of repeating the held value (build-time
+        choice); pair with an anti-image filter sized for the zero-stuff spectral images.
+    """
     def __init__(self, data_width=16, factor_bits=16, zero_stuff=False, with_csr=True):
         self.data_width = data_width
         self.latency    = 1

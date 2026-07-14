@@ -23,6 +23,14 @@ class LiteDSPGoertzel(LiteXModule):
     For bin ``k`` of an ``N``-point window, runs ``s = x + (coeff*s1 - s2)`` with
     ``coeff = 2*cos(2*pi*k/N)``; after ``N`` samples emits the bin power
     ``s1**2 + s2**2 - coeff*s1*s2`` on ``source`` and restarts. Cheap DTMF / pilot detection.
+
+    Parameters
+    ----------
+    k : int
+        Target DFT bin index (0..N-1); the detected tone frequency is ``k*f_sample/N``.
+    coeff_frac : int
+        Fractional bits of the fixed-point resonator coefficient ``2*cos(2*pi*k/N)``; more bits
+        sharpen the bin frequency but widen the state registers (data_width + coeff_frac + 4).
     """
     def __init__(self, N, k, data_width=16, coeff_frac=14, with_csr=True):
         check(N >= 4, "expected N >= 4")  # Power pipeline spans 2 cycles.

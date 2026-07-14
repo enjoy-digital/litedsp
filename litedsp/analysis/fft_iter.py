@@ -42,7 +42,14 @@ def _tw_rom(N, func, width):
 # Iterative FFT ------------------------------------------------------------------------------------
 
 class LiteDSPFFTIter(LiteXModule):
-    """Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped)."""
+    """Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped).
+
+    Parameters
+    ----------
+    twiddle_width : int
+        Twiddle-factor width in bits (signed Q1.(W-1)); sets the N/2-entry cos/sin ROM width,
+        the butterfly multiplier size, and the coefficient-quantization noise floor.
+    """
     def __init__(self, N, data_width=16, twiddle_width=16, with_csr=True):
         check((N & (N - 1)) == 0 and N >= 4, "expected (N & (N - 1)) == 0 and N >= 4")
         self.N    = N

@@ -21,6 +21,18 @@ class LiteDSPPulseShaper(LiteXModule):
 
     An interpolating polyphase FIR loaded with RRC taps: maps a 1-sample-per-symbol I/Q stream
     to ``sps`` samples/symbol with matched-filter pulse shaping. Use the same RRC at RX.
+
+    Parameters
+    ----------
+    sps : int
+        Samples per symbol (interpolation factor); the output rate is sps x the input rate.
+        Also the number of polyphase branches of the underlying FIR interpolator.
+    span : int
+        Filter span in symbols (n_taps = sps*span + 1). Longer span = closer to the ideal RRC
+        (better stopband/ISI) at the cost of more taps and latency.
+    beta : float
+        RRC roll-off factor, 0 < beta <= 1. Excess bandwidth fraction; the occupied bandwidth
+        is (1 + beta) x symbol_rate / 2 per side. Smaller = sharper but longer pulses.
     """
     def __init__(self, sps=4, span=8, beta=0.35, data_width=16, with_csr=True):
         self.sps  = sps

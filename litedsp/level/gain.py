@@ -22,6 +22,12 @@ class LiteDSPGain(LiteXModule):
     The output is ``sample * gain / 2**(gain_frac + shift)`` with round-half-up + saturation.
     ``gain`` is a signed Q2.(N-2) mantissa (default 1.0); ``shift`` (0..3) divides by an extra
     1/2/4/8. ``saturation`` is a sticky status flag (cleared via ``clear_sat``).
+
+    Parameters
+    ----------
+    gain_frac : int
+        Fractional bits of the signed gain mantissa (1.0 = 2**gain_frac, reset value). Defaults
+        to data_width - 2, i.e. a Q2.(N-2) mantissa spanning gains up to just under 2.0.
     """
     def __init__(self, data_width=16, gain_frac=None, with_csr=True):
         if gain_frac is None:

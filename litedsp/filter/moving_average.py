@@ -22,6 +22,12 @@ class LiteDSPMovingAverage(LiteXModule):
     Maintains a running sum ``acc += x[n] - x[n-L]`` with an L-deep delay line (single adder),
     and outputs the rounded average ``acc / L``. Output stays in the input range, so no
     saturation is needed.
+
+    Parameters
+    ----------
+    length_log2 : int
+        log2 of the averaging length (L = 2**length_log2 samples, must be >= 1). Sets the
+        per-I/Q delay-line memory depth and adds length_log2 + 1 accumulator guard bits.
     """
     def __init__(self, data_width=16, length_log2=4, with_csr=True):
         check(length_log2 >= 1, "expected length_log2 >= 1")

@@ -24,6 +24,12 @@ class LiteDSPMagnitude(LiteXModule):
     ``|z| ~= max(|I|, |Q|) + (min(|I|, |Q|) >> beta_shift)`` — cheap (no multiplier), error
     within about -12%..+3% of true. ``method="cordic"``: exact (CORDIC vectoring). The output
     is one bit wider than the input (magnitude can reach ~1.41x full scale).
+
+    Parameters
+    ----------
+    beta_shift : int
+        Right shift applied to ``min(|I|, |Q|)`` in the alpha-max-beta-min sum (beta =
+        2**-beta_shift); 2 gives the ~-12%..+3% error bound. Used by ``method="approx"`` only.
     """
     def __init__(self, data_width=16, beta_shift=2, method="approx", with_csr=True):
         check(method in ["approx", "cordic"], "expected method in ['approx', 'cordic']")

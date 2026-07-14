@@ -28,6 +28,14 @@ class LiteDSPNCO(LiteXModule):
     The source is free-running: ``valid`` is asserted once the first sample is in the output
     register and stays asserted; the phase only advances when a sample is accepted
     (``valid & ready``), so downstream backpressure never drops or repeats samples.
+
+    Parameters
+    ----------
+    lut_depth : int
+        Cos/sin lookup ROM depth (power of two); sets the phase-quantization spur floor.
+    quarter_wave : bool
+        Store a single quarter-wave sine table (depth lut_depth/4 + 1) and reconstruct cos/sin
+        by symmetry (4x ROM saving) at the cost of a little output mux logic.
     """
     def __init__(self, phase_bits=32, data_width=16, lut_depth=1024, quarter_wave=False, with_csr=True):
         self.phase_bits   = phase_bits

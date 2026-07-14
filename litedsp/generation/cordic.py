@@ -40,6 +40,18 @@ class LiteDSPCORDIC(LiteXModule):
     Quadrant pre-rotation extends convergence to the full circle; the output is multiplied by
     1/K so magnitude/rotation are unity-gain. Pure feedforward pipeline (``latency =
     stages + 2``), so backpressure simply freezes it.
+
+    Parameters
+    ----------
+    angle_width : int
+        Phase word width in bits; the full circle spans 2**angle_width (pi = 2**(angle_width-1)).
+        Defaults to data_width.
+    stages : int
+        Number of pipelined CORDIC iterations; each adds ~1 bit of result precision and one
+        cycle of latency (latency = stages + 2). Defaults to data_width.
+    mode : str
+        "rotation" (rotate (x, y) by z, e.g. sin/cos generation) or "vectoring" (magnitude on
+        ``mag`` and atan2(y, x) on ``angle``).
     """
     def __init__(self, data_width=16, angle_width=None, stages=None, mode="rotation", with_csr=True):
         check(mode in ["rotation", "vectoring"], "expected mode in ['rotation', 'vectoring']")

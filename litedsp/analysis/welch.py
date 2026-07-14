@@ -23,6 +23,12 @@ class LiteDSPWelchPSD(LiteXModule):
     Applies a window before the FFT (reducing spectral leakage vs a bare PSD) and averages
     ``2**avg_log2`` frames. Output is the averaged spectrum in natural bin order. (Segment
     *overlap* is not yet implemented — a future refinement.)
+
+    Parameters
+    ----------
+    avg_log2 : int
+        Windowed FFT frames averaged per emitted spectrum, as a power of two (``2**avg_log2``);
+        more averaging lowers the variance of the estimate but lengthens the update interval.
     """
     def __init__(self, N=256, data_width=16, avg_log2=2, window="hann", with_csr=True):
         self.N = N

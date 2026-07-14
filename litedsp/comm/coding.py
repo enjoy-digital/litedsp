@@ -25,7 +25,14 @@ def _parity(bits):
 
 @ResetInserter()
 class LiteDSPScrambler(LiteXModule):
-    """Self-synchronizing multiplicative scrambler ``y = x ^ y[-t1] ^ y[-t2] ...`` (bit-serial)."""
+    """Self-synchronizing multiplicative scrambler ``y = x ^ y[-t1] ^ y[-t2] ...`` (bit-serial).
+
+    Parameters
+    ----------
+    polynomial : list
+        Feedback tap positions of the scrambler polynomial (default (18, 23):
+        1 + x^18 + x^23). State register length = max(taps) bits.
+    """
     def __init__(self, polynomial=(18, 23), with_csr=True):
         taps   = polynomial  # Feedback tap positions of the scrambler polynomial.
         length = max(taps)
@@ -56,7 +63,14 @@ class LiteDSPScrambler(LiteXModule):
 
 @ResetInserter()
 class LiteDSPDescrambler(LiteXModule):
-    """Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing)."""
+    """Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing).
+
+    Parameters
+    ----------
+    polynomial : list
+        Feedback tap positions, must match the scrambler's (default (18, 23):
+        1 + x^18 + x^23). State register length = max(taps) bits.
+    """
     def __init__(self, polynomial=(18, 23), with_csr=True):
         taps   = polynomial  # Feedback tap positions of the scrambler polynomial.
         length = max(taps)
@@ -93,6 +107,16 @@ class LiteDSPCRC(LiteXModule):
 
     ``clear`` re-initializes the register to ``init``. Defaults: CRC-16-CCITT
     (poly 0x1021, init 0xFFFF).
+
+    Parameters
+    ----------
+    width : int
+        CRC register width in bits (16 for the CRC-16-CCITT default).
+    poly : int
+        Generator polynomial, MSB-first with the implicit x^width term omitted
+        (default 0x1021 = x^16 + x^12 + x^5 + 1).
+    init : int
+        Value loaded into the CRC register at reset and on ``clear`` (default 0xFFFF).
     """
     def __init__(self, width=16, poly=0x1021, init=0xFFFF, with_csr=True):
         self.width = width
@@ -135,6 +159,14 @@ class LiteDSPConvEncoder(LiteXModule):
     """Rate-1/2 convolutional encoder (default K=7, G=[0o171, 0o133]).
 
     One input bit -> two coded bits on ``source.data`` (``[g1 | g0]``).
+
+    Parameters
+    ----------
+    constraint : int
+        Constraint length K of the convolutional code (shift-register memory = K-1 bits).
+    polys : list
+        Generator polynomials, octal, one output bit each (rate = 1/len(polys); default
+        (0o171, 0o133): the CCSDS/Voyager K=7 pair).
     """
     def __init__(self, constraint=7, polys=(0o171, 0o133), with_csr=True):
         self.constraint = constraint

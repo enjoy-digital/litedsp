@@ -27,6 +27,21 @@ class LiteDSPCarrierLoop(LiteXModule):
     derotated (baseband) signal is the output. ``decision_directed=False`` (PLL) uses the
     derotated imaginary part as the error (residual-carrier / tone); ``True`` (Costas) uses
     ``sign(I)*Q`` (suppressed-carrier BPSK).
+
+    Parameters
+    ----------
+    lut_depth : int
+        Depth of the NCO cos/sin LUTs (power of 2); addressed by the top log2(lut_depth)
+        phase bits, so deeper LUTs trade memory for lower phase quantization.
+    kp_shift : int
+        Proportional gain of the PI loop: Kp = 2**-kp_shift. Larger shift = smaller gain
+        (slower, tighter loop).
+    ki_shift : int
+        Integral (frequency) gain of the PI loop: Ki = 2**-ki_shift per sample. Larger
+        shift = smaller gain (slower frequency acquisition, less jitter).
+    decision_directed : bool
+        False: PLL phase detector (error = derotated Q; residual carrier / tone). True:
+        Costas detector (error = sign(I)*Q; suppressed-carrier BPSK).
     """
     def __init__(self, data_width=16, phase_bits=32, lut_depth=1024,
         kp_shift=6, ki_shift=14, decision_directed=False, with_csr=True):

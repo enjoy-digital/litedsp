@@ -23,6 +23,15 @@ class LiteDSPEnvelopeDetector(LiteXModule):
     ``env += (|x| - env) >> attack`` when rising, ``>> release`` when falling (single-pole
     smoothing; larger shift = slower). With ``release`` very large it approximates peak-hold.
     Magnitude uses the alpha-max-beta-min approximation.
+
+    Parameters
+    ----------
+    attack : int
+        Attack shift, applied while the magnitude rises (env += (|x| - env) >> attack).
+        Smaller = faster tracking of level increases; time constant ~ 2**attack samples.
+    release : int
+        Release shift, applied while the magnitude falls; larger = slower decay (time constant
+        ~ 2**release samples). A very large value approximates a peak-hold detector.
     """
     def __init__(self, data_width=16, attack=2, release=6, with_csr=True):
         self.attack  = attack

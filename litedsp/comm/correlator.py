@@ -22,6 +22,12 @@ class LiteDSPCorrelator(LiteXModule):
     the output peaks when the input aligns with the sequence. For a +/-1 PN/Barker code pass
     the code as ``sequence`` (taps become +/- full-scale). Follow with ``LiteDSPMagnitude`` + a
     threshold for preamble detection.
+
+    Parameters
+    ----------
+    sequence : list
+        Reference sequence, values in [-1.0, +1.0]; taps are its time-reversal scaled to
+        full-scale Q1.(data_width-1). Length sets the FIR tap count (one MAC pair per tap).
     """
     def __init__(self, sequence, data_width=16, with_csr=True):
         n_taps = len(sequence)
