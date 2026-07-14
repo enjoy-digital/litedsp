@@ -46,20 +46,22 @@ class LiteDSPIQPack(LiteXModule):
     """Pack ``ratio`` consecutive I/Q samples into one wide ``data`` word (LSB = first sample)."""
     def __init__(self, ratio=4, data_width=16):
         assert ratio >= 1
-        sw          = 2*data_width
+        sw          = 2*data_width  # Per-sample width: I + Q.
         self.ratio  = ratio
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint([("data", sw*ratio)])
 
         # # #
 
+        # Handshake/first/last pass through; the payload is remapped (i,q) -> flat data, so the
+        # sink side is wired field-by-field instead of using connect().
         self.conv = conv = stream.Converter(sw, sw*ratio)
         self.comb += [
             conv.sink.valid.eq(self.sink.valid),
             self.sink.ready.eq(conv.sink.ready),
             conv.sink.first.eq(self.sink.first),
             conv.sink.last.eq(self.sink.last),
-            conv.sink.data.eq(Cat(self.sink.i, self.sink.q)),
+            conv.sink.data.eq(Cat(self.sink.i, self.sink.q)),  # I in low bits, Q in high bits.
             conv.source.connect(self.source),
         ]
 
@@ -67,7 +69,7 @@ class LiteDSPIQUnpack(LiteXModule):
     """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`LiteDSPIQPack`)."""
     def __init__(self, ratio=4, data_width=16):
         assert ratio >= 1
-        sw          = 2*data_width
+        sw          = 2*data_width  # Per-sample width: I + Q.
         self.ratio  = ratio
         self.sink   = stream.Endpoint([("data", sw*ratio)])
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -91,7 +93,7 @@ class LiteDSPIQSerialToParallel(LiteXModule):
     """Gather ``n_samples`` consecutive I/Q samples into one multi-sample beat (lane 0 first)."""
     def __init__(self, n_samples=2, data_width=16):
         assert n_samples >= 1
-        sw          = 2*data_width
+        sw          = 2*data_width  # Per-sample width: I + Q.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width, n_samples))
 
@@ -124,7 +126,7 @@ class LiteDSPIQParallelToSerial(LiteXModule):
     """Spread one multi-sample beat back into ``n_samples`` consecutive I/Q samples."""
     def __init__(self, n_samples=2, data_width=16):
         assert n_samples >= 1
-        sw          = 2*data_width
+        sw          = 2*data_width  # Per-sample width: I + Q.
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -135,7 +137,7 @@ class LiteDSPIQParallelToSerial(LiteXModule):
         self.conv = conv = stream.Converter(sw*n_samples, sw)
         word = Signal(sw*n_samples)
         for k, (i, q) in enumerate(iq_lanes(self.sink, data_width, n_samples)):
-            self.comb += word[k*sw:(k + 1)*sw].eq(Cat(i, q))
+            self.comb += word[k*sw:(k + 1)*sw].eq(Cat(i, q))  # Lane k -> word slice k (lane 0 first out).
 
         # Datapath.
         # ---------

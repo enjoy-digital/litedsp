@@ -31,16 +31,16 @@ class LiteDSPCarrierLoop(LiteXModule):
     def __init__(self, data_width=16, phase_bits=32, lut_depth=1024,
         kp_shift=6, ki_shift=14, decision_directed=False, with_csr=True):
         self.decision_directed = decision_directed
-        self.sink   = stream.Endpoint(iq_layout(data_width))
-        self.source = stream.Endpoint(iq_layout(data_width))
+        self.sink    = stream.Endpoint(iq_layout(data_width))
+        self.source  = stream.Endpoint(iq_layout(data_width))
         self.latency = 1
 
         # # #
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Output slot free or being consumed.
+        xfer = Signal()  # Input sample accepted this cycle (loop runs per sample).
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -50,7 +50,7 @@ class LiteDSPCarrierLoop(LiteXModule):
         # NCO phase accumulator + cos/sin LUT (async read).
         # -------------------------------------------------
         addr_bits = int(math.log2(lut_depth))
-        scale     = (1 << (data_width - 1)) - 1
+        scale     = (1 << (data_width - 1)) - 1  # Full-scale Q1.(N-1).
         cos_init  = [int(round(math.cos(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width) - 1)
                      for n in range(lut_depth)]
         sin_init  = [int(round(math.sin(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width) - 1)
@@ -59,11 +59,11 @@ class LiteDSPCarrierLoop(LiteXModule):
         cos_rp, sin_rp   = cos_rom.get_port(async_read=True), sin_rom.get_port(async_read=True)
         self.specials += cos_rom, sin_rom, cos_rp, sin_rp
 
-        phase = Signal(phase_bits)
+        phase = Signal(phase_bits)          # NCO phase accumulator (full circle = 2**phase_bits).
         cos   = Signal((data_width, True))
         sin   = Signal((data_width, True))
         self.comb += [
-            cos_rp.adr.eq(phase[phase_bits - addr_bits:]),
+            cos_rp.adr.eq(phase[phase_bits - addr_bits:]),  # Top phase bits address the LUTs.
             sin_rp.adr.eq(phase[phase_bits - addr_bits:]),
             cos.eq(cos_rp.dat_r), sin.eq(sin_rp.dat_r),
         ]
@@ -76,7 +76,7 @@ class LiteDSPCarrierLoop(LiteXModule):
 
         # Phase error, scaled up into phase-rate units so the PI loop spans the full range.
         # ---------------------------------------------------------------------------------
-        err = Signal((data_width + 1, True))
+        err = Signal((data_width + 1, True))  # +1 bit so -d_q cannot overflow.
         if decision_directed:
             self.comb += err.eq(Mux(d_i >= 0, d_q, -d_q))     # Costas (BPSK).
         else:
@@ -89,7 +89,7 @@ class LiteDSPCarrierLoop(LiteXModule):
         self.pi = LiteDSPPILoop(error_width=phase_bits + 2, out_width=phase_bits + 2,
             kp_shift=kp_shift, ki_shift=ki_shift)
         self.comb += [self.pi.error.eq(err_scaled), self.pi.ce.eq(xfer)]
-        self.sync += If(xfer, phase.eq(phase + self.pi.out))
+        self.sync += If(xfer, phase.eq(phase + self.pi.out))  # PI output = instantaneous frequency word.
 
         # Output.
         # -------

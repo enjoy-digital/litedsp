@@ -32,17 +32,17 @@ class LiteDSPIQBalance(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.c1 = Signal((data_width, True), reset=0)                 # Q?.frac.
         self.c2 = Signal((data_width, True), reset=1 << coeff_frac)   # 1.0.
-        acc_w   = 2*data_width + window_log2
-        self.acc_ii = Signal(acc_w)
-        self.acc_qq = Signal(acc_w)
-        self.acc_iq = Signal((acc_w, True))
+        acc_w   = 2*data_width + window_log2                          # Product + window bit growth.
+        self.acc_ii = Signal(acc_w)                                   # Latched sum I**2 (last window).
+        self.acc_qq = Signal(acc_w)                                   # Latched sum Q**2 (last window).
+        self.acc_iq = Signal((acc_w, True))                           # Latched sum I*Q (signed).
 
         # # #
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Pipeline drains (output slot free or being consumed).
+        xfer = Signal()  # A sample is consumed this beat.
         i, q = self.sink.i, self.sink.q
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
@@ -52,6 +52,7 @@ class LiteDSPIQBalance(LiteXModule):
 
         # Correction datapath.
         # --------------------
+        # Q' = (c1*I + c2*Q) >> coeff_frac with round-half-up + saturation; I passes through.
         qc, _ = scaled(self.c1*i + self.c2*q, coeff_frac, data_width)
         self.sync += If(adv,
             self.source.i.eq(i),
@@ -65,9 +66,9 @@ class LiteDSPIQBalance(LiteXModule):
         ii    = Signal(acc_w)
         qq    = Signal(acc_w)
         iq    = Signal((acc_w, True))
-        self.sync += If(xfer,
+        self.sync += If(xfer,  # Accumulate on accepted samples only.
             If(count == ((1 << window_log2) - 1),
-                self.acc_ii.eq(ii + i*i),
+                self.acc_ii.eq(ii + i*i),  # Latch with the final sample included.
                 self.acc_qq.eq(qq + q*q),
                 self.acc_iq.eq(iq + i*q),
                 ii.eq(0), qq.eq(0), iq.eq(0), count.eq(0),

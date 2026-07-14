@@ -43,8 +43,8 @@ class LiteDSPCombine(LiteXModule):
         # Synchronous join: consume all sinks together when output can accept.
         # --------------------------------------------------------------------
         all_valid = reduce(and_, [s.valid for s in self.sinks])
-        advance   = Signal()
-        consume   = Signal()
+        advance   = Signal()  # Output register can accept a new sample.
+        consume   = Signal()  # All sinks transfer together this cycle.
         self.comb += [
             advance.eq(self.source.ready | ~self.source.valid),
             consume.eq(all_valid & advance),
@@ -54,6 +54,7 @@ class LiteDSPCombine(LiteXModule):
 
         # Width-growing sum of enabled channels, then saturate.
         # -----------------------------------------------------
+        # Disabled channels contribute zero but are still consumed (the join stays in lockstep).
         acc_bits = data_width + int(math.ceil(math.log2(n_channels))) if n_channels > 1 else data_width
         sum_i    = Signal((acc_bits, True))
         sum_q    = Signal((acc_bits, True))

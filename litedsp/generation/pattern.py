@@ -20,10 +20,10 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import iq_layout
 
-PATTERN_CONST   = 0
-PATTERN_COUNTER = 1
-PATTERN_PRBS    = 2
-PATTERN_IMPULSE = 3
+PATTERN_CONST   = 0  # Fixed I/Q value (CSR-set).
+PATTERN_COUNTER = 1  # Incrementing ramp (I = cnt, Q = ~cnt).
+PATTERN_PRBS    = 2  # Maximal-length LFSR.
+PATTERN_IMPULSE = 3  # Single full-scale sample, then zeros.
 
 # Pattern Source -----------------------------------------------------------------------------------
 
@@ -32,17 +32,17 @@ class LiteDSPPatternSource(LiteXModule):
     def __init__(self, data_width=16, seed=0x1, with_csr=True):
         self.data_width = data_width
         self.source  = stream.Endpoint(iq_layout(data_width))
-        self.mode    = Signal(2, reset=PATTERN_COUNTER)
-        self.const_i = Signal((data_width, True))
-        self.const_q = Signal((data_width, True))
+        self.mode    = Signal(2, reset=PATTERN_COUNTER)  # Pattern select (PATTERN_*).
+        self.const_i = Signal((data_width, True))        # Constant I (PATTERN_CONST).
+        self.const_q = Signal((data_width, True))        # Constant Q (PATTERN_CONST).
 
         # # #
 
         # Signals.
         # --------
-        adv  = Signal()
-        cnt  = Signal(data_width)
-        lfsr = Signal(data_width, reset=seed & ((1 << data_width) - 1) or 1)
+        adv   = Signal()                         # Output register can accept a new sample.
+        cnt   = Signal(data_width)               # Ramp counter (counter pattern).
+        lfsr  = Signal(data_width, reset=seed & ((1 << data_width) - 1) or 1)  # Seed forced non-zero (all-zero locks the LFSR).
         first = Signal(reset=1)                  # Distinguishes the impulse's first sample.
         self.comb += adv.eq(self.source.ready | ~self.source.valid)
 

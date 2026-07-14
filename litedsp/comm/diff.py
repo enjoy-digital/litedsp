@@ -28,10 +28,10 @@ class LiteDSPDifferentialEncoder(LiteXModule):
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
-        acc  = Signal(bits + 1)
-        nxt  = Signal(bits + 1)
+        adv  = Signal()          # Output slot free or being consumed.
+        xfer = Signal()          # Input symbol accepted this cycle.
+        acc  = Signal(bits + 1)  # Previous output symbol (running sum).
+        nxt  = Signal(bits + 1)  # acc + in, before the mod-M wrap.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -42,7 +42,7 @@ class LiteDSPDifferentialEncoder(LiteXModule):
         # Accumulator.
         # ------------
         wrapped = Signal(bits)
-        self.comb += wrapped.eq(Mux(nxt >= modulus, nxt - modulus, nxt))
+        self.comb += wrapped.eq(Mux(nxt >= modulus, nxt - modulus, nxt))  # nxt < 2M: one subtract wraps.
         self.sync += If(xfer, acc.eq(wrapped))
         self.sync += If(adv, self.source.data.eq(wrapped), self.source.valid.eq(self.sink.valid))
 
@@ -62,10 +62,10 @@ class LiteDSPDifferentialDecoder(LiteXModule):
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
-        prev = Signal(bits)
-        diff = Signal((bits + 1, True))
+        adv  = Signal()                  # Output slot free or being consumed.
+        xfer = Signal()                  # Input symbol accepted this cycle.
+        prev = Signal(bits)              # Previous input symbol.
+        diff = Signal((bits + 1, True))  # in - prev, may be negative.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -76,6 +76,6 @@ class LiteDSPDifferentialDecoder(LiteXModule):
         # Datapath.
         # ---------
         wrapped = Signal(bits)
-        self.comb += wrapped.eq(Mux(diff < 0, diff + modulus, diff))
+        self.comb += wrapped.eq(Mux(diff < 0, diff + modulus, diff))  # diff in (-M, M): one add wraps.
         self.sync += If(xfer, prev.eq(self.sink.data))
         self.sync += If(adv, self.source.data.eq(wrapped), self.source.valid.eq(self.sink.valid))

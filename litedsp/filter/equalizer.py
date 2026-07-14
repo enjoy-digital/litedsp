@@ -33,8 +33,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, with_csr=True):
         assert n_taps >= 1
-        self.n_taps = n_taps
-        self.mu_shift = mu_shift
+        self.n_taps   = n_taps
+        self.mu_shift = mu_shift                         # LMS step size: mu = 2**-mu_shift.
         # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude
         # (saturated below); keeping ww = wint + wfrac <= 18 makes each weight*sample a single
         # 18x18 DSP. Stable equalizers have O(1) weights, so a few integer bits suffice.
@@ -44,15 +44,15 @@ class LiteDSPLMSEqualizer(LiteXModule):
             ("d_i", (data_width, True)), ("d_q", (data_width, True)),
         ])
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.train  = Signal(reset=1)
+        self.train   = Signal(reset=1)                   # Enable weight adaptation (freeze when 0).
         self.latency = 1
 
         # # #
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()                                  # Output slot free or being consumed.
+        xfer = Signal()                                  # A sample (+ desired symbol) is consumed this beat.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -89,8 +89,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
         # -----------
         # Delayed-LMS update: register the error with its input-window snapshot, apply it on
         # the next accepted sample: w_k += mu * e[n-1] * conj(x[n-1-k]).
-        ei_d = Signal((data_width + 1, True))
-        eq_d = Signal((data_width + 1, True))
+        ei_d = Signal((data_width + 1, True))            # Registered error Re{e} (1 growth bit).
+        eq_d = Signal((data_width + 1, True))            # Registered error Im{e}.
         xr_d = [Signal((data_width, True)) for _ in range(n_taps)]
         xi_d = [Signal((data_width, True)) for _ in range(n_taps)]
         v_e  = Signal()                                  # A registered error is pending.

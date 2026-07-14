@@ -39,11 +39,13 @@ class LiteDSPDelay(LiteXModule):
 
         # Handshake.
         # ----------
-        adv = Signal()
+        adv = Signal()  # Pipeline advances (output slot free or being consumed).
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
         # Delay Pipeline.
         # ---------------
+        # Data and valid shift together, so input bubbles travel through and reappear at the
+        # output with the sample alignment unchanged.
         i_pipe = [Signal((data_width, True)) for _ in range(depth)]
         q_pipe = [Signal((data_width, True)) for _ in range(depth)]
         v_pipe = Signal(depth)

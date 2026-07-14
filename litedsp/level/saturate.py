@@ -32,8 +32,8 @@ class LiteDSPSaturate(LiteXModule):
         self.latency    = 1
         self.sink   = stream.Endpoint(iq_layout(in_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.clear_sat = Signal()
-        self.sat       = Signal()
+        self.clear_sat = Signal()  # Clear sticky sat flag.
+        self.sat       = Signal()  # Sticky overflow.
 
         # # #
 

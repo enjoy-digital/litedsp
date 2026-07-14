@@ -28,8 +28,8 @@ class LiteDSPGoertzel(LiteXModule):
         assert N >= 4                                     # Power pipeline spans 2 cycles.
         self.N = N
         self.k = k
-        coeff = int(round(2*math.cos(2*math.pi*k/N)*(1 << coeff_frac)))
-        SW    = data_width + coeff_frac + 4
+        coeff = int(round(2*math.cos(2*math.pi*k/N)*(1 << coeff_frac)))  # 2*cos scaled by 2**coeff_frac.
+        SW    = data_width + coeff_frac + 4                              # State width (growth margin).
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint([("data", 2*SW)])
 
@@ -37,11 +37,11 @@ class LiteDSPGoertzel(LiteXModule):
 
         # Resonator.
         # ----------
-        s1, s2 = Signal((SW, True)), Signal((SW, True))
-        count  = Signal(max=N)
-        s      = Signal((SW, True))
+        s1, s2 = Signal((SW, True)), Signal((SW, True))  # State: s[n-1] / s[n-2].
+        count  = Signal(max=N)                           # Position within the N-sample window.
+        s      = Signal((SW, True))                      # s[n] (combinational).
         self.comb += [
-            self.sink.ready.eq(1),
+            self.sink.ready.eq(1),  # Always accepts (no backpressure needed).
             s.eq(self.sink.data + ((coeff*s1) >> coeff_frac) - s2),
         ]
 
@@ -51,17 +51,17 @@ class LiteDSPGoertzel(LiteXModule):
         # registered pipeline after the window boundary — done combinationally it chained three
         # multiplies onto the resonator and was the block's critical path. Bit-identical result,
         # emitted two cycles after the last window sample.
-        f1, f2 = Signal((SW, True)), Signal((SW, True))
-        p1     = Signal((2*SW + 1, True))
-        p2     = Signal((2*SW + 1, True))
-        phase  = Signal(2)
+        f1, f2 = Signal((SW, True)), Signal((SW, True))  # Final states latched at window end.
+        p1     = Signal((2*SW + 1, True))                # f1**2 + f2**2.
+        p2     = Signal((2*SW + 1, True))                # coeff*f1*f2 (still scaled by coeff_frac).
+        phase  = Signal(2)                               # Power pipeline stage (0: idle).
         self.sync += [
-            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
+            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),  # Held until consumed.
             If(self.sink.valid,
                 s1.eq(s), s2.eq(s1),
                 If(count == (N - 1),
-                    count.eq(0), s1.eq(0), s2.eq(0),
-                    f1.eq(s), f2.eq(s1),
+                    count.eq(0), s1.eq(0), s2.eq(0),  # Restart the resonator for the next window.
+                    f1.eq(s), f2.eq(s1),              # Latch final states (new s1/s2) for the power pipe.
                     phase.eq(1),
                 ).Else(
                     count.eq(count + 1),

@@ -36,8 +36,8 @@ class LiteDSPDecimator(LiteXModule):
         if method == "cic":
             self.core = LiteDSPCICDecimator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
         else:
-            n_taps = n_taps or (8*factor + 1)
-            coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width)
+            n_taps = n_taps or (8*factor + 1)  # ~8 taps per polyphase branch.
+            coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width)  # Cutoff at the input (high) rate.
             self.core = LiteDSPFIRDecimator(n_taps, factor, data_width=data_width,
                 coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency

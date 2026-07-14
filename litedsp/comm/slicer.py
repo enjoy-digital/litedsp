@@ -25,7 +25,7 @@ class LiteDSPSlicer(LiteXModule):
     """
     def __init__(self, data_width=16, bits_per_axis=1, spacing=8192, with_csr=True):
         self.bits_per_axis = bits_per_axis
-        L = 1 << bits_per_axis
+        L = 1 << bits_per_axis  # PAM levels per axis.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint([
             ("i", (data_width, True)), ("q", (data_width, True)),
@@ -37,7 +37,7 @@ class LiteDSPSlicer(LiteXModule):
 
         # Handshake.
         # ----------
-        adv = Signal()
+        adv = Signal()  # Advance when the output slot is free or being consumed.
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
 
         # Decision.
@@ -58,6 +58,6 @@ class LiteDSPSlicer(LiteXModule):
         # -------
         self.sync += If(adv,
             self.source.i.eq(pi), self.source.q.eq(pq),
-            self.source.symbol.eq(Cat(ki, kq)),
+            self.source.symbol.eq(Cat(ki, kq)),  # [q_bits | i_bits].
             self.source.valid.eq(self.sink.valid),
         )

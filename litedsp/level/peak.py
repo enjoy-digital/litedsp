@@ -46,17 +46,17 @@ class LiteDSPEnvelopeDetector(LiteXModule):
 
         # Envelope Follower.
         # ------------------
-        env   = Signal(W)
-        m     = Signal((W + 1, True))
+        env   = Signal(W)              # Envelope state (unsigned).
+        m     = Signal((W + 1, True))  # Magnitude, signed for the subtract below.
         delta = Signal((W + 1, True))
         step  = Signal((W + 1, True))
         self.comb += [
             m.eq(self.mag.source.data),
             delta.eq(m - env),
-            step.eq(Mux(delta >= 0, delta >> attack, delta >> release)),
+            step.eq(Mux(delta >= 0, delta >> attack, delta >> release)),  # Rising: fast; falling: slow.
         ]
         self.sync += If(adv,
             env.eq(env + step),
-            self.source.data.eq(env + step),
+            self.source.data.eq(env + step),  # Register the updated envelope (same value env takes).
             self.source.valid.eq(self.mag.source.valid),
         )

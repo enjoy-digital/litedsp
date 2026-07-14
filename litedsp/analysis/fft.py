@@ -52,8 +52,8 @@ class LiteDSPFFTStage(LiteXModule):
 
         # # #
 
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Pipeline advances (output slot free or being consumed).
+        xfer = Signal()  # An input sample is consumed this beat.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -155,6 +155,7 @@ class LiteDSPFFT(LiteXModule):
 
         # # #
 
+        # Stage cascade: sink -> stage0 -> ... -> stage(log2(N)-1) -> source.
         self.stages = []
         last = self.sink
         for k in range(self.bits):

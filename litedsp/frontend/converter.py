@@ -36,8 +36,8 @@ class LiteDSPADCInterface(LiteXModule):
 
         # # #
 
-        shift = data_width - adc_width
-        msb   = 1 << (adc_width - 1)
+        shift = data_width - adc_width   # MSB-justification (left shift) amount.
+        msb   = 1 << (adc_width - 1)     # Offset-binary <-> two's complement: invert the MSB.
 
         # Handshake.
         # ----------
@@ -45,6 +45,7 @@ class LiteDSPADCInterface(LiteXModule):
             self.source.valid.eq(self.sink.valid), self.sink.ready.eq(self.source.ready),
             self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
         ]
+
         # Datapath.
         # ---------
         for raw, out in [(self.sink.i, self.source.i), (self.sink.q, self.source.q)]:
@@ -67,8 +68,8 @@ class LiteDSPDACInterface(LiteXModule):
 
         # # #
 
-        shift = data_width - dac_width
-        msb   = 1 << (dac_width - 1)
+        shift = data_width - dac_width   # Downsize (right shift) amount, rounded by `scaled`.
+        msb   = 1 << (dac_width - 1)     # Offset-binary <-> two's complement: invert the MSB.
 
         # Handshake.
         # ----------
@@ -76,6 +77,7 @@ class LiteDSPDACInterface(LiteXModule):
             self.source.valid.eq(self.sink.valid), self.sink.ready.eq(self.source.ready),
             self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
         ]
+
         # Rounding/Saturation.
         # --------------------
         for inp, out in [(self.sink.i, self.source.i), (self.sink.q, self.source.q)]:

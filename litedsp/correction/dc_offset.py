@@ -29,15 +29,15 @@ class LiteDSPDCOffset(LiteXModule):
         self.latency = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.mean_i = Signal((data_width + mu, True))
-        self.mean_q = Signal((data_width + mu, True))
+        self.mean_i = Signal((data_width + mu, True))  # DC estimate accumulator (mu fractional bits).
+        self.mean_q = Signal((data_width + mu, True))  # DC estimate accumulator (mu fractional bits).
 
         # # #
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Pipeline drains (output slot free or being consumed).
+        xfer = Signal()  # A sample is consumed this beat.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -50,9 +50,9 @@ class LiteDSPDCOffset(LiteXModule):
             x   = getattr(self.sink, field)
             est = Signal((data_width, True))
             self.comb += est.eq(mean >> self.mu)                 # round-toward-zero estimate.
-            self.sync += If(xfer, mean.eq(mean + (x - est)))
+            self.sync += If(xfer, mean.eq(mean + (x - est)))     # Estimate tracks accepted samples only.
             self.sync += If(adv,
-                getattr(self.source, field).eq(saturated(x - est, data_width)),
+                getattr(self.source, field).eq(saturated(x - est, data_width)),  # Subtract grows 1 bit; saturate.
             )
 
         # Output.

@@ -22,7 +22,7 @@ class LiteDSPChannelMux(LiteXModule):
         self.latency = 0
         self.sinks  = [stream.Endpoint(iq_layout(data_width)) for _ in range(n)]
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.sel    = Signal(max=max(2, n))
+        self.sel    = Signal(max=max(2, n))  # Selected input channel (runtime).
 
         # # #
 
@@ -53,7 +53,7 @@ class LiteDSPChannelDemux(LiteXModule):
         self.latency = 0
         self.sink    = stream.Endpoint(iq_layout(data_width))
         self.sources = [stream.Endpoint(iq_layout(data_width)) for _ in range(n)]
-        self.sel     = Signal(max=max(2, n))
+        self.sel     = Signal(max=max(2, n))  # Selected output channel (runtime).
 
         # # #
 

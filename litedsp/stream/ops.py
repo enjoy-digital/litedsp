@@ -69,7 +69,7 @@ class LiteDSPIQAdd(LiteXModule):
 
         # # #
 
-        xfer = Signal()
+        xfer = Signal()  # Both inputs transfer this beat.
         self.comb += [
             self.source.valid.eq(self.sink_a.valid & self.sink_b.valid),
             xfer.eq(self.source.valid & self.source.ready),

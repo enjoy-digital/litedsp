@@ -40,14 +40,14 @@ class LiteDSPAGC(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.target = Signal(data_width + 1, reset=1 << (data_width - 2))   # Default ~0.25 FS.
         self.gain   = Signal(gain_width, reset=1 << gain_frac)              # Start at 1.0.
-        self.railed = Signal()
+        self.railed = Signal()                                              # Gain sits at a clamp.
 
         # # #
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Pipeline drains (output slot free or being consumed).
+        xfer = Signal()  # A sample is consumed this beat.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -56,6 +56,7 @@ class LiteDSPAGC(LiteXModule):
 
         # Apply current (registered) gain.
         # --------------------------------
+        # (x * gain) >> gain_frac with round-half-up + saturation (gain is Q?.gain_frac).
         out_i, _ = scaled(self.sink.i*self.gain, gain_frac, data_width)
         out_q, _ = scaled(self.sink.q*self.gain, gain_frac, data_width)
         self.sync += If(adv,
@@ -69,22 +70,24 @@ class LiteDSPAGC(LiteXModule):
         # Measure the *output* magnitude (alpha-max-beta-min) to close the loop.
         ai, aq = Signal(data_width + 1), Signal(data_width + 1)
         self.comb += [
-            ai.eq(Mux(out_i[-1], -out_i, out_i)),
-            aq.eq(Mux(out_q[-1], -out_q, out_q)),
+            ai.eq(Mux(out_i[-1], -out_i, out_i)),  # |I|.
+            aq.eq(Mux(out_q[-1], -out_q, out_q)),  # |Q|.
         ]
         mag = Signal(data_width + 1)
+        # max + min/2**beta_shift ~ sqrt(I**2 + Q**2) (no multiplier/sqrt needed).
         self.comb += mag.eq(Mux(ai > aq, ai + (aq >> beta_shift), aq + (ai >> beta_shift)))
 
         # Gain loop (leaky integrator), clamped.
         # --------------------------------------
         error    = Signal((data_width + 2, True))
         step     = Signal((data_width + 2, True))
-        gain_nxt = Signal((gain_width + 2, True))
+        gain_nxt = Signal((gain_width + 2, True))  # Extra bits to detect clamp under/overflow.
         self.comb += [
             error.eq(self.target - mag),
-            step.eq(error >> self.mu),
+            step.eq(error >> self.mu),   # Loop gain 2**-mu (arithmetic shift keeps sign).
             gain_nxt.eq(self.gain + step),
         ]
+        # Gain integrates only on accepted samples, so the loop pauses with the stream.
         self.sync += If(xfer,
             If(gain_nxt < 0, self.gain.eq(0)
             ).Elif(gain_nxt > gain_max, self.gain.eq(gain_max)

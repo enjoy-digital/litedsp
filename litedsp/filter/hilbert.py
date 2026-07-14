@@ -48,6 +48,7 @@ class LiteDSPHilbert(LiteXModule):
 
         # Datapath.
         # ---------
+        # Broadcast the input to both FIRs; join valid/ready so I and Q stay lock-step.
         self.comb += [
             self.fir_i.sink.valid.eq(self.sink.valid),
             self.fir_q.sink.valid.eq(self.sink.valid),

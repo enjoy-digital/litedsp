@@ -46,16 +46,16 @@ class LiteDSPMovingAverage(LiteXModule):
 
         # Datapath.
         # ---------
-        acc_width = data_width + length_log2 + 1
+        acc_width = data_width + length_log2 + 1  # Sum of L samples: log2(L) growth + sign.
         for field in ["i", "q"]:
             x   = getattr(self.sink, field)
             mem = Memory(data_width, L)
             wp  = mem.get_port(write_capable=True)
             rp  = mem.get_port(async_read=True)
             self.specials += mem, wp, rp
-            ptr = Signal(max=L)
-            old = Signal((data_width, True))
-            acc = Signal((acc_width, True))
+            ptr = Signal(max=L)                   # Circular delay-line pointer.
+            old = Signal((data_width, True))      # x[n-L] (async read before the same-address write).
+            acc = Signal((acc_width, True))       # Running sum of the last L samples.
             acc_next = Signal((acc_width, True))
             self.comb += [
                 rp.adr.eq(ptr), wp.adr.eq(ptr),
@@ -67,6 +67,7 @@ class LiteDSPMovingAverage(LiteXModule):
                 acc.eq(acc_next),
                 If(ptr == (L - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)),
             )
+            # Average = sum >> log2(L), round-half-up; result stays in the input range.
             self.sync += If(adv, getattr(self.source, field).eq(rounded(acc_next, length_log2)))
 
         # Output.

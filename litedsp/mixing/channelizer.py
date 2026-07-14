@@ -29,7 +29,7 @@ class LiteDSPChannelizer(LiteXModule):
         if decimation is None:
             decimation = n_channels                       # Critically sampled.
         self.n_channels = n_channels
-        self.sink = stream.Endpoint(iq_layout(data_width))
+        self.sink = stream.Endpoint(iq_layout(data_width))    # Wide-band I/Q input.
 
         # # #
 
@@ -42,10 +42,11 @@ class LiteDSPChannelizer(LiteXModule):
         # ---------
         self.ddcs    = []
         self.sources = []
-        mask = (1 << phase_bits) - 1
+        mask = (1 << phase_bits) - 1                          # Wrap the tuning word to phase_bits.
         for k in range(n_channels):
             ddc = LiteDSPDDC(data_width=data_width, decimation=decimation, method=method,
                 phase_bits=phase_bits, with_csr=False)
+            # Center channel k at k/n_channels of the input sample rate (retunable at runtime).
             ddc.nco.phase_inc.reset = int(round(k/n_channels*(1 << phase_bits))) & mask
             self.add_module(name=f"ddc{k}", module=ddc)
             self.comb += self.split.sources[k].connect(ddc.sink)

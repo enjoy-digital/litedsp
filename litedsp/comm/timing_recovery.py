@@ -45,12 +45,12 @@ class LiteDSPTimingRecovery(LiteXModule):
 
         # Constants.
         # ----------
-        ONE       = 1 << frac
-        gm_q      = int(round(gain_mu*ONE))
+        ONE       = 1 << frac                             # 1.0 in Q.frac fixed-point.
+        gm_q      = int(round(gain_mu*ONE))               # Loop gains quantized to Q.frac.
         go_q      = int(round(gain_omega*ONE))
-        amp_shift = data_width - 1
-        omega_mid = sps*ONE
-        omega_lim = int(round(0.05*sps*ONE))
+        amp_shift = data_width - 1                        # Normalizes a full-scale error to ~1.0.
+        omega_mid = sps*ONE                               # Nominal samples/symbol (Q.frac).
+        omega_lim = int(round(0.05*sps*ONE))              # Clamp omega to nominal +/-5%.
         iw        = frac + 4                              # mu/omega width (a few integer bits).
 
         # Signals.

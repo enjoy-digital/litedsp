@@ -33,8 +33,8 @@ class LiteDSPRationalResampler(LiteXModule):
 
         # Polyphase Cores.
         # ----------------
-        cutoff = 0.4/max(L, M)
-        ntaps_i = (n_taps or (8*L + 1))
+        cutoff  = 0.4/max(L, M)          # 0.5/max(L, M) ideal; 0.4 leaves a transition band.
+        ntaps_i = (n_taps or (8*L + 1))  # ~8 taps per polyphase branch by default.
         ntaps_d = (n_taps or (8*M + 1))
         self.interp = LiteDSPFIRInterpolator(ntaps_i, L, data_width=data_width,
             coefficients=firwin_lowpass(ntaps_i, cutoff, data_width=data_width, gain=L),

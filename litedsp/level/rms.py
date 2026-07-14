@@ -39,19 +39,19 @@ class LiteDSPRMS(LiteXModule):
 
         # Accumulator.
         # ------------
-        inst  = Signal(2*data_width + 1)
-        acc   = Signal(acc_width)
+        inst  = Signal(2*data_width + 1)     # I**2 + Q**2: 2*data_width + 1 bits.
+        acc   = Signal(acc_width)            # Sized for the largest window.
         count = Signal(max_window_log2 + 1)
-        last  = Signal()
+        last  = Signal()                     # Final sample of the current window.
         self.comb += [
             inst.eq(self.sink.i*self.sink.i + self.sink.q*self.sink.q),
             last.eq(count == ((1 << self.window_log2) - 1)),
             self.sink.ready.eq(1),                       # Always consume; emit once per window.
         ]
         avg = Signal(2*data_width)
-        self.comb += avg.eq((acc + inst) >> self.window_log2)
+        self.comb += avg.eq((acc + inst) >> self.window_log2)  # Mean power, final sample included.
         self.sync += [
-            self.isqrt.sink.valid.eq(0),
+            self.isqrt.sink.valid.eq(0),  # Default: valid is a single-cycle pulse into ISqrt.
             If(self.sink.valid,
                 If(last,
                     self.isqrt.sink.valid.eq(1),

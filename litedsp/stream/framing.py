@@ -26,7 +26,7 @@ from litedsp.common import iq_layout
 class LiteDSPStreamFramer(LiteXModule):
     """Pass I/Q through, asserting ``first`` at sample 0 and ``last`` at sample ``length-1``."""
     def __init__(self, length=256, data_width=16, max_length=65536, with_csr=True):
-        self.length = Signal(max=max_length, reset=length)
+        self.length = Signal(max=max_length, reset=length)  # Frame length in samples (runtime).
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.latency = 0
@@ -35,8 +35,8 @@ class LiteDSPStreamFramer(LiteXModule):
 
         # Datapath.
         # ---------
-        cnt  = Signal(max=max_length)
-        xfer = Signal()
+        cnt  = Signal(max=max_length)  # Position within the current frame.
+        xfer = Signal()                # A sample transfers this beat.
         self.comb += [
             self.source.valid.eq(self.sink.valid),
             self.sink.ready.eq(self.source.ready),
@@ -70,8 +70,8 @@ class LiteDSPStreamDeframer(LiteXModule):
     def __init__(self, data_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.frames = Signal(32)
-        self.clear  = Signal()
+        self.frames = Signal(32)  # Completed frames since clear.
+        self.clear  = Signal()    # 1-cycle strobe: reset the frame counter.
         self.latency = 0
 
         # # #
@@ -79,7 +79,7 @@ class LiteDSPStreamDeframer(LiteXModule):
         # Datapath.
         # ---------
         in_frame = Signal()                       # 0 -> next sample starts a frame.
-        xfer     = Signal()
+        xfer     = Signal()                       # A sample transfers this beat.
         self.comb += [
             self.source.valid.eq(self.sink.valid),
             self.sink.ready.eq(self.source.ready),

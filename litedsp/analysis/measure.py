@@ -26,11 +26,11 @@ from litedsp.common import iq_layout
 class LiteDSPErrorCounter(LiteXModule):
     """Count mismatches between a reference and a received I/Q stream (synchronous join)."""
     def __init__(self, data_width=16, with_csr=True):
-        self.sink_ref = stream.Endpoint(iq_layout(data_width))
-        self.sink_rx  = stream.Endpoint(iq_layout(data_width))
-        self.errors = Signal(32)
-        self.total  = Signal(32)
-        self.clear  = Signal()
+        self.sink_ref = stream.Endpoint(iq_layout(data_width))  # Reference (expected) stream.
+        self.sink_rx  = stream.Endpoint(iq_layout(data_width))  # Received (under-test) stream.
+        self.errors = Signal(32)                                # Mismatched samples since clear.
+        self.total  = Signal(32)                                # Compared samples since clear.
+        self.clear  = Signal()                                  # Synchronous counter clear.
 
         # # #
 

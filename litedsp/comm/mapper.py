@@ -24,16 +24,21 @@ class LiteDSPSymbolMapper(LiteXModule):
     def __init__(self, data_width=16, bits_per_axis=1, spacing=8192, with_csr=True):
         self.bits_per_axis = bits_per_axis
         L = 1 << bits_per_axis
-        self.sink   = stream.Endpoint([("symbol", 2*bits_per_axis)])
-        self.source = stream.Endpoint(iq_layout(data_width))
+        self.sink    = stream.Endpoint([("symbol", 2*bits_per_axis)])
+        self.source  = stream.Endpoint(iq_layout(data_width))
         self.latency = 1
 
         # # #
 
-        adv = Signal()
+        # Handshake.
+        # ----------
+        adv = Signal()  # Advance when the output slot is free or being consumed.
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
-        ki = self.sink.symbol[:bits_per_axis]
-        kq = self.sink.symbol[bits_per_axis:]
+
+        # Mapping: level index k -> PAM level (2k - (L-1))*spacing, symmetric about 0.
+        # ----------------------------------------------------------------------------
+        ki = self.sink.symbol[:bits_per_axis]   # I-axis level index (low bits).
+        kq = self.sink.symbol[bits_per_axis:]   # Q-axis level index (high bits).
         self.sync += If(adv,
             self.source.i.eq((2*ki - (L - 1))*spacing),
             self.source.q.eq((2*kq - (L - 1))*spacing),

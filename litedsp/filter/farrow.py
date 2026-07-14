@@ -43,7 +43,7 @@ class LiteDSPFarrowInterpolator(LiteXModule):
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
-        mu = Signal((frac_bits + 1, True))
+        mu = Signal((frac_bits + 1, True))       # Zero-extended to signed for the DSP multiplies.
         self.comb += mu.eq(self.mu)
 
         # Datapath.

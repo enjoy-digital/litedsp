@@ -31,7 +31,8 @@ class LiteDSPPulseShaper(LiteXModule):
 
         # # #
 
-        n_taps    = sps*span + 1
+        n_taps    = sps*span + 1                 # Odd, symmetric: span symbols at sps samples each.
+        # RRC taps; gain=sps compensates the 1/L amplitude loss of interpolation.
         coeffs    = rrc_coefficients(sps, span, beta, data_width=data_width, gain=sps)
         self.core = LiteDSPFIRInterpolator(n_taps, sps, data_width=data_width,
             coefficients=coeffs, with_csr=with_csr)

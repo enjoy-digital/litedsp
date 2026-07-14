@@ -31,9 +31,9 @@ class LiteDSPSquelch(LiteXModule):
         self.latency     = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.open_threshold  = Signal(self.power_width, reset=0)
-        self.close_threshold = Signal(self.power_width, reset=0)
-        self.open            = Signal()
+        self.open_threshold  = Signal(self.power_width, reset=0)  # Open gate at/above this power.
+        self.close_threshold = Signal(self.power_width, reset=0)  # Close gate below this power.
+        self.open            = Signal()                           # Gate state (1: passing).
 
         # # #
 
@@ -46,6 +46,7 @@ class LiteDSPSquelch(LiteXModule):
         # ----------------
         power = Signal(self.power_width)
         self.comb += power.eq(self.sink.i*self.sink.i + self.sink.q*self.sink.q)
+        # Gate state updates only on accepted samples (holds during stalls).
         self.sync += If(self.sink.valid & adv,
             If(power >= self.open_threshold, self.open.eq(1)
             ).Elif(power < self.close_threshold, self.open.eq(0)),
@@ -71,6 +72,7 @@ class LiteDSPSquelch(LiteXModule):
         self.ev.opened = EventSourceProcess(edge="rising",  description="Squelch gate opened.")
         self.ev.closed = EventSourceProcess(edge="falling", description="Squelch gate closed.")
         self.ev.finalize()
+        # Both events watch the same gate level, on opposite edges.
         self.comb += [
             self.ev.opened.trigger.eq(self.open),
             self.ev.closed.trigger.eq(self.open),

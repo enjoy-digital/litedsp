@@ -48,7 +48,7 @@ class LiteDSPFMDemod(LiteXModule):
             self.cordic.sink.y.eq(zy),                     # Im{x · conj(x_prev)}.
             self.sink.ready.eq(self.cordic.sink.ready),
         ]
-        self.sync += If(self.sink.valid & self.sink.ready,
+        self.sync += If(self.sink.valid & self.sink.ready,  # Update x[n-1] only on real transfers.
             prev_i.eq(i), prev_q.eq(q),
         )
 

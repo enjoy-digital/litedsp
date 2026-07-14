@@ -29,7 +29,7 @@ class LiteDSPEnergyDetector(LiteXModule):
         self.threshold_log2 = threshold_log2
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.detect = Signal()
+        self.detect = Signal()  # 1 while power > floor * 2**threshold_log2.
 
         # # #
 
@@ -87,13 +87,13 @@ class LiteDSPFrequencyEstimator(LiteXModule):
 
         # Signals.
         # --------
-        idx       = Signal(index_width)
-        best_idx  = Signal(index_width)
-        best_val  = Signal(data_width)
-        best_left = Signal(data_width)
-        best_right= Signal(data_width)
-        prev      = Signal(data_width)
-        cap_right = Signal()                          # Next sample is the peak's right neighbour.
+        idx        = Signal(index_width)              # Current bin index within the frame.
+        best_idx   = Signal(index_width)              # Argmax so far.
+        best_val   = Signal(data_width)               # Max value so far.
+        best_left  = Signal(data_width)               # Sample before the peak.
+        best_right = Signal(data_width)               # Sample after the peak.
+        prev       = Signal(data_width)               # Previous sample (left-neighbour candidate).
+        cap_right  = Signal()                         # Next sample is the peak's right neighbour.
 
         # Handshake.
         # ----------
@@ -103,21 +103,22 @@ class LiteDSPFrequencyEstimator(LiteXModule):
 
         # Peak Tracking.
         # --------------
-        better = Signal()
+        better = Signal()  # Current sample is a new maximum (first sample always wins).
         self.comb += better.eq(self.sink.first | (self.sink.data > best_val))
 
         self.sync += [
-            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
+            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),  # Held until consumed.
             If(xfer,
                 prev.eq(self.sink.data),
                 If(cap_right, best_right.eq(self.sink.data), cap_right.eq(0)),
                 If(better,
                     best_val.eq(self.sink.data),
                     best_idx.eq(idx),
-                    best_left.eq(Mux(self.sink.first, 0, prev)),
+                    best_left.eq(Mux(self.sink.first, 0, prev)),  # No left neighbour on bin 0.
                     cap_right.eq(1),
                 ),
-                idx.eq(Mux(self.sink.last, 0, idx + 1)),
+                idx.eq(Mux(self.sink.last, 0, idx + 1)),          # Wrap at frame end.
+                # Frame end: emit; fold in this last sample (best_* registers update next cycle).
                 If(self.sink.last,
                     self.source.index.eq(Mux(better, idx, best_idx)),
                     self.source.peak.eq(Mux(better, self.sink.data, best_val)),

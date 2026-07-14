@@ -68,15 +68,17 @@ class LiteDSPIIRBiquad(LiteXModule):
         self.sync += If(adv, v_px.eq(self.sink.valid))
         for field in ["i", "q"]:
             x   = getattr(self.sink, field)
-            px0 = Signal((SW, True))
+            px0 = Signal((SW, True))              # Registered b*x products (intake stage).
             px1 = Signal((SW, True))
             px2 = Signal((SW, True))
             self.sync += If(adv, px0.eq(b0*x), px1.eq(b1*x), px2.eq(b2*x))
 
-            s1 = Signal((SW, True))
+            s1 = Signal((SW, True))               # DF2T state (Q.frac, saturated on update).
             s2 = Signal((SW, True))
             y  = Signal((data_width, True))
-            self.comb += y.eq(scaled(px0 + s1, frac_bits, data_width)[0])
+            self.comb += y.eq(scaled(px0 + s1, frac_bits, data_width)[0])  # y = b0*x + s1, back to Q1.(N-1).
+            # State advances only when the intake holds a real sample (v_px), so pipeline
+            # bubbles cannot corrupt the recursion.
             self.sync += If(adv & v_px,
                 s1.eq(saturated(px1 + s2 - a1*y, SW)),
                 s2.eq(saturated(px2 - a2*y, SW)),
@@ -85,7 +87,7 @@ class LiteDSPIIRBiquad(LiteXModule):
 
         # Valid Pipeline.
         # ---------------
-        valid_pipe = Signal(2)
+        valid_pipe = Signal(2)                    # Matches intake + output register stages.
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[0])))
         self.comb += self.source.valid.eq(valid_pipe[1])
 

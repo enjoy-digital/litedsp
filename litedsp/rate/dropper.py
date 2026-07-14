@@ -37,10 +37,10 @@ class LiteDSPDownsampler(LiteXModule):
 
         # Handshake.
         # ----------
-        advance = Signal()
-        keep    = Signal()
-        count   = Signal(factor_bits)
-        consume = Signal()
+        advance = Signal()             # Output slot free or being consumed.
+        keep    = Signal()             # Current sample is the kept one (start of group).
+        count   = Signal(factor_bits)  # Position within the decimation group.
+        consume = Signal()             # Input transfer this cycle.
         self.comb += [
             advance.eq(self.source.ready | ~self.source.valid),
             keep.eq(count == 0),
@@ -63,7 +63,7 @@ class LiteDSPDownsampler(LiteXModule):
                 self.source.q.eq(self.sink.q),
                 self.source.valid.eq(1),
             ).Elif(advance,
-                self.source.valid.eq(0),
+                self.source.valid.eq(0),  # Output drained without a new kept sample.
             )
         ]
 
@@ -93,11 +93,11 @@ class LiteDSPUpsampler(LiteXModule):
 
         # Handshake.
         # ----------
-        advance = Signal()
-        first   = Signal()
-        phase   = Signal(factor_bits)
-        held_i  = Signal((data_width, True))
-        held_q  = Signal((data_width, True))
+        advance = Signal()                    # Output slot free or being consumed.
+        first   = Signal()                    # Start of an output group (needs a fresh input).
+        phase   = Signal(factor_bits)         # Position within the output group.
+        held_i  = Signal((data_width, True))  # Sample-and-hold copy for the repeats.
+        held_q  = Signal((data_width, True))  # Sample-and-hold copy for the repeats.
         self.comb += [
             advance.eq(self.source.ready | ~self.source.valid),
             first.eq(phase == 0),
@@ -114,12 +114,12 @@ class LiteDSPUpsampler(LiteXModule):
                     self.source.valid.eq(1),
                     held_i.eq(self.sink.i),
                     held_q.eq(self.sink.q),
-                    phase.eq(Mux(self.factor == 1, 0, 1)),
+                    phase.eq(Mux(self.factor == 1, 0, 1)),  # factor == 1: stay in passthrough.
                 ).Else(
                     self.source.valid.eq(0),  # No input available yet.
                 )
             ).Else(
-                self.source.i.eq(0 if zero_stuff else held_i),
+                self.source.i.eq(0 if zero_stuff else held_i),  # Repeat (S/H) or zero-stuff (build-time).
                 self.source.q.eq(0 if zero_stuff else held_q),
                 self.source.valid.eq(1),
                 If(phase == (self.factor - 1), phase.eq(0)).Else(phase.eq(phase + 1)),

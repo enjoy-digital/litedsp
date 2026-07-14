@@ -27,6 +27,7 @@ from litedsp.common import iq_layout, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
+# Next power of two >= n (memory depths, so address pointers wrap for free).
 def _pow2_ceil(n):
     return 1 << (max(1, n - 1)).bit_length()
 
@@ -58,9 +59,9 @@ class LiteDSPFIRDecimator(LiteXModule):
 
         # Memories.
         # ---------
-        depth = _pow2_ceil(n_taps + R)
+        depth = _pow2_ceil(n_taps + R)                        # Sample buffer depth (pow2: free pointer wrap).
         mask  = depth - 1
-        acc_w = 2*data_width + (n_taps - 1).bit_length() + 1
+        acc_w = 2*data_width + (n_taps - 1).bit_length() + 1  # Product + log2(n_taps) accumulation growth.
 
         crom = Memory(data_width, n_taps, init=[c & ((1 << data_width) - 1) for c in coefficients])
         mi   = Memory(data_width, depth)
@@ -84,12 +85,12 @@ class LiteDSPFIRDecimator(LiteXModule):
 
         # Signals.
         # --------
-        wptr  = Signal(max=depth)
-        decim = Signal(max=R) if R > 1 else Signal()
-        t     = Signal(max=n_taps + 1)
-        radr  = Signal(max=depth)
+        wptr  = Signal(max=depth)                     # Sample write pointer.
+        decim = Signal(max=R) if R > 1 else Signal()  # Position within the R-sample window.
+        t     = Signal(max=n_taps + 1)                # Tap index (MAC step / coefficient address).
+        radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
-        ci = Signal((data_width, True))
+        ci = Signal((data_width, True))               # Signed views of the I/Q/coeff read data.
         cq = Signal((data_width, True))
         cc = Signal((data_width, True))
         self.comb += [
@@ -102,6 +103,7 @@ class LiteDSPFIRDecimator(LiteXModule):
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="LOAD")
+        # LOAD: store input samples; the R-th sample of a window kicks off a MAC pass.
         fsm.act("LOAD",
             self.sink.ready.eq(1),
             If(self.sink.valid,
@@ -118,6 +120,7 @@ class LiteDSPFIRDecimator(LiteXModule):
                 )
             )
         )
+        # MAC: one tap per cycle; radr walks the history backwards while t addresses c[t].
         fsm.act("MAC",
             NextValue(acc_i, acc_i + ci*cc),
             NextValue(acc_q, acc_q + cq*cc),
@@ -127,6 +130,7 @@ class LiteDSPFIRDecimator(LiteXModule):
         )
         out_i, _ = scaled(acc_i, shift, data_width)
         out_q, _ = scaled(acc_q, shift, data_width)
+        # EMIT: present the rescaled result; upstream stays stalled until it is accepted.
         fsm.act("EMIT",
             self.source.valid.eq(1),
             self.source.i.eq(out_i),
@@ -184,8 +188,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
 
         # Memories.
         # ---------
-        depth = _pow2_ceil(sub + 1)
-        acc_w = 2*data_width + (sub if sub > 1 else 1).bit_length() + 1
+        depth = _pow2_ceil(sub + 1)                                     # Sample buffer depth (pow2 wrap).
+        acc_w = 2*data_width + (sub if sub > 1 else 1).bit_length() + 1  # Product + log2(sub) growth.
 
         # Coefficients laid out by phase: crom[p*sub + k] = c[p + k*L] (0 if out of range).
         coeff_init = []
@@ -203,12 +207,12 @@ class LiteDSPFIRInterpolator(LiteXModule):
 
         # Signals.
         # --------
-        wptr  = Signal(max=depth)
-        phase = Signal(max=L) if L > 1 else Signal()
-        k     = Signal(max=sub + 1)
-        radr  = Signal(max=depth)
+        wptr  = Signal(max=depth)                     # Sample write pointer.
+        phase = Signal(max=L) if L > 1 else Signal()  # Polyphase index p (output within the group of L).
+        k     = Signal(max=sub + 1)                   # Tap index within the sub-filter.
+        radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
-        ci = Signal((data_width, True))
+        ci = Signal((data_width, True))               # Signed views of the I/Q/coeff read data.
         cq = Signal((data_width, True))
         cc = Signal((data_width, True))
         self.comb += [
@@ -225,6 +229,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="LOAD")
+        # LOAD: store one input, then compute its L polyphase outputs.
         fsm.act("LOAD",
             self.sink.ready.eq(1),
             If(self.sink.valid,
@@ -237,6 +242,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
                 NextState("MAC"),
             )
         )
+        # MAC: one sub-filter tap per cycle (sub taps per output sample).
         fsm.act("MAC",
             NextValue(acc_i, acc_i + ci*cc),
             NextValue(acc_q, acc_q + cq*cc),
@@ -244,6 +250,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
             NextValue(k, k + 1),
             If(k == (sub - 1), NextState("EMIT")),
         )
+        # EMIT: present output p; loop back through MAC for the next phase, re-scanning the window.
         fsm.act("EMIT",
             self.source.valid.eq(1),
             self.source.i.eq(out_i),

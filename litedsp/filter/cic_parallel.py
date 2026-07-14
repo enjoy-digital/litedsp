@@ -48,11 +48,11 @@ class LiteDSPParallelCICDecimator(LiteXModule):
 
         # Handshake.
         # ----------
-        beats_per_out = R // n_samples
+        beats_per_out = R // n_samples  # R samples = R/n_samples input beats per output.
 
-        adv    = Signal()
-        is_out = Signal()
-        xfer   = Signal()
+        adv    = Signal()  # Output slot free or being consumed.
+        is_out = Signal()  # This beat completes a decimation window.
+        xfer   = Signal()  # An input beat (n_samples samples) is consumed this cycle.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(Mux(is_out, adv, 1)),  # Drop freely; stall only on output beats.
@@ -61,7 +61,7 @@ class LiteDSPParallelCICDecimator(LiteXModule):
         if beats_per_out == 1:
             self.comb += is_out.eq(1)
         else:
-            decim = Signal(max=beats_per_out)
+            decim = Signal(max=beats_per_out)  # Beat position within the decimation window.
             self.comb += is_out.eq(decim == (beats_per_out - 1))
             self.sync += If(xfer, If(is_out, decim.eq(0)).Else(decim.eq(decim + 1)))
 
@@ -103,11 +103,12 @@ class LiteDSPParallelCICDecimator(LiteXModule):
                 combq[k][m].eq(combq[k][m - 1]) for k in range(N) for m in range(1, M)
             ])
 
-            out, _ = scaled(c, growth, data_width)
+            out, _ = scaled(c, growth, data_width)  # Remove the 2**growth CIC gain (round + saturate).
             self.sync += If(xfer & is_out, getattr(self.source, field).eq(out))
 
         # Output.
         # -------
+        # Hold valid until accepted; clear on drain unless a new sample lands.
         self.sync += [
             If(xfer & is_out, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0)),
         ]

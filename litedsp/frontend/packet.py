@@ -29,7 +29,7 @@ from litedsp.stream.framing import LiteDSPStreamFramer, LiteDSPStreamDeframer
 class LiteDSPIQPacketizer(LiteXModule):
     """I/Q stream -> ``word_width``-bit word stream with ``last`` every ``samples_per_packet``."""
     def __init__(self, data_width=16, word_width=32, samples_per_packet=256, with_csr=True):
-        ratio = word_width // (2*data_width)
+        ratio = word_width // (2*data_width)  # I/Q samples per word.
         assert ratio >= 1 and ratio*2*data_width == word_width
         assert samples_per_packet % ratio == 0
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -51,7 +51,7 @@ class LiteDSPIQPacketizer(LiteXModule):
 class LiteDSPIQDepacketizer(LiteXModule):
     """``word_width``-bit word stream -> I/Q stream (inverse of :class:`LiteDSPIQPacketizer`)."""
     def __init__(self, data_width=16, word_width=32, with_csr=True):
-        ratio = word_width // (2*data_width)
+        ratio = word_width // (2*data_width)  # I/Q samples per word.
         assert ratio >= 1 and ratio*2*data_width == word_width
         self.sink   = stream.Endpoint([("data", word_width)])
         self.source = stream.Endpoint(iq_layout(data_width))

@@ -28,6 +28,8 @@ class LiteDSPSplit(LiteXModule):
 
         # # #
 
+        # Atomic fan-out: valid is gated by all_ready so every source sees exactly the same
+        # transfers (a fast branch cannot consume a sample the slow branches have not accepted).
         all_ready = reduce(and_, [s.ready for s in self.sources])
         self.comb += self.sink.ready.eq(all_ready)
         for s in self.sources:

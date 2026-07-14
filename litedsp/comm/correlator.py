@@ -31,7 +31,7 @@ class LiteDSPCorrelator(LiteXModule):
 
         # # #
 
-        scale  = (1 << (data_width - 1)) - 1
+        scale  = (1 << (data_width - 1)) - 1  # Full-scale Q1.(N-1).
         # Matched filter: taps = time-reversed reference, scaled to Q1.(N-1).
         coeffs = [int(round(c*scale)) for c in reversed(sequence)]
         self.fir = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=data_width,

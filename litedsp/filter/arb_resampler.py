@@ -35,25 +35,28 @@ class LiteDSPArbResampler(LiteXModule):
 
         # Control.
         # --------
-        phase  = Signal(frac + ratio_int)
-        primed = Signal()
-        cnt    = Signal(3)
+        phase  = Signal(frac + ratio_int)  # Q(ratio_int).frac position; integer part = inputs owed.
+        primed = Signal()                  # 4-sample interpolation window is filled.
+        cnt    = Signal(3)                 # Priming counter (stops at 4).
         self.comb += primed.eq(cnt >= 4)
 
+        # Consume inputs while the integer phase is nonzero (window must slide) or while priming.
         consuming = Signal()
         self.comb += consuming.eq((phase[frac:] != 0) | ~primed)
+        # Consume and emit are mutually exclusive, so the window is stable when sampled.
         self.comb += [
             self.sink.ready.eq(consuming),
             self.source.valid.eq(primed & ~consuming),
         ]
-        mu = phase[:frac]
+        mu = phase[:frac]                  # Fractional position in [x0, x1), Q.frac.
 
         # Datapath.
         # ---------
         for f in ["i", "q"]:
             xin = getattr(self.sink, f)
-            xm1, x0, x1, x2 = (Signal((data_width, True)) for _ in range(4))
+            xm1, x0, x1, x2 = (Signal((data_width, True)) for _ in range(4))  # Window (xm1 oldest); bracket [x0, x1].
             self.sync += If(self.sink.valid & consuming, xm1.eq(x0), x0.eq(x1), x1.eq(x2), x2.eq(xin))
+            # Catmull-Rom coefficients (all multiples of 1/2, so shifts only).
             a1 = Signal((data_width + 2, True))
             a2 = Signal((data_width + 4, True))
             a3 = Signal((data_width + 4, True))
@@ -62,6 +65,7 @@ class LiteDSPArbResampler(LiteXModule):
                 a2.eq((2*xm1 - 5*x0 + 4*x1 - x2) >> 1),
                 a3.eq((-xm1 + 3*x0 - 3*x1 + x2) >> 1),
             ]
+            # Horner evaluation: y = x0 + mu*(a1 + mu*(a2 + mu*a3)), all combinational.
             y2 = Signal((data_width + 6, True))
             y1 = Signal((data_width + 6, True))
             self.comb += [
@@ -72,6 +76,8 @@ class LiteDSPArbResampler(LiteXModule):
 
         # Phase Accumulator.
         # ------------------
+        # The two branches are exclusive (source.valid implies ~consuming): consuming one input
+        # retires one integer step; producing one output advances the phase by ratio.
         self.sync += [
             If(self.sink.valid & consuming,
                 If(cnt < 4, cnt.eq(cnt + 1)),

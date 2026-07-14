@@ -34,8 +34,8 @@ class LiteDSPDCBlocker(LiteXModule):
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Output slot free or being consumed.
+        xfer = Signal()  # An input sample is consumed this beat.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -46,18 +46,19 @@ class LiteDSPDCBlocker(LiteXModule):
         # ---------
         for field in ["i", "q"]:
             x      = getattr(self.sink, field)
-            x_prev = Signal((data_width, True))
-            y_prev = Signal((data_width, True))
+            x_prev = Signal((data_width, True))  # x[n-1].
+            y_prev = Signal((data_width, True))  # y[n-1] (saturated feedback state).
             y_next = Signal((data_width, True))
             self.comb += y_next.eq(saturated(x - x_prev + y_prev - (y_prev >> pole_shift), data_width))
+            # State advances only on real transfers, so bubbles never corrupt the recursion.
             self.sync += If(xfer,
                 x_prev.eq(x),
                 y_prev.eq(y_next),
             )
-            self.sync += If(adv, getattr(self.source, field).eq(y_next))
+            self.sync += If(adv, getattr(self.source, field).eq(y_next))  # Bubbles masked by valid.
 
         # Output.
         # -------
-        valid_pipe = Signal()
+        valid_pipe = Signal()  # Single register stage (latency = 1).
         self.sync += If(adv, valid_pipe.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid_pipe)

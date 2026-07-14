@@ -34,8 +34,8 @@ class LiteDSPNotch(LiteXModule):
 
         # Coefficients.
         # -------------
-        rq   = int(round(r*(1 << frac)))
-        r2q  = int(round(r*r*(1 << frac)))
+        rq   = int(round(r*(1 << frac)))                  # r   (pole radius) in Q.frac.
+        r2q  = int(round(r*r*(1 << frac)))                # r^2 in Q.frac.
         gq   = int(round(((1 + r*r)/2)*(1 << frac)))      # Passband normalization.
 
         # Handshake.
@@ -60,8 +60,9 @@ class LiteDSPNotch(LiteXModule):
         ]
         for f in ["i", "q"]:
             x  = getattr(self.sink, f)
-            x1, x2 = Signal((data_width, True)), Signal((data_width, True))
-            y1, y2 = Signal((data_width, True)), Signal((data_width, True))
+            x1, x2 = Signal((data_width, True)), Signal((data_width, True))   # x[n-1], x[n-2].
+            y1, y2 = Signal((data_width, True)), Signal((data_width, True))   # y[n-1], y[n-2].
+            # DF1 biquad: zeros on the unit circle at +/-w0, poles at radius r behind them.
             yf = gq*x + b1*x1 + gq*x2 + a1*y1 - r2q*y2
             y  = scaled(yf, frac, data_width)[0]
             self.sync += If(xfer, x2.eq(x1), x1.eq(x), y2.eq(y1), y1.eq(y))
@@ -110,8 +111,10 @@ class LiteDSPCombFilter(LiteXModule):
             wp  = mem.get_port(write_capable=True)
             rp  = mem.get_port(async_read=True)
             self.specials += mem, wp, rp
-            ptr = Signal(max=depth)
-            old = Signal((data_width, True))
+            ptr = Signal(max=depth)              # Write/read pointer (wraps at depth = D).
+            old = Signal((data_width, True))     # x[n-D].
+            # Circular delay line: the async read at ptr returns x[n-D] just before the
+            # same-address write replaces it.
             self.comb += [rp.adr.eq(ptr), wp.adr.eq(ptr), old.eq(rp.dat_r), wp.dat_w.eq(x), wp.we.eq(xfer)]
             self.sync += If(xfer, If(ptr == (depth - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
             self.sync += If(adv, getattr(self.source, f).eq(saturated(x - old, data_width)))
@@ -150,8 +153,9 @@ class LiteDSPAllpass(LiteXModule):
         # ---------
         for f in ["i", "q"]:
             x  = getattr(self.sink, f)
-            x1 = Signal((data_width, True))
-            y1 = Signal((data_width, True))
+            x1 = Signal((data_width, True))      # x[n-1].
+            y1 = Signal((data_width, True))      # y[n-1].
+            # (x1 << frac) aligns the unscaled delay tap with the Q.frac products.
             y  = scaled(-self.a*x + (x1 << frac) + self.a*y1, frac, data_width)[0]
             self.sync += If(xfer, x1.eq(x), y1.eq(y))
             self.sync += If(adv, getattr(self.source, f).eq(y))

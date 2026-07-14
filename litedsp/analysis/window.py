@@ -61,9 +61,9 @@ class LiteDSPWindow(LiteXModule):
         rp     = rom.get_port(async_read=True)
         self.specials += rom, rp
 
-        adv  = Signal()
-        xfer = Signal()
-        cnt  = Signal(max=n)
+        adv  = Signal()       # Pipeline advances (output slot free or being consumed).
+        xfer = Signal()       # An input sample is consumed this beat.
+        cnt  = Signal(max=n)  # Position within the frame (coefficient index).
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),

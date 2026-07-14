@@ -47,11 +47,11 @@ class LiteDSPUDPIQStreamer(LiteXModule):
 
         # Submodules.
         # -----------
-        words_per_packet = samples_per_packet*2*data_width//word_width
+        words_per_packet = samples_per_packet*2*data_width//word_width  # Words per datagram.
         self.packetizer  = LiteDSPIQPacketizer(data_width=data_width, word_width=word_width,
             samples_per_packet=samples_per_packet, with_csr=with_csr)
         self.tx = LiteEthStream2UDPTX(ip_address=ip_address, udp_port=udp_port,
-            data_width=word_width, fifo_depth=words_per_packet)
+            data_width=word_width, fifo_depth=words_per_packet)  # FIFO buffers one full packet.
 
         # Datapath.
         # ---------

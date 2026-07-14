@@ -27,6 +27,7 @@ from litedsp.common import iq_layout, real_layout, saturated, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
+# Hogenauer register growth: integrator/comb registers need ceil(N*log2(R*M)) bits over data_width.
 def _growth_bits(R, N, M):
     return int(math.ceil(N*math.log2(R*M)))
 
@@ -41,8 +42,8 @@ class LiteDSPCICDecimator(LiteXModule):
     """CIC decimator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N``, rescaled to width."""
     def __init__(self, data_width=16, R=8, N=3, M=1, with_csr=True):
         assert R >= 2 and N >= 1 and M >= 1
-        growth = _growth_bits(R, N, M)
-        W       = data_width + growth
+        growth = _growth_bits(R, N, M)  # Hogenauer register growth.
+        W      = data_width + growth    # Full internal width (wrap-around arithmetic).
         self.data_width = data_width
         self.R, self.N, self.M = R, N, M
         self.growth  = growth
@@ -54,10 +55,10 @@ class LiteDSPCICDecimator(LiteXModule):
 
         # Handshake.
         # ----------
-        adv    = Signal()
-        is_out = Signal()
-        xfer   = Signal()
-        decim  = Signal(max=R)
+        adv    = Signal()       # Output slot free or being consumed.
+        is_out = Signal()       # This input completes a decimation window.
+        xfer   = Signal()       # An input sample is consumed this beat.
+        decim  = Signal(max=R)  # Position within the R-sample window.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             is_out.eq(decim == (R - 1)),
@@ -97,7 +98,7 @@ class LiteDSPCICDecimator(LiteXModule):
                 combq[k][m].eq(combq[k][m - 1]) for k in range(N) for m in range(1, M)
             ])
 
-            out, _ = scaled(c, growth, data_width)
+            out, _ = scaled(c, growth, data_width)  # Remove the 2**growth CIC gain (round + saturate).
             self.sync += [
                 If(xfer & is_out,
                     getattr(self.source, field).eq(out),
@@ -106,6 +107,7 @@ class LiteDSPCICDecimator(LiteXModule):
 
         # Output.
         # -------
+        # Hold valid until accepted; clear on drain unless a new sample lands.
         self.sync += [
             If(xfer & is_out, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0)),
         ]
@@ -150,8 +152,8 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
         self.sink   = stream.Endpoint(layout)
         self.source = stream.Endpoint(layout)
 
-        self.rate  = Signal(bits_for(r_max), reset=8)
-        self.shift = Signal(bits_for(growth), reset=cic_shift(8, N, M))
+        self.rate  = Signal(bits_for(r_max), reset=8)                    # Decimation factor R (runtime).
+        self.shift = Signal(bits_for(growth), reset=cic_shift(8, N, M))  # Rescale shift; keep = cic_shift(rate, N, M).
 
         # Decimation-window strobes (e.g. to drive a coherent side-channel accumulator).
         self.sample_ce = Signal()   # An input sample is consumed this beat.
@@ -161,14 +163,14 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
 
         # Handshake.
         # ----------
-        adv    = Signal()
-        is_out = Signal()
-        xfer   = Signal()
-        decim  = Signal(bits_for(r_max))
+        adv    = Signal()                 # Output slot free or being consumed.
+        is_out = Signal()                 # This input completes a decimation window.
+        xfer   = Signal()                 # An input sample is consumed this beat.
+        decim  = Signal(bits_for(r_max))  # Position within the rate-sample window.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             is_out.eq(decim == (self.rate - 1)),
-            self.sink.ready.eq(Mux(is_out, adv, 1)),
+            self.sink.ready.eq(Mux(is_out, adv, 1)),  # Drop freely; stall only on output beats.
             xfer.eq(self.sink.valid & self.sink.ready),
             self.sample_ce.eq(xfer),
             self.out_ce.eq(xfer & is_out),
@@ -178,11 +180,12 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
         # Datapath.
         # ---------
         bias = Signal(W)
-        self.comb += bias.eq(Mux(self.shift == 0, 0, (1 << self.shift) >> 1))
+        self.comb += bias.eq(Mux(self.shift == 0, 0, (1 << self.shift) >> 1))  # Round-half-up bias.
 
         for field in fields:
             x = getattr(self.sink, field)
 
+            # Integrators (combinational cascade, registered, wrap-around).
             integ = [Signal((W, True)) for _ in range(N)]
             nxt, prev = [], x
             for k in range(N):
@@ -191,6 +194,7 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
                 nxt.append(nk); prev = nk
             self.sync += If(xfer, *[integ[k].eq(nxt[k]) for k in range(N)])
 
+            # Comb stages at the decimated rate (M-deep differential delay).
             combq = [[Signal((W, True)) for _ in range(M)] for _ in range(N)]
             c, ins = nxt[N-1], []
             for k in range(N):
@@ -201,6 +205,7 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
                 *[combq[k][0].eq(ins[k]) for k in range(N)],
                 *[combq[k][m].eq(combq[k][m-1]) for k in range(N) for m in range(1, M)])
 
+            # Runtime rescale: round-half-up shift, then saturate to the output width.
             shifted = Signal((W, True))
             self.comb += shifted.eq((c + bias) >> self.shift)
             self.sync += If(xfer & is_out, getattr(self.source, field).eq(saturated(shifted, data_width)))
@@ -228,8 +233,8 @@ class LiteDSPCICInterpolator(LiteXModule):
     """CIC interpolator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N / R``, rescaled."""
     def __init__(self, data_width=16, R=8, N=3, M=1, with_csr=True):
         assert R >= 2 and N >= 1 and M >= 1
-        growth = int(math.ceil(N*math.log2(R*M) - math.log2(R)))
-        W       = data_width + _growth_bits(R, N, M)
+        growth = int(math.ceil(N*math.log2(R*M) - math.log2(R)))  # Net gain (R*M)**N / R (zero-stuff loss).
+        W      = data_width + _growth_bits(R, N, M)               # Registers still need full Hogenauer growth.
         self.data_width = data_width
         self.R, self.N, self.M = R, N, M
         self.growth  = growth
@@ -241,9 +246,9 @@ class LiteDSPCICInterpolator(LiteXModule):
 
         # Control.
         # --------
-        adv   = Signal()
+        adv   = Signal()        # Output slot free or being consumed.
         first = Signal()        # Start of an output group (consume one input).
-        phase = Signal(max=R)
+        phase = Signal(max=R)   # Position within the R-output group.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             first.eq(phase == 0),
@@ -292,11 +297,12 @@ class LiteDSPCICInterpolator(LiteXModule):
                 prev = nk
             self.sync += If(emit, *[integ[k].eq(nxt[k]) for k in range(N)])
 
-            out, _ = scaled(nxt[N - 1], growth, data_width)
+            out, _ = scaled(nxt[N - 1], growth, data_width)  # Remove the net CIC gain (round + saturate).
             self.sync += If(emit, getattr(self.source, field).eq(out))
 
         # Output.
         # -------
+        # Hold valid until accepted; clear on drain unless a new sample lands.
         self.sync += If(emit, self.source.valid.eq(1)).Elif(adv, self.source.valid.eq(0))
 
         # CSR.

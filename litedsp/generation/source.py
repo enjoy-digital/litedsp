@@ -42,15 +42,15 @@ class LiteDSPChirp(LiteXModule):
         scale     = (1 << (data_width - 1)) - 1
         cos = Memory(data_width, lut_depth, init=[int(round(math.cos(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
         sin = Memory(data_width, lut_depth, init=[int(round(math.sin(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
-        crp, srp = cos.get_port(async_read=True), sin.get_port(async_read=True)
+        crp, srp = cos.get_port(async_read=True), sin.get_port(async_read=True)  # Async read: output follows the phase register.
         self.specials += cos, sin, crp, srp
 
         # Frequency/Phase Accumulators.
         # -----------------------------
-        phase = Signal(phase_bits)
-        freq  = Signal(phase_bits)
-        ce    = Signal()
-        valid = Signal()
+        phase = Signal(phase_bits)   # Phase accumulator (phase += freq).
+        freq  = Signal(phase_bits)   # Frequency accumulator (freq += rate).
+        ce    = Signal()             # Advance when output can accept a new sample.
+        valid = Signal()             # Free-running: stays asserted after the first sample.
         self.comb += ce.eq(self.source.ready | ~self.source.valid)
         self.sync += If(ce,
             freq.eq(Mux(valid, freq + self.rate, self.start)),  # Frequency ramps from `start`.
@@ -97,8 +97,10 @@ class LiteDSPNoiseSource(LiteXModule):
 
         # Xorshift32 Sum.
         # ---------------
+        # Sum n_sum independent xorshift32 streams for one axis; the Irwin-Hall
+        # sum approaches a Gaussian as n_sum grows.
         def axis(base):
-            acc = Signal((data_width + n_sum.bit_length() + 1, True))
+            acc = Signal((data_width + n_sum.bit_length() + 1, True))  # Headroom for the n_sum-term sum.
             terms = []
             for k in range(n_sum):
                 x  = Signal(32, reset=(seed + base*0x9E3779B1 + k*0x85EBCA77) & 0xffffffff | 1)
@@ -117,7 +119,7 @@ class LiteDSPNoiseSource(LiteXModule):
         # -------
         out_i = Signal((data_width, True))
         out_q = Signal((data_width, True))
-        self.comb += [out_i.eq(axis(0) >> shift), out_q.eq(axis(1) >> shift)]
+        self.comb += [out_i.eq(axis(0) >> shift), out_q.eq(axis(1) >> shift)]  # Shift sets the output amplitude (sigma).
         self.sync += If(ce,
             self.source.i.eq(out_i),
             self.source.q.eq(out_q),
@@ -137,6 +139,7 @@ class LiteDSPReplay(LiteXModule):
 
         # Memory.
         # -------
+        # One word per sample: Q packed in the high half, I in the low half.
         mask = (1 << data_width) - 1
         mem  = Memory(2*data_width, n, init=[((q & mask) << data_width) | (i & mask) for (i, q) in samples])
         rp   = mem.get_port(async_read=True)
@@ -147,12 +150,13 @@ class LiteDSPReplay(LiteXModule):
         addr = Signal(max=n)
         self.comb += [
             rp.adr.eq(addr),
-            self.source.valid.eq(1),
+            self.source.valid.eq(1),                 # Always valid: asynchronous RAM read.
             self.source.i.eq(rp.dat_r[:data_width]),
             self.source.q.eq(rp.dat_r[data_width:]),
             self.source.first.eq(addr == 0),
             self.source.last.eq(addr == (n - 1)),
         ]
+        # Advance/wrap the address on each transfer (valid is constant, so ready == transfer).
         self.sync += If(self.source.ready,
             If(addr == (n - 1), addr.eq(0)).Else(addr.eq(addr + 1)),
         )

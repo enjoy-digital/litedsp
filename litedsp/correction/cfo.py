@@ -31,7 +31,7 @@ class LiteDSPDerotator(LiteXModule):
 
         self.nco   = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)
-        self.latency = self.mixer.latency
+        self.latency = self.mixer.latency                # NCO free-runs; only the mixer adds latency.
         self.comb += [
             self.mixer.mode.eq(MIXER_MODE_DOWN),         # a * conj(nco) = derotate by NCO freq.
             self.sink.connect(self.mixer.sink_a),

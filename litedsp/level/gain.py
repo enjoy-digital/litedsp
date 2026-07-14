@@ -33,12 +33,14 @@ class LiteDSPGain(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.gain      = Signal((data_width, True), reset=(1 << gain_frac))  # Q2.(N-2), 1.0.
         self.shift     = Signal(2)                                           # Extra /1, /2, /4, /8.
-        self.bypass    = Signal()
-        self.clear_sat = Signal()
-        self.sat       = Signal()                                           # Sticky overflow.
+        self.bypass    = Signal()                                            # Passthrough (no gain).
+        self.clear_sat = Signal()                                            # Clear sticky sat flag.
+        self.sat       = Signal()                                            # Sticky overflow.
 
         # # #
 
+        # Handshake.
+        # ----------
         adv = Signal()
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
@@ -52,6 +54,7 @@ class LiteDSPGain(LiteXModule):
         res_i, res_q = Signal((data_width, True)), Signal((data_width, True))
         ovf          = Signal()
         cases = {}
+        # One pre-scaled result per shift setting (0..3); Case muxes the selected one.
         for s in range(4):
             ri, oi = scaled(prod_i, gain_frac + s, data_width)
             rq, oq = scaled(prod_q, gain_frac + s, data_width)
@@ -73,7 +76,7 @@ class LiteDSPGain(LiteXModule):
         self.sync += [
             If(self.clear_sat,
                 self.sat.eq(0),
-            ).Elif(self.sink.valid & adv & ~self.bypass & ovf,
+            ).Elif(self.sink.valid & adv & ~self.bypass & ovf,  # Bypass path cannot saturate.
                 self.sat.eq(1),
             )
         ]

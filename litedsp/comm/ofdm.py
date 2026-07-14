@@ -39,16 +39,16 @@ class LiteDSPCPInsert(LiteXModule):
 
         # Memory.
         # -------
-        mem = Memory(2*data_width, fft_size)
-        wp  = mem.get_port(write_capable=True)
-        rp  = mem.get_port(async_read=True)
+        mem = Memory(2*data_width, fft_size)    # One I/Q symbol buffer ({q, i} packed).
+        wp  = mem.get_port(write_capable=True)  # Fill port (FILL state).
+        rp  = mem.get_port(async_read=True)     # Emit port (async read: data valid in the same EMIT cycle).
         self.specials += mem, wp, rp
 
         # Signals.
         # --------
-        wptr = Signal(max=fft_size)
-        rptr = Signal(max=fft_size)
-        out_cnt = Signal(max=fft_size + cp_len)
+        wptr    = Signal(max=fft_size)           # Fill position.
+        rptr    = Signal(max=fft_size)           # Emit position (starts in the tail, wraps to 0).
+        out_cnt = Signal(max=fft_size + cp_len)  # Emitted samples in the current CP + N symbol.
 
         # Datapath.
         # ---------
@@ -63,7 +63,7 @@ class LiteDSPCPInsert(LiteXModule):
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="FILL")
-        fsm.act("FILL",
+        fsm.act("FILL",  # Buffer one full N-sample symbol; input flows freely.
             self.sink.ready.eq(1),
             wp.we.eq(self.sink.valid),
             If(self.sink.valid,
@@ -77,7 +77,7 @@ class LiteDSPCPInsert(LiteXModule):
                 )
             )
         )
-        fsm.act("EMIT",
+        fsm.act("EMIT",  # Stream CP + N samples; input stalled (upstream backpressure does the rate expansion).
             self.source.valid.eq(1),
             self.source.first.eq(out_cnt == 0),
             self.source.last.eq(out_cnt == (fft_size + cp_len - 1)),
@@ -116,7 +116,7 @@ class LiteDSPCPRemove(LiteXModule):
         assert 0 < cp_len < fft_size
         self.fft_size = fft_size
         self.cp_len   = cp_len
-        self.latency  = 0
+        self.latency  = 0  # Combinational pass-through on kept samples.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -124,9 +124,9 @@ class LiteDSPCPRemove(LiteXModule):
 
         # Datapath.
         # ---------
-        cnt      = Signal(max=fft_size + cp_len)
-        in_cp    = Signal()
-        xfer     = Signal()
+        cnt      = Signal(max=fft_size + cp_len)  # Position within the CP + N symbol.
+        in_cp    = Signal()                       # Current sample is prefix (dropped).
+        xfer     = Signal()                       # Input sample accepted this cycle.
         self.comb += [
             in_cp.eq(cnt < cp_len),
             self.source.valid.eq(self.sink.valid & ~in_cp),

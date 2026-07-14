@@ -36,8 +36,8 @@ class LiteDSPInterpolator(LiteXModule):
         if method == "cic":
             self.core = LiteDSPCICInterpolator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
         else:
-            n_taps = n_taps or (8*factor + 1)
-            coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width, gain=factor)
+            n_taps = n_taps or (8*factor + 1)  # ~8 taps per polyphase branch.
+            coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width, gain=factor)  # Cutoff at the output (high) rate.
             self.core = LiteDSPFIRInterpolator(n_taps, factor, data_width=data_width,
                 coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency

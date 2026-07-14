@@ -28,19 +28,20 @@ class LiteDSPAMDemod(LiteXModule):
 
         # Magnitude.
         # ----------
-        self.mag = LiteDSPMagnitude(data_width=data_width, with_csr=False)
-        W        = self.mag.out_width + 1
-        self.source = stream.Endpoint(real_layout(W))
-        self.latency = self.mag.latency + 1
+        self.mag     = LiteDSPMagnitude(data_width=data_width, with_csr=False)
+        W            = self.mag.out_width + 1               # +1 growth bit for the x - x_prev difference.
+        self.source  = stream.Endpoint(real_layout(W))
+        self.latency = self.mag.latency + 1                 # Magnitude latency + DC-blocker register.
         self.comb += self.sink.connect(self.mag.sink)
 
         # Handshake.
         # ----------
-        adv = Signal()
+        adv = Signal()  # Advance when the output slot is free or being consumed.
         self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.mag.source.ready.eq(adv)]
 
         # DC Blocker.
         # -----------
+        # 1st-order IIR high-pass: y[n] = x[n] - x[n-1] + (1 - 2**-pole_shift)*y[n-1] (DC gain 0).
         x      = Signal((W, True))
         x_prev = Signal((W, True))
         y_prev = Signal((W, True))

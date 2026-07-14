@@ -30,7 +30,7 @@ class LiteDSPPower(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.window_log2 = Signal(max=max_window_log2 + 1)        # Averaging window = 2**window_log2.
         self.power       = Signal(self.power_width)               # Latched average power.
-        self.update      = Signal()                              # Pulses when `power` updates.
+        self.update      = Signal()                               # Pulses when `power` updates.
 
         # # #
 
@@ -38,25 +38,25 @@ class LiteDSPPower(LiteXModule):
         # ---------------------------------------------------
         self.comb += self.sink.connect(self.source)
 
-        sample = Signal()
+        sample = Signal()  # Accepted transfer on the passthrough.
         self.comb += sample.eq(self.sink.valid & self.sink.ready)
 
         # Instantaneous power I**2 + Q**2.
         # --------------------------------
-        inst = Signal(2*data_width + 1)
+        inst = Signal(2*data_width + 1)  # Sum of two squares: 2*data_width + 1 bits.
         self.comb += inst.eq(self.sink.i*self.sink.i + self.sink.q*self.sink.q)
 
         # Accumulate over the window then latch the average.
         # --------------------------------------------------
-        acc   = Signal(2*data_width + max_window_log2)
+        acc   = Signal(2*data_width + max_window_log2)  # Sized for the largest window.
         count = Signal(max_window_log2 + 1)
-        last  = Signal()
+        last  = Signal()                                # Final sample of the current window.
         self.comb += last.eq(count == ((1 << self.window_log2) - 1))
         self.sync += [
-            self.update.eq(0),
+            self.update.eq(0),  # Default: single-cycle update pulse.
             If(sample,
                 If(last,
-                    self.power.eq((acc + inst) >> self.window_log2),
+                    self.power.eq((acc + inst) >> self.window_log2),  # Average includes the final sample.
                     self.update.eq(1),
                     acc.eq(0),
                     count.eq(0),

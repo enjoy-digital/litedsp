@@ -40,13 +40,13 @@ class LiteDSPISqrt(LiteXModule):
         # --------------------------------------------------
         if pipelined:
             self.latency = 1
-            adv = Signal()
+            adv = Signal()  # Output register free or being consumed.
             self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
             x   = self.sink.data
-            prev_rem, prev_res = Constant(0), Constant(0)
+            prev_rem, prev_res = Constant(0), Constant(0)  # Stage 0 starts with empty remainder/result.
             for s in range(R):
-                i        = R - 1 - s
-                two      = (x >> (2*i)) & 0b11
+                i        = R - 1 - s                       # Bit-pair index (MSB pair first).
+                two      = (x >> (2*i)) & 0b11             # Two input bits brought down this stage.
                 rem_new  = Signal(in_width + 2)
                 trial    = Signal(in_width + 2)
                 ge       = Signal()
@@ -54,12 +54,13 @@ class LiteDSPISqrt(LiteXModule):
                 cur_res  = Signal(R)
                 self.comb += [
                     rem_new.eq((prev_rem << 2) | two),
-                    trial.eq((prev_res << 2) | 1),
-                    ge.eq(rem_new >= trial),
-                    cur_rem.eq(Mux(ge, rem_new - trial, rem_new)),
+                    trial.eq((prev_res << 2) | 1),              # Trial subtrahend: 4*res + 1.
+                    ge.eq(rem_new >= trial),                    # Subtraction fits: result bit = 1.
+                    cur_rem.eq(Mux(ge, rem_new - trial, rem_new)),  # Restore remainder otherwise.
                     cur_res.eq((prev_res << 1) | ge),
                 ]
                 prev_rem, prev_res = cur_rem, cur_res
+            # Single output register: full result each cycle, latency = 1.
             self.sync += If(adv,
                 self.source.data.eq(prev_res),
                 self.source.valid.eq(self.sink.valid),
@@ -69,14 +70,15 @@ class LiteDSPISqrt(LiteXModule):
         # Sequential: one restoring stage reused over R cycles.
         # -----------------------------------------------------
         self.latency = R
-        x    = Signal(in_width)
-        rem  = Signal(in_width + 2)
-        res  = Signal(R)
-        i    = Signal(max=R)
+        x    = Signal(in_width)      # Latched operand.
+        rem  = Signal(in_width + 2)  # Running remainder.
+        res  = Signal(R)             # Result bits computed so far (MSB first).
+        i    = Signal(max=R)         # Bit-pair index (counts down to 0).
         two  = Signal(2)
         rem_new = Signal(in_width + 2)
         trial   = Signal(in_width + 2)
         ge      = Signal()
+        # Single restoring stage, same equations as one pipelined stage above.
         self.comb += [
             two.eq((x >> (2*i)) & 0b11),
             rem_new.eq((rem << 2) | two),
@@ -98,10 +100,10 @@ class LiteDSPISqrt(LiteXModule):
         fsm.act("RUN",
             NextValue(rem, Mux(ge, rem_new - trial, rem_new)),
             NextValue(res, (res << 1) | ge),
-            If(i == 0, NextState("DONE")).Else(NextValue(i, i - 1)),
+            If(i == 0, NextState("DONE")).Else(NextValue(i, i - 1)),  # One result bit per cycle.
         )
         fsm.act("DONE",
             self.source.valid.eq(1),
             self.source.data.eq(res),
-            If(self.source.ready, NextState("IDLE")),
+            If(self.source.ready, NextState("IDLE")),  # Hold result until accepted.
         )

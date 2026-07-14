@@ -50,10 +50,10 @@ class LiteDSPPSD(LiteXModule):
         inst = Signal(2*data_width + 1)
         self.comb += inst.eq(self.sink.i*self.sink.i + self.sink.q*self.sink.q)
 
-        skip_cnt  = Signal(max=max(2, latency + 1))
-        sample    = Signal(bits)          # Position within the current frame.
-        frame_cnt = Signal(avg_log2 + 1)  # Frames accumulated.
-        read_cnt  = Signal(bits)
+        skip_cnt  = Signal(max=max(2, latency + 1))  # FFT pipeline-fill samples discarded.
+        sample    = Signal(bits)                     # Position within the current frame.
+        frame_cnt = Signal(avg_log2 + 1)             # Frames accumulated.
+        read_cnt  = Signal(bits)                     # Readout bin index.
 
         # Store in natural bin order: address = bit-reversed frame position.
         bin_addr = Signal(bits)

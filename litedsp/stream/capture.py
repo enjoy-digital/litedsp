@@ -37,10 +37,10 @@ class LiteDSPCapture(LiteXModule):
         self.depth  = depth
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.threshold = Signal((data_width, True))
-        self.force     = Signal()
-        self.armed     = Signal()
-        self.done      = Signal()
+        self.threshold = Signal((data_width, True))        # Trigger level (compared to I).
+        self.force     = Signal()                          # Force trigger (bypass threshold).
+        self.armed     = Signal()                          # Waiting for trigger.
+        self.done      = Signal()                          # Buffer captured / being read out.
 
         # # #
 
@@ -55,11 +55,12 @@ class LiteDSPCapture(LiteXModule):
 
         # Signals.
         # --------
-        wptr = Signal(max=depth)
-        rptr = Signal(max=depth)
-        above = Signal()
-        prev_above = Signal()
+        wptr       = Signal(max=depth)                     # Write pointer (capture).
+        rptr       = Signal(max=depth)                     # Read pointer (readout).
+        above      = Signal()                              # I above threshold (current sample).
+        prev_above = Signal()                              # I above threshold (previous sample).
         self.comb += above.eq(self.sink.i > self.threshold)
+        # Rising-edge detect: sample the comparator on valid beats only (bubbles are ignored).
         self.sync += If(self.sink.valid, prev_above.eq(above))
 
         # Datapath.
@@ -75,6 +76,7 @@ class LiteDSPCapture(LiteXModule):
 
         # FSM.
         # ----
+        # ARM -> CAPTURE -> READOUT -> ARM: re-arms automatically once the buffer is fully drained.
         self.fsm = fsm = FSM(reset_state="ARM")
         fsm.act("ARM",
             self.armed.eq(1),

@@ -30,9 +30,9 @@ class LiteDSPPeakBin(LiteXModule):
 
         # Signals.
         # --------
-        idx      = Signal(index_width)
-        best_idx = Signal(index_width)
-        best_val = Signal(data_width)
+        idx      = Signal(index_width)  # Current bin index within the frame.
+        best_idx = Signal(index_width)  # Argmax so far.
+        best_val = Signal(data_width)   # Max value so far.
 
         # Handshake.
         # ----------
@@ -42,7 +42,8 @@ class LiteDSPPeakBin(LiteXModule):
 
         # Datapath.
         # ---------
-        cur_better = Signal()
+        # new_* fold the current sample in combinationally, so the frame-end result includes it.
+        cur_better = Signal()  # Current sample is a new maximum (first sample always wins).
         self.comb += cur_better.eq(self.sink.first | (self.sink.data > best_val))
         new_idx = Signal(index_width)
         new_val = Signal(data_width)
@@ -54,11 +55,11 @@ class LiteDSPPeakBin(LiteXModule):
         # Output.
         # -------
         self.sync += [
-            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
+            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),  # Held until consumed.
             If(xfer,
                 best_idx.eq(new_idx),
                 best_val.eq(new_val),
-                idx.eq(Mux(self.sink.last, 0, idx + 1)),
+                idx.eq(Mux(self.sink.last, 0, idx + 1)),  # Wrap at frame end.
                 If(self.sink.last,
                     self.source.index.eq(new_idx),
                     self.source.value.eq(new_val),

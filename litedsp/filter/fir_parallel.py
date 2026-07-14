@@ -42,8 +42,8 @@ class LiteDSPParallelFIRFilter(LiteXModule):
 
         # Handshake: drain when output can accept; consume an input on each drained beat.
         # -------------------------------------------------------------------------------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Pipeline drains (output slot free or being consumed).
+        xfer = Signal()  # A real input beat is consumed this cycle.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             xfer.eq(self.sink.valid & adv),

@@ -18,12 +18,14 @@ class LiteDSPPILoop(LiteXModule):
     state). Larger shifts = slower/tighter loop.
     """
     def __init__(self, error_width=18, out_width=32, kp_shift=4, ki_shift=12):
-        self.error    = Signal((error_width, True))
-        self.ce       = Signal()
-        self.out      = Signal((out_width, True))
-        self.integral = Signal((out_width, True))
+        self.error    = Signal((error_width, True))  # Loop error input (signed).
+        self.ce       = Signal()                     # CE: update the integrator this cycle.
+        self.out      = Signal((out_width, True))    # Loop output (P + I).
+        self.integral = Signal((out_width, True))    # Integrator state (e.g. frequency word).
 
         # # #
 
+        # Integral path accumulates on CE; proportional path is combinational, so `out` tracks the
+        # error immediately. Shifts on signed values are arithmetic (sign-preserving gains).
         self.sync += If(self.ce, self.integral.eq(self.integral + (self.error >> ki_shift)))
         self.comb += self.out.eq(self.integral + (self.error >> kp_shift))

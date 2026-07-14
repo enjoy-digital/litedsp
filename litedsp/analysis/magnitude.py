@@ -51,7 +51,7 @@ class LiteDSPMagnitude(LiteXModule):
             return
 
         self.latency = 1
-        adv = Signal()
+        adv = Signal()  # Output register free or being consumed.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -65,13 +65,13 @@ class LiteDSPMagnitude(LiteXModule):
             ai.eq(Mux(self.sink.i[-1], -self.sink.i, self.sink.i)),
             aq.eq(Mux(self.sink.q[-1], -self.sink.q, self.sink.q)),
         ]
-        hi  = Signal(data_width + 1)
-        lo  = Signal(data_width + 1)
+        hi  = Signal(data_width + 1)  # max(|I|, |Q|).
+        lo  = Signal(data_width + 1)  # min(|I|, |Q|).
         self.comb += [
             hi.eq(Mux(ai > aq, ai, aq)),
             lo.eq(Mux(ai > aq, aq, ai)),
         ]
         self.sync += If(adv,
-            self.source.data.eq(hi + (lo >> beta_shift)),
+            self.source.data.eq(hi + (lo >> beta_shift)),  # alpha*max + beta*min, alpha=1.
             self.source.valid.eq(self.sink.valid),
         )

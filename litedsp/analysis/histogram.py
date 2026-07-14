@@ -26,8 +26,8 @@ class LiteDSPHistogram(LiteXModule):
     def __init__(self, data_width=16, bits=8, window_log2=12, with_csr=True):
         self.data_width = data_width
         self.bits       = bits
-        count_width     = window_log2 + 1
-        B = 1 << bits
+        count_width     = window_log2 + 1  # A bin can hold all 2**window_log2 samples.
+        B = 1 << bits                      # Number of bins.
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint([("data", count_width)])
 
@@ -42,15 +42,16 @@ class LiteDSPHistogram(LiteXModule):
 
         # Binning.
         # --------
+        # Offset-binary conversion (+ half range) then keep the top `bits` as the bin address.
         bin_addr = Signal(bits)
         self.comb += bin_addr.eq((self.sink.data + (1 << (data_width - 1)))[data_width - bits:])
 
         # FSM.
         # ----
-        sample   = Signal(window_log2 + 1)
-        read_cnt = Signal(bits)
-        accept   = Signal()
-        reading  = Signal()
+        sample   = Signal(window_log2 + 1)  # Samples accumulated in the current window.
+        read_cnt = Signal(bits)             # Bin readout index.
+        accept   = Signal()                 # Sample accepted (accumulate write).
+        reading  = Signal()                 # 1 during readout (muxes RAM addresses to read_cnt).
 
         self.fsm = fsm = FSM(reset_state="ACC")
         self.comb += [

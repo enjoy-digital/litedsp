@@ -84,8 +84,8 @@ class LiteDSPViterbiDecoder(LiteXModule):
 
         # Handshake.
         # ----------
-        adv  = Signal()
-        xfer = Signal()
+        adv  = Signal()  # Output slot free or being consumed.
+        xfer = Signal()  # Input symbol accepted (one ACS step per symbol).
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -94,7 +94,7 @@ class LiteDSPViterbiDecoder(LiteXModule):
 
         # Path metrics (state 0 favored at reset: the encoder starts zeroed) + survivors.
         # -------------------------------------------------------------------------------
-        big     = 1 << (metric_width - 2)
+        big     = 1 << (metric_width - 2)  # Large initial penalty, with headroom for branch adds.
         metrics = [Signal(metric_width, reset=(0 if s == 0 else big)) for s in range(n_states)]
         survs   = [Signal(traceback) for s in range(n_states)]
 

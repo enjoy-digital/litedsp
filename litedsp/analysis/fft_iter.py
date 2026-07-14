@@ -69,20 +69,20 @@ class LiteDSPFFTIter(LiteXModule):
 
         # Address Generation.
         # -------------------
-        s   = Signal(max=max(2, S))
-        b   = Signal(max=max(2, N//2))
-        idx = Signal(max=N)
+        s   = Signal(max=max(2, S))                  # Stage index (0..S-1).
+        b   = Signal(max=max(2, N//2))               # Butterfly index within the stage (N/2 per stage).
+        idx = Signal(max=N)                          # Load/unload sample index.
 
         half   = Signal(S)
         addr_a = Signal(S)
         addr_b = Signal(S)
         j      = Signal(S)
         self.comb += [
-            half.eq(1 << s),
-            j.eq(b & (half - 1)),
-            addr_a.eq(((b >> s) << (s + 1)) | j),
-            addr_b.eq(addr_a | half),
-            cos_rp.adr.eq(j << (S - 1 - s)), sin_rp.adr.eq(j << (S - 1 - s)),
+            half.eq(1 << s),                         # Butterfly span at stage s.
+            j.eq(b & (half - 1)),                    # Offset within the group.
+            addr_a.eq(((b >> s) << (s + 1)) | j),    # Group base (2*half per group) + offset.
+            addr_b.eq(addr_a | half),                # Partner element, half above addr_a.
+            cos_rp.adr.eq(j << (S - 1 - s)), sin_rp.adr.eq(j << (S - 1 - s)),  # Twiddle j*N/2**(s+1).
         ]
 
         # Datapath.

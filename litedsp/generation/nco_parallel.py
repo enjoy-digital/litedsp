@@ -44,12 +44,12 @@ class LiteDSPParallelNCO(LiteXModule):
         # Phase Accumulator (steps n_samples increments per beat).
         # --------------------------------------------------------
         phase = Signal(phase_bits)
-        ce    = Signal()
+        ce    = Signal()  # Advance when output can accept a new beat.
         self.comb += ce.eq(self.source.ready | ~self.source.valid)
         self.sync += If(ce, phase.eq(phase + self.phase_inc*n_samples))
 
         valid = Signal()
-        self.sync += If(ce, valid.eq(1))
+        self.sync += If(ce, valid.eq(1))  # Free-running: valid stays asserted after the first beat.
         self.comb += self.source.valid.eq(valid)
 
         # Per-lane cos/sin ROMs at phase + (k+1)*phase_inc.

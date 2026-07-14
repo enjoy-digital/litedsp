@@ -28,14 +28,16 @@ class LiteDSPCSRSource(LiteXModule):
     def __init__(self, data_width=16, with_csr=True):
         self.data_width = data_width
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.i    = Signal((data_width, True))
-        self.q    = Signal((data_width, True))
+        self.i    = Signal((data_width, True))  # Sample I payload (from CSR).
+        self.q    = Signal((data_width, True))  # Sample Q payload (from CSR).
         self.push = Signal()                    # 1-cycle strobe: latch (i,q) and present it.
 
         # # #
 
         # Output Register.
         # ----------------
+        # push has priority: a new sample can be loaded on the same cycle a transfer completes,
+        # so valid stays asserted (back-to-back pushes never insert a bubble).
         self.sync += [
             If(self.push,
                 self.source.valid.eq(1),
@@ -70,10 +72,10 @@ class LiteDSPCSRSink(LiteXModule):
     def __init__(self, data_width=16, with_csr=True):
         self.data_width = data_width
         self.sink  = stream.Endpoint(iq_layout(data_width))
-        self.last_i = Signal((data_width, True))
-        self.last_q = Signal((data_width, True))
-        self.count  = Signal(32)
-        self.clear  = Signal()
+        self.last_i = Signal((data_width, True))  # Last accepted sample I.
+        self.last_q = Signal((data_width, True))  # Last accepted sample Q.
+        self.count  = Signal(32)                  # Transfers since clear.
+        self.clear  = Signal()                    # 1-cycle strobe: reset count.
 
         # # #
 
@@ -85,7 +87,7 @@ class LiteDSPCSRSink(LiteXModule):
             If(self.sink.valid,
                 self.last_i.eq(self.sink.i),
                 self.last_q.eq(self.sink.q),
-                If(~self.clear, self.count.eq(self.count + 1)),
+                If(~self.clear, self.count.eq(self.count + 1)),  # Clear wins over increment.
             )
         ]
 
@@ -120,7 +122,7 @@ class LiteDSPCSRReader(LiteXModule):
         assert data_width <= 16                            # I/Q packed in one 32-bit data CSR.
         self.data_width = data_width
         self.sink = stream.Endpoint(iq_layout(data_width))
-        self.pop  = Signal()
+        self.pop  = Signal()  # 1-cycle strobe: consume the pending sample.
 
         # # #
 
@@ -149,8 +151,8 @@ class LiteDSPNullSink(LiteXModule):
     """Always-ready drain that counts consumed samples (CSR-readable). Terminates a branch."""
     def __init__(self, data_width=16, with_csr=True):
         self.sink  = stream.Endpoint(iq_layout(data_width))
-        self.count = Signal(32)
-        self.clear = Signal()
+        self.count = Signal(32)  # Samples consumed since clear.
+        self.clear = Signal()    # 1-cycle strobe: reset count.
 
         # # #
 

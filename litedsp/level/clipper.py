@@ -23,8 +23,8 @@ class LiteDSPClipper(LiteXModule):
         self.latency    = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.threshold = Signal(data_width, reset=(1 << (data_width - 1)) - 1)
-        self.clip      = Signal()
+        self.threshold = Signal(data_width, reset=(1 << (data_width - 1)) - 1)  # Clip magnitude (default full-scale).
+        self.clip      = Signal()                                               # Pulses when a sample was clipped.
 
         # # #
 
@@ -36,15 +36,15 @@ class LiteDSPClipper(LiteXModule):
         # Clipping Datapath.
         # ------------------
         thr  = Signal((data_width + 1, True))
-        self.comb += thr.eq(self.threshold)
-        clipped = Signal()
+        self.comb += thr.eq(self.threshold)  # Zero-extend to signed so +/-thr compare correctly.
+        clipped = Signal()                   # Any of I/Q clipped this sample (comb OR).
         for field in ["i", "q"]:
             x = getattr(self.sink, field)
             c = Signal((data_width, True))
             over = Signal()
             self.comb += [
                 over.eq((x > thr) | (x < -thr)),
-                c.eq(Mux(x > thr, thr, Mux(x < -thr, -thr, x))),
+                c.eq(Mux(x > thr, thr, Mux(x < -thr, -thr, x))),  # Clamp to [-thr, +thr].
             ]
             self.comb += If(over, clipped.eq(1))
             self.sync += If(adv, getattr(self.source, field).eq(c))
@@ -52,7 +52,7 @@ class LiteDSPClipper(LiteXModule):
         # Output.
         # -------
         valid = Signal()
-        self.sync += If(adv, valid.eq(self.sink.valid), self.clip.eq(self.sink.valid & clipped))
+        self.sync += If(adv, valid.eq(self.sink.valid), self.clip.eq(self.sink.valid & clipped))  # Flag only real samples.
         self.comb += self.source.valid.eq(valid)
 
         # CSR.

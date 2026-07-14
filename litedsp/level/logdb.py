@@ -26,7 +26,7 @@ class LiteDSPLog2(LiteXModule):
     def __init__(self, in_width=32, frac_bits=8, with_csr=True):
         self.in_width  = in_width
         self.frac_bits = frac_bits
-        out_int        = max(1, (in_width - 1).bit_length())
+        out_int        = max(1, (in_width - 1).bit_length())   # Integer bits to hold the MSB index.
         self.out_width = out_int + frac_bits
         self.latency   = 1
         self.sink   = stream.Endpoint(real_layout(in_width))   # Treated as unsigned magnitude.
@@ -49,7 +49,7 @@ class LiteDSPLog2(LiteXModule):
 
         # Mantissa Extraction.
         # --------------------
-        shifted = Signal(2*in_width)
+        shifted = Signal(2*in_width)                           # Holds x << (up to in_width-1).
         self.comb += shifted.eq(x << (in_width - 1 - msb))     # Align MSB to bit in_width-1.
         mant = shifted[in_width - 1 - frac_bits:in_width - 1]
         res  = Signal(self.out_width)
@@ -80,7 +80,7 @@ class LiteDSPLogPower(LiteXModule):
         scale     = int(round(DB_PER_BIT*(1 << out_frac)))     # dB per log2-unit, Q(out_frac+).
         self.out_width = self.log2.out_width + scale.bit_length()
         self.source = stream.Endpoint([("data", self.out_width)])
-        self.latency = self.log2.latency + 1
+        self.latency = self.log2.latency + 1                   # + scale output register.
         self.comb += self.sink.connect(self.log2.sink)
 
         # Handshake.
