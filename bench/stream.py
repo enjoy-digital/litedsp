@@ -89,11 +89,11 @@ class BenchSoC(SoCMini):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteDSP streaming bench (Colorlight 5A-75B).")
-    parser.add_argument("--build",    action="store_true",   help="Build the bitstream.")
-    parser.add_argument("--load",     action="store_true",   help="Load the bitstream.")
-    parser.add_argument("--revision", default="7.0",         help="Board revision.")
-    parser.add_argument("--ip-address",   default="192.168.1.50",  help="SoC IP (Etherbone).")
-    parser.add_argument("--host-ip",      default="192.168.1.100", help="Destination IP for I/Q packets.")
+    parser.add_argument("--build",      action="store_true",     help="Build the bitstream.")
+    parser.add_argument("--load",       action="store_true",     help="Load the bitstream.")
+    parser.add_argument("--revision",   default="7.0",           help="Board revision.")
+    parser.add_argument("--ip-address", default="192.168.1.50",  help="SoC IP (Etherbone).")
+    parser.add_argument("--host-ip",    default="192.168.1.100", help="Destination IP for I/Q packets.")
     args = parser.parse_args()
 
     soc     = BenchSoC(revision=args.revision, ip_address=args.ip_address, host_ip=args.host_ip)

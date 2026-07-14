@@ -14,7 +14,7 @@ from litex.soc.interconnect import stream
 
 from litedsp.common import iq_layout
 
-# Offset-Binary <-> Two's-Complement -------------------------------------------------------------
+# Offset-Binary <-> Two's-Complement ---------------------------------------------------------------
 
 class LiteDSPOffsetBinaryToTwos(LiteXModule):
     """Convert unsigned offset-binary I/Q samples to signed two's-complement (flip the MSB)."""

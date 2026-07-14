@@ -85,7 +85,7 @@ class LiteDSPIQUnpack(LiteXModule):
             self.source.q.eq(conv.source.data[data_width:]),
         ]
 
-# Serial <-> Parallel (multi-sample-per-cycle) -------------------------------------------------------
+# Serial <-> Parallel (multi-sample-per-cycle) -----------------------------------------------------
 
 class LiteDSPIQSerialToParallel(LiteXModule):
     """Gather ``n_samples`` consecutive I/Q samples into one multi-sample beat (lane 0 first)."""

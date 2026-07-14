@@ -16,7 +16,7 @@ from litedsp.generation.nco import LiteDSPNCO
 
 import math
 
-# Parallel NCO ---------------------------------------------------------------------------------------
+# Parallel NCO -------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPParallelNCO(LiteXModule):

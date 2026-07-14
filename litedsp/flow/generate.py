@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #
 # This file is part of LiteDSP.
 #
@@ -52,12 +54,12 @@ def generate(source, build_dir, name=None, with_csr=False):
 # CLI ----------------------------------------------------------------------------------------------
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description="Generate chain Verilog from a LiteDSP flow netlist.")
-    p.add_argument("netlist", help="Path to the netlist JSON.")
-    p.add_argument("--out",  default="build", help="Output build directory.")
-    p.add_argument("--name", default=None,    help="Top module name (default: netlist name).")
-    p.add_argument("--csr",  action="store_true", help="Build sub-blocks with CSRs (with_csr=True).")
-    args = p.parse_args(argv)
+    parser = argparse.ArgumentParser(description="Generate chain Verilog from a LiteDSP flow netlist.")
+    parser.add_argument("netlist",                      help="Path to the netlist JSON.")
+    parser.add_argument("--out",  default="build",      help="Output build directory.")
+    parser.add_argument("--name", default=None,         help="Top module name (default: netlist name).")
+    parser.add_argument("--csr",  action="store_true",  help="Build sub-blocks with CSRs (with_csr=True).")
+    args = parser.parse_args(argv)
 
     path, chain = generate(args.netlist, args.out, name=args.name, with_csr=args.csr)
     print(f"Generated: {path}")

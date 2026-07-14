@@ -15,7 +15,7 @@ from litex.soc.interconnect import stream
 from litedsp.common     import iq_layout, real_layout, real_lanes, scaled
 from litedsp.filter.fir import _adder_tree, LiteDSPFIRCoefficients
 
-# Parallel FIR Filter (real) -------------------------------------------------------------------------
+# Parallel FIR Filter (real) -----------------------------------------------------------------------
 
 class LiteDSPParallelFIRFilter(LiteXModule):
     """Real FIR over ``n_samples`` lanes per beat (multi-sample-per-cycle datapaths).
@@ -85,7 +85,7 @@ class LiteDSPParallelFIRFilter(LiteXModule):
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
         self.comb += self.source.valid.eq(valid_pipe[-1])
 
-# Parallel FIR Filter (complex) ----------------------------------------------------------------------
+# Parallel FIR Filter (complex) --------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPParallelFIRFilterComplex(LiteXModule):

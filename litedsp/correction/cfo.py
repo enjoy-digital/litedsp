@@ -15,7 +15,7 @@ from litedsp.common         import iq_layout
 from litedsp.generation.nco import LiteDSPNCO
 from litedsp.mixing.mixer   import LiteDSPMixer, MIXER_MODE_DOWN
 
-# Carrier / Frequency Offset Derotator ---------------------------------------------------------------
+# Carrier / Frequency Offset Derotator -------------------------------------------------------------
 
 class LiteDSPDerotator(LiteXModule):
     """Frequency-shift (derotate) an I/Q stream by ``-phase_inc`` (NCO + down-mixer).

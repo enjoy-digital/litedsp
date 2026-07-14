@@ -31,7 +31,7 @@ from litedsp.verilog import to_verilog
 from sim.verilator   import build, run, have_verilator
 from test import models
 
-# Port map generation --------------------------------------------------------------------------------
+# Port map generation ------------------------------------------------------------------------------
 
 def _fields(ep):
     """(name, width) payload fields of a stream Endpoint."""
@@ -56,7 +56,7 @@ def _ports_header(dut, top, path):
                 f"static inline void tb_set_in(TB_DUT* dut, int k, int32_t v) {{ {set_body} }}\n"
                 f"static inline int32_t tb_get_out(TB_DUT* dut, int k) {{ {get_body} return 0; }}\n")
 
-# Block table ----------------------------------------------------------------------------------------
+# Block table --------------------------------------------------------------------------------------
 #
 # Each spec returns (dut, ios_extra, columns_in, n_out, model) where model(columns) returns the
 # expected output columns (arrays at least n_out long, compared bit-exact).
@@ -124,7 +124,7 @@ SPECS = {
     "magnitude":        spec_magnitude,
 }
 
-# Runner ---------------------------------------------------------------------------------------------
+# Runner -------------------------------------------------------------------------------------------
 
 def run_block(name, build_dir="/tmp/litedsp_sim"):
     dut, ios_extra, cols, n_out, model = SPECS[name]()

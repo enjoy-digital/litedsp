@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #
 # This file is part of LiteDSP.
 #
@@ -110,19 +112,19 @@ def main():
     sub.add_parser("info", help="Discover LiteDSP blocks in the SoC.")
 
     p = sub.add_parser("nco", help="Read/tune an NCO.")
-    p.add_argument("prefix",              help="NCO register prefix (e.g. nco, ddc_nco).")
-    p.add_argument("--freq", type=float,  default=None, help="Frequency to set (Hz, signed).")
+    p.add_argument("prefix",                            help="NCO register prefix (e.g. nco, ddc_nco).")
+    p.add_argument("--freq", default=None, type=float,  help="Frequency to set (Hz, signed).")
 
     for name, help_ in [("capture", "Trigger + drain a capture buffer."),
                         ("spectrum", "Capture + ASCII PSD.")]:
         p = sub.add_parser(name, help=help_)
-        p.add_argument("--capture", default=None, help="Capture block prefix (if several).")
-        p.add_argument("--reader",  default=None, help="CSRReader block prefix (if several).")
-        p.add_argument("--samples", type=int, default=1024, help="Samples to read.")
+        p.add_argument("--capture", default=None,             help="Capture block prefix (if several).")
+        p.add_argument("--reader",  default=None,             help="CSRReader block prefix (if several).")
+        p.add_argument("--samples", default=1024, type=int,   help="Samples to read.")
         if name == "capture":
-            p.add_argument("--npy", default=None, help="Save samples to a .npy file.")
+            p.add_argument("--npy",         default=None,             help="Save samples to a .npy file.")
         else:
-            p.add_argument("--sample-rate", type=float, default=None, help="Sample rate (Hz).")
+            p.add_argument("--sample-rate", default=None, type=float, help="Sample rate (Hz).")
 
     args = parser.parse_args()
     {"info": cmd_info, "nco": cmd_nco, "capture": cmd_capture, "spectrum": cmd_spectrum}[args.cmd](args)

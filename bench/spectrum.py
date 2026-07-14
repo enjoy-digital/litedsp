@@ -107,11 +107,11 @@ class BenchSoC(SoCMini):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteDSP spectrum bench.")
-    parser.add_argument("--board",         default="arty", choices=sorted(BOARDS.keys()), help="Target board.")
-    parser.add_argument("--build",         action="store_true", help="Build the bitstream.")
-    parser.add_argument("--load",          action="store_true", help="Load the bitstream.")
-    parser.add_argument("--sys-clk-freq",  default=None, type=float, help="System clock frequency.")
-    parser.add_argument("--capture-depth", default=2048, type=int,   help="Capture buffer depth (samples).")
+    parser.add_argument("--board",         default="arty",            choices=sorted(BOARDS.keys()), help="Target board.")
+    parser.add_argument("--build",         action="store_true",       help="Build the bitstream.")
+    parser.add_argument("--load",          action="store_true",       help="Load the bitstream.")
+    parser.add_argument("--sys-clk-freq",  default=None, type=float,  help="System clock frequency.")
+    parser.add_argument("--capture-depth", default=2048, type=int,    help="Capture buffer depth (samples).")
     args = parser.parse_args()
 
     soc     = BenchSoC(board=args.board, sys_clk_freq=args.sys_clk_freq,

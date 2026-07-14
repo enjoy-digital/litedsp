@@ -41,17 +41,16 @@ def build_one(device, flow, name, build_root):
     return res
 
 def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--device", choices=["ecp5", "xilinx"], default="ecp5")
-    p.add_argument("--flow",   choices=["synth", "pnr"],    default="synth")
-    p.add_argument("--module", default=None, help="single module name (default: all)")
-    p.add_argument("--subset", action="store_true", help="only the P&R subset")
-    p.add_argument("--build",  default="/tmp/litedsp_impl")
-    p.add_argument("--update-budgets", action="store_true")
-    p.add_argument("--no-gate", action="store_true",
-        help="don't fail on budget violations (portability/compile-clean check only)")
-    p.add_argument("--report", default=None, help="write a Markdown table to this path")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser(description="LiteDSP FPGA implementation flows (synth/P&R + budget gate).")
+    parser.add_argument("--device",         default="ecp5",              choices=["ecp5", "xilinx"], help="Target device/toolchain.")
+    parser.add_argument("--flow",           default="synth",             choices=["synth", "pnr"],   help="Implementation flow.")
+    parser.add_argument("--module",         default=None,                help="Single module name (default: all).")
+    parser.add_argument("--subset",         action="store_true",         help="Only the P&R subset.")
+    parser.add_argument("--build",          default="/tmp/litedsp_impl", help="Build directory.")
+    parser.add_argument("--update-budgets", action="store_true",         help="Rewrite the budget baseline from this run.")
+    parser.add_argument("--no-gate",        action="store_true",         help="Don't fail on budget violations (portability/compile-clean check only).")
+    parser.add_argument("--report",         default=None,                help="Write a Markdown table to this path.")
+    args = parser.parse_args()
 
     if args.module:
         names = [args.module]

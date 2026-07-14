@@ -29,7 +29,7 @@ from litedsp.comm.fm_demod  import LiteDSPFMDemod
 from litedsp.filter.fir_poly import LiteDSPFIRDecimator
 from litedsp.filter.design  import firwin_lowpass
 
-# FM receiver: FM demod -> low-pass decimate (audio). --------------------------------------------
+# FM receiver: FM demod -> low-pass decimate (audio). ----------------------------------------------
 
 class FMReceiver(LiteXModule):
     def __init__(self, data_width=16, audio_decim=4):

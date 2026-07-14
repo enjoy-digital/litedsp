@@ -42,7 +42,7 @@ def markdown(all_results):
         out.append("| " + " | ".join(row) + " |")
     return "\n".join(out) + "\n"
 
-# Budgets -> doc/resources.md ------------------------------------------------------------------------
+# Budgets -> doc/resources.md ----------------------------------------------------------------------
 
 _DEVICE_LABELS = {"ecp5": "ECP5 (Yosys/nextpnr)", "xilinx": "Artix-7 (Vivado)"}
 

@@ -63,7 +63,7 @@ def _min_tree(pairs, comb):
         pairs = nxt
     return pairs[0]
 
-# Viterbi Decoder ------------------------------------------------------------------------------------
+# Viterbi Decoder ----------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPViterbiDecoder(LiteXModule):

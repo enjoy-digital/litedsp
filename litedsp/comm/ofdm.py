@@ -23,7 +23,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import iq_layout
 
-# CP Insert ------------------------------------------------------------------------------------------
+# CP Insert ----------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPCPInsert(LiteXModule):
@@ -97,7 +97,7 @@ class LiteDSPCPInsert(LiteXModule):
             self._config.fields.cp_len.eq(self.cp_len),
         ]
 
-# CP Remove ------------------------------------------------------------------------------------------
+# CP Remove ----------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPCPRemove(LiteXModule):

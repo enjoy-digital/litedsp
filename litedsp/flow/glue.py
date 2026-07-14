@@ -121,7 +121,7 @@ def _topo(nl, edges):
         visit(b.id)
     return order[::-1]
 
-# Connection -------------------------------------------------------------------------------------
+# Connection ---------------------------------------------------------------------------------------
 
 def connect_all(parent, nl, reg, auto_delay=True):
     """Wire every connection on ``parent``, inserting Split for fan-out and Delay for latency

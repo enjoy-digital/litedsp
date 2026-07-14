@@ -25,7 +25,7 @@ from litex.soc.interconnect     import stream
 from litedsp.common     import iq_layout, iq_lanes, scaled
 from litedsp.filter.cic import _growth_bits
 
-# Parallel CIC Decimator -----------------------------------------------------------------------------
+# Parallel CIC Decimator ---------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPParallelCICDecimator(LiteXModule):

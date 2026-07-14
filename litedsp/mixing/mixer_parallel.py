@@ -14,7 +14,7 @@ from litex.soc.interconnect     import stream
 from litedsp.common       import iq_layout, iq_lanes, scaled
 from litedsp.mixing.mixer import MIXER_MODE_DOWN, MIXER_MODE_UP
 
-# Parallel Mixer -------------------------------------------------------------------------------------
+# Parallel Mixer -----------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPParallelMixer(LiteXModule):

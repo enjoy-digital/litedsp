@@ -16,7 +16,7 @@ from litedsp.mixing.mixer            import MIXER_MODE_DOWN
 from litedsp.mixing.mixer_parallel   import LiteDSPParallelMixer
 from litedsp.filter.cic_parallel     import LiteDSPParallelCICDecimator
 
-# Parallel DDC ---------------------------------------------------------------------------------------
+# Parallel DDC -------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPParallelDDC(LiteXModule):

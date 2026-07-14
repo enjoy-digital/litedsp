@@ -16,7 +16,7 @@ from litedsp.comm.viterbi import LiteDSPViterbiDecoder
 
 from test.common import stream_driver, stream_capture
 
-# Python reference encoder (mirrors LiteDSPConvEncoder) ----------------------------------------------
+# Python reference encoder (mirrors LiteDSPConvEncoder) --------------------------------------------
 
 def conv_encode(bits, constraint=7, polys=(0o171, 0o133)):
     reg, out = 0, []
@@ -29,7 +29,7 @@ def conv_encode(bits, constraint=7, polys=(0o171, 0o133)):
         reg = full & ((1 << (constraint - 1)) - 1)
     return out
 
-# Viterbi --------------------------------------------------------------------------------------------
+# Viterbi ------------------------------------------------------------------------------------------
 
 class TestViterbi(unittest.TestCase):
     def _decode(self, symbols, n_bits, **kwargs):
