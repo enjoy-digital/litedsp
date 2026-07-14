@@ -117,4 +117,8 @@ def generate_ip(source, build_dir, name=None, **core_kwargs):
     with open(os.path.join(build_dir, "csr.csv"),  "w") as f: f.write(ip.export_csv())
     with open(os.path.join(build_dir, "csr.json"), "w") as f: f.write(ip.export_json())
     with open(os.path.join(build_dir, "csr.h"),    "w") as f: f.write(ip.export_header())
+    # Block manifest: instance prefix -> registry key (exact host-driver discovery).
+    import json
+    with open(os.path.join(build_dir, "blocks.json"), "w") as f:
+        json.dump({b.id: b.type for b in ip.chain.netlist.blocks}, f, indent=2, sort_keys=True)
     return path, ip

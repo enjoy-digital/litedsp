@@ -249,6 +249,60 @@ class FIRDriver(Driver):
                 t = int(round(t * (1 << (self.data_width - 1))))
             csr.write(t & mask)
 
+# Generic Reflected Driver ---------------------------------------------------------------------------
+
+def make_driver(spec):
+    """Build a driver class from a :class:`~litedsp.flow.metadata.BlockSpec` (CSR reflection).
+
+    One attribute per CSR (the raw ``bus.regs`` object), plus ``set_<csr>_<field>()`` /
+    ``get_<csr>_<field>()`` accessors for every named :class:`CSRField` (read-modify-write with
+    the reflected mask/offset). Covers every CSR-bearing block; the handwritten drivers above
+    add unit math (Hz tuning, tap design/reload, capture drain) on top.
+    """
+    csr_specs = list(spec.csrs)
+
+    class GenericDriver(Driver):
+        regs = tuple(c.name for c in csr_specs)
+
+        def __repr__(self):
+            return f"GenericDriver('{self.prefix}', block='{spec.key}')"
+
+    for c in csr_specs:
+        for fld in c.fields:
+            mask = ((1 << fld.size) - 1) << fld.offset
+
+            def _set(self, value, _csr=c.name, _mask=mask, _off=fld.offset):
+                reg = getattr(self, _csr)
+                reg.write((reg.read() & ~_mask) | ((value << _off) & _mask))
+
+            def _get(self, _csr=c.name, _mask=mask, _off=fld.offset):
+                return (getattr(self, _csr).read() & _mask) >> _off
+
+            _set.__doc__ = fld.description or f"Set {c.name}.{fld.name}."
+            _get.__doc__ = fld.description or f"Get {c.name}.{fld.name}."
+            setattr(GenericDriver, f"set_{c.name}_{fld.name}", _set)
+            setattr(GenericDriver, f"get_{c.name}_{fld.name}", _get)
+
+    GenericDriver.__name__     = f"{spec.cls.__name__}Driver"
+    GenericDriver.__qualname__ = GenericDriver.__name__
+    GenericDriver.__doc__      = (spec.doc or spec.key) + " (generic reflected driver)."
+    return GenericDriver
+
+# Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
+TYPED = {
+    "nco":      NCODriver,
+    "capture":  CaptureDriver,
+    "csr_sink": CSRReaderDriver,
+    "squelch":  SquelchDriver,
+    "agc":      AGCDriver,
+    "framer":   FramerDriver,
+    "fir_real": FIRDriver, "fir_complex": FIRDriver,
+    "fir_decimator": FIRDriver, "fir_interpolator": FIRDriver,
+    "gain":     GainDriver,
+    "mixer":    MixerDriver,
+    "carrier_loop": PLLDriver,
+}
+
 # Discovery ----------------------------------------------------------------------------------------
 
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
@@ -257,12 +311,34 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]
 
-def discover(bus, clk_freq=None):
-    """Scan the register map, return ``{prefix: driver}`` for every recognized block.
+def discover(bus, clk_freq=None, manifest=None):
+    """Return ``{prefix: driver}`` for every block found on the bus.
 
-    When several signatures match a prefix, the most specific (most registers) wins — so e.g.
-    an AGC (``target``+``gain``) is not also reported as a Gain block.
+    With ``manifest`` (a ``{instance_prefix: registry_key}`` dict, or a path to the
+    ``blocks.json`` the flow IP generator emits next to ``csr.csv``), discovery is exact:
+    every listed instance gets its typed driver (TYPED) or a generic reflected one
+    (:func:`make_driver`). Without a manifest, falls back to register-signature scanning;
+    when several signatures match a prefix, the most specific (most registers) wins.
     """
+    if manifest is not None:
+        import json
+        if isinstance(manifest, str):
+            with open(manifest, encoding="utf-8") as fp:
+                manifest = json.load(fp)
+        from litedsp.flow import registry as flow_registry
+        specs = flow_registry.registry()
+        found = {}
+        for prefix, key in manifest.items():
+            candidates = []
+            if key in TYPED:
+                candidates.append(TYPED[key])
+            if key in specs:
+                candidates.append(make_driver(specs[key]))  # Generic reflected fallback.
+            for cls in candidates:
+                if cls.regs and cls.present(bus, prefix):
+                    found[prefix] = cls(bus, prefix, clk_freq=clk_freq)
+                    break
+        return found
     names = _reg_names(bus)
     found = {}
     for cls in sorted(DRIVERS, key=lambda c: len(c.regs)):

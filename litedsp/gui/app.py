@@ -18,6 +18,11 @@ Live mode: Connect opens a litex_server session on the SoC's ``csr.csv``
 (:mod:`litedsp.gui.live`) and builds a panel of runtime controls for every discovered block —
 tune NCOs in Hz, reload FIR taps, trigger captures and watch the PSD.
 
+Each node carries a resource/latency footer badge (:mod:`litedsp.gui.badges`, from
+``impl/budgets.json``), the status bar shows whole-chain totals, and a Response window plots the
+selected filter node's quantized frequency response (:mod:`litedsp.gui.response`), tracking
+param edits live.
+
 Run: ``litedsp_gui``.
 """
 
@@ -29,7 +34,7 @@ from litedsp.flow import registry
 from litedsp.flow.generate import generate
 from litedsp.flow.ipcore   import generate_ip
 
-from litedsp.gui import graph, palette
+from litedsp.gui import badges, graph, palette, response
 from litedsp.gui.params import coerce_params
 
 
@@ -43,6 +48,7 @@ class FlowEditor:
         self.links   = {}      # dpg link id -> (src_ref, dst_ref)
         self._counter = {}
         self.live     = None   # LiveSession when connected.
+        self.selected = None   # Node id whose response the Response window shows.
 
     # -- model helpers --------------------------------------------------------------------------
     def _new_id(self, key):
@@ -77,18 +83,25 @@ class FlowEditor:
                     tag = f"param_{nid}_{prm.name}"
                     if prm.choices:
                         dpg.add_combo(prm.choices, default_value=str(prm.default),
-                            label=prm.name, width=120, tag=tag)
+                            label=prm.name, width=120, tag=tag,
+                            user_data=nid, callback=self.on_param_change)
                     elif prm.kind == "bool":
-                        dpg.add_checkbox(label=prm.name, default_value=bool(prm.default), tag=tag)
+                        dpg.add_checkbox(label=prm.name, default_value=bool(prm.default), tag=tag,
+                            user_data=nid, callback=self.on_param_change)
                     else:
                         dpg.add_input_text(label=prm.name, default_value=str(prm.default),
-                            width=120, tag=tag)
+                            width=120, tag=tag,
+                            user_data=nid, callback=self.on_param_change)
                     param_tags[prm.name] = tag
             for p in spec.sources:
                 a = dpg.add_node_attribute(attribute_type=dpg.mvNode_Attr_Output, label=p.name)
                 dpg.add_text(f"{p.name} ({p.layout}) >", parent=a)
                 self.attrs[a] = (nid, p.name, "source")
+            # Footer badge: resources/fmax from impl/budgets.json + latency from the BlockSpec.
+            with dpg.node_attribute(attribute_type=dpg.mvNode_Attr_Static):
+                dpg.add_text(badges.badge_text(key, reg=self.reg), color=(140, 140, 140))
         self.nodes[nid] = {"type": key, "params": param_tags}
+        self._refresh_totals()
 
     def add_io(self, kind, nid=None, pos=None):
         dpg = self.dpg
@@ -102,6 +115,7 @@ class FlowEditor:
             dpg.add_text("iq", parent=a)
             self.attrs[a] = (nid, None, direction)
         self.nodes[nid] = {"type": kind, "params": {}}
+        self._refresh_totals()
 
     # -- link callbacks -------------------------------------------------------------------------
     def on_link(self, sender, app_data):
@@ -110,10 +124,12 @@ class FlowEditor:
         src, dst = (a1, a2) if d1 == "source" else (a2, a1)
         link = self.dpg.add_node_link(a1, a2, parent=sender)
         self.links[link] = (self._ref(src), self._ref(dst))
+        self._refresh_totals()
 
     def on_delink(self, sender, app_data):
         self.links.pop(app_data, None)
         self.dpg.delete_item(app_data)
+        self._refresh_totals()
 
     # -- model -> netlist -----------------------------------------------------------------------
     def to_netlist(self):
@@ -164,6 +180,9 @@ class FlowEditor:
             if dpg.does_item_exist(link):
                 dpg.delete_item(link)
         self.nodes, self.attrs, self.links, self._counter = {}, {}, {}, {}
+        self.selected = None
+        self.update_response(None)
+        self._refresh_totals()
 
     def load_netlist(self, nl):
         """Rebuild the canvas from a netlist (saved positions, or a simple grid fallback)."""
@@ -198,6 +217,7 @@ class FlowEditor:
                 continue
             link = dpg.add_node_link(a_src, a_dst, parent="editor")
             self.links[link] = (src, dst)
+        self._refresh_totals()
 
     def do_generate(self, ip=False):
         try:
@@ -212,6 +232,59 @@ class FlowEditor:
                 self._log(f"Generated Verilog: {path}{extra}")
         except Exception as e:
             self._log("Generate failed:\n" + "".join(traceback.format_exception_only(type(e), e)))
+
+    # -- badges + response ------------------------------------------------------------------------
+    def _refresh_totals(self):
+        """Chain totals (resources/fmax/latency) in the status bar; '—' while the graph is invalid."""
+        dpg = self.dpg
+        if not dpg.does_item_exist("statusbar"):
+            return                                          # build() not done yet.
+        try:
+            totals = badges.chain_totals(self.to_netlist(), self.reg)
+            dpg.set_value("statusbar", badges.totals_text(totals))
+        except Exception:
+            dpg.set_value("statusbar", "chain: — (incomplete graph)")
+
+    def on_param_change(self, sender, app_data, nid):
+        if nid == self.selected:
+            self.update_response(nid)
+
+    def on_editor_click(self):
+        """Track node selection (mouse release) and retarget the Response window."""
+        dpg = self.dpg
+        sel = dpg.get_selected_nodes("editor")
+        nid = None
+        if sel:
+            alias = dpg.get_item_alias(sel[0]) or ""
+            if alias.startswith("node_"):
+                nid = alias[len("node_"):]
+        if nid != self.selected:
+            self.selected = nid
+            self.update_response(nid)
+
+    def update_response(self, nid):
+        """Plot response_for() of node ``nid`` in the Response window (cleared when None)."""
+        dpg = self.dpg
+        if not dpg.does_item_exist("resp_series"):
+            return                                          # build() not done yet.
+        resp = None
+        n    = self.nodes.get(nid)
+        if n is not None and n["type"] not in (graph.INPUT_TYPE, graph.OUTPUT_TYPE):
+            spec = self.reg[n["type"]]
+            try:
+                raw  = {pn: dpg.get_value(tag) for pn, tag in n["params"].items()}
+                resp = response.response_for(n["type"], coerce_params(spec, raw))
+            except Exception:
+                return                                      # Mid-edit params; keep the last plot.
+        if resp is None:
+            dpg.set_value("resp_series", [[], []])
+            dpg.set_value("resp_info", "select a filter node")
+            return
+        freqs, h_db = resp
+        dpg.set_value("resp_series", [list(map(float, freqs)), list(map(float, h_db))])
+        dpg.set_value("resp_info", f"{nid} ({n['type']}) — quantized magnitude")
+        dpg.fit_axis_data("resp_xaxis")
+        dpg.fit_axis_data("resp_yaxis")
 
     # -- live mode ------------------------------------------------------------------------------
     def do_connect(self):
@@ -321,6 +394,7 @@ class FlowEditor:
                 dpg.add_button(label="Generate IP", callback=lambda: self.do_generate(ip=True))
                 dpg.add_input_text(label="csr.csv", tag="cfg_csr", default_value="csr.csv", width=120)
                 dpg.add_button(label="Connect", callback=lambda: self.do_connect())
+            dpg.add_text("chain: —", tag="statusbar", color=(140, 140, 140))
             with dpg.group(horizontal=True):
                 with dpg.child_window(width=230, tag="palette"):
                     for cat, specs in palette.categories().items():
@@ -333,6 +407,14 @@ class FlowEditor:
                     dpg.add_text("", tag="logbox", wrap=210)
                 dpg.add_node_editor(tag="editor", callback=self.on_link,
                     delink_callback=self.on_delink, minimap=True)
+        with dpg.window(label="Response", tag="response", width=440, height=320, pos=(800, 420)):
+            dpg.add_text("select a filter node", tag="resp_info", color=(140, 140, 140))
+            with dpg.plot(height=-1, width=-1):
+                dpg.add_plot_axis(dpg.mvXAxis, label="f (normalized)", tag="resp_xaxis")
+                with dpg.plot_axis(dpg.mvYAxis, label="dB", tag="resp_yaxis"):
+                    dpg.add_line_series([], [], tag="resp_series")
+        with dpg.handler_registry():
+            dpg.add_mouse_release_handler(callback=lambda s, a: self.on_editor_click())
         with dpg.file_dialog(directory_selector=False, show=False, tag="save_dlg",
                              default_filename="chain.json", callback=self.do_save, width=600, height=400):
             dpg.add_file_extension(".json")
