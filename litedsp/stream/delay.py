@@ -10,7 +10,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # Delay / Align ------------------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ class LiteDSPDelay(LiteXModule):
     preserved. ``depth = 0`` is a passthrough.
     """
     def __init__(self, depth=1, data_width=16):
-        assert depth >= 0
+        check(depth >= 0, "expected depth >= 0")
         self.depth   = depth
         self.latency = depth
         self.sink   = stream.Endpoint(iq_layout(data_width))

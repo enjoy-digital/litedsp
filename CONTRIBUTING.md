@@ -16,8 +16,14 @@ Every block obeys the same streaming + control contract (details and rationale i
    (data descriptors like `Qmn`, flow netlist/metadata classes, GUI classes, host-side
    drivers in `litedsp/software/`) stay unprefixed, as do functions (`iq_layout`, `rounded`).
 3. Declare endpoints (`sink`/`source`, layouts from `litedsp.common`), plain control Signals,
-   and `self.latency`; then the `# # #` separator; then the hardware. Re-export the class
-   from the subpackage `__init__.py`.
+   and `self.latency` (a number, or an explicit `None` for data-dependent blocks); then the
+   `# # #` separator; then the hardware. Re-export the class from the subpackage `__init__.py`.
+   Parameter vocabulary (enforced by `test/test_metadata_policy.py`): `decimation`/
+   `interpolation` for rate factors (never `R`/`L`/`factor`), `n_stages`/`diff_delay` for CIC,
+   `n_taps` + `coefficients` for FIR, `sections` for SOS lists, `polynomial` for LFSR taps,
+   `N` only as a transform size. Every parameter has a default; validate with
+   `litedsp.common.check(cond, msg)` (raises `ValueError`), not `assert`. Layout-preserving
+   in-line blocks add `litedsp.common.add_bypass(self)` + `add_bypass_csr(self)`.
 4. Full `valid`/`ready` backpressure — never drop or duplicate samples under stalls. Stateful
    blocks use an elastic pipeline (see `litedsp/filter/fir.py`).
 5. Round + saturate at every downsizing point via `litedsp.common` (`rounded`/`saturated`/

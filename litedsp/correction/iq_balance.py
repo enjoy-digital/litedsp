@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import iq_layout, scaled, add_bypass, add_bypass_csr
 
 # IQ Imbalance Correction --------------------------------------------------------------------------
 
@@ -77,12 +77,17 @@ class LiteDSPIQBalance(LiteXModule):
             )
         )
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
         # CSR.
         # ----
         if with_csr:
             self.add_csr()
 
     def add_csr(self):
+        add_bypass_csr(self)
         self._c1 = CSRStorage(self.data_width, reset=0, name="c1",
             description="Correction coeff c1 (Q?.frac).")
         self._c2 = CSRStorage(self.data_width, reset=1 << self.coeff_frac, name="c2",

@@ -18,20 +18,21 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # Stream FIFO --------------------------------------------------------------------------------------
 
 class LiteDSPStreamFIFO(LiteXModule):
     """First-word-fall-through synchronous FIFO for an I/Q (or custom-``layout``) stream."""
     def __init__(self, depth=16, data_width=16, layout=None, with_csr=True):
-        assert depth >= 1
+        check(depth >= 1, "expected depth >= 1")
         layout      = layout if layout is not None else iq_layout(data_width)
         self.depth  = depth
         self.sink   = stream.Endpoint(layout)
         self.source = stream.Endpoint(layout)
         self.level    = Signal(max=depth + 1)   # Current occupancy.
         self.overflow = Signal()                # Sticky: a sample was dropped (sink stalled).
+        self.latency = 0  # Elastic: no sample-index offset.
 
         # # #
 

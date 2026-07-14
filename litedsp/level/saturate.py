@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import iq_layout, scaled, add_bypass, add_bypass_csr
 
 # Saturate -----------------------------------------------------------------------------------------
 
@@ -65,12 +65,17 @@ class LiteDSPSaturate(LiteXModule):
             )
         ]
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
         # CSR.
         # ----
         if with_csr:
             self.add_csr()
 
     def add_csr(self):
+        add_bypass_csr(self)
         self._control = CSRStorage(fields=[
             CSRField("clear_sat", size=1, offset=0, pulse=True, description="Clear saturation flag."),
         ])

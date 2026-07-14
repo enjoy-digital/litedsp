@@ -19,7 +19,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # CSR Source ---------------------------------------------------------------------------------------
 
@@ -119,7 +119,7 @@ class LiteDSPCSRReader(LiteXModule):
     drained sample-by-sample over the bridge/CPU: check ``valid``, read ``data``, write ``pop``.
     """
     def __init__(self, data_width=16, with_csr=True):
-        assert data_width <= 16                            # I/Q packed in one 32-bit data CSR.
+        check(data_width <= 16, "expected data_width <= 16")  # I/Q packed in one 32-bit data CSR.
         self.data_width = data_width
         self.sink = stream.Endpoint(iq_layout(data_width))
         self.pop  = Signal()  # 1-cycle strobe: consume the pending sample.

@@ -22,7 +22,7 @@ class TestFIRReload(unittest.TestCase):
         n_taps, R = 16, 4
         new = firwin_lowpass(n_taps, 0.4/R)              # Reload these at runtime.
         # Build with the default (impulse) coefficients; reload `new` via the coeff interface.
-        dut = LiteDSPFIRDecimator(n_taps, R, data_width=16, with_csr=False)
+        dut = LiteDSPFIRDecimator(n_taps=n_taps, decimation=R, data_width=16, with_csr=False)
         prng = random.Random(1)
         x = [(prng.randint(-25000, 25000), prng.randint(-25000, 25000)) for _ in range(R*60)]
         n_out = len(x)//R - 2

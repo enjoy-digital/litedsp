@@ -21,15 +21,15 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import check, iq_layout, scaled
 
 # ADC Interface ------------------------------------------------------------------------------------
 
 class LiteDSPADCInterface(LiteXModule):
     """Raw ADC I/Q samples -> Q1.(N-1) stream (sign correction + MSB alignment)."""
     def __init__(self, adc_width=12, data_width=16, fmt="offset_binary"):
-        assert fmt in ("offset_binary", "twos")
-        assert adc_width <= data_width
+        check(fmt in ("offset_binary", "twos"), "expected fmt in ('offset_binary', 'twos')")
+        check(adc_width <= data_width, "expected adc_width <= data_width")
         self.latency = 0
         self.sink    = stream.Endpoint([("i", adc_width), ("q", adc_width)])   # Raw.
         self.source  = stream.Endpoint(iq_layout(data_width))                  # Signed, left-aligned.
@@ -60,8 +60,8 @@ class LiteDSPADCInterface(LiteXModule):
 class LiteDSPDACInterface(LiteXModule):
     """Q1.(N-1) stream -> raw DAC I/Q samples (round + saturate downsize, format re-encode)."""
     def __init__(self, dac_width=12, data_width=16, fmt="offset_binary"):
-        assert fmt in ("offset_binary", "twos")
-        assert dac_width <= data_width
+        check(fmt in ("offset_binary", "twos"), "expected fmt in ('offset_binary', 'twos')")
+        check(dac_width <= data_width, "expected dac_width <= data_width")
         self.latency = 0
         self.sink    = stream.Endpoint(iq_layout(data_width))                  # Signed, left-aligned.
         self.source  = stream.Endpoint([("i", dac_width), ("q", dac_width)])   # Raw.

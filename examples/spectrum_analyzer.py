@@ -45,7 +45,7 @@ class SpectrumAnalyzer(LiteXModule):
 
         self.window = LiteDSPWindow(N, data_width=data_width, window=window, with_csr=False)
         self.fft    = LiteDSPFFT(N, data_width=data_width, with_csr=False)
-        self.psd    = LiteDSPPSD(N, latency=self.fft.latency, data_width=data_width,
+        self.psd    = LiteDSPPSD(N, fft_latency=self.fft.latency, data_width=data_width,
             avg_log2=avg_log2, with_csr=False)
         self.comb += [
             self.sink.connect(self.window.sink),

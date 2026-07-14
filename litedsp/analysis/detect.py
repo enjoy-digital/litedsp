@@ -30,6 +30,7 @@ class LiteDSPEnergyDetector(LiteXModule):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.detect = Signal()  # 1 while power > floor * 2**threshold_log2.
+        self.latency = 0  # Combinational pass-through.
 
         # # #
 

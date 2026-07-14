@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, real_layout
+from litedsp.common import check, iq_layout, real_layout
 
 # PSD ----------------------------------------------------------------------------------------------
 
@@ -23,15 +23,18 @@ class LiteDSPPSD(LiteXModule):
     spectrum (``N`` values, **natural** bin order, framed with first/last). While emitting, it
     backpressures the FFT, so no samples are lost.
 
-    ``latency`` is the FFT pipeline latency (``N-1``); the first ``latency`` samples (pipeline
+    ``fft_latency`` is the upstream FFT pipeline latency (default ``N-1``, matching
+    :class:`litedsp.analysis.fft.LiteDSPFFT`); the first ``fft_latency`` samples (pipeline
     fill) are skipped so frames align.
     """
-    def __init__(self, N, latency, data_width=16, avg_log2=4, with_csr=True):
-        assert (N & (N - 1)) == 0
+    def __init__(self, N=64, fft_latency=None, data_width=16, avg_log2=4, with_csr=True):
+        check((N & (N - 1)) == 0, "expected (N & (N - 1)) == 0")
+        latency = (N - 1) if fft_latency is None else fft_latency  # Upstream FFT fill to skip.
         self.N           = N
         self.bits        = N.bit_length() - 1
         self.avg_log2    = avg_log2
         self.power_width = 2*data_width + avg_log2
+        self.latency     = None  # Variable (frame-accumulating: emits after 2**avg_log2 frames).
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(real_layout(self.power_width))
 

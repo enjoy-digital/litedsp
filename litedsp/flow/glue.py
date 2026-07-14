@@ -79,7 +79,10 @@ def _latency_analysis(nl, reg):
     for bid in order:
         preds = incoming.get(bid, [])
         base = max((lat.get(s, 0) for s, _ in preds), default=0)
-        blat = reg[nl.block(bid).type].latency or 0 if nl.block(bid) else 0
+        blat = 0
+        if nl.block(bid):
+            l    = reg[nl.block(bid).type].latency
+            blat = 0 if l is None else l  # None = variable/unknown; a real 0 stays 0.
         lat[bid] = base + (blat if isinstance(blat, int) else 0)
     joins = {}
     for bid, preds in incoming.items():

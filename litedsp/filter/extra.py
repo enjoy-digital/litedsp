@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled, saturated
+from litedsp.common import iq_layout, scaled, saturated, add_bypass, add_bypass_csr
 
 # Tunable Notch ------------------------------------------------------------------------------------
 
@@ -29,6 +29,7 @@ class LiteDSPNotch(LiteXModule):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.cos_w0 = Signal((data_width, True))          # cos(2*pi*f0) in Q.frac.
+        self.latency = 1  # Registered output.
 
         # # #
 
@@ -74,11 +75,16 @@ class LiteDSPNotch(LiteXModule):
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
         # CSR.
         # ----
         if with_csr:
             self._cos = CSRStorage(data_width, name="cos_w0", description="cos(2*pi*f0), Q.frac.")
             self.comb += self.cos_w0.eq(self._cos.storage)
+            add_bypass_csr(self)
 
 # Comb Filter --------------------------------------------------------------------------------------
 
@@ -125,6 +131,10 @@ class LiteDSPCombFilter(LiteXModule):
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
 # Allpass ------------------------------------------------------------------------------------------
 
 @ResetInserter()
@@ -166,9 +176,14 @@ class LiteDSPAllpass(LiteXModule):
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
         # CSR.
         # ----
         if with_csr:
             self._a = CSRStorage(data_width, reset=self.a.reset.value, name="a",
                 description="Allpass coefficient (Q.frac).")
             self.comb += self.a.eq(self._a.storage)
+            add_bypass_csr(self)

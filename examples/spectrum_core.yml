@@ -26,7 +26,7 @@ flow:
   blocks:
     - {id: win, type: window, params: {n: 256, window: hann}}
     - {id: fft, type: fft,    params: {N: 256}}
-    - {id: psd, type: psd,    params: {N: 256, latency: 255}}
+    - {id: psd, type: psd,    params: {N: 256}}
   connections:
     - {from: iq_in,      to: win.sink}
     - {from: win.source, to: fft.sink}

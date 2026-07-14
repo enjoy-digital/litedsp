@@ -26,9 +26,10 @@ def _parity(bits):
 @ResetInserter()
 class LiteDSPScrambler(LiteXModule):
     """Self-synchronizing multiplicative scrambler ``y = x ^ y[-t1] ^ y[-t2] ...`` (bit-serial)."""
-    def __init__(self, taps=(18, 23), with_csr=True):
+    def __init__(self, polynomial=(18, 23), with_csr=True):
+        taps   = polynomial  # Feedback tap positions of the scrambler polynomial.
         length = max(taps)
-        self.taps = taps
+        self.polynomial = taps
         self.latency = 1
         self.sink   = stream.Endpoint([("data", 1)])
         self.source = stream.Endpoint([("data", 1)])
@@ -56,9 +57,10 @@ class LiteDSPScrambler(LiteXModule):
 @ResetInserter()
 class LiteDSPDescrambler(LiteXModule):
     """Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing)."""
-    def __init__(self, taps=(18, 23), with_csr=True):
+    def __init__(self, polynomial=(18, 23), with_csr=True):
+        taps   = polynomial  # Feedback tap positions of the scrambler polynomial.
         length = max(taps)
-        self.taps = taps
+        self.polynomial = taps
         self.latency = 1
         self.sink   = stream.Endpoint([("data", 1)])
         self.source = stream.Endpoint([("data", 1)])
@@ -98,6 +100,7 @@ class LiteDSPCRC(LiteXModule):
         self.source = stream.Endpoint([("data", 1)])
         self.clear  = Signal()
         self.crc    = Signal(width, reset=init)
+        self.latency = 1  # Registered pass-through.
 
         # # #
 

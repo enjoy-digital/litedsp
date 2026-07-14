@@ -40,7 +40,7 @@ class FMReceiver(LiteXModule):
         self.demod = LiteDSPFMDemod(data_width=data_width, angle_width=data_width, with_csr=False)
         # Decimate the (real) demodulated signal: feed it as I, take I out.
         coeffs = firwin_lowpass(8*audio_decim + 1, 0.4/audio_decim, data_width=data_width)
-        self.audio = LiteDSPFIRDecimator(8*audio_decim + 1, audio_decim, data_width=data_width,
+        self.audio = LiteDSPFIRDecimator(n_taps=8*audio_decim + 1, decimation=audio_decim, data_width=data_width,
             coefficients=coeffs, with_csr=False)
         self.source = self.audio.source
         self.comb += [

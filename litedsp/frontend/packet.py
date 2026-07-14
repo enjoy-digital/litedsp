@@ -20,7 +20,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common         import iq_layout
+from litedsp.common         import check, iq_layout
 from litedsp.stream.adapt   import LiteDSPIQPack, LiteDSPIQUnpack
 from litedsp.stream.framing import LiteDSPStreamFramer, LiteDSPStreamDeframer
 
@@ -30,8 +30,8 @@ class LiteDSPIQPacketizer(LiteXModule):
     """I/Q stream -> ``word_width``-bit word stream with ``last`` every ``samples_per_packet``."""
     def __init__(self, data_width=16, word_width=32, samples_per_packet=256, with_csr=True):
         ratio = word_width // (2*data_width)  # I/Q samples per word.
-        assert ratio >= 1 and ratio*2*data_width == word_width
-        assert samples_per_packet % ratio == 0
+        check(ratio >= 1 and ratio*2*data_width == word_width, "expected ratio >= 1 and ratio*2*data_width == word_width")
+        check(samples_per_packet % ratio == 0, "expected samples_per_packet % ratio == 0")
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint([("data", word_width)])
 
@@ -52,7 +52,7 @@ class LiteDSPIQDepacketizer(LiteXModule):
     """``word_width``-bit word stream -> I/Q stream (inverse of :class:`LiteDSPIQPacketizer`)."""
     def __init__(self, data_width=16, word_width=32, with_csr=True):
         ratio = word_width // (2*data_width)  # I/Q samples per word.
-        assert ratio >= 1 and ratio*2*data_width == word_width
+        check(ratio >= 1 and ratio*2*data_width == word_width, "expected ratio >= 1 and ratio*2*data_width == word_width")
         self.sink   = stream.Endpoint([("data", word_width)])
         self.source = stream.Endpoint(iq_layout(data_width))
 

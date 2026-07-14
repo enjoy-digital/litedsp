@@ -10,7 +10,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common          import iq_layout
+from litedsp.common          import check, iq_layout
 from litedsp.filter.cic      import LiteDSPCICInterpolator
 from litedsp.filter.fir_poly import LiteDSPFIRInterpolator
 from litedsp.filter.design   import firwin_lowpass
@@ -23,22 +23,23 @@ class LiteDSPInterpolator(LiteXModule):
     ``method="cic"`` (default) uses a portable CIC; ``method="fir"`` uses a polyphase
     interpolating FIR with a windowed-sinc low-pass (gain ``L`` to offset zero-stuff loss).
     """
-    def __init__(self, data_width=16, factor=8, method="cic", n_taps=None, cutoff=0.4,
-        stages=4, with_csr=True):
-        assert method in ["cic", "fir"]
-        self.factor = factor
-        self.method = method
+    def __init__(self, data_width=16, interpolation=8, method="cic", n_taps=None, cutoff=0.4,
+        n_stages=4, with_csr=True):
+        check(method in ["cic", "fir"], "expected method in ['cic', 'fir']")
+        self.interpolation = interpolation
+        self.method        = method
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
         # # #
 
         if method == "cic":
-            self.core = LiteDSPCICInterpolator(data_width=data_width, R=factor, N=stages, with_csr=with_csr)
+            self.core = LiteDSPCICInterpolator(data_width=data_width, interpolation=interpolation,
+                n_stages=n_stages, with_csr=with_csr)
         else:
-            n_taps = n_taps or (8*factor + 1)  # ~8 taps per polyphase branch.
-            coeffs = firwin_lowpass(n_taps, cutoff/factor, data_width=data_width, gain=factor)  # Cutoff at the output (high) rate.
-            self.core = LiteDSPFIRInterpolator(n_taps, factor, data_width=data_width,
+            n_taps = n_taps or (8*interpolation + 1)  # ~8 taps per polyphase branch.
+            coeffs = firwin_lowpass(n_taps, cutoff/interpolation, data_width=data_width, gain=interpolation)  # Cutoff at the output (high) rate.
+            self.core = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=interpolation, data_width=data_width,
                 coefficients=coeffs, with_csr=with_csr)
         self.latency = self.core.latency
         self.comb += [

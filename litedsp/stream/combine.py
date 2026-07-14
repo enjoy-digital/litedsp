@@ -16,7 +16,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, saturated
+from litedsp.common import check, iq_layout, saturated
 
 # Combine ------------------------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ class LiteDSPCombine(LiteXModule):
     together (synchronous join); output appears after a fixed 1-cycle latency.
     """
     def __init__(self, n_channels=2, data_width=16, with_csr=True):
-        assert n_channels >= 1
+        check(n_channels >= 1, "expected n_channels >= 1")
         self.n_channels = n_channels
         self.data_width = data_width
         self.latency    = 1

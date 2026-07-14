@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import check, iq_layout, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -145,7 +145,7 @@ class LiteDSPFFT(LiteXModule):
     input sample of a frame to its first output sample.
     """
     def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, with_csr=True):
-        assert (N & (N - 1)) == 0, "N must be a power of two."
+        check((N & (N - 1)) == 0, "N must be a power of two.")
         self.N          = N
         self.bits       = N.bit_length() - 1
         self.data_width = data_width

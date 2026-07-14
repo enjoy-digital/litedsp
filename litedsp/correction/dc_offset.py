@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, saturated
+from litedsp.common import iq_layout, saturated, add_bypass
 
 # DC Offset Correction -----------------------------------------------------------------------------
 
@@ -60,3 +60,7 @@ class LiteDSPDCOffset(LiteXModule):
         valid = Signal()
         self.sync += If(adv, valid.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid)
+
+        # Bypass.
+        # -------
+        add_bypass(self)

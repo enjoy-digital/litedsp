@@ -22,7 +22,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common     import iq_layout, iq_lanes, scaled
+from litedsp.common     import check, iq_layout, iq_lanes, scaled
 from litedsp.filter.cic import _growth_bits
 
 # Parallel CIC Decimator ---------------------------------------------------------------------------
@@ -30,15 +30,16 @@ from litedsp.filter.cic import _growth_bits
 @ResetInserter()
 class LiteDSPParallelCICDecimator(LiteXModule):
     """CIC decimator by ``R`` over ``n_samples``-lane beats; serial output stream."""
-    def __init__(self, n_samples=4, data_width=16, R=8, N=3, M=1, with_csr=True):
-        assert R >= 2 and N >= 1 and M >= 1
-        assert R >= n_samples and R % n_samples == 0, \
-            "R must be a multiple of n_samples (output rate <= 1 sample/cycle)"
+    def __init__(self, n_samples=4, data_width=16, decimation=8, n_stages=3, diff_delay=1, with_csr=True):
+        R, N, M = decimation, n_stages, diff_delay  # Literature names.
+        check(R >= 2 and N >= 1 and M >= 1, "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
+        check(R >= n_samples and R % n_samples == 0,
+            "decimation must be a multiple of n_samples (output rate <= 1 sample/cycle)")
         growth = _growth_bits(R, N, M)
         W      = data_width + growth
         self.n_samples  = n_samples
         self.data_width = data_width
-        self.R, self.N, self.M = R, N, M
+        self.decimation, self.n_stages, self.diff_delay = R, N, M
         self.growth  = growth
         self.latency = 1
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
@@ -125,7 +126,7 @@ class LiteDSPParallelCICDecimator(LiteXModule):
             CSRField("lanes",  size=8,  description="Input samples per beat."),
         ])
         self.comb += [
-            self._config.fields.rate.eq(self.R),
-            self._config.fields.stages.eq(self.N),
+            self._config.fields.rate.eq(self.decimation),
+            self._config.fields.stages.eq(self.n_stages),
             self._config.fields.lanes.eq(self.n_samples),
         ]

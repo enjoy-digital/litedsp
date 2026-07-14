@@ -17,7 +17,7 @@ class TestRationalResampler(unittest.TestCase):
         L, M, n = 3, 2, 600
         f = 0.05
         x = np.round(12000*np.cos(2*np.pi*f*np.arange(n))).astype(int)
-        dut = LiteDSPRationalResampler(L, M, data_width=16, with_csr=False)
+        dut = LiteDSPRationalResampler(interpolation=L, decimation=M, data_width=16, with_csr=False)
         n_out = n*L//M - 40
         cap = run_stream(dut, [{"i": int(x[k]), "q": 0} for k in range(n)], n_out,
             ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)

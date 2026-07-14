@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common         import iq_layout, iq_lanes
+from litedsp.common         import check, iq_layout, iq_lanes
 from litedsp.generation.nco import LiteDSPNCO
 
 import math
@@ -28,7 +28,7 @@ class LiteDSPParallelNCO(LiteXModule):
     serial NCO output at the same ``phase_inc`` (n ROM pairs traded for n samples/cycle).
     """
     def __init__(self, n_samples=2, phase_bits=32, data_width=16, lut_depth=1024, with_csr=True):
-        assert n_samples >= 1
+        check(n_samples >= 1, "expected n_samples >= 1")
         self.n_samples  = n_samples
         self.phase_bits = phase_bits
         self.data_width = data_width
@@ -39,7 +39,7 @@ class LiteDSPParallelNCO(LiteXModule):
         # # #
 
         addr_bits = int(math.log2(lut_depth))
-        assert (1 << addr_bits) == lut_depth, "lut_depth must be a power of two."
+        check((1 << addr_bits) == lut_depth, "lut_depth must be a power of two.")
 
         # Phase Accumulator (steps n_samples increments per beat).
         # --------------------------------------------------------

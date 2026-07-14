@@ -30,6 +30,7 @@ class LiteDSPHistogram(LiteXModule):
         B = 1 << bits                      # Number of bins.
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint([("data", count_width)])
+        self.latency = None  # Variable (framed readout).
 
         # # #
 

@@ -23,7 +23,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, real_layout, saturated, scaled
+from litedsp.common import check, iq_layout, real_layout, saturated, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -40,12 +40,13 @@ def cic_shift(R, N, M=1):
 @ResetInserter()
 class LiteDSPCICDecimator(LiteXModule):
     """CIC decimator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N``, rescaled to width."""
-    def __init__(self, data_width=16, R=8, N=3, M=1, with_csr=True):
-        assert R >= 2 and N >= 1 and M >= 1
+    def __init__(self, data_width=16, decimation=8, n_stages=3, diff_delay=1, with_csr=True):
+        R, N, M = decimation, n_stages, diff_delay  # Literature names.
+        check(R >= 2 and N >= 1 and M >= 1, "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
         growth = _growth_bits(R, N, M)  # Hogenauer register growth.
         W      = data_width + growth    # Full internal width (wrap-around arithmetic).
         self.data_width = data_width
-        self.R, self.N, self.M = R, N, M
+        self.decimation, self.n_stages, self.diff_delay = R, N, M
         self.growth  = growth
         self.latency = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -122,7 +123,7 @@ class LiteDSPCICDecimator(LiteXModule):
             CSRField("rate",   size=16, description="Decimation factor R."),
             CSRField("stages", size=8,  description="CIC stages N."),
         ])
-        self.comb += [self._config.fields.rate.eq(self.R), self._config.fields.stages.eq(self.N)]
+        self.comb += [self._config.fields.rate.eq(self.decimation), self._config.fields.stages.eq(self.n_stages)]
 
 # Runtime-rate CIC Decimator -----------------------------------------------------------------------
 
@@ -137,11 +138,12 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
     ``(rate*M)**N`` stays normalized. The Hogenauer wrap-around property holds for any
     ``rate <= r_max``. Operates on a real (``iq=False``) or complex (``iq=True``) stream.
     """
-    def __init__(self, data_width=16, r_max=8192, N=4, M=1, iq=True, with_csr=True):
-        assert r_max >= 2 and N >= 1 and M >= 1
+    def __init__(self, data_width=16, r_max=8192, n_stages=4, diff_delay=1, iq=True, with_csr=True):
+        N, M = n_stages, diff_delay  # Literature names.
+        check(r_max >= 2 and N >= 1 and M >= 1, "expected r_max >= 2, n_stages >= 1, diff_delay >= 1")
         self.data_width = data_width
         self.r_max      = r_max
-        self.N, self.M  = N, M
+        self.n_stages, self.diff_delay = N, M
         self.latency    = 1
         growth          = _growth_bits(r_max, N, M)
         W               = data_width + growth
@@ -231,12 +233,13 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
 @ResetInserter()
 class LiteDSPCICInterpolator(LiteXModule):
     """CIC interpolator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N / R``, rescaled."""
-    def __init__(self, data_width=16, R=8, N=3, M=1, with_csr=True):
-        assert R >= 2 and N >= 1 and M >= 1
+    def __init__(self, data_width=16, interpolation=8, n_stages=3, diff_delay=1, with_csr=True):
+        R, N, M = interpolation, n_stages, diff_delay  # Literature names.
+        check(R >= 2 and N >= 1 and M >= 1, "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
         growth = int(math.ceil(N*math.log2(R*M) - math.log2(R)))  # Net gain (R*M)**N / R (zero-stuff loss).
         W      = data_width + _growth_bits(R, N, M)               # Registers still need full Hogenauer growth.
         self.data_width = data_width
-        self.R, self.N, self.M = R, N, M
+        self.interpolation, self.n_stages, self.diff_delay = R, N, M
         self.growth  = growth
         self.latency = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -315,4 +318,4 @@ class LiteDSPCICInterpolator(LiteXModule):
             CSRField("rate",   size=16, description="Interpolation factor R."),
             CSRField("stages", size=8,  description="CIC stages N."),
         ])
-        self.comb += [self._config.fields.rate.eq(self.R), self._config.fields.stages.eq(self.N)]
+        self.comb += [self._config.fields.rate.eq(self.interpolation), self._config.fields.stages.eq(self.n_stages)]

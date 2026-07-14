@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, saturated
+from litedsp.common import iq_layout, saturated, add_bypass
 
 # DC Blocker ---------------------------------------------------------------------------------------
 
@@ -62,3 +62,7 @@ class LiteDSPDCBlocker(LiteXModule):
         valid_pipe = Signal()  # Single register stage (latency = 1).
         self.sync += If(adv, valid_pipe.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid_pipe)
+
+        # Bypass.
+        # -------
+        add_bypass(self)

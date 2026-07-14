@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # NCO ----------------------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ class LiteDSPNCO(LiteXModule):
         # # #
 
         addr_bits = int(math.log2(lut_depth))
-        assert (1 << addr_bits) == lut_depth, "lut_depth must be a power of two."
+        check((1 << addr_bits) == lut_depth, "lut_depth must be a power of two.")
 
         # Phase Accumulator.
         # ------------------

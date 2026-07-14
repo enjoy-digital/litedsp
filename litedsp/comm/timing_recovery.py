@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, saturated, scaled
+from litedsp.common import check, iq_layout, saturated, scaled
 
 # Mueller & Muller Symbol Timing Recovery ----------------------------------------------------------
 
@@ -32,7 +32,7 @@ class LiteDSPTimingRecovery(LiteXModule):
     """
     def __init__(self, data_width=16, sps=2, frac=16, gain_mu=0.1, gain_omega=None, ted="mm",
         with_csr=True):
-        assert ted in ("mm", "gardner")
+        check(ted in ("mm", "gardner"), "expected ted in ('mm', 'gardner')")
         if gain_omega is None:
             gain_omega = gain_mu*gain_mu/4
         self.data_width = data_width
@@ -40,6 +40,7 @@ class LiteDSPTimingRecovery(LiteXModule):
         self.ted = ted
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
+        self.latency = None  # Variable (adaptive symbol-rate output).
 
         # # #
 

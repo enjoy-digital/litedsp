@@ -35,7 +35,7 @@ class LiteDSPDDC(LiteXModule):
         # -----------
         self.nco   = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)  # Mode hardwired below.
-        self.decim = LiteDSPDecimator(data_width=data_width, factor=decimation, method=method,
+        self.decim = LiteDSPDecimator(data_width=data_width, decimation=decimation, method=method,
             with_csr=with_csr)
         self.latency = self.decim.latency
 

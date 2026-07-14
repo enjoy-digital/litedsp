@@ -21,7 +21,7 @@ def tone(n, f, amp=12000, phase=0.0):
 
 class TestDecimator(unittest.TestCase):
     def run_dec(self, x, factor, method):
-        dut = LiteDSPDecimator(data_width=16, factor=factor, method=method, with_csr=False)
+        dut = LiteDSPDecimator(data_width=16, decimation=factor, method=method, with_csr=False)
         n_out = len(x)//factor - dut.latency - 2
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         cap = run_stream(dut, samples, max(8, n_out), ["i", "q"], ["i", "q"],
@@ -40,7 +40,7 @@ class TestInterpolator(unittest.TestCase):
     def test_image_reject(self):
         # Interpolate a baseband tone; spectral images near fs/factor must be suppressed.
         factor, n = 4, 200
-        dut = LiteDSPInterpolator(data_width=16, factor=factor, method="fir", with_csr=False)
+        dut = LiteDSPInterpolator(data_width=16, interpolation=factor, method="fir", with_csr=False)
         x   = tone(n, 0.05, amp=10000)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         cap = run_stream(dut, samples, n*factor, ["i", "q"], ["i", "q"],

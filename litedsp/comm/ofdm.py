@@ -21,7 +21,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # CP Insert ----------------------------------------------------------------------------------------
 
@@ -29,11 +29,12 @@ from litedsp.common import iq_layout
 class LiteDSPCPInsert(LiteXModule):
     """Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out."""
     def __init__(self, fft_size=64, cp_len=16, data_width=16, with_csr=True):
-        assert 0 < cp_len < fft_size
+        check(0 < cp_len < fft_size, "expected 0 < cp_len < fft_size")
         self.fft_size = fft_size
         self.cp_len   = cp_len
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
+        self.latency = None  # Variable (framed: buffers a symbol, emits N+CP).
 
         # # #
 
@@ -113,7 +114,7 @@ class LiteDSPCPInsert(LiteXModule):
 class LiteDSPCPRemove(LiteXModule):
     """Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out."""
     def __init__(self, fft_size=64, cp_len=16, data_width=16, with_csr=True):
-        assert 0 < cp_len < fft_size
+        check(0 < cp_len < fft_size, "expected 0 < cp_len < fft_size")
         self.fft_size = fft_size
         self.cp_len   = cp_len
         self.latency  = 0  # Combinational pass-through on kept samples.

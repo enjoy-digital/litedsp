@@ -21,7 +21,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common import iq_layout, iq_lanes
+from litedsp.common import check, iq_layout, iq_lanes
 
 # Clock-Domain Crossing ----------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ class LiteDSPIQClockDomainCrossing(LiteXModule):
     def __init__(self, cd_from="sys", cd_to="sys", data_width=16, depth=8):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
+        self.latency = 0  # Elastic (CDC FIFO): no sample-index offset.
 
         # # #
 
@@ -45,11 +46,12 @@ class LiteDSPIQClockDomainCrossing(LiteXModule):
 class LiteDSPIQPack(LiteXModule):
     """Pack ``ratio`` consecutive I/Q samples into one wide ``data`` word (LSB = first sample)."""
     def __init__(self, ratio=4, data_width=16):
-        assert ratio >= 1
+        check(ratio >= 1, "expected ratio >= 1")
         sw          = 2*data_width  # Per-sample width: I + Q.
         self.ratio  = ratio
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint([("data", sw*ratio)])
+        self.latency = 0  # Layout change only: no sample-index offset.
 
         # # #
 
@@ -68,11 +70,12 @@ class LiteDSPIQPack(LiteXModule):
 class LiteDSPIQUnpack(LiteXModule):
     """Unpack one wide ``data`` word into ``ratio`` I/Q samples (inverse of :class:`LiteDSPIQPack`)."""
     def __init__(self, ratio=4, data_width=16):
-        assert ratio >= 1
+        check(ratio >= 1, "expected ratio >= 1")
         sw          = 2*data_width  # Per-sample width: I + Q.
         self.ratio  = ratio
         self.sink   = stream.Endpoint([("data", sw*ratio)])
         self.source = stream.Endpoint(iq_layout(data_width))
+        self.latency = 0  # Layout change only: no sample-index offset.
 
         # # #
 
@@ -92,7 +95,7 @@ class LiteDSPIQUnpack(LiteXModule):
 class LiteDSPIQSerialToParallel(LiteXModule):
     """Gather ``n_samples`` consecutive I/Q samples into one multi-sample beat (lane 0 first)."""
     def __init__(self, n_samples=2, data_width=16):
-        assert n_samples >= 1
+        check(n_samples >= 1, "expected n_samples >= 1")
         sw          = 2*data_width  # Per-sample width: I + Q.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width, n_samples))
@@ -125,7 +128,7 @@ class LiteDSPIQSerialToParallel(LiteXModule):
 class LiteDSPIQParallelToSerial(LiteXModule):
     """Spread one multi-sample beat back into ``n_samples`` consecutive I/Q samples."""
     def __init__(self, n_samples=2, data_width=16):
-        assert n_samples >= 1
+        check(n_samples >= 1, "expected n_samples >= 1")
         sw          = 2*data_width  # Per-sample width: I + Q.
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
         self.source = stream.Endpoint(iq_layout(data_width))

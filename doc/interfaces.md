@@ -29,7 +29,10 @@ The control pattern generalizes the tetra `with_csr` convention and is mandatory
 - With `with_csr=False`, a parent drives the control Signals directly. This is how composites
   (DDC/DUC) compose sub-blocks, and how tests drive blocks (often via `signal.reset = value`
   to make a control value stable from cycle 0).
-- Every processing block has a uniform `self.bypass` (passthrough) where it makes sense.
+- In-line, layout-preserving processing blocks (filter/correction/level categories) have a
+  uniform boolean `self.bypass` (delay-matched passthrough, via `litedsp.common.add_bypass`;
+  verified by `test/test_bypass.py`). Rate changers, transforms and sources/sinks have no
+  bypass; the mixer's 2-bit `bypass` selects which input to pass instead.
 - Blocks are wrapped with `@ResetInserter()` for per-instance reset.
 - Trigger-type blocks (Squelch, EnergyDetector, Capture, AGC) additionally take
   `with_irq=True` / `add_irq()`: a LiteX `EventManager` (`self.ev`) with edge-triggered event

@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import real_layout
+from litedsp.common import check, real_layout
 
 # Goertzel -----------------------------------------------------------------------------------------
 
@@ -25,13 +25,14 @@ class LiteDSPGoertzel(LiteXModule):
     ``s1**2 + s2**2 - coeff*s1*s2`` on ``source`` and restarts. Cheap DTMF / pilot detection.
     """
     def __init__(self, N, k, data_width=16, coeff_frac=14, with_csr=True):
-        assert N >= 4                                     # Power pipeline spans 2 cycles.
+        check(N >= 4, "expected N >= 4")  # Power pipeline spans 2 cycles.
         self.N = N
         self.k = k
         coeff = int(round(2*math.cos(2*math.pi*k/N)*(1 << coeff_frac)))  # 2*cos scaled by 2**coeff_frac.
         SW    = data_width + coeff_frac + 4                              # State width (growth margin).
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint([("data", 2*SW)])
+        self.latency = None  # Variable (one result per N-sample window).
 
         # # #
 

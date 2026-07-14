@@ -24,18 +24,19 @@ class LiteDSPArbResampler(LiteXModule):
     output is a Catmull-Rom interpolation at the fractional phase. ``ratio < 1`` interpolates,
     ``> 1`` decimates (precede with an anti-alias filter when decimating).
     """
-    def __init__(self, data_width=16, frac=15, ratio_int=8, with_csr=True):
+    def __init__(self, data_width=16, frac=15, ratio_int_bits=8, with_csr=True):
         self.frac = frac
         ONE = 1 << frac
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.ratio  = Signal(frac + ratio_int, reset=ONE)        # f_in/f_out, Q.frac.
+        self.ratio  = Signal(frac + ratio_int_bits, reset=ONE)   # f_in/f_out, Q.frac.
+        self.latency = None  # Variable (fractional-phase resampling).
 
         # # #
 
         # Control.
         # --------
-        phase  = Signal(frac + ratio_int)  # Q(ratio_int).frac position; integer part = inputs owed.
+        phase  = Signal(frac + ratio_int_bits)  # Q(ratio_int_bits).frac position; integer part = inputs owed.
         primed = Signal()                  # 4-sample interpolation window is filled.
         cnt    = Signal(3)                 # Priming counter (stops at 4).
         self.comb += primed.eq(cnt >= 4)
@@ -91,6 +92,6 @@ class LiteDSPArbResampler(LiteXModule):
         # CSR.
         # ----
         if with_csr:
-            self._ratio = CSRStorage(frac + ratio_int, reset=ONE, name="ratio",
+            self._ratio = CSRStorage(frac + ratio_int_bits, reset=ONE, name="ratio",
                 description="Resampling ratio f_in/f_out (Q.frac).")
             self.comb += self.ratio.eq(self._ratio.storage)

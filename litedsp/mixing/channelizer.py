@@ -52,3 +52,4 @@ class LiteDSPChannelizer(LiteXModule):
             self.comb += self.split.sources[k].connect(ddc.sink)
             self.ddcs.append(ddc)
             self.sources.append(ddc.source)
+        self.latency = self.ddcs[0].latency  # All channels share the same DDC pipeline.

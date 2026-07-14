@@ -79,7 +79,7 @@ def spec_fir():
 def spec_cic_decimator():
     from litedsp.filter.cic import LiteDSPCICDecimator
     n, R, N = 512, 8, 3
-    dut  = LiteDSPCICDecimator(data_width=16, R=R, N=N, with_csr=False)
+    dut  = LiteDSPCICDecimator(data_width=16, decimation=R, n_stages=N, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n//R - 4, lambda c: [models.cic_decimator_model(np.array(c[0]), R, N),
                                                   models.cic_decimator_model(np.array(c[1]), R, N)]
@@ -87,7 +87,7 @@ def spec_cic_decimator():
 def spec_cic_interpolator():
     from litedsp.filter.cic import LiteDSPCICInterpolator
     n, R, N = 64, 8, 3
-    dut  = LiteDSPCICInterpolator(data_width=16, R=R, N=N, with_csr=False)
+    dut  = LiteDSPCICInterpolator(data_width=16, interpolation=R, n_stages=N, with_csr=False)
     cols = _rand_cols(2, n)
     return dut, set(), cols, n*R - 2*R, lambda c: [models.cic_interpolator_model(np.array(c[0]), R, N),
                                                    models.cic_interpolator_model(np.array(c[1]), R, N)]

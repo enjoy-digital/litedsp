@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common       import iq_layout, iq_lanes, scaled
+from litedsp.common       import check, iq_layout, iq_lanes, scaled
 from litedsp.mixing.mixer import MIXER_MODE_DOWN, MIXER_MODE_UP
 
 # Parallel Mixer -----------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ class LiteDSPParallelMixer(LiteXModule):
     same fixed 2-cycle latency. Both sinks are consumed together.
     """
     def __init__(self, n_samples=2, data_width=16, shift=None, with_csr=True):
-        assert n_samples >= 1
+        check(n_samples >= 1, "expected n_samples >= 1")
         if shift is None:
             shift = data_width - 1
         self.n_samples  = n_samples

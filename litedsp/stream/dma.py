@@ -30,15 +30,15 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common       import iq_layout
+from litedsp.common       import check, iq_layout
 from litedsp.stream.adapt import LiteDSPIQPack, LiteDSPIQUnpack
 
 # Helpers ------------------------------------------------------------------------------------------
 
 def _word_ratio(word_width, data_width):
     ratio = word_width // (2*data_width)
-    assert ratio >= 1 and ratio*2*data_width == word_width, \
-        f"memory word width ({word_width}) must be a multiple of the I/Q sample width ({2*data_width})"
+    check(ratio >= 1 and ratio*2*data_width == word_width,
+        f"memory word width ({word_width}) must be a multiple of the I/Q sample width ({2*data_width})")
     return ratio
 
 # DMA Capture --------------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ def _word_ratio(word_width, data_width):
 class LiteDSPDMACapture(LiteXModule):
     """Capture an I/Q stream to a memory window through DMA (Wishbone ``bus=`` or LiteDRAM ``port=``)."""
     def __init__(self, data_width=16, bus=None, port=None, fifo_depth=16, with_csr=True):
-        assert (bus is None) != (port is None), "provide exactly one of bus= (Wishbone) / port= (LiteDRAM)"
+        check((bus is None) != (port is None), "provide exactly one of bus= (Wishbone) / port= (LiteDRAM)")
         self.data_width = data_width
         self.sink       = stream.Endpoint(iq_layout(data_width))
 
@@ -63,7 +63,7 @@ class LiteDSPDMACapture(LiteXModule):
             word_width  = bus.data_width
         else:
             from litedram.frontend.dma import LiteDRAMDMAWriter
-            assert with_csr, "the LiteDRAM backend is CSR-controlled (with_csr=True)"
+            check(with_csr, "the LiteDRAM backend is CSR-controlled (with_csr=True)")
             self.port   = port
             self.writer = LiteDRAMDMAWriter(port, fifo_depth=fifo_depth, with_csr=True)
             word_width  = port.data_width
@@ -88,7 +88,7 @@ class LiteDSPDMACapture(LiteXModule):
 class LiteDSPDMAReplay(LiteXModule):
     """Replay an I/Q stream from a memory window through DMA (Wishbone ``bus=`` or LiteDRAM ``port=``)."""
     def __init__(self, data_width=16, bus=None, port=None, fifo_depth=16, with_csr=True):
-        assert (bus is None) != (port is None), "provide exactly one of bus= (Wishbone) / port= (LiteDRAM)"
+        check((bus is None) != (port is None), "provide exactly one of bus= (Wishbone) / port= (LiteDRAM)")
         self.data_width = data_width
         self.source     = stream.Endpoint(iq_layout(data_width))
 
@@ -106,7 +106,7 @@ class LiteDSPDMAReplay(LiteXModule):
             word_width  = bus.data_width
         else:
             from litedram.frontend.dma import LiteDRAMDMAReader
-            assert with_csr, "the LiteDRAM backend is CSR-controlled (with_csr=True)"
+            check(with_csr, "the LiteDRAM backend is CSR-controlled (with_csr=True)")
             self.port   = port
             self.reader = LiteDRAMDMAReader(port, fifo_depth=fifo_depth, with_csr=True)
             word_width  = port.data_width

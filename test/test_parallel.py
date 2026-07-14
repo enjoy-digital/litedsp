@@ -184,7 +184,7 @@ class TestParallelCIC(unittest.TestCase):
             prng = random.Random(4)
             x    = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
                     for _ in range(n_samples*n_beats)]
-            dut  = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=16, R=R, N=N,
+            dut  = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=16, decimation=R, n_stages=N,
                 with_csr=False)
             beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
                       "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}

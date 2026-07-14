@@ -23,6 +23,7 @@ class LiteDSPSkidBuffer(LiteXModule):
     def __init__(self, data_width=16):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
+        self.latency = 0  # Elastic: no sample-index offset.
 
         # # #
 

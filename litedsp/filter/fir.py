@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import real_layout, iq_layout, scaled
+from litedsp.common import check, real_layout, iq_layout, scaled, add_bypass
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ class LiteDSPFIRCoefficients(LiteXModule):
 
         if coefficients is None:
             coefficients = [(1 << (data_width-1)) - 1] + [0]*(n_taps-1)  # Unit impulse.
-        assert len(coefficients) == n_taps
+        check(len(coefficients) == n_taps, "expected len(coefficients) == n_taps")
         self.coefficients = coefficients
 
         if with_csr:
@@ -69,7 +69,7 @@ class LiteDSPFIRFilter(LiteXModule):
     arithmetic stages and the valid pipeline drain on every accepted output beat.
     """
     def __init__(self, n_taps=32, data_width=16, symmetric=False, shift=None):
-        assert n_taps > 0
+        check(n_taps > 0, "expected n_taps > 0")
         if shift is None:
             shift = data_width - 1
         self.n_taps     = n_taps
@@ -131,6 +131,10 @@ class LiteDSPFIRFilter(LiteXModule):
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
         self.comb += self.source.valid.eq(valid_pipe[-1])
 
+        # Bypass.
+        # -------
+        add_bypass(self, output_registered=False)  # Output is comb-driven from the last stage.
+
 # FIR Filter (complex) -----------------------------------------------------------------------------
 
 @ResetInserter()
@@ -138,7 +142,7 @@ class LiteDSPFIRFilterComplex(LiteXModule):
     """Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + CSR."""
     def __init__(self, n_taps=32, data_width=16, symmetric=False, coefficients=None,
         shift=None, with_csr=True):
-        assert n_taps > 0
+        check(n_taps > 0, "expected n_taps > 0")
         self.n_taps     = n_taps
         self.data_width = data_width
         self.sink   = stream.Endpoint(iq_layout(data_width))

@@ -12,7 +12,7 @@ from litex.soc.interconnect.csr              import *
 from litex.soc.interconnect.csr_eventmanager import EventManager, EventSourceProcess
 from litex.soc.interconnect                  import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # Trigger / Capture (scope) ------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ class LiteDSPCapture(LiteXModule):
     """
     def __init__(self, depth=1024, data_width=16, with_csr=True, with_irq=False,
         with_wishbone=False):
-        assert data_width <= 16                            # I/Q packed in one 32-bit word.
+        check(data_width <= 16, "expected data_width <= 16")  # I/Q packed in one 32-bit word.
         self.depth  = depth
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -41,6 +41,7 @@ class LiteDSPCapture(LiteXModule):
         self.force     = Signal()                          # Force trigger (bypass threshold).
         self.armed     = Signal()                          # Waiting for trigger.
         self.done      = Signal()                          # Buffer captured / being read out.
+        self.latency = None  # Variable (triggered capture, CSR-paced readout).
 
         # # #
 

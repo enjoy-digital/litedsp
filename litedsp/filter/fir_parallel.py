@@ -12,7 +12,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common     import iq_layout, real_layout, real_lanes, scaled
+from litedsp.common     import check, iq_layout, real_layout, real_lanes, scaled
 from litedsp.filter.fir import _adder_tree, LiteDSPFIRCoefficients
 
 # Parallel FIR Filter (real) -----------------------------------------------------------------------
@@ -27,7 +27,7 @@ class LiteDSPParallelFIRFilter(LiteXModule):
     real transfers (elastic pipeline), so backpressure never corrupts the convolution.
     """
     def __init__(self, n_samples=2, n_taps=32, data_width=16, shift=None):
-        assert n_samples >= 1 and n_taps > 0
+        check(n_samples >= 1 and n_taps > 0, "expected n_samples >= 1 and n_taps > 0")
         if shift is None:
             shift = data_width - 1
         self.n_samples  = n_samples
@@ -97,7 +97,7 @@ class LiteDSPParallelFIRFilterComplex(LiteXModule):
     """
     def __init__(self, n_samples=2, n_taps=32, data_width=16, coefficients=None, shift=None,
         with_csr=True):
-        assert n_taps > 0
+        check(n_taps > 0, "expected n_taps > 0")
         self.n_samples  = n_samples
         self.n_taps     = n_taps
         self.data_width = data_width

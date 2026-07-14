@@ -60,6 +60,9 @@ from litedsp.comm.timing_recovery  import LiteDSPTimingRecovery
 from litedsp.comm.pll              import LiteDSPCarrierLoop
 from litedsp.comm.phase_detect     import LiteDSPPhaseDetect
 from litedsp.comm.diff             import LiteDSPDifferentialEncoder, LiteDSPDifferentialDecoder
+from litedsp.comm.coding           import LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC, LiteDSPConvEncoder
+from litedsp.comm.viterbi          import LiteDSPViterbiDecoder
+from litedsp.comm.ofdm             import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.analysis.window       import LiteDSPWindow
 from litedsp.analysis.fft          import LiteDSPFFT
 from litedsp.analysis.fft_iter     import LiteDSPFFTIter
@@ -103,10 +106,10 @@ ENTRIES = [
     # filter ---------------------------------------------------------------------------------------
     ("fir_real",           LiteDSPFIRFilter,             {"n_taps": 32},                         "filter",     "FIR (real)",            None),
     ("fir_complex",        LiteDSPFIRFilterComplex,      {"n_taps": 32},                         "filter",     "FIR (complex)",         None),
-    ("fir_decimator",      LiteDSPFIRDecimator,          {"n_taps": 32, "R": 8},                 "filter",     "FIR decimator",         None),
-    ("fir_interpolator",   LiteDSPFIRInterpolator,       {"n_taps": 32, "L": 8},                 "filter",     "FIR interpolator",      None),
-    ("cic_decimator",      LiteDSPCICDecimator,          {"R": 8, "N": 3},                       "filter",     "CIC decimator",         None),
-    ("cic_interpolator",   LiteDSPCICInterpolator,       {"R": 8, "N": 3},                       "filter",     "CIC interpolator",      None),
+    ("fir_decimator",      LiteDSPFIRDecimator,          {"n_taps": 32, "decimation": 8},                 "filter",     "FIR decimator",         None),
+    ("fir_interpolator",   LiteDSPFIRInterpolator,       {"n_taps": 32, "interpolation": 8},                 "filter",     "FIR interpolator",      None),
+    ("cic_decimator",      LiteDSPCICDecimator,          {"decimation": 8, "n_stages": 3},                       "filter",     "CIC decimator",         None),
+    ("cic_interpolator",   LiteDSPCICInterpolator,       {"interpolation": 8, "n_stages": 3},                       "filter",     "CIC interpolator",      None),
     ("halfband_dec",       LiteDSPHalfbandDecimator,     {},                                     "filter",     "Halfband decimator",    None),
     ("halfband_int",       LiteDSPHalfbandInterpolator,  {},                                     "filter",     "Halfband interpolator", None),
     ("hilbert",            LiteDSPHilbert,               {},                                     "filter",     "Hilbert",               None),
@@ -119,11 +122,11 @@ ENTRIES = [
     ("comb_filter",        LiteDSPCombFilter,            {},                                     "filter",     "Comb filter",           None),
     ("allpass",            LiteDSPAllpass,               {},                                     "filter",     "Allpass",               None),
     ("pulse_shaper",       LiteDSPPulseShaper,           {},                                     "filter",     "Pulse shaper (RRC)",    None),
-    ("rational_resampler", LiteDSPRationalResampler,     {"L": 3, "M": 2},                       "filter",     "Rational resampler",    None),
+    ("rational_resampler", LiteDSPRationalResampler,     {"interpolation": 3, "decimation": 2},                       "filter",     "Rational resampler",    None),
     ("arb_resampler",      LiteDSPArbResampler,          {},                                     "filter",     "Arbitrary resampler",   None),
     # rate -----------------------------------------------------------------------------------------
-    ("decimator",          LiteDSPDecimator,             {"factor": 8},                          "rate",       "Decimator",             _METHOD),
-    ("interpolator",       LiteDSPInterpolator,          {"factor": 8},                          "rate",       "Interpolator",          _METHOD),
+    ("decimator",          LiteDSPDecimator,             {"decimation": 8},                          "rate",       "Decimator",             _METHOD),
+    ("interpolator",       LiteDSPInterpolator,          {"interpolation": 8},                          "rate",       "Interpolator",          _METHOD),
     ("downsampler",        LiteDSPDownsampler,           {},                                     "rate",       "Downsampler",           None),
     ("upsampler",          LiteDSPUpsampler,             {},                                     "rate",       "Upsampler",             None),
     # level ----------------------------------------------------------------------------------------
@@ -152,11 +155,18 @@ ENTRIES = [
     ("phase_detect",       LiteDSPPhaseDetect,           {},                                     "comm",       "Phase detector",        None),
     ("diff_encoder",       LiteDSPDifferentialEncoder,   {},                                     "comm",       "Differential encoder",  None),
     ("diff_decoder",       LiteDSPDifferentialDecoder,   {},                                     "comm",       "Differential decoder",  None),
+    ("scrambler",          LiteDSPScrambler,             {},                                     "comm",       "Scrambler (LFSR)",      None),
+    ("descrambler",        LiteDSPDescrambler,           {},                                     "comm",       "Descrambler (LFSR)",    None),
+    ("crc",                LiteDSPCRC,                   {},                                     "comm",       "CRC",                   None),
+    ("conv_encoder",       LiteDSPConvEncoder,           {},                                     "comm",       "Convolutional encoder", None),
+    ("viterbi_decoder",    LiteDSPViterbiDecoder,        {},                                     "comm",       "Viterbi decoder",       None),
+    ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),
+    ("cp_remove",          LiteDSPCPRemove,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP remove",        None),
     # analysis -------------------------------------------------------------------------------------
     ("window",             LiteDSPWindow,                {"n": 64},                              "analysis",   "Window",                _WINDOW),
     ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             None),
     ("fft_iter",           LiteDSPFFTIter,               {"N": 64},                              "analysis",   "FFT (iterative)",       None),
-    ("psd",                LiteDSPPSD,                   {"N": 64, "latency": 63},               "analysis",   "PSD",                   None),
+    ("psd",                LiteDSPPSD,                   {"N": 64},               "analysis",   "PSD",                   None),
     ("welch",              LiteDSPWelchPSD,              {"N": 64},                              "analysis",   "Welch PSD",             _WINDOW),
     ("magnitude",          LiteDSPMagnitude,             {},                                     "analysis",   "Magnitude (approx)",    {"method": ["approx", "cordic"]}),
     ("magnitude_cordic",   LiteDSPMagnitude,             {"method": "cordic"},                   "analysis",   "Magnitude (CORDIC)",    {"method": ["approx", "cordic"]}),

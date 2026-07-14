@@ -20,7 +20,7 @@ from test.common import run_stream, column
 class _FFTPSD(LiteXModule):
     def __init__(self, N, data_width=16, avg_log2=2):
         self.fft = LiteDSPFFT(N, data_width=data_width, with_csr=False)
-        self.psd = LiteDSPPSD(N, latency=self.fft.latency, data_width=data_width,
+        self.psd = LiteDSPPSD(N, fft_latency=self.fft.latency, data_width=data_width,
             avg_log2=avg_log2, with_csr=False)
         self.comb += self.fft.source.connect(self.psd.sink)
         self.sink   = self.fft.sink

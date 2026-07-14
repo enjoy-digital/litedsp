@@ -27,12 +27,13 @@ class LiteDSPWelchPSD(LiteXModule):
     def __init__(self, N=256, data_width=16, avg_log2=2, window="hann", with_csr=True):
         self.N = N
         self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.latency = None  # Variable (frame-accumulating composite).
 
         # # #
 
         self.window = LiteDSPWindow(N, data_width=data_width, window=window, with_csr=False)
         self.fft    = LiteDSPFFT(N, data_width=data_width, with_csr=False)
-        self.psd    = LiteDSPPSD(N, latency=self.fft.latency, data_width=data_width,
+        self.psd    = LiteDSPPSD(N, fft_latency=self.fft.latency, data_width=data_width,
             avg_log2=avg_log2, with_csr=with_csr)
         self.source = self.psd.source
         self.comb += [

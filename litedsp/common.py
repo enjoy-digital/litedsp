@@ -20,6 +20,19 @@ overflow consistently instead of silently truncating/wrapping.
 
 from migen import *
 
+from litex.soc.interconnect.csr import CSRStorage
+
+# Parameter Validation -----------------------------------------------------------------------------
+
+def check(condition, message):
+    """Validate a constructor parameter; raise :class:`ValueError` with ``message`` if false.
+
+    Used instead of ``assert`` so validation survives ``python -O`` and gives users an
+    actionable error instead of a bare ``AssertionError``.
+    """
+    if not condition:
+        raise ValueError(message)
+
 # Layouts ------------------------------------------------------------------------------------------
 
 def real_layout(data_width=16, n_samples=1):
@@ -73,7 +86,7 @@ class Qmn:
     Example: ``Qmn(1, 15)`` is Q1.15 (16-bit, range [-1.0, +1.0)).
     """
     def __init__(self, m, n):
-        assert m >= 1 and n >= 0
+        check(m >= 1 and n >= 0, "expected m >= 1 and n >= 0")
         self.m     = m
         self.n     = n
         self.width = m + n
@@ -140,3 +153,42 @@ def scaled(value, shift, out_width):
     """
     r = rounded(value, shift)
     return saturated(r, out_width), overflow(r, out_width)
+
+# Bypass -------------------------------------------------------------------------------------------
+
+def add_bypass(module, output_registered=True):
+    """Add a runtime ``bypass`` control to a fixed-latency, layout-preserving block.
+
+    When ``bypass`` is set, the sink payload passes to the source unmodified with the same
+    latency as the processing path (a delay-matched shadow of the input is muxed onto the
+    output). Call at the end of the hardware section, after the datapath: the override
+    relies on Migen's ordered same-process assignments (later statements win).
+
+    ``output_registered`` selects the override style to match how the block drives its
+    source payload: ``True`` for sync-registered outputs (the override register is the last
+    delay stage), ``False`` for comb-driven outputs (a full-latency delay chain + comb mux).
+
+    Requires ``module.sink``/``module.source`` with identical payload layouts and an integer
+    ``module.latency >= 1`` whose pipeline advances when the output can accept a sample.
+    """
+    check(getattr(module, "latency", None) and module.latency >= 1, "expected getattr(module, 'latency', None) and module.latency >= 1")
+    module.bypass = Signal()  # Passthrough (skip processing).
+    adv = Signal()
+    module.comb += adv.eq(module.source.ready | ~module.source.valid)
+    fields = [f[0] for f in module.sink.description.payload_layout]
+    stages = module.latency - (1 if output_registered else 0)
+    for name in fields:
+        tap = getattr(module.sink, name)
+        for _ in range(stages):  # Delay-match the processing pipeline.
+            d = Signal.like(tap)
+            module.sync += If(adv, d.eq(tap))
+            tap = d
+        if output_registered:
+            module.sync += If(adv & module.bypass, getattr(module.source, name).eq(tap))
+        else:
+            module.comb += If(module.bypass, getattr(module.source, name).eq(tap))
+
+def add_bypass_csr(module):
+    """CSR for :func:`add_bypass` (call from ``add_csr``)."""
+    module._bypass = CSRStorage(1, reset=0, name="bypass", description="Bypass block (passthrough).")
+    module.comb += module.bypass.eq(module._bypass.storage)

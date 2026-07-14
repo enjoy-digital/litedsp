@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import iq_layout, add_bypass, add_bypass_csr
 
 # Clipper / Limiter --------------------------------------------------------------------------------
 
@@ -55,12 +55,17 @@ class LiteDSPClipper(LiteXModule):
         self.sync += If(adv, valid.eq(self.sink.valid), self.clip.eq(self.sink.valid & clipped))  # Flag only real samples.
         self.comb += self.source.valid.eq(valid)
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
         # CSR.
         # ----
         if with_csr:
             self.add_csr()
 
     def add_csr(self):
+        add_bypass_csr(self)
         self._threshold = CSRStorage(self.data_width, reset=(1 << (self.data_width - 1)) - 1,
             name="threshold", description="Clip threshold (magnitude).")
         self._status = CSRStatus(fields=[CSRField("clip", size=1, description="Clipping occurred.")])

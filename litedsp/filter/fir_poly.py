@@ -23,7 +23,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import check, iq_layout, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -40,15 +40,16 @@ class LiteDSPFIRDecimator(LiteXModule):
     Collects R input samples then MACs the N taps over the sample window to produce one output
     (``y[m] = sum_t c[t]·x[mR-t]``), round + saturate. Coefficients are signed Q1.(W-1).
     """
-    def __init__(self, n_taps, R, data_width=16, coefficients=None, shift=None, with_csr=True):
-        assert n_taps >= 1 and R >= 1
+    def __init__(self, n_taps=32, decimation=8, data_width=16, coefficients=None, shift=None, with_csr=True):
+        R = decimation  # Literature name.
+        check(n_taps >= 1 and R >= 1, "expected n_taps >= 1 and decimation >= 1")
         if shift is None:
             shift = data_width - 1
         if coefficients is None:
             coefficients = [(1 << (data_width - 1)) - 1] + [0]*(n_taps - 1)
-        assert len(coefficients) == n_taps
-        self.n_taps = n_taps
-        self.R      = R
+        check(len(coefficients) == n_taps, "expected len(coefficients) == n_taps")
+        self.n_taps     = n_taps
+        self.decimation = R
         self.data_width = data_width
         self.cycles_per_output = R + n_taps
         self.latency = n_taps
@@ -153,7 +154,7 @@ class LiteDSPFIRDecimator(LiteXModule):
         self._coeff = CSRStorage(self.data_width, name="coeff",
             description="Write the next FIR coefficient (auto-incrementing tap index).")
         self.comb += [
-            self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.R),
+            self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.decimation),
             self.coeff_rst.eq(self._coeff_rst.re),
             self.coeff_data.eq(self._coeff.storage),
             self.coeff_we.eq(self._coeff.re),
@@ -168,15 +169,16 @@ class LiteDSPFIRInterpolator(LiteXModule):
     For each input it emits L outputs, output ``p`` computed from polyphase sub-filter
     ``c[p::L]`` over the recent inputs (``y[nL+p] = sum_k c[p+kL]·x[n-k]``), round + saturate.
     """
-    def __init__(self, n_taps, L, data_width=16, coefficients=None, shift=None, with_csr=True):
-        assert n_taps >= 1 and L >= 1
+    def __init__(self, n_taps=32, interpolation=8, data_width=16, coefficients=None, shift=None, with_csr=True):
+        L = interpolation  # Literature name.
+        check(n_taps >= 1 and L >= 1, "expected n_taps >= 1 and interpolation >= 1")
         if shift is None:
             shift = data_width - 1
         if coefficients is None:
             coefficients = [(1 << (data_width - 1)) - 1] + [0]*(n_taps - 1)
-        assert len(coefficients) == n_taps
-        self.n_taps = n_taps
-        self.L      = L
+        check(len(coefficients) == n_taps, "expected len(coefficients) == n_taps")
+        self.n_taps        = n_taps
+        self.interpolation = L
         sub         = (n_taps + L - 1)//L          # Taps per polyphase sub-filter.
         self.sub    = sub
         self.cycles_per_output = sub + 1
@@ -278,4 +280,4 @@ class LiteDSPFIRInterpolator(LiteXModule):
             CSRField("taps", size=16, description="FIR taps N."),
             CSRField("rate", size=16, description="Interpolation factor L."),
         ])
-        self.comb += [self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.L)]
+        self.comb += [self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.interpolation)]

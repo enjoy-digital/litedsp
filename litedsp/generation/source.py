@@ -17,7 +17,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # Chirp (Linear FM) --------------------------------------------------------------------------------
 
@@ -85,7 +85,7 @@ class LiteDSPNoiseSource(LiteXModule):
     so the output approaches a normal distribution (Irwin-Hall). For BER/AWGN testbenches.
     """
     def __init__(self, data_width=16, n_sum=16, shift=2, seed=0x1234567, with_csr=True):
-        assert n_sum >= 1
+        check(n_sum >= 1, "expected n_sum >= 1")
         self.source = stream.Endpoint(iq_layout(data_width))
 
         # # #

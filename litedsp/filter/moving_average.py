@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, rounded
+from litedsp.common import check, iq_layout, rounded, add_bypass
 
 # Moving Average -----------------------------------------------------------------------------------
 
@@ -24,7 +24,7 @@ class LiteDSPMovingAverage(LiteXModule):
     saturation is needed.
     """
     def __init__(self, data_width=16, length_log2=4, with_csr=True):
-        assert length_log2 >= 1
+        check(length_log2 >= 1, "expected length_log2 >= 1")
         L = 1 << length_log2
         self.data_width  = data_width
         self.length_log2 = length_log2
@@ -75,3 +75,7 @@ class LiteDSPMovingAverage(LiteXModule):
         valid_pipe = Signal()
         self.sync += If(adv, valid_pipe.eq(self.sink.valid))
         self.comb += self.source.valid.eq(valid_pipe)
+
+        # Bypass.
+        # -------
+        add_bypass(self)

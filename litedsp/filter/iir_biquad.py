@@ -21,7 +21,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled, saturated
+from litedsp.common import check, iq_layout, scaled, saturated, add_bypass
 
 # IIR Biquad (single section, complex) -------------------------------------------------------------
 
@@ -29,15 +29,16 @@ from litedsp.common import iq_layout, scaled, saturated
 class LiteDSPIIRBiquad(LiteXModule):
     """One DF2T biquad section applied to I and Q with shared coefficients.
 
-    ``coeffs`` is a dict ``{b0,b1,b2,a1,a2}`` of signed integers in Q?.``frac_bits`` (a1,a2 are
-    the *denominator* taps; a0 is normalized to 1).
+    ``coefficients`` is a dict ``{b0,b1,b2,a1,a2}`` of signed integers in Q?.``frac_bits``
+    (a1,a2 are the *denominator* taps; a0 is normalized to 1).
     """
-    def __init__(self, data_width=16, coeffs=None, frac_bits=14, with_csr=True):
+    def __init__(self, data_width=16, coefficients=None, frac_bits=14, with_csr=True):
+        coeffs = coefficients
         if coeffs is None:
             coeffs = {"b0": 1 << frac_bits, "b1": 0, "b2": 0, "a1": 0, "a2": 0}  # Passthrough.
-        self.data_width = data_width
-        self.frac_bits  = frac_bits
-        self.coeffs     = coeffs
+        self.data_width   = data_width
+        self.frac_bits    = frac_bits
+        self.coefficients = coeffs
         self.state_width = data_width + frac_bits + 4
         self.latency    = 2                       # Registered b·x intake + recurrence/output.
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -91,12 +92,16 @@ class LiteDSPIIRBiquad(LiteXModule):
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[0])))
         self.comb += self.source.valid.eq(valid_pipe[1])
 
+        # Bypass.
+        # -------
+        add_bypass(self)
+
 # IIR Biquad cascade -------------------------------------------------------------------------------
 
 class LiteDSPIIRBiquadCascade(LiteXModule):
     """Cascade of DF2T biquad sections (``sections`` = list of coeff dicts)."""
     def __init__(self, data_width=16, sections=None, frac_bits=14, with_csr=True):
-        assert sections, "Provide at least one biquad section."
+        check(sections, "Provide at least one biquad section.")
         self.sections = []
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -105,7 +110,7 @@ class LiteDSPIIRBiquadCascade(LiteXModule):
 
         last = self.sink
         for n, sec in enumerate(sections):
-            bq = LiteDSPIIRBiquad(data_width=data_width, coeffs=sec, frac_bits=frac_bits, with_csr=False)
+            bq = LiteDSPIIRBiquad(data_width=data_width, coefficients=sec, frac_bits=frac_bits, with_csr=False)
             self.add_module(name=f"section{n}", module=bq)
             self.comb += last.connect(bq.sink)
             self.sections.append(bq)

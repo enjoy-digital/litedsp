@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common     import iq_layout, scaled, saturated
+from litedsp.common     import check, iq_layout, scaled, saturated
 from litedsp.filter.fir import _adder_tree
 
 # Complex LMS Equalizer ----------------------------------------------------------------------------
@@ -32,7 +32,7 @@ class LiteDSPLMSEqualizer(LiteXModule):
     combinationally. Convergence is indistinguishable at practical step sizes.
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, with_csr=True):
-        assert n_taps >= 1
+        check(n_taps >= 1, "expected n_taps >= 1")
         self.n_taps   = n_taps
         self.mu_shift = mu_shift                         # LMS step size: mu = 2**-mu_shift.
         # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude

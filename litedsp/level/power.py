@@ -31,6 +31,7 @@ class LiteDSPPower(LiteXModule):
         self.window_log2 = Signal(max=max_window_log2 + 1)        # Averaging window = 2**window_log2.
         self.power       = Signal(self.power_width)               # Latched average power.
         self.update      = Signal()                               # Pulses when `power` updates.
+        self.latency = None  # Variable (one output per averaging block).
 
         # # #
 

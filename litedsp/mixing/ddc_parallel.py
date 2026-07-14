@@ -45,7 +45,7 @@ class LiteDSPParallelDDC(LiteXModule):
             data_width=data_width, with_csr=with_csr)
         self.mixer = LiteDSPParallelMixer(n_samples=n_samples, data_width=data_width, with_csr=False)
         self.decim = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=data_width,
-            R=decimation, N=cic_stages, with_csr=with_csr)
+            decimation=decimation, n_stages=cic_stages, with_csr=with_csr)
         self.latency = self.mixer.latency + self.decim.latency
 
         # Datapath.

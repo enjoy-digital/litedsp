@@ -100,19 +100,19 @@ def fir_complex():
     return d, {d.bypass} | _eps(d.sink, d.source), 10.0
 
 def fir_decimator():
-    d = LiteDSPFIRDecimator(32, 8, data_width=16, with_csr=False)
+    d = LiteDSPFIRDecimator(n_taps=32, decimation=8, data_width=16, with_csr=False)
     return d, {d.coeff_data, d.coeff_we, d.coeff_rst} | _eps(d.sink, d.source), 10.0
 
 def fir_interpolator():
-    d = LiteDSPFIRInterpolator(32, 8, data_width=16, with_csr=False)
+    d = LiteDSPFIRInterpolator(n_taps=32, interpolation=8, data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def cic_decimator():
-    d = LiteDSPCICDecimator(data_width=16, R=8, N=4, with_csr=False)
+    d = LiteDSPCICDecimator(data_width=16, decimation=8, n_stages=4, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def cic_interpolator():
-    d = LiteDSPCICInterpolator(data_width=16, R=8, N=4, with_csr=False)
+    d = LiteDSPCICInterpolator(data_width=16, interpolation=8, n_stages=4, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def halfband():
@@ -182,7 +182,7 @@ def fft_iter():
     return d, _eps(d.sink, d.source), 10.0
 
 def psd():
-    d = LiteDSPPSD(256, latency=255, data_width=16, avg_log2=4, with_csr=False)
+    d = LiteDSPPSD(256, data_width=16, avg_log2=4, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def goertzel():
@@ -289,7 +289,7 @@ def fir_parallel_x2():   return _parallel_fir(2)
 def fir_parallel_x4():   return _parallel_fir(4)
 
 def cic_parallel_x4():
-    d = LiteDSPParallelCICDecimator(n_samples=4, data_width=16, R=8, N=4, with_csr=False)
+    d = LiteDSPParallelCICDecimator(n_samples=4, data_width=16, decimation=8, n_stages=4, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def ddc_parallel_x4():

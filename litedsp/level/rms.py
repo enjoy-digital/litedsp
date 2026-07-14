@@ -27,6 +27,7 @@ class LiteDSPRMS(LiteXModule):
         self.data_width = data_width
         acc_width       = 2*data_width + max_window_log2
         self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.latency = None  # Variable (one output per averaging window).
 
         # # #
 

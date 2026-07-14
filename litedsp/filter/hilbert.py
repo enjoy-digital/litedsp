@@ -10,7 +10,7 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common        import real_layout, iq_layout
+from litedsp.common        import check, real_layout, iq_layout
 from litedsp.filter.fir    import LiteDSPFIRFilter
 from litedsp.filter.design import hilbert_coefficients
 
@@ -25,7 +25,7 @@ class LiteDSPHilbert(LiteXModule):
     image suppressed). ``n_taps`` must be odd.
     """
     def __init__(self, n_taps=23, data_width=16, with_csr=True):
-        assert n_taps % 2 == 1
+        check(n_taps % 2 == 1, "expected n_taps % 2 == 1")
         self.n_taps = n_taps
         self.latency = None
         self.sink   = stream.Endpoint(real_layout(data_width))

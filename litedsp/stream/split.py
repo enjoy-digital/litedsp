@@ -13,14 +13,14 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 # Split / Duplicate --------------------------------------------------------------------------------
 
 class LiteDSPSplit(LiteXModule):
     """Fan-out one I/Q stream to ``n`` identical sources (all consumed together)."""
     def __init__(self, n=2, data_width=16):
-        assert n >= 1
+        check(n >= 1, "expected n >= 1")
         self.n      = n
         self.latency = 0
         self.sink    = stream.Endpoint(iq_layout(data_width))

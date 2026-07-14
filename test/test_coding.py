@@ -37,11 +37,11 @@ class TestScrambler(unittest.TestCase):
         taps = (4, 7)
         prng = random.Random(2)
         bits = [prng.randint(0, 1) for _ in range(300)]
-        scr = LiteDSPScrambler(taps=taps, with_csr=False)
+        scr = LiteDSPScrambler(polynomial=taps, with_csr=False)
         cs = run_stream(scr, [{"data": b} for b in bits], len(bits), ["data"], ["data"],
             sink_throttle=0.1, source_ready_rate=0.8)
         scrambled = list(column(cs, "data"))
-        des = LiteDSPDescrambler(taps=taps, with_csr=False)
+        des = LiteDSPDescrambler(polynomial=taps, with_csr=False)
         cd = run_stream(des, [{"data": int(b)} for b in scrambled], len(scrambled), ["data"], ["data"],
             sink_throttle=0.1, source_ready_rate=0.8)
         rec = list(column(cd, "data"))

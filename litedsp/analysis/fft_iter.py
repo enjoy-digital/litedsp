@@ -23,7 +23,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import check, iq_layout, scaled
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ def _tw_rom(N, func, width):
 class LiteDSPFFTIter(LiteXModule):
     """Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped)."""
     def __init__(self, N, data_width=16, twiddle_width=16, with_csr=True):
-        assert (N & (N - 1)) == 0 and N >= 4
+        check((N & (N - 1)) == 0 and N >= 4, "expected (N & (N - 1)) == 0 and N >= 4")
         self.N    = N
         S         = N.bit_length() - 1
         self.bits = S

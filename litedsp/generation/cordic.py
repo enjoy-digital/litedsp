@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import scaled
+from litedsp.common import check, scaled
 
 # Angle convention: signed, full circle = 2**angle_width (so pi = 2**(angle_width-1)).
 
@@ -42,7 +42,7 @@ class LiteDSPCORDIC(LiteXModule):
     stages + 2``), so backpressure simply freezes it.
     """
     def __init__(self, data_width=16, angle_width=None, stages=None, mode="rotation", with_csr=True):
-        assert mode in ["rotation", "vectoring"]
+        check(mode in ["rotation", "vectoring"], "expected mode in ['rotation', 'vectoring']")
         if angle_width is None:
             angle_width = data_width
         if stages is None:

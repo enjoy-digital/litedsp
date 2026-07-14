@@ -12,6 +12,8 @@ few decomposition helpers. They use NumPy only (no SciPy) so they run anywhere L
 
 import numpy as np
 
+from litedsp.common import check
+
 # Quantization -------------------------------------------------------------------------------------
 
 def quantize(coeffs, frac_bits, coeff_width=16):
@@ -51,7 +53,7 @@ def firwin_bandpass(n_taps, f_low, f_high, window="hamming", data_width=16, gain
     Ideal band-pass = lowpass(f_high) - lowpass(f_low), windowed and normalized so the magnitude
     at the band center is ``gain``. Returns signed Q1.(N-1) integer taps (length ``n_taps``).
     """
-    assert 0 <= f_low < f_high <= 0.5
+    check(0 <= f_low < f_high <= 0.5, "expected 0 <= f_low < f_high <= 0.5")
     m = np.arange(n_taps) - (n_taps - 1)/2
     h = (2*f_high*np.sinc(2*f_high*m) - 2*f_low*np.sinc(2*f_low*m))*_window(n_taps, window)
     fc   = 0.5*(f_low + f_high)
@@ -83,7 +85,7 @@ def rrc_coefficients(sps, span, beta, data_width=16, gain=1.0):
 
 def hilbert_coefficients(n_taps, window="hamming", data_width=16):
     """Type-III Hilbert transformer FIR (antisymmetric, even taps zero). Odd ``n_taps``."""
-    assert n_taps % 2 == 1, "Hilbert FIR length must be odd."
+    check(n_taps % 2 == 1, "Hilbert FIR length must be odd.")
     m = np.arange(n_taps) - (n_taps - 1)//2
     h = np.zeros(n_taps)
     for i, mi in enumerate(m):
@@ -101,7 +103,7 @@ def cic_comp_coefficients(n_taps, R, N, M=1, data_width=16, cutoff=0.2, frac_bit
     """
     if frac_bits is None:
         frac_bits = data_width - 2
-    assert n_taps % 2 == 1, "CIC compensation FIR length must be odd."
+    check(n_taps % 2 == 1, "CIC compensation FIR length must be odd.")
     half = n_taps//2
     f    = np.linspace(0, cutoff, 8*n_taps)
     # CIC droop at the *output* rate: |sin(pi f)/(pi f)|^N near band-center, normalized.
@@ -125,7 +127,7 @@ def cic_comp_coefficients(n_taps, R, N, M=1, data_width=16, cutoff=0.2, frac_bit
 
 def halfband_coefficients(n_taps, window="hamming", data_width=16, gain=1.0):
     """Half-band low-pass FIR (cutoff 0.25): even taps are ~zero, center ~0.5. Odd ``n_taps``."""
-    assert n_taps % 2 == 1
+    check(n_taps % 2 == 1, "expected n_taps % 2 == 1")
     return firwin_lowpass(n_taps, 0.25, window=window, data_width=data_width, gain=gain)
 
 # Decomposition ------------------------------------------------------------------------------------

@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common            import iq_layout, real_layout
+from litedsp.common            import check, iq_layout, real_layout
 from litedsp.generation.cordic import LiteDSPCORDIC
 
 # Magnitude ----------------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ class LiteDSPMagnitude(LiteXModule):
     is one bit wider than the input (magnitude can reach ~1.41x full scale).
     """
     def __init__(self, data_width=16, beta_shift=2, method="approx", with_csr=True):
-        assert method in ["approx", "cordic"]
+        check(method in ["approx", "cordic"], "expected method in ['approx', 'cordic']")
         self.data_width = data_width
         self.out_width  = data_width + 1
         self.beta_shift = beta_shift
