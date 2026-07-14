@@ -8,9 +8,20 @@ latency: 63 samples · CSR: yes · bypass: no
 
 Streaming radix-2 SDF FFT, ``N`` points (power of two), 1 sample/cycle.
 
-Cascades ``log2(N)`` :class:`LiteDSPFFTStage`s. Output is a 1/N-scaled FFT in **bit-reversed**
-order (use :func:`bit_reverse` to reorder). ``self.latency`` is the cycles from the first
-input sample of a frame to its first output sample.
+Cascades ``log2(N)`` :class:`LiteDSPFFTStage`s. Output is in **bit-reversed** order (use
+:func:`bit_reverse` to reorder), scaled per ``scaling`` below. ``self.latency`` is the
+cycles from the first input sample of a frame to its first output sample.
+
+With ``scaling="bfp"`` each stage decides its 1/2 scaling per frame (from the previous
+frame's guard-bit occupancy, see :class:`LiteDSPFFTStage`) and the source endpoint gains a
+5-bit ``exp`` **param** field (constant across each output frame, like ``first``/``last``
+it travels beat-aligned with the payload) carrying the total number of halvings applied:
+``output = DFT(x) / 2**exp`` up to fixed-point rounding/saturation, with
+``exp in [0, log2(N)]`` (``exp == log2(N)`` reproduces "scaled"-mode arithmetic
+bit-exactly). Small signals keep up to ``log2(N)`` extra amplitude bits (~6 dB each).
+Downstream analysis blocks (PSD/magnitude) ignore param fields and consume BFP frames
+unnormalized; exp-aware consumption lands with the SSR/consumer work — until then,
+connect a BFP source to exp-less sinks with ``connect(..., omit={"exp"})``.
 
 ## Parameters
 
@@ -20,6 +31,7 @@ input sample of a frame to its first output sample.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `twiddle_width` | `16` | int | Twiddle-factor width in bits (signed Q1.(W-1)); sets the per-stage twiddle ROM width, the complex-multiplier size, and the coefficient-quantization noise floor. |
 | `inverse` | `False` | bool | Compute the inverse FFT (conjugated, exp(+j) twiddles); output remains 1/N-scaled. |
+| `scaling` | `"scaled"` | str | Output scaling. ``"scaled"`` (default): unconditional 1/2 per stage (1/N overall). ``"bfp"``: block floating point — per-frame conditional scaling, per-frame exponent on a 5-bit ``exp`` source param field (see overview above). Choices: `scaled`, `bfp`. |
 
 ## Ports
 

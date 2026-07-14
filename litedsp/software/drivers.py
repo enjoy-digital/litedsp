@@ -187,6 +187,23 @@ class FramerDriver(Driver):
     def set_length(self, length):
         self.length.write(length)
 
+class FrameSyncDriver(Driver):
+    """Frame sync: normalized detection threshold, first-tag offset, detection counter."""
+    regs           = ("threshold", "offset", "control", "count")
+    threshold_frac = 14
+
+    def set_threshold(self, normalized, offset=0):
+        """Set the detection threshold (float, 1.0 = perfect correlation) and `first` offset."""
+        self.threshold.write(int(round(normalized * (1 << self.threshold_frac))))
+        self.offset.write(offset)
+
+    def detections(self, clear=False):
+        """Read the detection counter (optionally clearing it)."""
+        n = self.count.read()
+        if clear:
+            self.control.write(0b1)
+        return n
+
 class GainDriver(Driver):
     """Gain block: linear gain (Q2.(N-2) mantissa + shift), bypass, saturation flag."""
     regs       = ("gain", "control", "status")
@@ -296,6 +313,7 @@ TYPED = {
     "squelch":  SquelchDriver,
     "agc":      AGCDriver,
     "framer":   FramerDriver,
+    "frame_sync": FrameSyncDriver,
     "fir_real": FIRDriver, "fir_complex": FIRDriver,
     "fir_decimator": FIRDriver, "fir_interpolator": FIRDriver,
     "gain":     GainDriver,
@@ -306,7 +324,7 @@ TYPED = {
 # Discovery ----------------------------------------------------------------------------------------
 
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
-           FramerDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver]
+           FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

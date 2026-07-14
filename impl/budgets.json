@@ -343,6 +343,14 @@
       "lut": 264
     }
   },
+  "frame_sync": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 23,
+      "ff": 1364,
+      "lut": 1503
+    }
+  },
   "framer": {
     "ecp5": {
       "bram": 0,
@@ -664,6 +672,14 @@
       "dsp": 0,
       "ff": 33,
       "lut": 55
+    }
+  },
+  "soft_demapper": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 44,
+      "lut": 203
     }
   },
   "stats": {

@@ -88,8 +88,10 @@ VSPEC = {
     "fm_demod":           _v(),
     "am_demod":           _v(),
     "slicer":             _v("slicer_model"),
+    "soft_demapper":      _v("soft_demap_model", cosim=True),
     "symbol_mapper":      _v(),
     "correlator":         _v("fir_complex_model"),       # Matched filter = complex FIR.
+    "frame_sync":         _v("frame_sync_model"),        # CFAR preamble detect + alignment.
     "timing_recovery":    _v(latency="variable", rate=None),
     "carrier_loop":       _v(),
     "phase_detect":       _v(),
@@ -104,7 +106,9 @@ VSPEC = {
     "cp_remove":          _v(rate=None),
     # analysis.
     "window":             _v("window_model", cosim=True),
-    "fft":                _v("fft_model"),                     # SNR-thresholded (fixed point).
+    "fft":                _v("fft_model"),                     # SNR-thresholded (fixed point);
+                                                               # scaling="bfp" is bit-exact vs
+                                                               # fft_bfp_model (test_fft_bfp).
     "fft_iter":           _v(rate=None),
     "psd":                _v("psd_model",   latency="variable", rate=None),
     "welch":              _v("welch_model", latency="variable", rate=None),

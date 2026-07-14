@@ -57,6 +57,8 @@ from litedsp.analysis.measure     import LiteDSPErrorCounter
 from litedsp.comm.fm_demod        import LiteDSPFMDemod
 from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
 from litedsp.comm.correlator      import LiteDSPCorrelator
+from litedsp.comm.frame_sync      import LiteDSPFrameSync
+from litedsp.comm.soft_demap      import LiteDSPSoftDemapper
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -225,6 +227,15 @@ def correlator():
     d = LiteDSPCorrelator([1, 1, 1, -1, -1, 1, -1], data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def frame_sync():
+    d = LiteDSPFrameSync([1, 1, 1, -1, -1, 1, -1], data_width=16, frame_len=64, with_csr=False)
+    return d, {d.threshold, d.offset, d.detected} | _eps(d.sink, d.source), 10.0
+
+def soft_demapper():
+    d = LiteDSPSoftDemapper(bits_per_axis=1, spacing=8000, llr_bits=4, data_width=16,
+        with_csr=False)
+    return d, {d.llr_scale} | _eps(d.sink, d.source), 10.0
+
 def stream_fifo():
     d = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
     return d, {d.level, d.overflow} | _eps(d.sink, d.source), 8.0
@@ -309,7 +320,7 @@ REGISTRY = {
     "window": window, "fft": fft, "fft_iter": fft_iter, "psd": psd, "goertzel": goertzel,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
     "lms_equalizer": lms_equalizer, "timing_recovery": timing_recovery, "fm_demod": fm_demod,
-    "correlator": correlator,
+    "correlator": correlator, "frame_sync": frame_sync, "soft_demapper": soft_demapper,
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
     "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,

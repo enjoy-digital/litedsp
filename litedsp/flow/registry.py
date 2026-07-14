@@ -54,8 +54,10 @@ from litedsp.correction.cfo        import LiteDSPDerotator
 from litedsp.comm.fm_demod         import LiteDSPFMDemod
 from litedsp.comm.am_demod         import LiteDSPAMDemod
 from litedsp.comm.slicer           import LiteDSPSlicer
+from litedsp.comm.soft_demap       import LiteDSPSoftDemapper
 from litedsp.comm.mapper           import LiteDSPSymbolMapper
 from litedsp.comm.correlator       import LiteDSPCorrelator
+from litedsp.comm.frame_sync       import LiteDSPFrameSync
 from litedsp.comm.timing_recovery  import LiteDSPTimingRecovery
 from litedsp.comm.pll              import LiteDSPCarrierLoop
 from litedsp.comm.phase_detect     import LiteDSPPhaseDetect
@@ -148,8 +150,10 @@ ENTRIES = [
     ("fm_demod",           LiteDSPFMDemod,               {},                                     "comm",       "FM demod",              None),
     ("am_demod",           LiteDSPAMDemod,               {},                                     "comm",       "AM demod",              None),
     ("slicer",             LiteDSPSlicer,                {},                                     "comm",       "Slicer",                None),
+    ("soft_demapper",      LiteDSPSoftDemapper,          {},                                     "comm",       "Soft demapper (LLR)",   None),
     ("symbol_mapper",      LiteDSPSymbolMapper,          {},                                     "comm",       "Symbol mapper",         None),
     ("correlator",         LiteDSPCorrelator,            {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Correlator",            None),
+    ("frame_sync",         LiteDSPFrameSync,             {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Frame sync (preamble)", None),
     ("timing_recovery",    LiteDSPTimingRecovery,        {},                                     "comm",       "Timing recovery (M&M)", None),
     ("carrier_loop",       LiteDSPCarrierLoop,           {},                                     "comm",       "Carrier loop (PLL)",    None),
     ("phase_detect",       LiteDSPPhaseDetect,           {},                                     "comm",       "Phase detector",        None),
@@ -164,7 +168,7 @@ ENTRIES = [
     ("cp_remove",          LiteDSPCPRemove,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP remove",        None),
     # analysis -------------------------------------------------------------------------------------
     ("window",             LiteDSPWindow,                {"n": 64},                              "analysis",   "Window",                _WINDOW),
-    ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             None),
+    ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             {"scaling": ["scaled", "bfp"]}),
     ("fft_iter",           LiteDSPFFTIter,               {"N": 64},                              "analysis",   "FFT (iterative)",       None),
     ("psd",                LiteDSPPSD,                   {"N": 64},               "analysis",   "PSD",                   None),
     ("welch",              LiteDSPWelchPSD,              {"N": 64},                              "analysis",   "Welch PSD",             _WINDOW),

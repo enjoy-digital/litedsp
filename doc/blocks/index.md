@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-95 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+97 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -86,8 +86,10 @@
 | [FM demod](fm_demod.md) | `LiteDSPFMDemod` | 18 | 4 | FM discriminator: instantaneous frequency = ``angle(x[n] * conj(x[n-1]))``. |
 | [AM demod](am_demod.md) | `LiteDSPAMDemod` | 2 | — | AM envelope demodulator: ``|x|`` (magnitude) with the carrier DC removed. |
 | [Slicer](slicer.md) | `LiteDSPSlicer` | 1 | — | Hard-decision QAM slicer: map each of I/Q to the nearest PAM level. |
+| [Soft demapper (LLR)](soft_demapper.md) | `LiteDSPSoftDemapper` | 2 | 2 | Gray-coded square-QAM max-log soft demapper: per-axis folded piecewise-linear LLRs. |
 | [Symbol mapper](symbol_mapper.md) | `LiteDSPSymbolMapper` | 1 | — | Map a QAM symbol index to a constellation I/Q point (inverse of :class:`LiteDSPSlicer`). |
 | [Correlator](correlator.md) | `LiteDSPCorrelator` | 3 | 14 | Sliding correlation of the I/Q stream against a known real ``sequence``. |
+| [Frame sync (preamble)](frame_sync.md) | `LiteDSPFrameSync` | 9 | 23 | Preamble detector + stream aligner: the gateway block for burst receivers. |
 | [Timing recovery (M&M)](timing_recovery.md) | `LiteDSPTimingRecovery` | var | 16 | Symbol timing recovery with an interpolation controller (M&M or Gardner detector). |
 | [Carrier loop (PLL)](carrier_loop.md) | `LiteDSPCarrierLoop` | 1 | — | Carrier recovery: derotate the input with an internal NCO driven by a PI loop. |
 | [Phase detector](phase_detect.md) | `LiteDSPPhaseDetect` | 18 | — | Instantaneous phase ``atan2(Q, I)`` of an I/Q stream (CORDIC vectoring). |

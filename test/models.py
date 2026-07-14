@@ -377,6 +377,39 @@ def slicer_model(i, q, bits_per_axis=1, spacing=8192, data_width=16):
     kq, pq = decide(q)
     return pi, pq, (kq << bits_per_axis) | ki
 
+# Soft Demapper ------------------------------------------------------------------------------------
+
+def soft_demap_model(i, q, bits_per_axis=1, spacing=8000, llr_bits=4, llr_scale=(1 << 15),
+    scale_frac=15):
+    """Reference for litedsp.comm.soft_demap.LiteDSPSoftDemapper. Returns the packed llrs array.
+
+    Per axis, bit ``j`` of the Gray label ``g = k ^ (k >> 1)`` of the PAM level index gets the
+    folded max-log LLR (positive = bit 0 more likely), in axis-LSB units:
+
+        raw[B-1] = -x                                       (axis MSB)
+        raw[j]   = |d[j+1]| - 2**(j+1)*spacing              (d[j] = -raw[j], d[B-1] = x)
+
+    Each raw LLR is scaled by ``llr_scale/2**scale_frac`` (round half up), then saturated
+    symmetrically to +/-(2**(llr_bits-1)-1). Output beat: 2*bits_per_axis LLRs packed LSB-first,
+    I-axis bits first, Gray LSB (bit 0) first.
+    """
+    B    = bits_per_axis
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    hi   = (1 << (llr_bits - 1)) - 1
+    mask = (1 << llr_bits) - 1
+    def axis_llrs(x):
+        raws        = [None]*B
+        d           = x
+        raws[B - 1] = -d
+        for j in range(B - 2, -1, -1):
+            raws[j] = np.abs(d) - (1 << (j + 1))*spacing
+            d       = -raws[j]
+        return [np.clip(np_rounded(raws[j]*llr_scale, scale_frac), -hi, hi) for j in range(B)]
+    packed = np.zeros(len(i), np.int64)
+    for slot, v in enumerate(axis_llrs(i) + axis_llrs(q)):
+        packed |= (v & mask) << (slot*llr_bits)
+    return packed
+
 # Differential Encoder / Decoder -------------------------------------------------------------------
 
 def diff_encode_model(symbols, modulus=4):
@@ -396,6 +429,87 @@ def diff_decode_model(symbols, modulus=4):
         out[n] = (int(s) - prev) % modulus
         prev   = int(s)
     return out
+
+# Frame Sync ---------------------------------------------------------------------------------------
+
+def frame_sync_model(i, q, sequence, threshold, data_width=16, threshold_frac=14,
+    frame_len=None, peak_window=4, offset=0):
+    """Reference for litedsp.comm.frame_sync.LiteDSPFrameSync (bit-exact, sample domain).
+
+    Returns ``(i, q, first, last, peaks)``: the aligned output stream is the input unchanged
+    (the hardware is a pure sample delay), ``first``/``last`` are 0/1 arrays tagging the
+    frame boundaries on the output samples, ``peaks`` lists the accepted correlation-peak
+    sample indexes. The correlation is the same complex FIR as the gateware
+    (``fir_complex_model`` with the shared ``frame_sync_taps`` quantization, saturating
+    recombine for complex sequences); the energy window, threshold compare (both sides wide
+    and exact) and the peak-pick/alignment FSM mirror the RTL step for step. int64 holds the
+    compare exactly for data_width <= 16 and threshold_frac + 2*ceil(log2(N)) <= 30.
+    """
+    from litedsp.comm.frame_sync import frame_sync_taps
+    i, q  = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    n     = len(sequence)
+    W     = peak_window
+    coeffs_r, coeffs_i = frame_sync_taps(sequence, data_width)
+    # Correlation (matched filter): corr = x (*) conj(reversed(sequence)).
+    a_i, a_q = fir_complex_model(i, q, coeffs_r, data_width)
+    if any(coeffs_i):
+        b_i, b_q = fir_complex_model(i, q, coeffs_i, data_width)
+        corr_i = np_saturated(a_i - b_q, data_width)
+        corr_q = np_saturated(a_q + b_i, data_width)
+    else:
+        corr_i, corr_q = a_i, a_q
+    mag2 = corr_i*corr_i + corr_q*corr_q
+    # Moving energy window over the sequence length (zeros before the stream) + CFAR compare.
+    # A zero-energy window (dead line) never detects: 0 >= 0 does not count as a crossing.
+    energy = np.convolve(i*i + q*q, np.ones(n, np.int64))[:len(i)]
+    exceed = (energy > 0) & ((mag2 << threshold_frac) >= threshold*n*energy)
+    # Peak-pick / alignment FSM (one iteration per sample, mirroring the RTL steps; the
+    # output register trails the FSM plane by W-1 samples, hence the k - (W-1) tag indexes).
+    first = np.zeros(len(i), np.int64)
+    last  = np.zeros(len(i), np.int64)
+    peaks = []
+    state = "idle"
+    best = b_off = s_cnt = a_cnt = f_cnt = 0
+    for k in range(len(i)):
+        if state == "idle":
+            if exceed[k]:
+                if W == 1:
+                    peaks.append(k)
+                    a_cnt, state = 1 + offset, "align"
+                else:
+                    best, b_off, s_cnt, state = int(mag2[k]), 0, 1, "search"
+        elif state == "search":
+            bo = s_cnt if mag2[k] > best else b_off
+            if mag2[k] > best:
+                best, b_off = int(mag2[k]), s_cnt
+            if s_cnt == W - 1:  # Window complete: peak known.
+                peaks.append(k - (W - 1) + bo)
+                a_cnt, state = bo + 1 + offset, "align"
+            s_cnt += 1
+        elif state == "align":
+            if a_cnt == 1:
+                out = k - (W - 1)   # Sample entering the output register this step.
+                if out < len(first):
+                    first[out] = 1
+                if frame_len is None:
+                    state = "idle"
+                elif frame_len == 1:
+                    if out < len(last):
+                        last[out] = 1
+                    state = "idle"
+                else:
+                    f_cnt, state = frame_len - 1, "frame"
+            else:
+                a_cnt -= 1
+        else:  # frame
+            if f_cnt == 1:
+                out = k - (W - 1)
+                if out < len(last):
+                    last[out] = 1
+                state = "idle"
+            else:
+                f_cnt -= 1
+    return i, q, first, last, peaks
 
 # Stream Ops ---------------------------------------------------------------------------------------
 
@@ -481,6 +595,68 @@ def fft_fixed_model(frame_i, frame_q, data_width=16, twiddle_width=16):
                     xi[b + p + D] = np_scaled(dr, 1, data_width)
                     xq[b + p + D] = np_scaled(di, 1, data_width)
     return xi, xq
+
+def fft_bfp_model(i, q, N, data_width=16, twiddle_width=16):
+    """Bit-exact reference for litedsp.analysis.fft.LiteDSPFFT with ``scaling="bfp"``.
+
+    Processes ``len(i)//N`` consecutive frames with the gateware's per-stage block-floating-
+    point state: at each stage, all of frame k's butterflies are scaled by 1/2 iff some
+    butterfly output of frame k-1 at that stage overflowed the unshifted ``data_width`` range
+    (the sum ``a + b`` checked directly, the twiddled difference after its
+    ``twiddle_width - 1`` product rounding); frame 0 is unscaled at every stage, and a frame
+    whose one-frame-delayed decision under-predicts saturates (round + saturate). Returns
+    ``(i, q, exp)``: the concatenated **bit-reversed**-order frames and one exponent per
+    frame — the number of halvings applied, so a frame's values are ``DFT(x)/2**exp`` up to
+    rounding/saturation (``exp == log2(N)`` every frame reproduces "scaled" mode bit-exactly).
+    """
+    i     = np.asarray(i, np.int64)
+    q     = np.asarray(q, np.int64)
+    bits  = N.bit_length() - 1
+    scale = (1 << (twiddle_width - 1)) - 1
+    hi    =  (1 << (data_width - 1)) - 1
+    lo    = -(1 << (data_width - 1))
+    def ovf(*values):
+        return any(v > hi or v < lo for v in values)
+    tw = []
+    for s in range(bits):
+        D = N >> (s + 1)
+        tw.append(([int(round(math.cos(-math.pi*p/D)*scale)) for p in range(D)],
+                   [int(round(math.sin(-math.pi*p/D)*scale)) for p in range(D)]))
+    sh = [0]*bits                            # Per-stage shift decision (from previous frame).
+    out_i, out_q, exps = [], [], []
+    for f in range(len(i)//N):
+        xi  = i[f*N:(f + 1)*N].copy()
+        xq  = q[f*N:(f + 1)*N].copy()
+        exp = 0
+        for s in range(bits):
+            D      = N >> (s + 1)
+            tr, ti = tw[s]
+            shift  = sh[s]
+            det    = False
+            for b in range(0, N, 2*D):
+                for p in range(D):
+                    ai, aq = int(xi[b + p]),     int(xq[b + p])
+                    bi, bq = int(xi[b + p + D]), int(xq[b + p + D])
+                    dr, di = ai - bi, aq - bq
+                    det   |= ovf(ai + bi, aq + bq)
+                    xi[b + p] = np_scaled(ai + bi, shift, data_width)
+                    xq[b + p] = np_scaled(aq + bq, shift, data_width)
+                    if D > 1:
+                        pr, pq = dr*tr[p] - di*ti[p], dr*ti[p] + di*tr[p]
+                        det   |= ovf(int(np_rounded(np.int64(pr), twiddle_width - 1)),
+                                     int(np_rounded(np.int64(pq), twiddle_width - 1)))
+                        xi[b + p + D] = np_scaled(pr, twiddle_width - 1 + shift, data_width)
+                        xq[b + p + D] = np_scaled(pq, twiddle_width - 1 + shift, data_width)
+                    else:
+                        det |= ovf(dr, di)
+                        xi[b + p + D] = np_scaled(dr, shift, data_width)
+                        xq[b + p + D] = np_scaled(di, shift, data_width)
+            sh[s] = int(det)
+            exp  += shift
+        out_i.append(xi)
+        out_q.append(xq)
+        exps.append(exp)
+    return np.concatenate(out_i), np.concatenate(out_q), np.array(exps, np.int64)
 
 # Window -------------------------------------------------------------------------------------------
 

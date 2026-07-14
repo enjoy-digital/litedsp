@@ -32,6 +32,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `fir_parallel_x2` | 5221/2611/0/64 | - | - |
 | `fir_parallel_x4` | 10351/4723/0/128 | - | - |
 | `fm_demod` | 1720/790/0/4 | 264/398/0/5 | 111 |
+| `frame_sync` | 1503/1364/0/23 | - | - |
 | `framer` | 102/16/0/0 | - | 268 |
 | `gain` | 59/33/0/2 | 21/33/0/8 | 376 |
 | `goertzel` | 1374/336/0/17 | 709/143/0/12 | 52 |
@@ -57,6 +58,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `psd` | 855/31/0/2 | 343/30/0/2 | 89 |
 | `rms` | 1293/156/0/2 | 262/155/0/2 | 129 |
 | `saturate` | 67/33/0/0 | 55/33/0/0 | 572 |
+| `soft_demapper` | 203/44/0/2 | - | - |
 | `stats` | 289/186/0/2 | 92/114/0/3 | 113 |
 | `stream_fifo` | 32/14/0/0 | - | 232 |
 | `timing_recovery` | 1030/292/0/16 | 629/244/0/8 | 61 |

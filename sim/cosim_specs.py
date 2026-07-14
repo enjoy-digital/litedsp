@@ -157,6 +157,18 @@ def spec_log2():
     cols = _rand_cols(1, n, lo=0, hi=2**31 - 1)                    # Unsigned magnitude input.
     return dut, cols, n - 4, lambda c: [models.log2_model(np.array(c[0]))]
 
+# Comm ---------------------------------------------------------------------------------------------
+
+def spec_soft_demapper():
+    from litedsp.comm.soft_demap import LiteDSPSoftDemapper
+    n, bpa, spacing, scale = 300, 2, 6000, 24                      # 16-QAM, ~full LLR range.
+    dut = LiteDSPSoftDemapper(bits_per_axis=bpa, spacing=spacing, llr_bits=4, data_width=16,
+        with_csr=False)
+    dut.llr_scale.reset = scale
+    cols = _rand_cols(2, n, lo=-32768, hi=32767)
+    return dut, cols, n - 4, lambda c: [models.soft_demap_model(c[0], c[1], bits_per_axis=bpa,
+        spacing=spacing, llr_bits=4, llr_scale=scale)]
+
 # Correction ---------------------------------------------------------------------------------------
 
 def spec_dc_offset():
@@ -204,6 +216,7 @@ SPECS = {
     "moving_average":   spec_moving_average,
     "gain":             spec_gain,
     "log2":             spec_log2,
+    "soft_demapper":    spec_soft_demapper,
     "dc_offset":        spec_dc_offset,
     "magnitude":        spec_magnitude,
     "window":           spec_window,
