@@ -24,8 +24,8 @@ BANNED_PARAMS = {"R", "L", "M", "factor", "ratio_int", "coeffs", "taps"}
 
 # Blocks whose latency is data-dependent (explicit ``self.latency = None``).
 VARIABLE_LATENCY = {
-    "arb_resampler", "capture", "cp_insert", "goertzel", "histogram", "power", "psd",
-    "rational_resampler", "rms", "timing_recovery", "welch",
+    "arb_resampler", "capture", "cp_insert", "depuncturer", "goertzel", "histogram", "power",
+    "psd", "puncturer", "rational_resampler", "rms", "timing_recovery", "welch",
 }
 
 # Invalid-parameter vectors: every entry must raise ValueError (incl. under python -O).

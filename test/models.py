@@ -210,6 +210,48 @@ def fir_interpolator_model(x, coeffs, L, data_width=16, shift=None):
     conv      = np.convolve(up, np.asarray(coeffs, np.int64))[:len(up)]
     return np_scaled(conv, shift, data_width)
 
+# PFB Channelizer ----------------------------------------------------------------------------------
+
+def pfb_channelizer_model(i, q, coefficients, n_channels, data_width=16):
+    """Bit-exact reference for litedsp.mixing.pfb_channelizer.LiteDSPPFBChannelizer.
+
+    Critically-sampled uniform DFT filter bank. Per M-input frame m (newest sample index
+    ``base = m*M + M - 1``): M polyphase branch dot-products (branch p = prototype phase
+    ``coefficients[p::M]`` over samples ``x[base - p - t*M]``, zero history before the
+    stream), then an M-point DFT with the gateware's quantized Q1.(W-1) twiddles
+    (kernel ``exp(+2j*pi*k*p/M)``: channel k centered at ``+k/M`` of the input rate).
+    Products/accumulations are exact; a single round-half-up + saturate by
+    ``2*(data_width - 1)`` bits (coefficient + twiddle fractional bits) at the output.
+    Returns ``(i, q)`` int arrays of ``(len(i)//M)*M`` samples (frame-major, channel =
+    position within the frame).
+    """
+    M     = n_channels
+    T     = len(coefficients)//M
+    xi    = np.asarray(i, np.int64)
+    xq    = np.asarray(q, np.int64)
+    h     = np.asarray(coefficients, np.int64)
+    scale = (1 << (data_width - 1)) - 1
+    tw_c  = np.array([int(round(math.cos(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
+    tw_s  = np.array([int(round(math.sin(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
+    shift = 2*(data_width - 1)
+    out_i, out_q = [], []
+    for m in range(len(xi)//M):
+        base = m*M + M - 1
+        ui   = np.zeros(M, np.int64)  # Branch dot-products (full width, exact).
+        uq   = np.zeros(M, np.int64)
+        for p in range(M):
+            for t in range(T):
+                n = base - p - t*M
+                if n >= 0:
+                    ui[p] += h[p + t*M]*xi[n]
+                    uq[p] += h[p + t*M]*xq[n]
+        for k in range(M):
+            j  = (k*np.arange(M)) % M     # Twiddle index k*p mod M.
+            c, s = tw_c[j], tw_s[j]
+            out_i.append(int(np_scaled(np.sum(ui*c) - np.sum(uq*s), shift, data_width)))
+            out_q.append(int(np_scaled(np.sum(ui*s) + np.sum(uq*c), shift, data_width)))
+    return np.array(out_i, np.int64), np.array(out_q, np.int64)
+
 # IIR Biquad ---------------------------------------------------------------------------------------
 
 def iir_biquad_model(x, coeffs, frac_bits=14, data_width=16):
@@ -409,6 +451,108 @@ def soft_demap_model(i, q, bits_per_axis=1, spacing=8000, llr_bits=4, llr_scale=
     for slot, v in enumerate(axis_llrs(i) + axis_llrs(q)):
         packed |= (v & mask) << (slot*llr_bits)
     return packed
+
+# Viterbi Decoder ----------------------------------------------------------------------------------
+
+def pack_llrs(llrs, llr_bits):
+    """Pack per-symbol signed LLR lists into sink/source words (slot j at bits [j*k +: k])."""
+    mask = (1 << llr_bits) - 1
+    return [sum((int(l) & mask) << (j*llr_bits) for j, l in enumerate(sym)) for sym in llrs]
+
+def viterbi_model(data, constraint=7, polys=(0o171, 0o133), traceback=None, llr_bits=None,
+    metric_width=None):
+    """Reference for litedsp.comm.viterbi.LiteDSPViterbiDecoder (hard and soft), bit-exact.
+
+    ``data`` is a list of hard n-bit coded symbols when ``llr_bits`` is None, else of packed
+    signed-LLR words (n*llr_bits wide, slot j = coded stream j, LSB-first — see
+    :func:`pack_llrs`). Mirrors the RTL step-exactly: same reset penalty (state 0 favored),
+    branch metrics (Hamming, or mismatched-|LLR| sum in soft mode), ACS tie-break (smaller
+    predecessor wins), first-minimum global normalization and register-exchange output timing
+    (the first traceback-1 symbols are absorbed; output k = message bit k).
+    """
+    n_bits    = len(polys)
+    n_states  = 1 << (constraint - 1)
+    mask      = n_states - 1
+    traceback = traceback or 8*constraint
+    bm_max    = n_bits if llr_bits is None else n_bits*(1 << (llr_bits - 1))
+    if metric_width is None:
+        metric_width = 10 if llr_bits is None else \
+            max(10, ((constraint - 1)*bm_max).bit_length() + 2)
+    big = 1 << (metric_width - 2)
+    # Predecessor tables (mirror viterbi._transitions: preds appended in increasing p order).
+    preds = [[] for _ in range(n_states)]
+    for p in range(n_states):
+        for b in (0, 1):
+            full = b | (p << 1)
+            sym  = 0
+            for k, g in enumerate(polys):
+                sym |= (bin(g & full).count("1") & 1) << k
+            preds[full & mask].append((p, sym))
+    p0 = np.array([preds[s][0][0] for s in range(n_states)])
+    e0 = np.array([preds[s][0][1] for s in range(n_states)])
+    p1 = np.array([preds[s][1][0] for s in range(n_states)])
+    e1 = np.array([preds[s][1][1] for s in range(n_states)])
+    lsb = np.arange(n_states) & 1
+    metrics = np.full(n_states, big, np.int64)
+    metrics[0] = 0
+    survs   = np.zeros(n_states, np.int64)
+    sv_mask = (1 << traceback) - 1
+    llr_mask = (1 << (llr_bits or 1)) - 1
+    out = []
+    for step, d in enumerate(data):
+        d = int(d)
+        if llr_bits is None:
+            bm = np.array([bin(d ^ sym).count("1") for sym in range(1 << n_bits)])
+        else:
+            llrs = [((d >> (j*llr_bits)) & llr_mask) - ((d >> (j*llr_bits + llr_bits - 1) & 1)
+                    << llr_bits) for j in range(n_bits)]
+            bm = np.array([sum(abs(l) for j, l in enumerate(llrs)
+                               if (l < 0) != bool((sym >> j) & 1))
+                           for sym in range(1 << n_bits)])
+        m0  = metrics[p0] + bm[e0]
+        m1  = metrics[p1] + bm[e1]
+        sel = m1 < m0                                       # Ties keep predecessor 0.
+        newm  = np.where(sel, m1, m0)
+        newsv = ((survs[np.where(sel, p1, p0)] << 1) & sv_mask) | lsb
+        best  = int(np.argmin(newm))                        # Ties keep the earlier state.
+        metrics = newm - newm[best]
+        survs   = newsv
+        if step >= traceback - 1:
+            out.append(int((survs[best] >> (traceback - 1)) & 1))
+    return out
+
+# Puncturer / Depuncturer ----------------------------------------------------------------------------
+
+def puncture_model(symbols, pattern, n=2, phase=0):
+    """Reference for litedsp.comm.puncture.LiteDSPPuncturer: serial kept bits (row 0 first)."""
+    period = len(pattern[0])
+    out = []
+    for t, s in enumerate(symbols):
+        col = (t + phase) % period
+        for j in range(n):
+            if pattern[j][col]:
+                out.append((int(s) >> j) & 1)
+    return out
+
+def depuncture_model(llrs, pattern, n=2, llr_bits=4, phase=0):
+    """Reference for litedsp.comm.puncture.LiteDSPDepuncturer: packed n-slot LLR words.
+
+    ``llrs`` is the serial LLR stream (kept-bit order); punctured slots get LLR 0. Trailing
+    LLRs that do not complete a pattern column are dropped (still buffered in hardware).
+    """
+    period = len(pattern[0])
+    kept   = [[j for j in range(n) if pattern[j][t]] for t in range(period)]
+    mask   = (1 << llr_bits) - 1
+    out    = []
+    t, k   = phase % period, 0
+    while k + len(kept[t]) <= len(llrs):
+        word = 0
+        for j in kept[t]:
+            word |= (int(llrs[k]) & mask) << (j*llr_bits)
+            k += 1
+        out.append(word)
+        t = (t + 1) % period
+    return out
 
 # Differential Encoder / Decoder -------------------------------------------------------------------
 
@@ -728,6 +872,74 @@ def welch_model(i, q, N, avg_log2=2, window="hann", overlap=0, data_width=16):
     if not si:
         return []
     return psd_model(np.concatenate(si), np.concatenate(sq), N, avg_log2=avg_log2, mode=0)
+
+# CORDIC (vectoring) -------------------------------------------------------------------------------
+
+def cordic_vectoring_model(x, y, data_width=16, angle_width=16, stages=None):
+    """Bit-exact angle of litedsp.generation.cordic.LiteDSPCORDIC vectoring (one vector).
+
+    Mirrors the RTL stage recurrence exactly: quadrant pre-rotation, per-stage arithmetic
+    shifts (floor, like migen's signed ``>>``) and the same angle_width-quantized atan LUT,
+    all in the RTL's guarded widths (W = data_width + 2, Wz = angle_width + 2). Returns the
+    signed ``angle_width``-bit angle (full circle = 2**angle_width). The magnitude path (1/K
+    compensation) is not modeled — the CFO estimator consumes the angle only.
+    """
+    if stages is None:
+        stages = data_width
+    W, Wz = data_width + 2, angle_width + 2
+    PI    = 1 << (angle_width - 1)
+    atan  = [int(round(math.atan(2.0**(-i))/(2*math.pi)*(1 << angle_width))) for i in range(stages)]
+    wx, wz = _wrapper(W), _wrapper(Wz)
+    x, y  = int(x), int(y)
+    # Pre-rotation into the convergence region.
+    if x < 0:
+        x, y, z = -x, -y, (-PI if y < 0 else PI)
+    else:
+        z = 0
+    x, y, z = wx(x), wx(y), wz(z)
+    # Iterations (d = -sign(y): drive y -> 0).
+    for i in range(stages):
+        sh_x, sh_y = x >> i, y >> i
+        if y < 0:
+            x, y, z = wx(x - sh_y), wx(y + sh_x), wz(z - atan[i])
+        else:
+            x, y, z = wx(x + sh_y), wx(y - sh_x), wz(z + atan[i])
+    return _wrapper(angle_width)(z)
+
+# Coarse CFO Estimator ------------------------------------------------------------------------------
+
+def cfo_estimator_model(i, q, delay=16, span_log2=8, angle_width=16, phase_bits=32,
+    data_width=16):
+    """Bit-exact reference for litedsp.comm.cfo_est.LiteDSPCFOEstimator.
+
+    ``i``/``q`` are the accepted input samples (the estimator is sample-domain, so results
+    are invariant to valid/ready stall patterns). Products ``r[n] = x[n]*conj(x[n-delay])``
+    (``x[n<0] = 0``, matching the zero-initialized delay line) are accumulated exactly over
+    ``2**span_log2`` samples; each completed span yields ``angle(R)`` via
+    :func:`cordic_vectoring_model` at the full accumulator width and the derotator correction
+    ``(angle << (phase_bits - angle_width - log2(delay))) mod 2**phase_bits`` (the cancelling
+    minus sign is the derotator's down-mixer). Returns ``(angles, phase_incs)``, one entry
+    per completed span.
+    """
+    N          = 1 << span_log2
+    acc_width  = 2*data_width + 1 + span_log2
+    shift      = phase_bits - angle_width - (delay.bit_length() - 1)
+    i          = [int(v) for v in i]
+    q          = [int(v) for v in q]
+    angles, phase_incs = [], []
+    acc_i = acc_q = 0
+    for n in range(len(i)):
+        di = i[n - delay] if n >= delay else 0
+        dq = q[n - delay] if n >= delay else 0
+        acc_i += i[n]*di + q[n]*dq
+        acc_q += q[n]*di - i[n]*dq
+        if (n + 1) % N == 0:
+            ang = cordic_vectoring_model(acc_i, acc_q, data_width=acc_width,
+                angle_width=angle_width, stages=angle_width)
+            angles.append(ang)
+            phase_incs.append((ang << shift) & ((1 << phase_bits) - 1))
+            acc_i = acc_q = 0
+    return angles, phase_incs
 
 # Dropper (naive rate change) ----------------------------------------------------------------------
 

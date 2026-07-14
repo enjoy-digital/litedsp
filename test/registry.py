@@ -42,7 +42,7 @@ VSPEC = {
     "ddc":                _v(rate=None),                       # decimation-dependent.
     "duc":                _v(rate=None),
     "channelizer":        _v(rate=None),
-    "pfb_channelizer":    _v(rate=None),
+    "pfb_channelizer":    _v("pfb_channelizer_model", rate=(1, 1)),  # Critically sampled: M out per M in (framed).
     # filter.
     "fir_real":           _v("fir_model",              cosim=True),
     "fir_complex":        _v("fir_complex_model",      cosim=True),
@@ -95,13 +95,16 @@ VSPEC = {
     "timing_recovery":    _v(latency="variable", rate=None),
     "carrier_loop":       _v(),
     "phase_detect":       _v(),
+    "cfo_estimator":      _v("cfo_estimator_model"),     # Delay-conj-multiply + CORDIC angle.
     "diff_encoder":       _v("diff_encode_model"),
     "diff_decoder":       _v("diff_decode_model"),
     "scrambler":          _v(),
     "descrambler":        _v(),
     "crc":                _v(),
     "conv_encoder":       _v(),
-    "viterbi_decoder":    _v(),
+    "viterbi_decoder":    _v("viterbi_model"),
+    "puncturer":          _v("puncture_model",   latency="variable", rate=None),  # Pattern-dependent.
+    "depuncturer":        _v("depuncture_model", latency="variable", rate=None),
     "cp_insert":          _v(latency="variable", rate=None),
     "cp_remove":          _v(rate=None),
     # analysis.

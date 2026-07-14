@@ -62,7 +62,7 @@ class TestRegistryMeta(unittest.TestCase):
                 self.assertIsNotNone(v["model"], f"{key}: cosim=True requires a golden model")
 
 # Keys reserved for blocks planned in the roadmap but not landed yet.
-PLANNED = {"pfb_channelizer"}
+PLANNED = set()
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,5 +10,6 @@ from litedsp.mixing.channelizer    import LiteDSPChannelizer
 from litedsp.mixing.ddc            import LiteDSPDDC
 from litedsp.mixing.ddc_parallel   import LiteDSPParallelDDC
 from litedsp.mixing.duc            import LiteDSPDUC
-from litedsp.mixing.mixer          import LiteDSPMixer
-from litedsp.mixing.mixer_parallel import LiteDSPParallelMixer
+from litedsp.mixing.mixer           import LiteDSPMixer
+from litedsp.mixing.mixer_parallel  import LiteDSPParallelMixer
+from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer

@@ -38,6 +38,8 @@ SPECIFIC = [
     ("cordic_rot",      {"mode": "invalid"}),
     ("timing_recovery", {"ted": "invalid"}),
     ("magnitude",       {"method": "invalid"}),
+    ("cfo_estimator",   {"delay": 12}),                    # Power of two required.
+    ("cfo_estimator",   {"span_log2": 0}),
 ]
 
 class TestParams(unittest.TestCase):

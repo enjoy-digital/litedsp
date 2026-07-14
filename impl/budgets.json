@@ -14,6 +14,15 @@
       "lut": 179
     }
   },
+  "cfo_estimator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 1764,
+      "fmax_min": 119.6,
+      "lut": 4805
+    }
+  },
   "channelizer": {
     "ecp5": {
       "bram": 6,
@@ -185,6 +194,15 @@
       "ff": 1071,
       "fmax_min": 42.2,
       "lut": 1942
+    }
+  },
+  "depuncturer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 16,
+      "fmax_min": 475.1,
+      "lut": 31
     }
   },
   "duc": {
@@ -614,6 +632,15 @@
       "lut": 114
     }
   },
+  "pfb_channelizer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 11,
+      "ff": 212,
+      "fmax_min": 57.6,
+      "lut": 1010
+    }
+  },
   "power": {
     "ecp5": {
       "bram": 0,
@@ -642,6 +669,15 @@
       "dsp": 2,
       "ff": 30,
       "lut": 343
+    }
+  },
+  "puncturer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 8,
+      "fmax_min": 344.7,
+      "lut": 19
     }
   },
   "rms": {
@@ -719,6 +755,24 @@
       "dsp": 8,
       "ff": 244,
       "lut": 629
+    }
+  },
+  "viterbi_decoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 3945,
+      "fmax_min": 34.3,
+      "lut": 9885
+    }
+  },
+  "viterbi_decoder_soft": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 3945,
+      "fmax_min": 35.0,
+      "lut": 10691
     }
   },
   "window": {

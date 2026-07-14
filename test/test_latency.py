@@ -35,7 +35,7 @@ EXCLUDED = {
     "viterbi_decoder", "crc", "diff_encoder", "diff_decoder", "stats", "fft", "fft_iter",
     "window", "magnitude", "magnitude_cordic", "log2", "log_power", "envelope", "channel_mux",
     "channel_demux", "combine", "split", "framer", "deframer", "mixer", "equalizer", "farrow",
-    "derotator", "ddc", "duc", "channelizer", "decimator", "interpolator", "fir_decimator",
+    "derotator", "ddc", "duc", "channelizer", "pfb_channelizer", "decimator", "interpolator", "fir_decimator",
     "fir_interpolator", "cic_decimator", "cic_interpolator", "halfband_dec", "halfband_int",
     "pulse_shaper", "downsampler", "upsampler", "iq_pack", "iq_unpack", "energy_detector",
     "cp_remove",  # Rate changer (drops the cyclic prefix); alignment pinned in test_ofdm.

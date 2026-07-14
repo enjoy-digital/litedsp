@@ -35,12 +35,15 @@ Additional contracts introduced with the harmonization:
   CP insert/remove) are now registered in the flow/GUI palette (95 blocks total).
 
 - Portable RF/DSP block toolbox, pure Migen/LiteX (no vendor IP): `generation/` (NCO/DDS,
-  CORDIC, chirp, noise, replay, patterns), `mixing/` (mixer, DDC/DUC, channelizer), `filter/`
+  CORDIC, chirp, noise, replay, patterns), `mixing/` (mixer, DDC/DUC, DDC-bank and
+  polyphase-filter-bank channelizers), `filter/`
   (FIR direct/symmetric/polyphase, CIC, halfband, IIR biquad, Hilbert, RRC pulse shaping,
   Farrow/rational/arbitrary resamplers, LMS equalizer, coefficient design), `rate/`, `level/`
   (gain, AGC, power, RMS, squelch, log/dB), `correction/` (DC offset, I/Q balance, CFO),
-  `comm/` (FM/AM demod, PLL/Costas, timing recovery with M&M or Gardner TED, slicer, mapper,
-  scrambler, CRC, convolutional encoder + hard-decision Viterbi decoder, OFDM cyclic prefix),
+  `comm/` (FM/AM demod, PLL/Costas, coarse CFO estimator, timing recovery with M&M or Gardner
+  TED, slicer, mapper,
+  scrambler, CRC, convolutional encoder + hard/soft-decision Viterbi decoder,
+  puncturer/depuncturer (DVB-S rates 2/3..7/8), OFDM cyclic prefix),
   `analysis/` (window, FFT/IFFT radix-2 SDF + iterative, PSD/Welch, magnitude, Goertzel,
   statistics, detectors), `stream/` (plumbing, CDC, capture, framing, Wishbone/LiteDRAM DMA)
   and `frontend/` (ADC/DAC interfaces, I/Q packetizers, LiteEth UDP streaming).

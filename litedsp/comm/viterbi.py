@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Hard-decision Viterbi decoder for the rate-1/n convolutional encoder.
+"""Hard- and soft-decision Viterbi decoder for the rate-1/n convolutional encoder.
 
 Decodes the output of :class:`~litedsp.comm.coding.LiteDSPConvEncoder` (same ``constraint``/``polys``
 conventions: symbol bit ``k`` is the parity for ``polys[k]``). Fully-parallel add-compare-select
@@ -12,6 +12,11 @@ over the ``2**(K-1)`` states with register-exchange survivor paths of depth ``tr
 (default ``8*K``, well past the ~5K convergence rule of thumb), path metrics normalized by the
 global minimum each step. One decoded bit per input symbol; the first ``traceback`` symbols are
 absorbed to converge, after which the output stream is bit-aligned to the encoder input.
+
+With ``llr_bits`` set, the sink takes packed signed LLRs (the
+:class:`~litedsp.comm.soft_demap.LiteDSPSoftDemapper` convention: positive = bit 0 more likely,
+LSB-first slots) and the Hamming branch metric is replaced by the standard max-log metric from
+LLRs — only the branch metrics change, the ACS/survivor machinery is shared.
 """
 
 from migen import *
@@ -20,6 +25,8 @@ from litex.gen import *
 
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
+
+from litedsp.common import check
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -67,7 +74,16 @@ def _min_tree(pairs, comb):
 
 @ResetInserter()
 class LiteDSPViterbiDecoder(LiteXModule):
-    """Hard-decision Viterbi decoder (rate 1/n, register-exchange survivors).
+    """Hard/soft-decision Viterbi decoder (rate 1/n, register-exchange survivors).
+
+    Hard mode (``llr_bits=None``): ``sink.data`` carries the n coded bits of one symbol and
+    the branch metric is the Hamming distance. Soft mode (``llr_bits=k``): ``sink.llrs``
+    carries n packed signed k-bit LLRs (slot ``j`` at bits ``[j*k +: k]`` for coded stream
+    ``polys[j]``, positive = bit 0 more likely — the soft demapper's convention) and the
+    branch metric is the max-log metric: sum over the coded bits of ``|llr_j|`` where the
+    LLR sign disagrees with the expected bit (0 where it agrees; an erased/punctured LLR of
+    0 is free for both hypotheses). With constant-magnitude (e.g. saturated) LLRs this
+    reduces to a scaled Hamming distance, so decisions match the hard decoder exactly.
 
     Parameters
     ----------
@@ -80,20 +96,43 @@ class LiteDSPViterbiDecoder(LiteXModule):
     traceback : int
         Register-exchange survivor depth in symbols = decoding delay (default 8*K, well
         past the ~5K convergence rule of thumb); each state keeps a traceback-bit register.
+    llr_bits : int
+        None for hard-decision input; k for soft-decision input (n packed signed k-bit
+        LLRs on ``sink.llrs``).
     metric_width : int
-        Path-metric register width in bits; metrics are min-normalized each step, so it
-        only needs headroom for the metric spread plus branch adds.
+        Path-metric register width in bits. With per-step min-normalization the stored
+        spread is bounded by (K-1)*bm_max (any state is reachable from the current-minimum
+        state in K-1 transitions of at most bm_max = n hard / n*2**(llr_bits-1) soft each),
+        and the reset penalty 2**(metric_width-2) must dominate that spread, so
+        metric_width >= bits((K-1)*bm_max) + 2 (checked). Default: 10 hard (unchanged),
+        max(10, bits((K-1)*bm_max) + 2) soft.
     """
-    def __init__(self, constraint=7, polys=(0o171, 0o133), traceback=None, metric_width=10,
-        with_csr=True):
+    def __init__(self, constraint=7, polys=(0o171, 0o133), traceback=None, llr_bits=None,
+        metric_width=None, with_csr=True):
         n_states  = 1 << (constraint - 1)
         n_bits    = len(polys)
         traceback = traceback or 8*constraint
+        if llr_bits is not None:
+            check(llr_bits >= 2, "expected llr_bits >= 2 (or None for hard-decision input)")
+        # Max branch metric: n mismatches (hard) or n full-scale |LLR|s (soft, |llr| <=
+        # 2**(llr_bits-1) for the most negative code).
+        bm_max = n_bits if llr_bits is None else n_bits*(1 << (llr_bits - 1))
+        # Min-normalized path metrics: spread <= (K-1)*bm_max (see metric_width above); the
+        # reset penalty big = 2**(metric_width-2) must exceed it.
+        spread_bits = ((constraint - 1)*bm_max).bit_length()
+        if metric_width is None:
+            metric_width = 10 if llr_bits is None else max(10, spread_bits + 2)
+        check(metric_width >= spread_bits + 2,
+            f"expected metric_width >= {spread_bits + 2} ((K-1)*bm_max spread + reset headroom)")
         self.constraint = constraint
         self.polys      = polys
         self.traceback  = traceback
+        self.llr_bits   = llr_bits
         self.latency    = 1
-        self.sink   = stream.Endpoint([("data", n_bits)])
+        if llr_bits is None:
+            self.sink = stream.Endpoint([("data", n_bits)])
+        else:
+            self.sink = stream.Endpoint([("llrs", n_bits*llr_bits)])
         self.source = stream.Endpoint([("data", 1)])
 
         # # #
@@ -114,13 +153,33 @@ class LiteDSPViterbiDecoder(LiteXModule):
         metrics = [Signal(metric_width, reset=(0 if s == 0 else big)) for s in range(n_states)]
         survs   = [Signal(traceback) for s in range(n_states)]
 
-        # Hamming branch metrics for every possible expected symbol value.
-        # ----------------------------------------------------------------
+        # Branch metrics for every possible expected symbol value.
+        # ----------------------------------------------------------
+        # Hard: Hamming distance. Soft (max-log): sum over coded bits of |llr_j| where the
+        # LLR sign disagrees with the expected bit (sign bit set = bit 1 more likely).
         bm = {}
-        for sym in range(1 << n_bits):
-            s = Signal(max=n_bits + 1)
-            self.comb += s.eq(sum((self.sink.data ^ sym)[k] for k in range(n_bits)))
-            bm[sym] = s
+        if llr_bits is None:
+            for sym in range(1 << n_bits):
+                s = Signal(max=n_bits + 1)
+                self.comb += s.eq(sum((self.sink.data ^ sym)[k] for k in range(n_bits)))
+                bm[sym] = s
+        else:
+            sgns = []
+            abss = []
+            for j in range(n_bits):
+                llr = Signal((llr_bits, True))
+                ab  = Signal(llr_bits)  # |llr| (2**(llr_bits-1) for the most negative code).
+                self.comb += [
+                    llr.eq(self.sink.llrs[j*llr_bits:(j + 1)*llr_bits]),
+                    ab.eq(Mux(llr < 0, -llr, llr)),
+                ]
+                sgns.append(llr[-1])
+                abss.append(ab)
+            for sym in range(1 << n_bits):
+                s = Signal(max=bm_max + 1)
+                self.comb += s.eq(sum(Mux(sgns[j] ^ ((sym >> j) & 1), abss[j], 0)
+                                      for j in range(n_bits)))
+                bm[sym] = s
 
         # ACS: per-state add-compare-select (ties keep predecessor 0).
         # ------------------------------------------------------------
@@ -168,8 +227,10 @@ class LiteDSPViterbiDecoder(LiteXModule):
         self._config = CSRStatus(fields=[
             CSRField("constraint", size=8,  description="Constraint length K."),
             CSRField("traceback",  size=16, description="Survivor depth (decoding delay)."),
+            CSRField("llr_bits",   size=8,  description="Soft-input LLR width (0 = hard-decision input)."),
         ])
         self.comb += [
             self._config.fields.constraint.eq(self.constraint),
             self._config.fields.traceback.eq(self.traceback),
+            self._config.fields.llr_bits.eq(self.llr_bits or 0),
         ]

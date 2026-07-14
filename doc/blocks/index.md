@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-97 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+101 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -21,6 +21,7 @@
 | [DDC](ddc.md) | `LiteDSPDDC` | 1 | 6 | Digital down-converter: NCO + complex mixer (down) + decimator. |
 | [DUC](duc.md) | `LiteDSPDUC` | 1 | 7 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
 | [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 33 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
+| [PFB channelizer](pfb_channelizer.md) | `LiteDSPPFBChannelizer` | 60 | 11 | Critically-sampled uniform DFT filter bank (polyphase FIR + direct M-point DFT). |
 
 ## Filtering (`filter/`)
 
@@ -93,13 +94,16 @@
 | [Timing recovery (M&M)](timing_recovery.md) | `LiteDSPTimingRecovery` | var | 16 | Symbol timing recovery with an interpolation controller (M&M or Gardner detector). |
 | [Carrier loop (PLL)](carrier_loop.md) | `LiteDSPCarrierLoop` | 1 | — | Carrier recovery: derotate the input with an internal NCO driven by a PI loop. |
 | [Phase detector](phase_detect.md) | `LiteDSPPhaseDetect` | 18 | — | Instantaneous phase ``atan2(Q, I)`` of an I/Q stream (CORDIC vectoring). |
+| [CFO estimator (coarse)](cfo_estimator.md) | `LiteDSPCFOEstimator` | 0 | 4 | Coarse CFO estimator: delay-conjugate-multiply autocorrelation + CORDIC angle. |
 | [Differential encoder](diff_encoder.md) | `LiteDSPDifferentialEncoder` | 1 | — | ``out[n] = (in[n] + out[n-1]) mod M`` (symbol indices). |
 | [Differential decoder](diff_decoder.md) | `LiteDSPDifferentialDecoder` | 1 | — | ``out[n] = (in[n] - in[n-1]) mod M`` (inverse of the encoder). |
 | [Scrambler (LFSR)](scrambler.md) | `LiteDSPScrambler` | 1 | — | Self-synchronizing multiplicative scrambler ``y = x ^ y[-t1] ^ y[-t2] ...`` (bit-serial). |
 | [Descrambler (LFSR)](descrambler.md) | `LiteDSPDescrambler` | 1 | — | Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing). |
 | [CRC](crc.md) | `LiteDSPCRC` | 1 | — | Bit-serial MSB-first CRC; passes ``data`` through and updates the ``crc`` register. |
 | [Convolutional encoder](conv_encoder.md) | `LiteDSPConvEncoder` | 1 | — | Rate-1/2 convolutional encoder (default K=7, G=[0o171, 0o133]). |
-| [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | — | Hard-decision Viterbi decoder (rate 1/n, register-exchange survivors). |
+| [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, register-exchange survivors). |
+| [Puncturer](puncturer.md) | `LiteDSPPuncturer` | var | 0 | TX puncturer: drops coded bits of the rate-1/n stream per the puncturing matrix. |
+| [Depuncturer (LLR)](depuncturer.md) | `LiteDSPDepuncturer` | var | 0 | RX depuncturer: reassembles full soft symbols, reinserting erasures (LLR 0) per pattern. |
 | [OFDM CP insert](cp_insert.md) | `LiteDSPCPInsert` | var | — | Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out. |
 | [OFDM CP remove](cp_remove.md) | `LiteDSPCPRemove` | 0 | — | Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out. |
 

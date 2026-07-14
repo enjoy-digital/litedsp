@@ -24,6 +24,7 @@ from litedsp.filter.cic_parallel     import LiteDSPParallelCICDecimator
 from litedsp.mixing.ddc           import LiteDSPDDC
 from litedsp.mixing.duc           import LiteDSPDUC
 from litedsp.mixing.channelizer   import LiteDSPChannelizer
+from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
 from litedsp.filter.fir           import LiteDSPFIRFilterComplex
 from litedsp.filter.fir_poly      import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
 from litedsp.filter.cic           import LiteDSPCICDecimator, LiteDSPCICInterpolator
@@ -58,7 +59,10 @@ from litedsp.comm.fm_demod        import LiteDSPFMDemod
 from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
 from litedsp.comm.correlator      import LiteDSPCorrelator
 from litedsp.comm.frame_sync      import LiteDSPFrameSync
+from litedsp.comm.cfo_est         import LiteDSPCFOEstimator
 from litedsp.comm.soft_demap      import LiteDSPSoftDemapper
+from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
+from litedsp.comm.viterbi         import LiteDSPViterbiDecoder
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -211,6 +215,10 @@ def channelizer():
     d = LiteDSPChannelizer(n_channels=4, decimation=4, data_width=16, method="fir", with_csr=False)
     return d, _eps(d.sink, *d.sources), 10.0
 
+def pfb_channelizer():
+    d = LiteDSPPFBChannelizer(n_channels=4, taps_per_channel=8, data_width=16, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def lms_equalizer():
     d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, with_csr=False)
     return d, {d.train} | _eps(d.sink, d.source), 12.0
@@ -231,10 +239,30 @@ def frame_sync():
     d = LiteDSPFrameSync([1, 1, 1, -1, -1, 1, -1], data_width=16, frame_len=64, with_csr=False)
     return d, {d.threshold, d.offset, d.detected} | _eps(d.sink, d.source), 10.0
 
+def cfo_estimator():
+    d = LiteDSPCFOEstimator(data_width=16, delay=16, span_log2=8, with_csr=False)
+    return d, {d.angle, d.phase_inc_correction, d.estimate_ready} | _eps(d.sink, d.source), 10.0
+
 def soft_demapper():
     d = LiteDSPSoftDemapper(bits_per_axis=1, spacing=8000, llr_bits=4, data_width=16,
         with_csr=False)
     return d, {d.llr_scale} | _eps(d.sink, d.source), 10.0
+
+def puncturer():
+    d = LiteDSPPuncturer(pattern=PUNCTURE_3_4, n=2, with_csr=False)
+    return d, {d.phase_rst} | _eps(d.sink, d.source), 8.0
+
+def depuncturer():
+    d = LiteDSPDepuncturer(pattern=PUNCTURE_3_4, n=2, llr_bits=4, with_csr=False)
+    return d, {d.phase_rst} | _eps(d.sink, d.source), 8.0
+
+def viterbi_decoder():
+    d = LiteDSPViterbiDecoder(with_csr=False)                # Hard-decision, K=7 (171, 133).
+    return d, _eps(d.sink, d.source), 12.0
+
+def viterbi_decoder_soft():
+    d = LiteDSPViterbiDecoder(llr_bits=4, with_csr=False)    # Soft-decision, 4-bit LLRs.
+    return d, _eps(d.sink, d.source), 12.0
 
 def stream_fifo():
     d = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
@@ -319,8 +347,12 @@ REGISTRY = {
     "magnitude": magnitude, "magnitude_cordic": magnitude_cordic, "combine": combine,
     "window": window, "fft": fft, "fft_iter": fft_iter, "psd": psd, "goertzel": goertzel,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
+    "pfb_channelizer": pfb_channelizer,
     "lms_equalizer": lms_equalizer, "timing_recovery": timing_recovery, "fm_demod": fm_demod,
-    "correlator": correlator, "frame_sync": frame_sync, "soft_demapper": soft_demapper,
+    "correlator": correlator, "frame_sync": frame_sync, "cfo_estimator": cfo_estimator,
+    "soft_demapper": soft_demapper,
+    "puncturer": puncturer, "depuncturer": depuncturer,
+    "viterbi_decoder": viterbi_decoder, "viterbi_decoder_soft": viterbi_decoder_soft,
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
     "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,

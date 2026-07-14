@@ -22,6 +22,7 @@ from litedsp.mixing.mixer          import LiteDSPMixer
 from litedsp.mixing.ddc            import LiteDSPDDC
 from litedsp.mixing.duc            import LiteDSPDUC
 from litedsp.mixing.channelizer    import LiteDSPChannelizer
+from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
 from litedsp.filter.fir            import LiteDSPFIRFilter, LiteDSPFIRFilterComplex
 from litedsp.filter.fir_poly       import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
 from litedsp.filter.cic            import LiteDSPCICDecimator, LiteDSPCICInterpolator
@@ -61,9 +62,11 @@ from litedsp.comm.frame_sync       import LiteDSPFrameSync
 from litedsp.comm.timing_recovery  import LiteDSPTimingRecovery
 from litedsp.comm.pll              import LiteDSPCarrierLoop
 from litedsp.comm.phase_detect     import LiteDSPPhaseDetect
+from litedsp.comm.cfo_est          import LiteDSPCFOEstimator
 from litedsp.comm.diff             import LiteDSPDifferentialEncoder, LiteDSPDifferentialDecoder
 from litedsp.comm.coding           import LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC, LiteDSPConvEncoder
 from litedsp.comm.viterbi          import LiteDSPViterbiDecoder
+from litedsp.comm.puncture         import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
 from litedsp.comm.ofdm             import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.analysis.window       import LiteDSPWindow
 from litedsp.analysis.fft          import LiteDSPFFT
@@ -105,6 +108,7 @@ ENTRIES = [
     ("ddc",                LiteDSPDDC,                   {"decimation": 8},                      "mixing",     "DDC",                   _METHOD),
     ("duc",                LiteDSPDUC,                   {"interpolation": 8},                   "mixing",     "DUC",                   _METHOD),
     ("channelizer",        LiteDSPChannelizer,           {"n_channels": 4, "decimation": 4},     "mixing",     "Channelizer",           _METHOD),
+    ("pfb_channelizer",    LiteDSPPFBChannelizer,        {"n_channels": 4, "taps_per_channel": 8}, "mixing",   "PFB channelizer",       None),
     # filter ---------------------------------------------------------------------------------------
     ("fir_real",           LiteDSPFIRFilter,             {"n_taps": 32},                         "filter",     "FIR (real)",            None),
     ("fir_complex",        LiteDSPFIRFilterComplex,      {"n_taps": 32},                         "filter",     "FIR (complex)",         None),
@@ -157,6 +161,7 @@ ENTRIES = [
     ("timing_recovery",    LiteDSPTimingRecovery,        {},                                     "comm",       "Timing recovery (M&M)", None),
     ("carrier_loop",       LiteDSPCarrierLoop,           {},                                     "comm",       "Carrier loop (PLL)",    None),
     ("phase_detect",       LiteDSPPhaseDetect,           {},                                     "comm",       "Phase detector",        None),
+    ("cfo_estimator",      LiteDSPCFOEstimator,          {},                                     "comm",       "CFO estimator (coarse)", None),
     ("diff_encoder",       LiteDSPDifferentialEncoder,   {},                                     "comm",       "Differential encoder",  None),
     ("diff_decoder",       LiteDSPDifferentialDecoder,   {},                                     "comm",       "Differential decoder",  None),
     ("scrambler",          LiteDSPScrambler,             {},                                     "comm",       "Scrambler (LFSR)",      None),
@@ -164,6 +169,8 @@ ENTRIES = [
     ("crc",                LiteDSPCRC,                   {},                                     "comm",       "CRC",                   None),
     ("conv_encoder",       LiteDSPConvEncoder,           {},                                     "comm",       "Convolutional encoder", None),
     ("viterbi_decoder",    LiteDSPViterbiDecoder,        {},                                     "comm",       "Viterbi decoder",       None),
+    ("puncturer",          LiteDSPPuncturer,             {"pattern": PUNCTURE_3_4},              "comm",       "Puncturer",             None),
+    ("depuncturer",        LiteDSPDepuncturer,           {"pattern": PUNCTURE_3_4},              "comm",       "Depuncturer (LLR)",     None),
     ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),
     ("cp_remove",          LiteDSPCPRemove,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP remove",        None),
     # analysis -------------------------------------------------------------------------------------

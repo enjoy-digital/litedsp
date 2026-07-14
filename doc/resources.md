@@ -7,6 +7,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP | Artix-7 (Vivado) LUT/FF/BRAM/DSP | Fmax min (MHz) |
 |---|---|---|---|
 | `agc` | 377/57/0/8 | 179/57/0/4 | 54 |
+| `cfo_estimator` | 4805/1764/0/4 | - | 120 |
 | `channelizer` | 2786/1086/6/24 | 1280/310/2/24 | 78 |
 | `cic_decimator` | 566/484/0/0 | 776/484/0/0 | 83 |
 | `cic_interpolator` | 580/438/0/0 | 676/438/0/0 | 51 |
@@ -20,6 +21,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `dc_blocker` | 224/97/0/0 | 90/97/0/0 | 210 |
 | `ddc` | 890/317/2/6 | 480/122/1/6 | 107 |
 | `ddc_parallel_x4` | 1942/1071/8/18 | - | 42 |
+| `depuncturer` | 31/16/0/0 | - | 475 |
 | `duc` | 643/302/2/7 | 386/100/1/6 | 63 |
 | `error_counter` | 97/64/0/0 | - | 369 |
 | `farrow` | 652/281/0/14 | 470/207/0/6 | 55 |
@@ -54,12 +56,16 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `nco_qw` | 674/52/0/0 | 222/52/0/0 | 216 |
 | `null_sink` | 65/32/0/0 | - | 305 |
 | `pattern_source` | 114/65/0/0 | - | 353 |
+| `pfb_channelizer` | 1010/212/0/11 | - | 58 |
 | `power` | 969/106/0/2 | 189/106/0/2 | 143 |
 | `psd` | 855/31/0/2 | 343/30/0/2 | 89 |
+| `puncturer` | 19/8/0/0 | - | 345 |
 | `rms` | 1293/156/0/2 | 262/155/0/2 | 129 |
 | `saturate` | 67/33/0/0 | 55/33/0/0 | 572 |
 | `soft_demapper` | 203/44/0/2 | - | - |
 | `stats` | 289/186/0/2 | 92/114/0/3 | 113 |
 | `stream_fifo` | 32/14/0/0 | - | 232 |
 | `timing_recovery` | 1030/292/0/16 | 629/244/0/8 | 61 |
+| `viterbi_decoder` | 9885/3945/0/0 | - | 34 |
+| `viterbi_decoder_soft` | 10691/3945/0/0 | - | 35 |
 | `window` | 341/15/0/2 | 67/19/0/2 | 100 |
