@@ -623,6 +623,15 @@
       "lut": 65
     }
   },
+  "ofdm_equalizer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 6,
+      "ff": 128,
+      "fmax_min": 94.7,
+      "lut": 598
+    }
+  },
   "pattern_source": {
     "ecp5": {
       "bram": 0,
@@ -693,6 +702,24 @@
       "dsp": 2,
       "ff": 155,
       "lut": 262
+    }
+  },
+  "rs_decoder": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 1321,
+      "fmax_min": 74.2,
+      "lut": 3680
+    }
+  },
+  "rs_encoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 265,
+      "fmax_min": 118.7,
+      "lut": 487
     }
   },
   "saturate": {

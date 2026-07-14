@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-101 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+104 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -40,7 +40,7 @@
 | [DC blocker](dc_blocker.md) | `LiteDSPDCBlocker` | 1 | 0 | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
 | [Moving average](moving_average.md) | `LiteDSPMovingAverage` | 1 | 0 | Boxcar moving average over ``2**length_log2`` samples (per I/Q), a.k.a. CIC-1. |
 | [Farrow interpolator](farrow.md) | `LiteDSPFarrowInterpolator` | 3 | 14 | Cubic (Catmull-Rom) Farrow fractional-delay interpolator with runtime ``mu``. |
-| [LMS equalizer](equalizer.md) | `LiteDSPLMSEqualizer` | 1 | — | Adaptive complex FIR equalizer (LMS), trained or decision-directed. |
+| [LMS equalizer](equalizer.md) | `LiteDSPLMSEqualizer` | 1 | — | Adaptive complex FIR equalizer: trained LMS, blind CMA or decision-directed. |
 | [Notch](notch.md) | `LiteDSPNotch` | 1 | — | Tunable 2nd-order notch (zeros on the unit circle, poles at radius ``r``). |
 | [Comb filter](comb_filter.md) | `LiteDSPCombFilter` | 1 | — | Feed-forward comb ``y[n] = x[n] - x[n-D]`` (nulls at multiples of fs/D), per I/Q. |
 | [Allpass](allpass.md) | `LiteDSPAllpass` | 1 | — | 1st-order allpass ``y[n] = -a*x[n] + x[n-1] + a*y[n-1]`` (flat magnitude), per I/Q. |
@@ -104,8 +104,11 @@
 | [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, register-exchange survivors). |
 | [Puncturer](puncturer.md) | `LiteDSPPuncturer` | var | 0 | TX puncturer: drops coded bits of the rate-1/n stream per the puncturing matrix. |
 | [Depuncturer (LLR)](depuncturer.md) | `LiteDSPDepuncturer` | var | 0 | RX depuncturer: reassembles full soft symbols, reinserting erasures (LLR 0) per pattern. |
+| [RS encoder (255,k)](rs_encoder.md) | `LiteDSPRSEncoder` | var | 0 | Systematic RS(255, k) encoder: k message bytes in, n = 255 codeword bytes out. |
+| [RS decoder (255,k)](rs_decoder.md) | `LiteDSPRSDecoder` | var | 0 | RS(255, k) decoder: n = 255 codeword bytes in, k corrected message bytes out. |
 | [OFDM CP insert](cp_insert.md) | `LiteDSPCPInsert` | var | — | Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out. |
 | [OFDM CP remove](cp_remove.md) | `LiteDSPCPRemove` | 0 | — | Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out. |
+| [OFDM equalizer (1-tap)](ofdm_equalizer.md) | `LiteDSPOFDMEqualizer` | 2 | 6 | LS channel estimation + divider-free one-tap OFDM equalizer with per-bin CSI. |
 
 ## Analysis / Measurement (`analysis/`)
 

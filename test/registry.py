@@ -57,7 +57,7 @@ VSPEC = {
     "dc_blocker":         _v("dc_blocker_model",       cosim=True),
     "moving_average":     _v("moving_average_model",   cosim=True),
     "farrow":             _v(),
-    "equalizer":          _v(),
+    "equalizer":          _v("equalizer_model"),
     "notch":              _v(),
     "comb_filter":        _v(),
     "allpass":            _v(),
@@ -105,8 +105,11 @@ VSPEC = {
     "viterbi_decoder":    _v("viterbi_model"),
     "puncturer":          _v("puncture_model",   latency="variable", rate=None),  # Pattern-dependent.
     "depuncturer":        _v("depuncture_model", latency="variable", rate=None),
+    "rs_encoder":         _v("rs_encode_model",  latency="variable", rate=None),  # k in -> n out (framed).
+    "rs_decoder":         _v("rs_decode_model",  latency="variable", rate=None),  # n in -> k out (framed).
     "cp_insert":          _v(latency="variable", rate=None),
     "cp_remove":          _v(rate=None),
+    "ofdm_equalizer":     _v("ofdm_equalizer_model", rate=None),  # 1:1 steady-state; training frames consumed.
     # analysis.
     "window":             _v("window_model", cosim=True),
     "fft":                _v("fft_model"),                     # SNR-thresholded (fixed point);

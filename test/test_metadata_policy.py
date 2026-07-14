@@ -25,7 +25,8 @@ BANNED_PARAMS = {"R", "L", "M", "factor", "ratio_int", "coeffs", "taps"}
 # Blocks whose latency is data-dependent (explicit ``self.latency = None``).
 VARIABLE_LATENCY = {
     "arb_resampler", "capture", "cp_insert", "depuncturer", "goertzel", "histogram", "power",
-    "psd", "puncturer", "rational_resampler", "rms", "timing_recovery", "welch",
+    "psd", "puncturer", "rational_resampler", "rms", "rs_decoder", "rs_encoder",
+    "timing_recovery", "welch",
 }
 
 # Invalid-parameter vectors: every entry must raise ValueError (incl. under python -O).
@@ -38,6 +39,7 @@ INVALID_PARAMS = [
     ("hilbert",        {"n_taps": 8}),
     ("decimator",      {"method": "invalid"}),
     ("cp_insert",      {"cp_len": 0}),
+    ("rs_decoder",     {"k": 222}),
 ]
 
 class TestMetadataPolicy(unittest.TestCase):

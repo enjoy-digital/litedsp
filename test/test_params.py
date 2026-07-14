@@ -40,6 +40,9 @@ SPECIFIC = [
     ("magnitude",       {"method": "invalid"}),
     ("cfo_estimator",   {"delay": 12}),                    # Power of two required.
     ("cfo_estimator",   {"span_log2": 0}),
+    ("rs_encoder",      {"n": 254}),                       # n fixed at 255 over GF(2^8).
+    ("rs_encoder",      {"k": 222}),                       # Odd n - k.
+    ("rs_decoder",      {"k": 221}),                       # t = 17 > 16.
 ]
 
 class TestParams(unittest.TestCase):

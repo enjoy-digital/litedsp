@@ -305,6 +305,59 @@ def moving_average_model(x, length_log2=4):
         out[n] = np_rounded(np.int64(acc), length_log2)
     return out
 
+# LMS Equalizer ------------------------------------------------------------------------------------
+
+def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14, wint=4,
+    mu_shift=20, cma_egain=0, mode=0, cma_r2=0, dd_level=0, train=1):
+    """Reference for litedsp.filter.equalizer.LiteDSPLMSEqualizer (bit-exact, all modes).
+
+    Per accepted sample (the gateware gates everything on xfer, so the sequence is
+    handshake-invariant): shift the input window, filter with the current weights, form the
+    mode-selected error (0 = trained ``e = d - y``, 1 = CMA ``e = y*(R2 - |y|^2)`` with the
+    gateware's frac-(W-1-cma_egain) rescale/round/saturate, 2 = DD nearest-QPSK at ``dd_level``), then
+    apply the *previous* sample's error on its window snapshot (delayed LMS), gated by
+    ``train``. ``mode`` and ``train`` accept scalars or per-sample sequences (runtime
+    switching). Returns (i, q) output arrays.
+    """
+    W  = data_width
+    F  = W - 1                                          # Sample fractional bits (Q1.F).
+    ww = wint + wfrac                                   # Weight register width.
+    n  = len(i)
+    i, q  = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    d_i   = np.zeros(n, np.int64) if d_i is None else np.asarray(d_i, np.int64)
+    d_q   = np.zeros(n, np.int64) if d_q is None else np.asarray(d_q, np.int64)
+    mode  = np.broadcast_to(np.asarray(mode,  np.int64), (n,))
+    train = np.broadcast_to(np.asarray(train, np.int64), (n,))
+    wr, wi = [0]*n_taps, [0]*n_taps
+    wr[n_taps//2] = 1 << wfrac                          # Center tap = 1.0.
+    xr, xi = [0]*n_taps, [0]*n_taps                     # Input window (tap 0 = current).
+    prev   = None                                       # (e, window) of the previous sample.
+    out_i  = np.zeros(n, np.int64)
+    out_q  = np.zeros(n, np.int64)
+    for k in range(n):
+        xr = [int(i[k])] + xr[:-1]
+        xi = [int(q[k])] + xi[:-1]
+        yi = int(np_scaled(sum(wr[t]*xr[t] - wi[t]*xi[t] for t in range(n_taps)), wfrac, W))
+        yq = int(np_scaled(sum(wr[t]*xi[t] + wi[t]*xr[t] for t in range(n_taps)), wfrac, W))
+        if mode[k] == 1:                                # CMA: e = y * (R2 - |y|^2) * 2**egain.
+            dm  = int(cma_r2) - int(np_rounded(np.int64(yi*yi + yq*yq), F))
+            e_i = int(np_scaled(np.int64(yi*dm), F - cma_egain, W + 1))
+            e_q = int(np_scaled(np.int64(yq*dm), F - cma_egain, W + 1))
+        elif mode[k] == 2:                              # DD: nearest QPSK point at dd_level.
+            e_i = (int(dd_level) if yi >= 0 else -int(dd_level)) - yi
+            e_q = (int(dd_level) if yq >= 0 else -int(dd_level)) - yq
+        else:                                           # Trained: e = d - y.
+            e_i = int(d_i[k]) - yi
+            e_q = int(d_q[k]) - yq
+        if train[k] and prev is not None:               # Delayed update: e[k-1] on window[k-1].
+            pei, peq, pxr, pxi = prev
+            for t in range(n_taps):
+                wr[t] = int(np_saturated(np.int64(wr[t] + ((pei*pxr[t] + peq*pxi[t]) >> mu_shift)), ww))
+                wi[t] = int(np_saturated(np.int64(wi[t] + ((peq*pxr[t] - pei*pxi[t]) >> mu_shift)), ww))
+        prev = (e_i, e_q, list(xr), list(xi))
+        out_i[k], out_q[k] = yi, yq
+    return out_i, out_q
+
 # ISqrt --------------------------------------------------------------------------------------------
 
 def isqrt_model(x):
@@ -553,6 +606,149 @@ def depuncture_model(llrs, pattern, n=2, llr_bits=4, phase=0):
         out.append(word)
         t = (t + 1) % period
     return out
+
+# Reed-Solomon (GF(2^8)) ----------------------------------------------------------------------------
+#
+# Conventional-basis RS over GF(2^8) with field polynomial 0x11D (alpha = 2) and generator
+# roots alpha^0 .. alpha^(2t-1) (fcr = 0) — the litedsp.comm.rs conventions (CCSDS 131.0-B uses
+# 0x187 with dual-basis symbols; a basis-conversion wrapper is a documented follow-up there).
+
+RS_GF_POLY = 0x11D
+
+def gf_mul(a, b, poly=RS_GF_POLY):
+    """GF(2^8) product (carry-less multiply reduced by ``poly``)."""
+    r = 0
+    a, b = int(a), int(b)
+    while b:
+        if b & 1:
+            r ^= a
+        b >>= 1
+        a <<= 1
+        if a & 0x100:
+            a ^= poly
+    return r
+
+def gf_tables(poly=RS_GF_POLY):
+    """Antilog/log tables: ``exp[i] = alpha^i`` (256 entries, ``exp[255] = exp[0] = 1`` so the
+    inverse address ``255 - log[x]`` stays in range), ``log[exp[i]] = i`` (``log[0]`` unused)."""
+    exp = [0]*256
+    log = [0]*256
+    v = 1
+    for i in range(255):
+        exp[i] = v
+        log[v] = i
+        v = gf_mul(v, 2, poly)
+    exp[255] = 1
+    return exp, log
+
+def rs_generator(n_parity, fcr=0):
+    """RS generator polynomial g(x) = prod (x - alpha^(fcr+i)), ascending coefficients (monic)."""
+    exp, _ = gf_tables()
+    g = [1]
+    for i in range(n_parity):
+        root = exp[(fcr + i) % 255]
+        ng = [0]*(len(g) + 1)
+        for j, c in enumerate(g):
+            ng[j]     ^= gf_mul(c, root)
+            ng[j + 1] ^= c
+        g = ng
+    return g
+
+def rs_encode_model(message, n=255, k=223):
+    """Reference for litedsp.comm.rs.LiteDSPRSEncoder: k message bytes -> n-byte codeword.
+
+    Systematic LFSR division by g(x); the 2t parity bytes follow the message, highest-degree
+    coefficient first (mirrors the hardware drain order).
+    """
+    assert len(message) == k
+    n_par = n - k
+    g = rs_generator(n_par)
+    p = [0]*n_par                       # p[i] = coefficient of x^i of the running remainder.
+    for byte in message:
+        fb = int(byte) ^ p[-1]
+        p  = [gf_mul(fb, g[0])] + [p[i - 1] ^ gf_mul(fb, g[i]) for i in range(1, n_par)]
+    return [int(byte) for byte in message] + p[::-1]
+
+def rs_decode_model(codeword, n=255, k=223):
+    """Reference for litedsp.comm.rs.LiteDSPRSDecoder; returns ``(message, corrected, uncorrectable)``.
+
+    Full hard-decision decode (syndromes, Berlekamp-Massey, Chien, Forney), mirroring the
+    hardware exactly — including the degree-t truncation of the BM register files and the
+    root-count/locator-degree consistency check — so message bytes *and* status match
+    bit-for-bit. An uncorrectable block returns the received message bytes unmodified with
+    ``corrected = 0``.
+    """
+    exp, log = gf_tables()
+    n_par = n - k
+    t     = n_par//2
+    rx    = [int(byte) for byte in codeword]
+    assert len(rx) == n
+
+    # Syndromes S_i = r(alpha^i) (Horner; arrival order = highest-degree coefficient first).
+    synd = [0]*n_par
+    for byte in rx:
+        synd = [gf_mul(synd[i], exp[i]) ^ byte for i in range(n_par)]
+    if not any(synd):
+        return rx[:k], 0, False
+
+    # Berlekamp-Massey, register files truncated at degree t (as in hardware).
+    lam = [1] + [0]*t
+    B   = [1] + [0]*t
+    L, m, b = 0, 1, 1
+    for r in range(n_par):
+        d = 0
+        for j in range(min(r, t) + 1):
+            d ^= gf_mul(lam[j], synd[r - j])
+        if d == 0:
+            m += 1
+            continue
+        coef = gf_mul(d, exp[255 - log[b]])          # d/b via the log/antilog tables.
+        swap = 2*L <= r
+        old  = list(lam)
+        for j in range(t + 1):
+            lam[j] ^= gf_mul(coef, B[j - m]) if j >= m else 0
+        if swap:
+            B, L, b, m = old, r + 1 - L, d, 1
+        else:
+            m += 1
+    if L > t:
+        return rx[:k], 0, True
+
+    # Omega = S(x)*lambda(x) mod x^2t (degree <= t-1).
+    omg = [0]*t
+    for j in range(t):
+        for l in range(j + 1):
+            omg[j] ^= gf_mul(synd[l], lam[j - l])
+
+    # Chien scan over all n positions (X = alpha^i <-> coefficient of x^i, buffer index
+    # n-1-i) with Forney magnitudes Omega(X^-1)/odd(lambda(X^-1)) (the fcr = 0 form).
+    q = list(lam)
+    o = list(omg)
+    roots, anomaly = [], False
+    for i in range(n):
+        odd  = 0
+        even = 0
+        for j in range(t + 1):
+            if j % 2:
+                odd ^= q[j]
+            else:
+                even ^= q[j]
+        if (even ^ odd) == 0:
+            if odd == 0:
+                anomaly = True                       # Degenerate (repeated root).
+            else:
+                om_val = 0
+                for j in range(t):
+                    om_val ^= o[j]
+                roots.append((n - 1 - i, gf_mul(om_val, exp[255 - log[odd]])))
+        q = [gf_mul(q[j], exp[(255 - j) % 255]) for j in range(t + 1)]
+        o = [gf_mul(o[j], exp[(255 - j) % 255]) for j in range(t)]
+
+    if anomaly or len(roots) != L:
+        return rx[:k], 0, True
+    for idx, mag in roots:
+        rx[idx] ^= mag
+    return rx[:k], len(roots), False
 
 # Differential Encoder / Decoder -------------------------------------------------------------------
 
@@ -940,6 +1136,44 @@ def cfo_estimator_model(i, q, delay=16, span_log2=8, angle_width=16, phase_bits=
             phase_incs.append((ang << shift) & ((1 << phase_bits) - 1))
             acc_i = acc_q = 0
     return angles, phase_incs
+
+# OFDM Equalizer ------------------------------------------------------------------------------------
+
+def ofdm_equalizer_model(i, q, train, fft_size=64, ref=None, coeff_frac=14, data_width=16):
+    """Bit-exact reference for litedsp.comm.ofdm_eq.LiteDSPOFDMEqualizer.
+
+    ``i``/``q`` are the accepted input samples, whole ``fft_size``-beat frames; ``train`` is
+    one boolean per frame (True = that frame is consumed as the preamble). ``ref`` is the
+    2-bit-per-bin reference RAM contents (bit 0 = I sign, bit 1 = Q sign, 1 = positive;
+    default = all 0b11 = 1 + 1j). H resets to 1.0 + 0j (``1 << coeff_frac``) per bin; a
+    training frame stores ``H_k = scaled(Y_k * conj(X_ref_k), 1)`` and emits nothing, every
+    other frame emits ``S_k = scaled(Y_k * conj(H_k), coeff_frac)`` and
+    ``csi_k = scaled(|H_k|**2, coeff_frac)``. Returns ``(i, q, csi)`` int arrays over the
+    non-training frames, in input (frame-position) bin order.
+    """
+    i = np.asarray(i, np.int64)
+    q = np.asarray(q, np.int64)
+    if ref is None:
+        ref = [0b11]*fft_size
+    si  = np.where(np.asarray(ref, np.int64) & 0b01, 1, -1)   # I sign per bin.
+    sq  = np.where(np.asarray(ref, np.int64) & 0b10, 1, -1)   # Q sign per bin.
+    h_i = np.full(fft_size, 1 << coeff_frac, np.int64)        # H reset = 1.0 + 0j.
+    h_q = np.zeros(fft_size, np.int64)
+    out_i, out_q, out_csi = [], [], []
+    for f in range(len(i)//fft_size):
+        yi = i[f*fft_size:(f + 1)*fft_size]
+        yq = q[f*fft_size:(f + 1)*fft_size]
+        if f < len(train) and train[f]:                       # LS estimation: H = Y*conj(X_ref)/2.
+            h_i = np_scaled(yi*si + yq*sq, 1, data_width)
+            h_q = np_scaled(yq*si - yi*sq, 1, data_width)
+        else:                                                 # One-tap equalize: S = Y*conj(H).
+            out_i.append(np_scaled(yi*h_i + yq*h_q, coeff_frac, data_width))
+            out_q.append(np_scaled(yq*h_i - yi*h_q, coeff_frac, data_width))
+            out_csi.append(np_scaled(h_i*h_i + h_q*h_q, coeff_frac, data_width))
+    if not out_i:
+        empty = np.zeros(0, np.int64)
+        return empty, empty.copy(), empty.copy()
+    return np.concatenate(out_i), np.concatenate(out_q), np.concatenate(out_csi)
 
 # Dropper (naive rate change) ----------------------------------------------------------------------
 

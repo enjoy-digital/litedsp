@@ -43,10 +43,18 @@ Additional contracts introduced with the harmonization:
   `comm/` (FM/AM demod, PLL/Costas, coarse CFO estimator, timing recovery with M&M or Gardner
   TED, slicer, mapper,
   scrambler, CRC, convolutional encoder + hard/soft-decision Viterbi decoder,
-  puncturer/depuncturer (DVB-S rates 2/3..7/8), OFDM cyclic prefix),
+  puncturer/depuncturer (DVB-S rates 2/3..7/8), Reed-Solomon RS(255, k) encoder + decoder,
+  OFDM cyclic prefix + OFDM equalizer with LS
+  channel estimation, divider-free one-tap correction and per-bin CSI output),
   `analysis/` (window, FFT/IFFT radix-2 SDF + iterative, PSD/Welch, magnitude, Goertzel,
   statistics, detectors), `stream/` (plumbing, CDC, capture, framing, Wishbone/LiteDRAM DMA)
   and `frontend/` (ADC/DAC interfaces, I/Q packetizers, LiteEth UDP streaming).
+- Reed-Solomon RS(255, k) codec over GF(2^8) (`litedsp/comm/rs.py`): systematic LFSR encoder
+  and full hard-decision decoder (syndromes, serial Berlekamp-Massey, Chien search, Forney
+  magnitudes), t = (n - k)/2 configurable from 1 to 16 (RS(255,223) default), corrected-symbol
+  and uncorrectable-block status CSRs, bit-exact golden models including status. Conventional
+  basis (field polynomial 0x11D, fcr = 0); CCSDS 131.0-B dual-basis (0x187) conversion is a
+  documented follow-up.
 - Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock — parallel
   NCO/mixer/FIR/CIC/DDC, bit-identical to their serial counterparts.
 - All public hardware classes carry the `LiteDSP` prefix (`LiteDSPNCO`, `LiteDSPFIRFilter`,
@@ -62,7 +70,9 @@ Additional contracts introduced with the harmonization:
 - Verification: per-block NumPy golden models (bit-exact or SNR-threshold, randomized
   backpressure) under `unittest`, Verilator co-simulation and lint sweep (`sim/`), Yosys/
   nextpnr + Vivado implementation gated on resource/fmax budgets (`impl/`), board-level
-  benches on litex-boards targets (`bench/`).
+  benches on litex-boards targets (`bench/`), SymbiYosys formal verification of the stream
+  fabric — no sample loss/duplication under arbitrary backpressure, payload stability while
+  stalled, no valid-from-nowhere (`formal/`, see `doc/formal.md`).
 - Quality characterization suite (`char/`): datasheet-grade metrics (SFDR/ENOB, ripple/
   attenuation, CIC droop error, image rejection, IMD3, AGC settling, window sidelobes)
   measured on the golden models and gated on direction-aware quality budgets

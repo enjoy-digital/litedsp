@@ -67,7 +67,9 @@ from litedsp.comm.diff             import LiteDSPDifferentialEncoder, LiteDSPDif
 from litedsp.comm.coding           import LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC, LiteDSPConvEncoder
 from litedsp.comm.viterbi          import LiteDSPViterbiDecoder
 from litedsp.comm.puncture         import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
+from litedsp.comm.rs               import LiteDSPRSEncoder, LiteDSPRSDecoder
 from litedsp.comm.ofdm             import LiteDSPCPInsert, LiteDSPCPRemove
+from litedsp.comm.ofdm_eq          import LiteDSPOFDMEqualizer
 from litedsp.analysis.window       import LiteDSPWindow
 from litedsp.analysis.fft          import LiteDSPFFT
 from litedsp.analysis.fft_iter     import LiteDSPFFTIter
@@ -171,8 +173,11 @@ ENTRIES = [
     ("viterbi_decoder",    LiteDSPViterbiDecoder,        {},                                     "comm",       "Viterbi decoder",       None),
     ("puncturer",          LiteDSPPuncturer,             {"pattern": PUNCTURE_3_4},              "comm",       "Puncturer",             None),
     ("depuncturer",        LiteDSPDepuncturer,           {"pattern": PUNCTURE_3_4},              "comm",       "Depuncturer (LLR)",     None),
+    ("rs_encoder",         LiteDSPRSEncoder,             {},                                     "comm",       "RS encoder (255,k)",    None),
+    ("rs_decoder",         LiteDSPRSDecoder,             {},                                     "comm",       "RS decoder (255,k)",    None),
     ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),
     ("cp_remove",          LiteDSPCPRemove,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP remove",        None),
+    ("ofdm_equalizer",     LiteDSPOFDMEqualizer,         {"fft_size": 64},                       "comm",       "OFDM equalizer (1-tap)", None),
     # analysis -------------------------------------------------------------------------------------
     ("window",             LiteDSPWindow,                {"n": 64},                              "analysis",   "Window",                _WINDOW),
     ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             {"scaling": ["scaled", "bfp"]}),

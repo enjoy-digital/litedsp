@@ -1,0 +1,189 @@
+name: nightly
+
+# Deep verification: everything too slow or too random for the PR pipeline. Failures here
+# gate the default branch's health badge, not merges.
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+jobs:
+
+  # Full test suite across a seed matrix (LITEDSP_SEED rotates the randomized backpressure /
+  # stimulus; failures print the seed for one-command reproduction).
+  seeds:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml hypothesis
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Full suite (seed ${{ matrix.seed }})
+        run: LITEDSP_SEED=${{ matrix.seed }} python3 -m unittest discover -s test
+
+  # Full Verilator co-simulation at multiple backpressure seeds.
+  cosim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Co-simulation (3 backpressure seeds)
+        run: |
+          python3 sim/run_blocks.py --seed 1
+          python3 sim/run_blocks.py --seed 2 --throttle 40 --ready-rate 60
+          python3 sim/run_blocks.py --seed 3 --throttle 10 --ready-rate 90
+
+  # Full characterization gate + rendered report artifact.
+  char:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Characterization gate
+        run: python3 char/run_char.py
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: char-results
+          path: |
+            char/results.json
+            doc/characterization.md
+
+  # Property-based constructor-space sampling at the deep profile.
+  hypothesis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml hypothesis
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Hypothesis (nightly profile)
+        run: |
+          HYPOTHESIS_PROFILE=nightly LITEDSP_HYPOTHESIS_EXAMPLES=100 \
+            python3 -m unittest test.test_hypothesis
+
+  # SymbiYosys formal verification of the stream-protocol properties of the plumbing blocks
+  # (stability, token conservation — no loss/duplication under arbitrary backpressure, covers).
+  formal:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OSS CAD Suite (yosys/sby)
+        run: |
+          wget -q https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-06-25/oss-cad-suite-linux-x64-20250625.tgz
+          tar -xzf oss-cad-suite-linux-x64-20250625.tgz
+          echo "$PWD/oss-cad-suite/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Formal suite (all plumbing blocks)
+        run: python3 formal/run_formal.py
+
+  # Full-registry ECP5 synthesis + budget gate (the PR pipeline runs a subset).
+  impl-deep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OSS CAD Suite (yosys/nextpnr)
+        run: |
+          wget -q https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-06-25/oss-cad-suite-linux-x64-20250625.tgz
+          tar -xzf oss-cad-suite-linux-x64-20250625.tgz
+          echo "$PWD/oss-cad-suite/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Full-registry synth + budget gate
+        run: python3 impl/run.py --device ecp5 --flow synth
+
+      - name: P&R fmax subset
+        run: python3 impl/run.py --device ecp5 --flow pnr --subset

@@ -61,8 +61,10 @@ from litedsp.comm.correlator      import LiteDSPCorrelator
 from litedsp.comm.frame_sync      import LiteDSPFrameSync
 from litedsp.comm.cfo_est         import LiteDSPCFOEstimator
 from litedsp.comm.soft_demap      import LiteDSPSoftDemapper
+from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer
 from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
 from litedsp.comm.viterbi         import LiteDSPViterbiDecoder
+from litedsp.comm.rs              import LiteDSPRSEncoder, LiteDSPRSDecoder
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -248,6 +250,10 @@ def soft_demapper():
         with_csr=False)
     return d, {d.llr_scale} | _eps(d.sink, d.source), 10.0
 
+def ofdm_equalizer():
+    d = LiteDSPOFDMEqualizer(fft_size=64, data_width=16, with_csr=False)
+    return d, {d.train, d.ref_data, d.ref_we, d.ref_rst} | _eps(d.sink, d.source), 10.0
+
 def puncturer():
     d = LiteDSPPuncturer(pattern=PUNCTURE_3_4, n=2, with_csr=False)
     return d, {d.phase_rst} | _eps(d.sink, d.source), 8.0
@@ -263,6 +269,15 @@ def viterbi_decoder():
 def viterbi_decoder_soft():
     d = LiteDSPViterbiDecoder(llr_bits=4, with_csr=False)    # Soft-decision, 4-bit LLRs.
     return d, _eps(d.sink, d.source), 12.0
+
+def rs_encoder():
+    d = LiteDSPRSEncoder(with_csr=False)                     # RS(255,223), t=16.
+    return d, _eps(d.sink, d.source), 10.0
+
+def rs_decoder():
+    d = LiteDSPRSDecoder(with_csr=False)                     # RS(255,223), t=16.
+    return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count,
+               d.clear} | _eps(d.sink, d.source), 12.0
 
 def stream_fifo():
     d = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
@@ -350,9 +365,10 @@ REGISTRY = {
     "pfb_channelizer": pfb_channelizer,
     "lms_equalizer": lms_equalizer, "timing_recovery": timing_recovery, "fm_demod": fm_demod,
     "correlator": correlator, "frame_sync": frame_sync, "cfo_estimator": cfo_estimator,
-    "soft_demapper": soft_demapper,
+    "soft_demapper": soft_demapper, "ofdm_equalizer": ofdm_equalizer,
     "puncturer": puncturer, "depuncturer": depuncturer,
     "viterbi_decoder": viterbi_decoder, "viterbi_decoder_soft": viterbi_decoder_soft,
+    "rs_encoder": rs_encoder, "rs_decoder": rs_decoder,
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
     "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,

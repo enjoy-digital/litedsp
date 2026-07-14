@@ -55,12 +55,15 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `nco_parallel_x4` | 222/71/8/2 | - | 168 |
 | `nco_qw` | 674/52/0/0 | 222/52/0/0 | 216 |
 | `null_sink` | 65/32/0/0 | - | 305 |
+| `ofdm_equalizer` | 598/128/0/6 | - | 95 |
 | `pattern_source` | 114/65/0/0 | - | 353 |
 | `pfb_channelizer` | 1010/212/0/11 | - | 58 |
 | `power` | 969/106/0/2 | 189/106/0/2 | 143 |
 | `psd` | 855/31/0/2 | 343/30/0/2 | 89 |
 | `puncturer` | 19/8/0/0 | - | 345 |
 | `rms` | 1293/156/0/2 | 262/155/0/2 | 129 |
+| `rs_decoder` | 3680/1321/1/0 | - | 74 |
+| `rs_encoder` | 487/265/0/0 | - | 119 |
 | `saturate` | 67/33/0/0 | 55/33/0/0 | 572 |
 | `soft_demapper` | 203/44/0/2 | - | - |
 | `stats` | 289/186/0/2 | 92/114/0/3 | 113 |
