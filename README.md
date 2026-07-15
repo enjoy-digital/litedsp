@@ -8,9 +8,15 @@
 
                              Portable RF/DSP building blocks for FPGAs
                                       powered by Migen & LiteX
+
+                           Work In Progress: APIs/blocks can still move!
 ```
 
 [![](https://github.com/enjoy-digital/litedsp/actions/workflows/ci.yml/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enjoy-digital/litedsp)
+
+**🚧 Work In Progress**: LiteDSP is under active development — block interfaces, parameter names
+and repository layout can still move/change until the first stable release. Feedback is very
+welcome!
 
 [> Intro
 --------
