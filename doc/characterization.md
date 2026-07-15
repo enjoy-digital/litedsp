@@ -76,6 +76,14 @@ Clipper at 50% clip depth (threshold = half the two-tone peak). Two tones at f=0
 |---|---|---|---|
 | `imd3_dbc` | dBc | 15.45 | >= 14.99 |
 
+## dc_blocker
+
+DC blocker, high-precision notch (`pole_shift=5`, `precision_bits=8`, 16-bit). 0.95 FS DC step + -30 dBFS tone at f=1/64: rejection of the steady-state DC residual (|mean| over 128 settled tone periods). Worst-case bound -6.02*(15 + p - pole_shift) = -108.4 dBFS; the measured residual is exactly 0 (no leak deadband, DC-free error-feedback requantizer), so the metric reports the 140 dB cap.
+
+| Metric | Unit | Measured | Guaranteed |
+|---|---|---|---|
+| `dc_rejection_db` | dB | 140.00 | >= 135.80 |
+
 ## window
 
 Window block, hann, n=64, 16-bit coefficients. Peak sidelobe level of the realized (quantized, rounded) window shape.

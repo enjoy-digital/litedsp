@@ -40,6 +40,7 @@ from litedsp.filter.arb_resampler  import LiteDSPArbResampler
 from litedsp.rate.decimator        import LiteDSPDecimator
 from litedsp.rate.interpolator     import LiteDSPInterpolator
 from litedsp.rate.dropper          import LiteDSPDownsampler, LiteDSPUpsampler
+from litedsp.rate.farm             import LiteDSPResamplerFarm
 from litedsp.level.gain            import LiteDSPGain
 from litedsp.level.power           import LiteDSPPower
 from litedsp.level.agc             import LiteDSPAGC
@@ -73,6 +74,7 @@ from litedsp.comm.ofdm_eq          import LiteDSPOFDMEqualizer
 from litedsp.analysis.window       import LiteDSPWindow
 from litedsp.analysis.fft          import LiteDSPFFT
 from litedsp.analysis.fft_iter     import LiteDSPFFTIter
+from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
 from litedsp.analysis.psd          import LiteDSPPSD
 from litedsp.analysis.welch        import LiteDSPWelchPSD
 from litedsp.analysis.magnitude    import LiteDSPMagnitude
@@ -92,6 +94,7 @@ from litedsp.stream.fifo           import LiteDSPStreamFIFO
 from litedsp.stream.adapt          import LiteDSPIQPack, LiteDSPIQUnpack, LiteDSPIQClockDomainCrossing
 from litedsp.stream.csr_io         import LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPNullSink
 from litedsp.stream.framing        import LiteDSPStreamFramer, LiteDSPStreamDeframer
+from litedsp.stream.timestamp      import LiteDSPTimestamper, LiteDSPTimeUntagger
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -137,6 +140,7 @@ ENTRIES = [
     ("interpolator",       LiteDSPInterpolator,          {"interpolation": 8},                          "rate",       "Interpolator",          _METHOD),
     ("downsampler",        LiteDSPDownsampler,           {},                                     "rate",       "Downsampler",           None),
     ("upsampler",          LiteDSPUpsampler,             {},                                     "rate",       "Upsampler",             None),
+    ("resampler_farm",     LiteDSPResamplerFarm,         {"n_channels": 4, "n_taps": 32, "decimation": 8}, "rate", "Resampler farm",      None),
     # level ----------------------------------------------------------------------------------------
     ("gain",               LiteDSPGain,                  {},                                     "level",      "Gain",                  None),
     ("power",              LiteDSPPower,                 {},                                     "level",      "Power meter",           None),
@@ -182,6 +186,7 @@ ENTRIES = [
     ("window",             LiteDSPWindow,                {"n": 64},                              "analysis",   "Window",                _WINDOW),
     ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             {"scaling": ["scaled", "bfp"]}),
     ("fft_iter",           LiteDSPFFTIter,               {"N": 64},                              "analysis",   "FFT (iterative)",       None),
+    ("parallel_fft",       LiteDSPParallelFFT,           {"N": 64},                              "analysis",   "FFT (parallel, 2 samples/clk)", None),
     ("psd",                LiteDSPPSD,                   {"N": 64},               "analysis",   "PSD",                   None),
     ("welch",              LiteDSPWelchPSD,              {"N": 64},                              "analysis",   "Welch PSD",             _WINDOW),
     ("magnitude",          LiteDSPMagnitude,             {},                                     "analysis",   "Magnitude (approx)",    {"method": ["approx", "cordic"]}),
@@ -211,6 +216,9 @@ ENTRIES = [
     ("null_sink",          LiteDSPNullSink,              {},                                     "stream",     "Null sink",             None),
     ("framer",             LiteDSPStreamFramer,          {},                                     "stream",     "Framer",                None),
     ("deframer",           LiteDSPStreamDeframer,        {},                                     "stream",     "Deframer",              None),
+    # LiteDSPTimeCore is CSR-only (no stream ports), so it lives outside the palette.
+    ("timestamper",        LiteDSPTimestamper,           {},                                     "stream",     "Timestamper",           None),
+    ("time_untagger",      LiteDSPTimeUntagger,          {},                                     "stream",     "Time untagger",         None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

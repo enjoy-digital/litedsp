@@ -36,9 +36,14 @@ def _get_port(udp, udp_port, word_width):
 # UDP IQ Streamer ----------------------------------------------------------------------------------
 
 class LiteDSPUDPIQStreamer(LiteXModule):
-    """I/Q stream -> fixed-size UDP packets toward ``ip_address``:``udp_port`` (LiteEth)."""
+    """I/Q stream -> fixed-size UDP packets toward ``ip_address``:``udp_port`` (LiteEth).
+
+    With ``with_timestamp=True`` each datagram starts with the packetizer's 128-bit timestamp
+    header (see :mod:`litedsp.frontend.packet`); connect a
+    :class:`~litedsp.stream.timestamp.LiteDSPTimeCore` count to the exposed ``time`` Signal.
+    """
     def __init__(self, udp, ip_address, udp_port, data_width=16, word_width=32,
-        samples_per_packet=256, with_csr=True):
+        samples_per_packet=256, with_timestamp=False, stream_id=0, with_csr=True):
         self.sink = stream.Endpoint(iq_layout(data_width))
 
         # # #
@@ -48,8 +53,13 @@ class LiteDSPUDPIQStreamer(LiteXModule):
         # Submodules.
         # -----------
         words_per_packet = samples_per_packet*2*data_width//word_width  # Words per datagram.
+        if with_timestamp:
+            words_per_packet += 128//word_width                         # + timestamp header.
         self.packetizer  = LiteDSPIQPacketizer(data_width=data_width, word_width=word_width,
-            samples_per_packet=samples_per_packet, with_csr=with_csr)
+            samples_per_packet=samples_per_packet, with_timestamp=with_timestamp,
+            stream_id=stream_id, with_csr=with_csr)
+        if with_timestamp:
+            self.time = self.packetizer.time  # Connect LiteDSPTimeCore.count.
         self.tx = LiteEthStream2UDPTX(ip_address=ip_address, udp_port=udp_port,
             data_width=word_width, fifo_depth=words_per_packet)  # FIFO buffers one full packet.
 
@@ -66,9 +76,14 @@ class LiteDSPUDPIQStreamer(LiteXModule):
 # UDP IQ Receiver ----------------------------------------------------------------------------------
 
 class LiteDSPUDPIQReceiver(LiteXModule):
-    """UDP packets on ``udp_port`` -> I/Q stream (LiteEth)."""
-    def __init__(self, udp, udp_port, data_width=16, word_width=32, fifo_depth=64, with_csr=True):
-        self.source = stream.Endpoint(iq_layout(data_width))
+    """UDP packets on ``udp_port`` -> I/Q stream (LiteEth).
+
+    With ``with_timestamp=True`` the depacketizer consumes the 128-bit timestamp header of
+    each datagram and the ``source`` carries the recovered ``timestamp``/``stream_id`` params
+    (strip with :class:`~litedsp.stream.timestamp.LiteDSPTimeUntagger` before a plain chain).
+    """
+    def __init__(self, udp, udp_port, data_width=16, word_width=32, fifo_depth=64,
+        with_timestamp=False, with_csr=True):
 
         # # #
 
@@ -79,7 +94,8 @@ class LiteDSPUDPIQReceiver(LiteXModule):
         self.rx = LiteEthUDP2StreamRX(udp_port=udp_port, data_width=word_width,
             fifo_depth=fifo_depth)
         self.depacketizer = LiteDSPIQDepacketizer(data_width=data_width, word_width=word_width,
-            with_csr=with_csr)
+            with_timestamp=with_timestamp, with_csr=with_csr)
+        self.source = stream.Endpoint(self.depacketizer.source.description)
 
         # Datapath.
         # ---------

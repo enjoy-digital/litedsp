@@ -11,6 +11,10 @@ new block.
 - Payload layouts come from `litedsp.common`:
   - real samples: `real_layout(data_width)` → field `data` (signed).
   - complex samples: `iq_layout(data_width)` → fields `i`, `q` (signed).
+- Time-shared multi-channel engines (resampler farm) take per-channel `sinks` served in
+  round-robin TDM and emit one *channel-tagged* stream: `iq_layout` plus a `channel` payload
+  field. Fan back out with a `LiteDSPChannelDemux` whose `sel` is driven by the tag
+  (`source.connect(demux.sink, omit={"channel"})` + `demux.sel.eq(source.channel)`).
 - Full `valid`/`ready` backpressure is always honored. A block must not drop or duplicate
   samples under stalls. Stateful blocks (e.g. FIR) use an *elastic* pipeline: internal state
   (sample history) advances only on real transfers (`sink.valid & sink.ready`), while the

@@ -26,6 +26,7 @@ _ALIASES = {
     "halfband_dec": "halfband",
     "halfband_int": "halfband",
     "equalizer":    "lms_equalizer",
+    "parallel_fft": "fft_parallel_x2",
 }
 
 _BUDGETS = None

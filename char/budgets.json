@@ -47,6 +47,12 @@
       "value": 12.705
     }
   },
+  "dc_blocker": {
+    "dc_rejection_db": {
+      "direction": "min",
+      "value": 140.0
+    }
+  },
   "fir": {
     "passband_ripple_db": {
       "direction": "max",

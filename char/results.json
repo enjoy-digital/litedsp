@@ -17,6 +17,9 @@
   "cordic": {
     "enob_bits": 12.705
   },
+  "dc_blocker": {
+    "dc_rejection_db": 140.0
+  },
   "fir": {
     "passband_ripple_db": 0.019,
     "stopband_atten_db": 54.973

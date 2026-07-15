@@ -27,6 +27,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `farrow` | 652/281/0/14 | 470/207/0/6 | 55 |
 | `fft` | 2987/360/0/28 | 1525/367/0/35 | 73 |
 | `fft_iter` | 938/91/2/4 | 236/29/1/5 | 60 |
+| `fft_parallel_x2` | 6118/938/0/56 | - | 56 |
 | `fir` | 2715/1555/0/32 | - | - |
 | `fir_complex` | 181/106/0/2 | 105/38/0/8 | 118 |
 | `fir_decimator` | 471/104/0/2 | 239/78/0/2 | 122 |
@@ -61,6 +62,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `power` | 969/106/0/2 | 189/106/0/2 | 143 |
 | `psd` | 855/31/0/2 | 343/30/0/2 | 89 |
 | `puncturer` | 19/8/0/0 | - | 345 |
+| `resampler_farm` | 888/106/0/2 | - | 72 |
 | `rms` | 1293/156/0/2 | 262/155/0/2 | 129 |
 | `rs_decoder` | 3680/1321/1/0 | - | 74 |
 | `rs_encoder` | 487/265/0/0 | - | 119 |

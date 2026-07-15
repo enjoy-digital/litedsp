@@ -19,6 +19,19 @@ with `python3 examples/<name>.py`.
 blocks (FIFO, pack, pattern source, error counter, framer) and preview the flow-graph → AXI IP-core
 direction (see `litedsp/flow/` and `doc/flow.md`).
 
+## Application notes
+
+Flagship examples paired with a documented app note (objective, block diagram, resource totals,
+measured results and committed plots) under [`doc/app_notes/`](../doc/app_notes/). All run
+headless (matplotlib Agg, `savefig` only) and are smoke-checked in CI (`test/test_examples.py`).
+
+| App note | Example | Chain | Demonstrates / golden property |
+|---|---|---|---|
+| [AN001 — FM stereo broadcast receiver](../doc/app_notes/an001_fm_stereo.md) | `fm_stereo_receiver.py` | FMDemod → pilot BP → Mixer(square) → 38 kHz BP → Mixer → FIR decimators → IQAdd matrix | Pilot-squaring stereo decode: separation ≥ 30 dB, audio SNR ≥ 25 dB (L-only program) |
+| [AN002 — DQPSK modem loopback + BER curve](../doc/app_notes/an002_qpsk_modem.md) | `qpsk_modem.py` | PRBS → DiffEncoder → SymbolMapper → PulseShaper → AWGN → matched RRC → TimingRecovery → Slicer → DiffDecoder | BER vs Eb/N0 vs DQPSK theory: implementation loss < 1 dB @ 1e-3; one RTL point == golden models |
+| [AN003 — Spectrum monitor with waterfall](../doc/app_notes/an003_spectrum_monitor.md) | `spectrum_monitor.py` | TimeCore/Timestamper → TimeUntagger → WelchPSD (50% overlap, linear + max-hold) | Timestamped waterfall (absolute sample time), averaged vs max-hold spectra, GNU Radio `udp_source` interop recipe |
+| [AN004 — Chirp pulse-compression radar](../doc/app_notes/an004_chirp_radar.md) | `chirp_radar.py` | Chirp → NumPy target channel → complex matched filter (2 × FIRFilterComplex) → Magnitude | Pulse-compression ranging (exact delay recovery), range resolution vs bandwidth, PSLR gate |
+
 ## Standalone core configs
 
 YAML configurations for the standalone core generator (`litedsp_gen`), producing a Verilog core

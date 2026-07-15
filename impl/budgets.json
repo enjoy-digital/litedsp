@@ -275,6 +275,15 @@
       "lut": 236
     }
   },
+  "fft_parallel_x2": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 56,
+      "ff": 938,
+      "fmax_min": 55.7,
+      "lut": 6118
+    }
+  },
   "fir": {
     "ecp5": {
       "bram": 0,
@@ -687,6 +696,15 @@
       "ff": 8,
       "fmax_min": 344.7,
       "lut": 19
+    }
+  },
+  "resampler_farm": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 106,
+      "fmax_min": 72.4,
+      "lut": 888
     }
   },
   "rms": {

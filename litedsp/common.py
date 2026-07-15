@@ -62,6 +62,23 @@ def iq_layout(data_width=16, n_samples=1):
         ("q", n_samples*data_width),
     ]
 
+# Timestamps (see litedsp/stream/timestamp.py and doc/timestamps.md).
+TIMESTAMP_WIDTH = 64
+
+def time_param_layout(width=TIMESTAMP_WIDTH):
+    """Stream *param* layout for timestamped streams (rides next to the payload).
+
+    ``timestamp`` is the :class:`~litedsp.stream.timestamp.LiteDSPTimeCore` count at the
+    sample's ingress edge; ``stream_id`` identifies the tagging point in multi-stream designs.
+    Params are per-frame constants in framed streams (tagged on ``first``), so plain blocks
+    stay time-agnostic: strip them with :class:`~litedsp.stream.timestamp.LiteDSPTimeUntagger`
+    (or ``connect(..., omit={"timestamp", "stream_id"})``) before entering a DSP chain.
+    """
+    return [
+        ("timestamp", width),
+        ("stream_id", 8),
+    ]
+
 def iq_lanes(endpoint, data_width, n_samples):
     """Per-lane ``(i, q)`` bit-slices of a multi-sample endpoint (lane 0 = first sample).
 

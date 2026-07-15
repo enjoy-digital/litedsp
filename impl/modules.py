@@ -29,6 +29,7 @@ from litedsp.filter.fir           import LiteDSPFIRFilterComplex
 from litedsp.filter.fir_poly      import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
 from litedsp.filter.cic           import LiteDSPCICDecimator, LiteDSPCICInterpolator
 from litedsp.filter.halfband      import LiteDSPHalfbandDecimator
+from litedsp.rate.farm            import LiteDSPResamplerFarm
 from litedsp.filter.iir_biquad    import LiteDSPIIRBiquadCascade
 from litedsp.filter.dc_blocker    import LiteDSPDCBlocker
 from litedsp.filter.moving_average import LiteDSPMovingAverage
@@ -44,6 +45,7 @@ from litedsp.analysis.magnitude   import LiteDSPMagnitude
 from litedsp.analysis.window      import LiteDSPWindow
 from litedsp.analysis.fft         import LiteDSPFFT
 from litedsp.analysis.fft_iter    import LiteDSPFFTIter
+from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
 from litedsp.analysis.psd         import LiteDSPPSD
 from litedsp.analysis.goertzel    import LiteDSPGoertzel
 from litedsp.analysis.stats       import LiteDSPStats
@@ -114,6 +116,10 @@ def fir_decimator():
 def fir_interpolator():
     d = LiteDSPFIRInterpolator(n_taps=32, interpolation=8, data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
+
+def resampler_farm():
+    d = LiteDSPResamplerFarm(n_channels=4, n_taps=32, decimation=8, data_width=16, with_csr=False)
+    return d, {d.coeff_data, d.coeff_we, d.coeff_rst} | _eps(d.source, *d.sinks), 10.0
 
 def cic_decimator():
     d = LiteDSPCICDecimator(data_width=16, decimation=8, n_stages=4, with_csr=False)
@@ -350,12 +356,17 @@ def ddc_parallel_x4():
     d = LiteDSPParallelDDC(n_samples=4, data_width=16, decimation=8, with_csr=False)
     return d, {d.nco.phase_inc} | _eps(d.sink, d.source), 10.0
 
+def fft_parallel_x2():
+    d = LiteDSPParallelFFT(N=256, data_width=16, with_csr=False)   # Same N as the serial fft entry.
+    return d, _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
     "nco": nco, "nco_qw": nco_qw, "cordic_rot": cordic_rot, "cordic_vec": cordic_vec,
     "mixer": mixer, "fir_complex": fir_complex, "fir_decimator": fir_decimator,
-    "fir_interpolator": fir_interpolator, "cic_decimator": cic_decimator,
+    "fir_interpolator": fir_interpolator, "resampler_farm": resampler_farm,
+    "cic_decimator": cic_decimator,
     "cic_interpolator": cic_interpolator, "halfband": halfband, "iir_biquad": iir_biquad,
     "dc_blocker": dc_blocker, "moving_average": moving_average, "farrow": farrow,
     "gain": gain, "power": power, "agc": agc, "saturate": saturate, "rms": rms,
@@ -377,6 +388,7 @@ REGISTRY = {
     "mixer_parallel_x2": mixer_parallel_x2, "mixer_parallel_x4": mixer_parallel_x4,
     "fir_parallel_x2": fir_parallel_x2, "fir_parallel_x4": fir_parallel_x4,
     "cic_parallel_x4": cic_parallel_x4, "ddc_parallel_x4": ddc_parallel_x4,
+    "fft_parallel_x2": fft_parallel_x2,
 }
 
 # Subset for the slower full place-&-route flows.

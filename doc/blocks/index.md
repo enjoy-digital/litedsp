@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-104 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+108 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -56,6 +56,7 @@
 | [Interpolator](interpolator.md) | `LiteDSPInterpolator` | 1 | — | Integer interpolator: rate expand + anti-image filter. |
 | [Downsampler](downsampler.md) | `LiteDSPDownsampler` | 1 | — | Keep one of every ``factor`` I/Q samples (naive decimation, no anti-alias filter). |
 | [Upsampler](upsampler.md) | `LiteDSPUpsampler` | 1 | — | Emit ``factor`` I/Q samples per input: sample-and-hold (default) or zero-stuff. |
+| [Resampler farm](resampler_farm.md) | `LiteDSPResamplerFarm` | 32 | 2 | Decimate-by-R complex FIR for ``n_channels`` streams sharing one serial-MAC engine. |
 
 ## Level Control / Measurement (`level/`)
 
@@ -117,6 +118,7 @@
 | [Window](window.md) | `LiteDSPWindow` | 1 | 2 | Apply a length-``n`` window to a complex I/Q stream, framed every ``n`` samples. |
 | [FFT (SDF)](fft.md) | `LiteDSPFFT` | 63 | 28 | Streaming radix-2 SDF FFT, ``N`` points (power of two), 1 sample/cycle. |
 | [FFT (iterative)](fft_iter.md) | `LiteDSPFFTIter` | 704 | 4 | Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped). |
+| [FFT (parallel, 2 samples/clk)](parallel_fft.md) | `LiteDSPParallelFFT` | 76 | — | Streaming ``N``-point FFT at 2 samples/cycle (super-sample-rate wideband path). |
 | [PSD](psd.md) | `LiteDSPPSD` | var | 2 | Power-spectral-density accumulator for a streaming FFT. |
 | [Welch PSD](welch.md) | `LiteDSPWelchPSD` | var | — | Windowed, averaged power spectral density: Window -> FFT -> PSD, with segment overlap. |
 | [Magnitude (approx)](magnitude.md) | `LiteDSPMagnitude` | 1 | 0 | Complex magnitude ``|I + jQ|``. |
@@ -150,3 +152,5 @@
 | [Null sink](null_sink.md) | `LiteDSPNullSink` | var | 0 | Always-ready drain that counts consumed samples (CSR-readable). Terminates a branch. |
 | [Framer](framer.md) | `LiteDSPStreamFramer` | 0 | 0 | Pass I/Q through, asserting ``first`` at sample 0 and ``last`` at sample ``length-1``. |
 | [Deframer](deframer.md) | `LiteDSPStreamDeframer` | 0 | — | Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each frame. |
+| [Timestamper](timestamper.md) | `LiteDSPTimestamper` | 0 | — | Tag the I/Q stream with its ingress time (``timestamp``/``stream_id`` params, latency 0). |
+| [Time untagger](time_untagger.md) | `LiteDSPTimeUntagger` | 0 | — | Strip the ``timestamp``/``stream_id`` params: tagged I/Q -> plain I/Q (latency 0). |

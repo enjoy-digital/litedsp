@@ -187,6 +187,23 @@ class FramerDriver(Driver):
     def set_length(self, length):
         self.length.write(length)
 
+class TimeCoreDriver(Driver):
+    """TimeCore: read (latched, atomic) / set the sample-time counter, read the PPS latch."""
+    regs = ("set_time", "latch", "time", "pps_time")
+
+    def read_time(self):
+        """Atomic multi-word read: latch the count, then read the frozen value."""
+        self.latch.write(1)
+        return self.time.read()
+
+    def set(self, value):
+        """Set the time counter (loaded on write of the last CSR word)."""
+        self.set_time.write(value)
+
+    def read_pps_time(self):
+        """count at the last PPS rising edge (stable between PPS pulses)."""
+        return self.pps_time.read()
+
 class FrameSyncDriver(Driver):
     """Frame sync: normalized detection threshold, first-tag offset, detection counter."""
     regs           = ("threshold", "offset", "control", "count")
@@ -324,7 +341,8 @@ TYPED = {
 # Discovery ----------------------------------------------------------------------------------------
 
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
-           FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver]
+           FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
+           TimeCoreDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

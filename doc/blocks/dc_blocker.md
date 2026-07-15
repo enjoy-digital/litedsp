@@ -12,12 +12,37 @@ Multiplier-free 1st-order DC-removal IIR (per I/Q).
 a notch at DC). Larger ``pole_shift`` -> notch closer to DC (slower settling). The feedback
 state is saturated for stability.
 
+With ``precision_bits = 0`` (default) the recursion runs at ``data_width`` and its DC
+rejection floors at the state quantization: the truncated leak ``y >> pole_shift`` is 0 for
+any ``y`` in ``[0, 2**pole_shift)``, so a DC step can leave a residual of up to
+``2**pole_shift - 1`` LSBs (~``-6.02*(data_width - 1 - pole_shift)`` dBFS).
+
+With ``precision_bits = p > 0`` the recursive state/accumulator runs ``p`` bits wider
+(``p`` fractional bits) and the residual floor drops by ``6.02*p`` dB:
+
+- The leak is rounded away from zero (``|leak| >= 1`` whenever the state is nonzero), so
+  the state has no truncation deadband: on constant input it decays to exactly 0 — a pure
+  DC step settles to a residual of exactly 0 and silence produces no limit cycles.
+- The output requantization (wide state -> ``data_width``) uses first-order error
+  feedback: the quantization error is fed back into the next quantization, giving a
+  ``1 - z**-1`` noise transfer with a null at DC — the requantizer adds no DC bias
+  (bounded by 1 LSB per averaging window, i.e. ``1/n`` LSB over ``n`` samples).
+- The remaining DC bound comes from the leak-rounding bias under AC excitation: the
+  per-sample leak rounding error is < 1 wide LSB, so ``|mean(y_state)| <=
+  2**pole_shift`` wide LSBs, i.e. residual DC ``<= 2**(pole_shift - p)`` output LSBs =
+  ``-6.02*(data_width - 1 + p - pole_shift)`` dBFS (worst case; -108 dBFS at the default
+  ``pole_shift=5`` with ``p=8``, 16-bit — measured values sit well below the bound since
+  the rounding errors average out).
+
+``precision_bits = 0`` is bit-identical to the original ``data_width``-wide recursion.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
 |---|---|---|---|
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `pole_shift` | `5` | int | Leaky-integrator pole position (pole = 1 - 2**-pole_shift); larger = narrower DC notch but slower settling. Implemented as a bare shift, so any value costs no multiplier. |
+| `precision_bits` | `0` | int | Extra fractional bits of the recursive state (0 = legacy data_width-wide recursion, bit-identical). With p > 0 the output is requantized with first-order error feedback; residual DC is bounded by -6.02*(data_width - 1 + precision_bits - pole_shift) dBFS. |
 
 ## Ports
 

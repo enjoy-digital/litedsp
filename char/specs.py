@@ -27,7 +27,7 @@ from litedsp.analysis.window import window_coefficients
 from char import metrics
 
 from test.models import (nco_model, mixer_model, fir_model, cic_decimator_model, agc_model,
-    clipper_model, window_model, magnitude_model)
+    clipper_model, window_model, magnitude_model, dc_blocker_model)
 
 FULL_SCALE = (1 << 15) - 1                     # 16-bit signed full scale.
 
@@ -197,6 +197,28 @@ def spec_clipper():
     o_i, _ = clipper_model(x, np.zeros(n, np.int64), threshold=amp)
     return {"imd3_dbc": metrics.imd3_db(o_i.astype(float), f1, f2)}
 
+# DC Blocker -------------------------------------------------------------------------------------------
+
+DC_REJECTION_CAP_DB = 140.0                    # Report cap: the residual can be exactly 0.
+
+def spec_dc_blocker():
+    """DC blocker high-precision notch (pole_shift=5, precision_bits=8): DC rejection.
+
+    Full-scale DC step (0.95 FS) + -30 dBFS tone at f = 1/64; the residual is |mean| of the
+    settled output over whole tone periods. The documented worst-case bound is
+    -6.02*(data_width - 1 + p - pole_shift) = -108.4 dBFS; the away-from-zero leak (no
+    deadband) + error-feedback requantization (DC-free) leave a measured residual of exactly
+    0 here, so the metric is capped at 140 dB.
+    """
+    n = 16384
+    t = np.arange(n)
+    x = 31000 + np.round(1000*np.cos(2*np.pi*t/64)).astype(np.int64)
+    y = dc_blocker_model(x, pole_shift=5, data_width=16, precision_bits=8)
+    residual = abs(y[n//2:].mean())            # LSBs of DC left; tail = 128 whole tone periods.
+    if residual == 0:
+        return {"dc_rejection_db": DC_REJECTION_CAP_DB}
+    return {"dc_rejection_db": min(DC_REJECTION_CAP_DB, -20*np.log10(residual/(1 << 15)))}
+
 # Window ---------------------------------------------------------------------------------------------
 
 def spec_window():
@@ -214,9 +236,10 @@ SPECS = {
     "mixer"   : spec_mixer,
     "fir"     : spec_fir,
     "cic"     : spec_cic,
-    "agc"     : spec_agc,
-    "clipper" : spec_clipper,
-    "window"  : spec_window,
+    "agc"        : spec_agc,
+    "clipper"    : spec_clipper,
+    "dc_blocker" : spec_dc_blocker,
+    "window"     : spec_window,
 }
 
 DIRECTIONS = {
@@ -226,9 +249,10 @@ DIRECTIONS = {
     "mixer"   : {"image_rejection_db": "min"},
     "fir"     : {"passband_ripple_db": "max", "stopband_atten_db": "min"},
     "cic"     : {f"droop_err_r{R}_n{N}_db": "max" for R in CIC_RATES for N in CIC_STAGES},
-    "agc"     : {"settling_samples": "max", "steady_state_error_pct": "max"},
-    "clipper" : {"imd3_dbc": "min"},
-    "window"  : {"sidelobe_level_db": "min"},
+    "agc"        : {"settling_samples": "max", "steady_state_error_pct": "max"},
+    "clipper"    : {"imd3_dbc": "min"},
+    "dc_blocker" : {"dc_rejection_db": "min"},
+    "window"     : {"sidelobe_level_db": "min"},
 }
 
 DESCRIPTIONS = {
@@ -253,6 +277,12 @@ DESCRIPTIONS = {
                 "f=0.101/0.117: 3rd-order intermodulation distortion of the clipped output.",
     "window"  : "Window block, hann, n=64, 16-bit coefficients. Peak sidelobe level of the "
                 "realized (quantized, rounded) window shape.",
+    "dc_blocker": "DC blocker, high-precision notch (`pole_shift=5`, `precision_bits=8`, 16-bit). "
+                "0.95 FS DC step + -30 dBFS tone at f=1/64: rejection of the steady-state DC "
+                "residual (|mean| over 128 settled tone periods). Worst-case bound "
+                "-6.02*(15 + p - pole_shift) = -108.4 dBFS; the measured residual is exactly 0 "
+                "(no leak deadband, DC-free error-feedback requantizer), so the metric reports "
+                "the 140 dB cap.",
 }
 
 def unit(metric):

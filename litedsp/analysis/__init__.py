@@ -9,6 +9,7 @@
 from litedsp.analysis.detect    import LiteDSPEnergyDetector, LiteDSPFrequencyEstimator
 from litedsp.analysis.fft       import LiteDSPFFTStage, LiteDSPFFT
 from litedsp.analysis.fft_iter  import LiteDSPFFTIter
+from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
 from litedsp.analysis.goertzel  import LiteDSPGoertzel
 from litedsp.analysis.histogram import LiteDSPHistogram
 from litedsp.analysis.magnitude import LiteDSPMagnitude

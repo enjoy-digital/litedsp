@@ -33,6 +33,7 @@ EXCLUDED = {
     "cordic_rot", "cordic_vec", "hilbert", "fm_demod", "am_demod", "phase_detect", "slicer",
     "symbol_mapper", "correlator", "carrier_loop", "scrambler", "descrambler", "conv_encoder",
     "viterbi_decoder", "crc", "diff_encoder", "diff_decoder", "stats", "fft", "fft_iter",
+    "parallel_fft",  # Transform (like fft); latency pinned cycle-exact in test_fft_parallel.
     "window", "magnitude", "magnitude_cordic", "log2", "log_power", "envelope", "channel_mux",
     "channel_demux", "combine", "split", "framer", "deframer", "mixer", "equalizer", "farrow",
     "derotator", "ddc", "duc", "channelizer", "pfb_channelizer", "decimator", "interpolator", "fir_decimator",

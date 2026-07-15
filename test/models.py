@@ -201,6 +201,16 @@ def fir_decimator_model(x, coeffs, R, data_width=16, shift=None):
     conv = np.convolve(np.asarray(x, np.int64), np.asarray(coeffs, np.int64))[:len(x)]
     return np_scaled(conv[R - 1::R], shift, data_width)
 
+def farm_model(inputs, coeffs, R, data_width=16, shift=None):
+    """Reference for litedsp.rate.farm.LiteDSPResamplerFarm.
+
+    ``inputs`` is a list of per-channel ``(i, q)`` sample arrays (the demuxed streams); each
+    channel is exactly an independent :func:`fir_decimator_model` (shared taps). Returns the
+    per-channel list of decimated ``(i, q)`` arrays.
+    """
+    return [(fir_decimator_model(i, coeffs, R, data_width, shift),
+             fir_decimator_model(q, coeffs, R, data_width, shift)) for (i, q) in inputs]
+
 def fir_interpolator_model(x, coeffs, L, data_width=16, shift=None):
     """Reference for litedsp.filter.fir_poly.FIRInterpolator (one channel)."""
     if shift is None:
@@ -278,17 +288,37 @@ def iir_cascade_model(x, sections, frac_bits=14, data_width=16):
 
 # DC Blocker ---------------------------------------------------------------------------------------
 
-def dc_blocker_model(x, pole_shift=5, data_width=16):
-    """Reference for litedsp.filter.dc_blocker.DCBlocker (one channel)."""
+def dc_blocker_model(x, pole_shift=5, data_width=16, precision_bits=0):
+    """Reference for litedsp.filter.dc_blocker.DCBlocker (one channel).
+
+    ``precision_bits = p > 0`` mirrors the high-precision mode: the recursion runs p bits
+    wider with an away-from-zero-rounded leak (no truncation deadband) and the output is
+    requantized to ``data_width`` with first-order error feedback (DC-free quantization).
+    """
     x = np.asarray(x, np.int64)
     y = np.zeros(len(x), np.int64)
     x_prev = 0
-    y_prev = 0
+    if precision_bits == 0:
+        y_prev = 0
+        for n in range(len(x)):
+            yv = np_saturated(x[n] - x_prev + y_prev - (y_prev >> pole_shift), data_width)
+            y[n]   = yv
+            x_prev = x[n]
+            y_prev = yv
+        return y
+    p, ps = precision_bits, pole_shift
+    W      = data_width + p
+    y_wide = 0                                  # Recursive state, p fractional bits.
+    e      = 0                                  # Error-feedback state.
     for n in range(len(x)):
-        yv = np_saturated(x[n] - x_prev + y_prev - (y_prev >> pole_shift), data_width)
-        y[n]   = yv
-        x_prev = x[n]
-        y_prev = yv
+        xn   = int(x[n])
+        leak = (y_wide >> ps) if y_wide < 0 else ((y_wide + (1 << ps) - 1) >> ps)
+        y_wide = int(np_saturated(np.int64(((xn - x_prev) << p) + y_wide - leak), W))
+        s      = y_wide + e
+        q      = (s + (1 << (p - 1))) >> p      # Round half up (litedsp.common.rounded).
+        e      = s - (q << p)
+        y[n]   = np_saturated(np.int64(q), data_width)
+        x_prev = xn
     return y
 
 # Moving Average -----------------------------------------------------------------------------------
@@ -877,6 +907,31 @@ def iq_add_model(a_i, a_q, b_i, b_q, data_width=16):
     b_i, b_q = np.asarray(b_i, np.int64), np.asarray(b_q, np.int64)
     return np_saturated(a_i + b_i, data_width), np_saturated(a_q + b_q, data_width)
 
+# Timestamps ---------------------------------------------------------------------------------------
+
+def timestamper_model(times, first=None, last=None):
+    """Reference for litedsp.stream.timestamp.LiteDSPTimestamper (timestamp tags only).
+
+    ``times[k]`` is the TimeCore count when sample ``k`` is accepted; ``first``/``last`` are
+    its framing flags (None = unframed). Returns the per-sample ``timestamp`` tag: the time of
+    the most recent frame ``first`` (held over the frame), or the sample's own time when
+    outside a frame (unframed streams tag continuously). The payload passes through untouched.
+    """
+    n     = len(times)
+    first = [0]*n if first is None else first
+    last  = [0]*n if last  is None else last
+    tags, stamp, in_frame = [], 0, False
+    for t, f, l in zip(times, first, last):
+        if f or not in_frame:
+            stamp = t
+        tags.append(stamp)
+        in_frame = bool(not l and (f or in_frame))
+    return tags
+
+def time_untagger_model(i, q):
+    """Reference for litedsp.stream.timestamp.LiteDSPTimeUntagger (identity on the payload)."""
+    return np.asarray(i, np.int64), np.asarray(q, np.int64)
+
 # Combine ------------------------------------------------------------------------------------------
 
 def combine_model(channels_i, channels_q, enable=None, out_width=16):
@@ -997,6 +1052,19 @@ def fft_bfp_model(i, q, N, data_width=16, twiddle_width=16):
         out_q.append(xq)
         exps.append(exp)
     return np.concatenate(out_i), np.concatenate(out_q), np.array(exps, np.int64)
+
+def parallel_fft_model(frame_i, frame_q, data_width=16, twiddle_width=16):
+    """Bit-exact reference for litedsp.analysis.fft_parallel.LiteDSPParallelFFT (P=2).
+
+    The parallel FFT is the serial radix-2 SDF "scaled" schedule regrouped (first DIF
+    butterfly rank, then two independent N/2 serial cascades), with every rounding at the
+    same position — so its flattened lane stream is, by construction, :func:`fft_fixed_model`
+    exactly. Returns ``(i, q)`` int arrays of shape ``(N//2, 2)``: row ``m`` is output beat
+    ``m``, whose lanes carry the serial FFT's bit-reversed outputs ``2m`` and ``2m + 1``,
+    i.e. bins ``X[r]`` and ``X[r + N/2]`` with ``r = bit_reverse(m, log2(N/2))``.
+    """
+    fi, fq = fft_fixed_model(frame_i, frame_q, data_width, twiddle_width)
+    return fi.reshape(-1, 2), fq.reshape(-1, 2)
 
 # Window -------------------------------------------------------------------------------------------
 

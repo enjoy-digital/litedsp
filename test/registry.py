@@ -69,6 +69,7 @@ VSPEC = {
     "interpolator":       _v(rate=(8, 1)),
     "downsampler":        _v("decimate_model",    rate=None),  # Runtime factor.
     "upsampler":          _v("interpolate_model", rate=None),
+    "resampler_farm":     _v("farm_model",        rate=(1, 8)),  # Per channel; TDM-shared engine.
     # level.
     "gain":               _v("gain_model",  cosim=True),
     "power":              _v("power_model", latency="variable", rate=None),
@@ -116,6 +117,8 @@ VSPEC = {
                                                                # scaling="bfp" is bit-exact vs
                                                                # fft_bfp_model (test_fft_bfp).
     "fft_iter":           _v(rate=None),
+    "parallel_fft":       _v("parallel_fft_model"),            # Bit-exact (= fft_fixed_model
+                                                               # re-laned); 2-lane layout: no cosim.
     "psd":                _v("psd_model",   latency="variable", rate=None),
     "welch":              _v("welch_model", latency="variable", rate=None),
     "magnitude":          _v("magnitude_model", cosim=True),
@@ -145,4 +148,6 @@ VSPEC = {
     "null_sink":          _v(latency="n/a", rate=None),
     "framer":             _v(),
     "deframer":           _v(rate=None),
+    "timestamper":        _v("timestamper_model"),        # Non-standard shape (param tags): no cosim.
+    "time_untagger":      _v("time_untagger_model"),
 }

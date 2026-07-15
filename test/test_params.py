@@ -29,6 +29,9 @@ SPECIFIC = [
     ("nco",             {"lut_depth": 1000}),              # Power of two required.
     ("fft",             {"N": 100}),
     ("fft_iter",        {"N": 100}),
+    ("parallel_fft",    {"N": 100}),
+    ("parallel_fft",    {"N": 4}),                         # Power of two >= 8 required.
+    ("parallel_fft",    {"n_samples": 4}),                 # Only P=2 landed (P=4 follow-up).
     ("psd",             {"N": 100}),
     ("hilbert",         {"n_taps": 8}),                    # Odd taps required.
     ("decimator",       {"method": "invalid"}),
