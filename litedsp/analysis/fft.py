@@ -154,8 +154,16 @@ class LiteDSPFFTStage(LiteXModule):
                 diff_q1, _      = scaled(prod_q, tw_shift, data_width)
                 diff_i, diff_q  = Mux(sh, diff_i1, diff_i0), Mux(sh, diff_q1, diff_q0)
             else:
-                diff_i, _  = scaled(dr*tr - di*ti, tw_shift, data_width)
-                diff_q, _  = scaled(dr*ti + di*tr, tw_shift, data_width)
+                # Full-width product Signals: an inline product would be sized by its
+                # data_width-bit assignment context in the emitted Verilog and silently
+                # truncate (found by Verilator co-simulation; Migen's simulator evaluates
+                # full-width). The bfp path above is immune: it already routes the products
+                # through explicitly sized prod_i/prod_q.
+                prod_i = Signal((data_width + twiddle_width + 2, True))
+                prod_q = Signal((data_width + twiddle_width + 2, True))
+                self.comb += [prod_i.eq(dr*tr - di*ti), prod_q.eq(dr*ti + di*tr)]
+                diff_i, _  = scaled(prod_i, tw_shift, data_width)
+                diff_q, _  = scaled(prod_q, tw_shift, data_width)
         else:
             if bfp:                                  # Last stage: trivial twiddle (W^0 = 1).
                 diff_i0, dovf_i = scaled(dr, 0, data_width)

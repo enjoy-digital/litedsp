@@ -13,13 +13,19 @@ import subprocess
 def have_verilator():
     return shutil.which("verilator") is not None
 
-def build(verilog, tb_cpp, top, build_dir, cflags=None):
-    """Build a Verilator sim from a Verilog file + a C++ testbench. Returns the binary path."""
+def build(verilog, tb_cpp, top, build_dir, cflags=None, coverage=False):
+    """Build a Verilator sim from a Verilog file + a C++ testbench. Returns the binary path.
+
+    ``coverage`` adds line-coverage instrumentation (``--coverage-line``); the testbench then
+    dumps ``coverage.dat`` in its cwd on exit (see ``stream_tb.cpp``, ``run_coverage.py``).
+    """
     obj = os.path.join(build_dir, "obj_" + top)
     cmd = [
         "verilator", "--cc", "--exe", "--build", "-j", "0",
         "-Wno-fatal", "-Mdir", obj, "-o", "V" + top, "--top-module", top,
     ]
+    if coverage:
+        cmd += ["--coverage-line"]
     if cflags:
         cmd += ["-CFLAGS", cflags]
     cmd += [os.path.abspath(verilog), os.path.abspath(tb_cpp)]

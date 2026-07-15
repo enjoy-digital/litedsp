@@ -14,6 +14,24 @@
       "lut": 179
     }
   },
+  "block_deinterleaver": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 85,
+      "fmax_min": 187.3,
+      "lut": 162
+    }
+  },
+  "block_interleaver": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 85,
+      "fmax_min": 199.8,
+      "lut": 164
+    }
+  },
   "cfo_estimator": {
     "ecp5": {
       "bram": 0,
@@ -21,6 +39,15 @@
       "ff": 1764,
       "fmax_min": 119.6,
       "lut": 4805
+    }
+  },
+  "cfr": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 5,
+      "ff": 459,
+      "fmax_min": 55.5,
+      "lut": 757
     }
   },
   "channelizer": {
@@ -205,6 +232,15 @@
       "lut": 31
     }
   },
+  "dpd": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 12,
+      "ff": 481,
+      "fmax_min": 86.1,
+      "lut": 1632
+    }
+  },
   "duc": {
     "ecp5": {
       "bram": 2,
@@ -250,7 +286,7 @@
       "dsp": 28,
       "ff": 360,
       "fmax_min": 57.1,
-      "lut": 2987
+      "lut": 3934
     },
     "xilinx": {
       "bram": 0,
@@ -281,7 +317,7 @@
       "dsp": 56,
       "ff": 938,
       "fmax_min": 55.7,
-      "lut": 6118
+      "lut": 8011
     }
   },
   "fir": {
@@ -479,6 +515,24 @@
       "ff": 2,
       "fmax_min": 878.1,
       "lut": 134
+    }
+  },
+  "ldpc_decoder": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 147,
+      "fmax_min": 85.2,
+      "lut": 561
+    }
+  },
+  "ldpc_encoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 446,
+      "fmax_min": 152.9,
+      "lut": 4743
     }
   },
   "lms_equalizer": {

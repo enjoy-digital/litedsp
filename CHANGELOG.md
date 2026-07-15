@@ -39,7 +39,7 @@ Additional contracts introduced with the harmonization:
   polyphase-filter-bank channelizers), `filter/`
   (FIR direct/symmetric/polyphase, CIC, halfband, IIR biquad, Hilbert, RRC pulse shaping,
   Farrow/rational/arbitrary resamplers, LMS equalizer, coefficient design), `rate/`, `level/`
-  (gain, AGC, power, RMS, squelch, log/dB), `correction/` (DC offset, I/Q balance, CFO),
+  (gain, AGC, CFR, power, RMS, squelch, log/dB), `correction/` (DC offset, I/Q balance, CFO),
   `comm/` (FM/AM demod, PLL/Costas, coarse CFO estimator, timing recovery with M&M or Gardner
   TED, slicer, mapper,
   scrambler, CRC, convolutional encoder + hard/soft-decision Viterbi decoder,
@@ -55,6 +55,44 @@ Additional contracts introduced with the harmonization:
   and uncorrectable-block status CSRs, bit-exact golden models including status. Conventional
   basis (field polynomial 0x11D, fcr = 0); CCSDS 131.0-B dual-basis (0x187) conversion is a
   documented follow-up.
+- Block interleaver/deinterleaver (`litedsp/comm/interleaver.py`, `LiteDSPBlockInterleaver`/
+  `LiteDSPBlockDeinterleaver`): CCSDS-style depth-I byte interleaving between the RS and
+  convolutional layers (rows x cols transpose, write row-wise / read column-wise), ping-pong
+  block RAM for gapless back-to-back streaming (1 symbol/cycle), framed output blocks,
+  bit-exact golden models. Demonstrated by the CCSDS concatenated-FEC telemetry app note
+  (AN005, `examples/ccsds_telemetry.py`): RS(255,223) x I -> interleave -> conv K=7 -> QPSK/
+  AWGN + jammer burst -> soft Viterbi -> deinterleave -> RS decode, with a burst-length sweep
+  showing the ~I-times correctable-burst gain and a full RTL end-to-end recovery run.
+- LDPC codec for the IEEE 802.11n rate-1/2 n=648 (z=27) quasi-cyclic code (`litedsp/comm/
+  ldpc.py`, `LiteDSPLDPCEncoder`/`LiteDSPLDPCDecoder`): back-substitution encoder over the
+  dual-diagonal parity structure (no dense generator, ~650 flops of XOR network, H*c^T = 0
+  verified against the expanded parity-check matrix), row-layered normalized min-sum decoder
+  (factor 0.75 = x - (x >> 2), 4-bit input LLRs, compressed min1/min2/index/signs check
+  messages, APP + check-message block RAMs, circulant-shift addressing) with early
+  termination on a clean syndrome and iteration/parity/failure status CSRs. Bit-exact golden
+  models including iteration counts; measured quantized waterfall BER 9.8e-3 @ 2.0 dB /
+  6.7e-4 @ 2.5 dB / < 2.6e-6 @ 3.0 dB Eb/N0 (BPSK, AWGN, 8 iterations). One LLR per beat;
+  the z-parallel QC datapath is a documented follow-up.
+- Digital predistortion actuator (`litedsp/level/dpd.py`, `LiteDSPDPD`): memory-polynomial-lite
+  per-tap complex-gain LUTs on delayed samples (Q2.frac entries, two-region alpha-max-beta-min
+  magnitude binning, identity reset = exact passthrough, sequential CSR LUT reload with tap
+  select, fixed 3-cycle latency, bypass). Adaptation is host-side, as in deployed DPD systems:
+  `litedsp/software/dpd.py` provides `DPDAdapter` (indirect-learning least squares on the
+  LUT-bin basis, gateware-exact binning, Q2.frac quantization) plus a `simulate_pa()` Saleh +
+  memory PA model, programmed through `DPDDriver`. Closed-loop test gates >= 10 dB ACLR
+  improvement on the synthetic PA (typically +15 dB ACLR / +25 dB EVM); actuator verified
+  bit-exact against `dpd_model` under backpressure, random LUT contents and mock-bus-programmed
+  fitted LUTs.
+- Crest-factor reduction (`litedsp/level/cfr.py`, `LiteDSPCFR`): peak-cancellation CFR —
+  local-max peak detection on the alpha-max-beta-min magnitude estimate against a runtime
+  threshold, divider-free correction coefficient `g = (|x_pk| - T)/|x_pk|` (leading-zero
+  normalization + 64-entry midpoint reciprocal LUT, ~0.8% max error), and a unit-peak
+  windowed-sinc cancellation pulse subtracted from the delay-matched stream (single pulse
+  engine; peaks arriving while busy pass uncorrected and are counted). Runtime threshold /
+  bypass, corrected/uncorrected peak counter CSRs; bit-exact `cfr_model` including counters;
+  characterized PAPR reduction + below-threshold EVM gates (`char/`, ~1.9 dB PAPR reduction
+  at a 7 dB target on ~11 dB-PAPR OFDM-like stimulus, EVM ~1.6%, out-of-band regrowth
+  bounded).
 - Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock — parallel
   NCO/mixer/FIR/CIC/DDC, bit-identical to their serial counterparts.
 - All public hardware classes carry the `LiteDSP` prefix (`LiteDSPNCO`, `LiteDSPFIRFilter`,

@@ -38,11 +38,21 @@ SPECIFIC = [
     ("interpolator",    {"method": "invalid"}),
     ("cp_insert",       {"cp_len": 0}),
     ("cp_insert",       {"cp_len": 64, "fft_size": 64}),   # cp_len < fft_size.
+    ("cfr",             {"pulse_span": 7}),                # Even span required.
+    ("cfr",             {"pulse_span": 2}),                # >= 4 required.
+    ("cfr",             {"cutoff": 0.6}),                  # Normalized cutoff <= 0.5.
+    ("dpd",             {"lut_depth": 100}),               # Power of two required.
+    ("dpd",             {"lut_depth": 1 << 16}),           # log2(depth) <= data_width - 1.
+    ("dpd",             {"coeff_frac": 0}),
     ("cordic_rot",      {"mode": "invalid"}),
     ("timing_recovery", {"ted": "invalid"}),
     ("magnitude",       {"method": "invalid"}),
     ("cfo_estimator",   {"delay": 12}),                    # Power of two required.
     ("cfo_estimator",   {"span_log2": 0}),
+    ("block_interleaver",   {"rows": 0}),                  # Interleaving depth I >= 1.
+    ("block_interleaver",   {"cols": 0}),
+    ("block_deinterleaver", {"rows": 0}),
+    ("block_deinterleaver", {"rows": 1, "cols": 1}),       # Block of at least 2 symbols.
     ("rs_encoder",      {"n": 254}),                       # n fixed at 255 over GF(2^8).
     ("rs_encoder",      {"k": 222}),                       # Odd n - k.
     ("rs_decoder",      {"k": 221}),                       # t = 17 > 16.

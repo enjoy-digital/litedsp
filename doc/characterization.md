@@ -76,6 +76,15 @@ Clipper at 50% clip depth (threshold = half the two-tone peak). Two tones at f=0
 |---|---|---|---|
 | `imd3_dbc` | dBc | 15.45 | >= 14.99 |
 
+## cfr
+
+CFR peak cancellation, `pulse_span=16`, pulse cutoff 0.2, 16-bit. OFDM-like Gaussian I/Q (subcarriers over |f|<=0.2, ~11 dB input PAPR), threshold at the 7 dB PAPR target: PAPR reduction (max/mean power), and RMS EVM of the below-threshold samples vs the delay-aligned input (pulse-tail leakage). Single-engine, single-pass: the residual PAPR is set by busy-skipped peaks and the alpha-max-beta-min estimate spread.
+
+| Metric | Unit | Measured | Guaranteed |
+|---|---|---|---|
+| `evm_below_threshold_pct` | % | 1.62 | <= 1.67 |
+| `papr_reduction_db` | dB | 1.57 | >= 1.52 |
+
 ## dc_blocker
 
 DC blocker, high-precision notch (`pole_shift=5`, `precision_bits=8`, 16-bit). 0.95 FS DC step + -30 dBFS tone at f=1/64: rejection of the steady-state DC residual (|mean| over 128 settled tone periods). Worst-case bound -6.02*(15 + p - pole_shift) = -108.4 dBFS; the measured residual is exactly 0 (no leak deadband, DC-free error-feedback requantizer), so the metric reports the 140 dB cap.

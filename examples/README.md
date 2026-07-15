@@ -31,6 +31,7 @@ headless (matplotlib Agg, `savefig` only) and are smoke-checked in CI (`test/tes
 | [AN002 — DQPSK modem loopback + BER curve](../doc/app_notes/an002_qpsk_modem.md) | `qpsk_modem.py` | PRBS → DiffEncoder → SymbolMapper → PulseShaper → AWGN → matched RRC → TimingRecovery → Slicer → DiffDecoder | BER vs Eb/N0 vs DQPSK theory: implementation loss < 1 dB @ 1e-3; one RTL point == golden models |
 | [AN003 — Spectrum monitor with waterfall](../doc/app_notes/an003_spectrum_monitor.md) | `spectrum_monitor.py` | TimeCore/Timestamper → TimeUntagger → WelchPSD (50% overlap, linear + max-hold) | Timestamped waterfall (absolute sample time), averaged vs max-hold spectra, GNU Radio `udp_source` interop recipe |
 | [AN004 — Chirp pulse-compression radar](../doc/app_notes/an004_chirp_radar.md) | `chirp_radar.py` | Chirp → NumPy target channel → complex matched filter (2 × FIRFilterComplex) → Magnitude | Pulse-compression ranging (exact delay recovery), range resolution vs bandwidth, PSLR gate |
+| [AN005 — CCSDS concatenated-FEC telemetry](../doc/app_notes/an005_ccsds_telemetry.md) | `ccsds_telemetry.py` | RSEncoder ×I → BlockInterleaver → ConvEncoder(K=7) → QPSK/AWGN + jammer burst → SoftDemapper → soft Viterbi → BlockDeinterleaver → RSDecoder | Burst spreading: a burst that is uncorrectable without interleaving is fully corrected at I = 2 (~I× correctable burst); RTL end-to-end recovers the message error-free |
 
 ## Standalone core configs
 

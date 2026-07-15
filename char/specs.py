@@ -27,7 +27,7 @@ from litedsp.analysis.window import window_coefficients
 from char import metrics
 
 from test.models import (nco_model, mixer_model, fir_model, cic_decimator_model, agc_model,
-    clipper_model, window_model, magnitude_model, dc_blocker_model)
+    clipper_model, cfr_model, window_model, magnitude_model, dc_blocker_model)
 
 FULL_SCALE = (1 << 15) - 1                     # 16-bit signed full scale.
 
@@ -197,6 +197,45 @@ def spec_clipper():
     o_i, _ = clipper_model(x, np.zeros(n, np.int64), threshold=amp)
     return {"imd3_dbc": metrics.imd3_db(o_i.astype(float), f1, f2)}
 
+# CFR ------------------------------------------------------------------------------------------------
+
+def spec_cfr():
+    """CFR (pulse_span=16, cutoff=0.2): PAPR reduction + below-threshold EVM, 7 dB target.
+
+    OFDM-like Gaussian I/Q (random-phase subcarriers over |f| <= 0.2, ~11 dB input PAPR),
+    threshold at the 7 dB PAPR target in alpha-max-beta-min magnitude units. PAPR is the
+    max/mean power ratio; EVM is the RMS error of the (true-magnitude) below-threshold
+    samples vs the delay-aligned input — the distortion the correction pulses leak onto
+    samples that needed none.
+    """
+    from litedsp.level.cfr import cfr_pulse
+
+    n, span, bw = 16384, 16, 0.2
+    rng  = np.random.default_rng(1)
+    X    = np.zeros(n, complex)
+    used = np.abs(np.fft.fftfreq(n)) <= bw
+    X[used] = np.exp(1j*rng.uniform(0, 2*np.pi, used.sum()))
+    x  = np.fft.ifft(X)
+    x *= 4000/np.sqrt(np.mean(np.abs(x)**2))
+    i  = np.round(x.real).astype(np.int64)
+    q  = np.round(x.imag).astype(np.int64)
+    rms = np.sqrt(np.mean(i.astype(float)**2 + q.astype(float)**2))
+    thr = int(round(rms*10**(7.0/20)))                       # ~7 dB PAPR target.
+    o_i, o_q, _, _ = cfr_model(i, q, thr, cfr_pulse(span, cutoff=bw))
+    D = span//2 + 2                                          # Datapath delay (alignment).
+    def papr(a, b):
+        p = a.astype(float)**2 + b.astype(float)**2
+        return 10*np.log10(p.max()/p.mean())
+    xi, xq = i[:n - D].astype(float), q[:n - D].astype(float)
+    yi, yq = o_i[D:].astype(float), o_q[D:].astype(float)
+    sel = np.hypot(xi, xq) <= thr
+    evm = 100*np.sqrt((((yi - xi)[sel]**2 + (yq - xq)[sel]**2).mean())
+                      /np.mean(xi**2 + xq**2))
+    return {
+        "papr_reduction_db"       : papr(i, q) - papr(o_i[D:], o_q[D:]),
+        "evm_below_threshold_pct" : evm,
+    }
+
 # DC Blocker -------------------------------------------------------------------------------------------
 
 DC_REJECTION_CAP_DB = 140.0                    # Report cap: the residual can be exactly 0.
@@ -238,6 +277,7 @@ SPECS = {
     "cic"     : spec_cic,
     "agc"        : spec_agc,
     "clipper"    : spec_clipper,
+    "cfr"        : spec_cfr,
     "dc_blocker" : spec_dc_blocker,
     "window"     : spec_window,
 }
@@ -251,6 +291,7 @@ DIRECTIONS = {
     "cic"     : {f"droop_err_r{R}_n{N}_db": "max" for R in CIC_RATES for N in CIC_STAGES},
     "agc"        : {"settling_samples": "max", "steady_state_error_pct": "max"},
     "clipper"    : {"imd3_dbc": "min"},
+    "cfr"        : {"papr_reduction_db": "min", "evm_below_threshold_pct": "max"},
     "dc_blocker" : {"dc_rejection_db": "min"},
     "window"     : {"sidelobe_level_db": "min"},
 }
@@ -275,6 +316,12 @@ DESCRIPTIONS = {
                 "magnitude, boxcar-smoothed).",
     "clipper" : "Clipper at 50% clip depth (threshold = half the two-tone peak). Two tones at "
                 "f=0.101/0.117: 3rd-order intermodulation distortion of the clipped output.",
+    "cfr"     : "CFR peak cancellation, `pulse_span=16`, pulse cutoff 0.2, 16-bit. OFDM-like "
+                "Gaussian I/Q (subcarriers over |f|<=0.2, ~11 dB input PAPR), threshold at the "
+                "7 dB PAPR target: PAPR reduction (max/mean power), and RMS EVM of the "
+                "below-threshold samples vs the delay-aligned input (pulse-tail leakage). "
+                "Single-engine, single-pass: the residual PAPR is set by busy-skipped peaks "
+                "and the alpha-max-beta-min estimate spread.",
     "window"  : "Window block, hann, n=64, 16-bit coefficients. Peak sidelobe level of the "
                 "realized (quantized, rounded) window shape.",
     "dc_blocker": "DC blocker, high-precision notch (`pole_shift=5`, `precision_bits=8`, 16-bit). "

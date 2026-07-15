@@ -283,6 +283,106 @@ class FIRDriver(Driver):
                 t = int(round(t * (1 << (self.data_width - 1))))
             csr.write(t & mask)
 
+    def _design_taps(self, n_taps):
+        """Resolve a design tap count: explicit, or the block's ``coeff_<k>`` CSR scan.
+
+        The FIR gateware exposes one ``coeff_<k>`` CSR per tap and no config register
+        (only the polyphase FIRs have one, behind a different reload interface), so the
+        scan count *is* the hardware tap count.
+        """
+        if n_taps is None:
+            n_taps = self.n_taps
+        if not n_taps:
+            raise ValueError(f"'{self.prefix}': tap count not discoverable "
+                             f"(no coeff_<k> CSRs found); pass n_taps explicitly")
+        return n_taps
+
+    def set_lowpass(self, cutoff, n_taps=None, data_width=16):
+        """Design and load a windowed-sinc low-pass; ``cutoff`` normalized (0..0.5).
+
+        Taps come from :func:`litedsp.filter.design.firwin_lowpass` (already quantized
+        integers) and are programmed through :meth:`load`. ``n_taps`` defaults to the
+        block's tap count (discovered from its ``coeff_<k>`` CSRs)::
+
+            fir = FIRDriver(bus, "fir")
+            fir.set_lowpass(0.125)   # fs/8 cutoff, all hardware taps.
+        """
+        from litedsp.filter.design import firwin_lowpass  # Lazy: pulls in numpy.
+        self.load(firwin_lowpass(self._design_taps(n_taps), cutoff, data_width=data_width))
+
+    def set_remez(self, f_pass, f_stop, n_taps=None, data_width=16):
+        """Design and load an equiripple (Parks-McClellan) low-pass; edges normalized (0..0.5).
+
+        Taps come from :func:`litedsp.filter.design.remez_lowpass` (``data_width`` is passed
+        so quantized integers come back) and are programmed through :meth:`load`. ``n_taps``
+        defaults to the block's tap count (discovered from its ``coeff_<k>`` CSRs)::
+
+            fir = FIRDriver(bus, "fir")
+            fir.set_remez(0.10, 0.15)   # Pass to 0.10 fs, stop from 0.15 fs.
+        """
+        from litedsp.filter.design import remez_lowpass  # Lazy: pulls in numpy.
+        self.load(remez_lowpass(self._design_taps(n_taps), f_pass, f_stop,
+                                data_width=data_width))
+
+class DPDDriver(Driver):
+    """DPD actuator: program the per-tap complex-gain LUTs (host-side adaptation target).
+
+    ``load()`` takes the integer LUTs a :class:`litedsp.software.dpd.DPDAdapter` fits
+    (``adapter.program(driver)`` is the usual entry point); float/complex entries are
+    quantized to Q2.frac on the way in.
+    """
+    regs = ("config", "lut_tap", "lut_reset", "lut", "bypass")
+
+    @property
+    def n_taps(self):
+        return self.config.read() & 0xFF
+
+    @property
+    def lut_depth(self):
+        return (self.config.read() >> 8) & 0xFFFF
+
+    @property
+    def coeff_frac(self):
+        return (self.config.read() >> 24) & 0xFF
+
+    def load_lut(self, tap, entries, coeff_frac=None):
+        """Program one tap's LUT sequentially.
+
+        ``entries`` is either an ``(i, q)`` pair of integer arrays (signed Q2.frac, the
+        adapter's native format) or a sequence of complex/float gains (1.0 = unity),
+        quantized here. ``coeff_frac`` defaults to the hardware's ``config.frac``.
+        """
+        if coeff_frac is None:
+            coeff_frac = self.coeff_frac
+        width = coeff_frac + 2
+        mask  = (1 << width) - 1
+        if isinstance(entries, tuple) and len(entries) == 2:
+            pairs = list(zip(entries[0], entries[1]))
+        else:
+            scale = 1 << coeff_frac
+            lo, hi = -(2*scale), 2*scale - 1
+            pairs = [(max(lo, min(hi, int(round(complex(e).real*scale)))),
+                      max(lo, min(hi, int(round(complex(e).imag*scale))))) for e in entries]
+        self.lut_tap.write(tap)
+        self.lut_reset.write(1)                       # Entry pointer back to 0 (write strobes).
+        for gi, gq in pairs:
+            self.lut.write(((int(gq) & mask) << width) | (int(gi) & mask))
+
+    def load(self, luts, coeff_frac=None):
+        """Program all taps (``luts`` = one entry set per tap, see :meth:`load_lut`)."""
+        for tap, entries in enumerate(luts):
+            self.load_lut(tap, entries, coeff_frac=coeff_frac)
+
+    def identity(self, coeff_frac=None):
+        """Restore the reset LUTs (tap 0 = 1.0 + 0j, memory taps = 0): exact passthrough."""
+        if coeff_frac is None:
+            coeff_frac = self.coeff_frac
+        n, depth = self.n_taps, self.lut_depth
+        self.load([[(1.0 if m == 0 else 0.0)]*depth for m in range(n)], coeff_frac=coeff_frac)
+
+    def set_bypass(self, bypass):
+        self.bypass.write(int(bypass))
+
 # Generic Reflected Driver ---------------------------------------------------------------------------
 
 def make_driver(spec):
@@ -336,13 +436,14 @@ TYPED = {
     "gain":     GainDriver,
     "mixer":    MixerDriver,
     "carrier_loop": PLLDriver,
+    "dpd":      DPDDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
 
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
-           TimeCoreDriver]
+           TimeCoreDriver, DPDDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

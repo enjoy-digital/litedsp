@@ -39,6 +39,8 @@ from litedsp.filter.design        import biquad_sos_quantize
 from litedsp.level.gain           import LiteDSPGain
 from litedsp.level.power          import LiteDSPPower
 from litedsp.level.agc            import LiteDSPAGC
+from litedsp.level.dpd            import LiteDSPDPD
+from litedsp.level.cfr            import LiteDSPCFR
 from litedsp.level.saturate       import LiteDSPSaturate
 from litedsp.level.rms            import LiteDSPRMS
 from litedsp.analysis.magnitude   import LiteDSPMagnitude
@@ -64,9 +66,11 @@ from litedsp.comm.frame_sync      import LiteDSPFrameSync
 from litedsp.comm.cfo_est         import LiteDSPCFOEstimator
 from litedsp.comm.soft_demap      import LiteDSPSoftDemapper
 from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer
+from litedsp.comm.interleaver     import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
 from litedsp.comm.viterbi         import LiteDSPViterbiDecoder
 from litedsp.comm.rs              import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.ldpc            import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -162,6 +166,15 @@ def power():
 def agc():
     d = LiteDSPAGC(data_width=16, with_csr=False)
     return d, {d.target} | _eps(d.sink, d.source), 10.0
+
+def dpd():
+    d = LiteDSPDPD(data_width=16, n_taps=3, lut_depth=64, coeff_frac=14, with_csr=False)
+    return d, {d.lut_tap, d.lut_data, d.lut_we, d.lut_rst, d.bypass} | _eps(d.sink, d.source), 10.0
+
+def cfr():
+    d = LiteDSPCFR(data_width=16, pulse_span=16, with_csr=False)
+    # Expose the counters too, or the detection path folds away.
+    return d, {d.threshold, d.peak_count, d.missed_count, d.bypass} | _eps(d.sink, d.source), 10.0
 
 def saturate():
     d = LiteDSPSaturate(data_width=16, in_width=32, shift=15, with_csr=False)
@@ -276,6 +289,14 @@ def viterbi_decoder_soft():
     d = LiteDSPViterbiDecoder(llr_bits=4, with_csr=False)    # Soft-decision, 4-bit LLRs.
     return d, _eps(d.sink, d.source), 12.0
 
+def block_interleaver():
+    d = LiteDSPBlockInterleaver(rows=5, cols=255, width=8, with_csr=False)   # CCSDS I=5.
+    return d, {d.filled} | _eps(d.sink, d.source), 8.0
+
+def block_deinterleaver():
+    d = LiteDSPBlockDeinterleaver(rows=5, cols=255, width=8, with_csr=False)
+    return d, {d.filled} | _eps(d.sink, d.source), 8.0
+
 def rs_encoder():
     d = LiteDSPRSEncoder(with_csr=False)                     # RS(255,223), t=16.
     return d, _eps(d.sink, d.source), 10.0
@@ -284,6 +305,14 @@ def rs_decoder():
     d = LiteDSPRSDecoder(with_csr=False)                     # RS(255,223), t=16.
     return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count,
                d.clear} | _eps(d.sink, d.source), 12.0
+
+def ldpc_encoder():
+    d = LiteDSPLDPCEncoder(with_csr=False)                   # 802.11n (648, 324), z=27.
+    return d, _eps(d.sink, d.source), 10.0
+
+def ldpc_decoder():
+    d = LiteDSPLDPCDecoder(llr_bits=4, max_iters=8, with_csr=False)  # Layered min-sum.
+    return d, {d.iterations, d.parity_ok, d.failures, d.clear} | _eps(d.sink, d.source), 12.0
 
 def stream_fifo():
     d = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
@@ -369,7 +398,7 @@ REGISTRY = {
     "cic_decimator": cic_decimator,
     "cic_interpolator": cic_interpolator, "halfband": halfband, "iir_biquad": iir_biquad,
     "dc_blocker": dc_blocker, "moving_average": moving_average, "farrow": farrow,
-    "gain": gain, "power": power, "agc": agc, "saturate": saturate, "rms": rms,
+    "gain": gain, "power": power, "agc": agc, "dpd": dpd, "cfr": cfr, "saturate": saturate, "rms": rms,
     "magnitude": magnitude, "magnitude_cordic": magnitude_cordic, "combine": combine,
     "window": window, "fft": fft, "fft_iter": fft_iter, "psd": psd, "goertzel": goertzel,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
@@ -379,7 +408,9 @@ REGISTRY = {
     "soft_demapper": soft_demapper, "ofdm_equalizer": ofdm_equalizer,
     "puncturer": puncturer, "depuncturer": depuncturer,
     "viterbi_decoder": viterbi_decoder, "viterbi_decoder_soft": viterbi_decoder_soft,
+    "block_interleaver": block_interleaver, "block_deinterleaver": block_deinterleaver,
     "rs_encoder": rs_encoder, "rs_decoder": rs_decoder,
+    "ldpc_encoder": ldpc_encoder, "ldpc_decoder": ldpc_decoder,
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
     "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,

@@ -10,6 +10,7 @@ dist/
 *.init
 sim/build/
 impl/build/
+coverage.json
 *.jou
 *.rpt
 .Xil/

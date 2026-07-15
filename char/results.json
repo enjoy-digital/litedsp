@@ -3,6 +3,10 @@
     "settling_samples": 34.0,
     "steady_state_error_pct": 0.725
   },
+  "cfr": {
+    "evm_below_threshold_pct": 1.619,
+    "papr_reduction_db": 1.567
+  },
   "cic": {
     "droop_err_r16_n3_db": 0.0,
     "droop_err_r16_n4_db": 0.0,

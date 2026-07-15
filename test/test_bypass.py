@@ -19,8 +19,8 @@ from test.common import run_stream, column
 # Blocks with a boolean ``bypass`` control (the mixer's 2-bit input-select bypass is tested
 # in test_mixer.py; the capture scope's bypass in test_capture.py).
 BYPASS_BLOCKS = [
-    "gain", "fir_real", "fir_complex", "clipper", "saturate", "dc_offset", "iq_balance",
-    "dc_blocker", "moving_average", "iir_biquad", "notch", "comb_filter", "allpass",
+    "gain", "fir_real", "fir_complex", "cfr", "clipper", "saturate", "dc_offset", "iq_balance",
+    "dc_blocker", "moving_average", "iir_biquad", "notch", "comb_filter", "allpass", "dpd",
 ]
 
 class TestBypass(unittest.TestCase):

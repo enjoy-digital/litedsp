@@ -41,10 +41,12 @@ from litedsp.rate.decimator        import LiteDSPDecimator
 from litedsp.rate.interpolator     import LiteDSPInterpolator
 from litedsp.rate.dropper          import LiteDSPDownsampler, LiteDSPUpsampler
 from litedsp.rate.farm             import LiteDSPResamplerFarm
+from litedsp.level.dpd             import LiteDSPDPD
 from litedsp.level.gain            import LiteDSPGain
 from litedsp.level.power           import LiteDSPPower
 from litedsp.level.agc             import LiteDSPAGC
 from litedsp.level.saturate        import LiteDSPSaturate
+from litedsp.level.cfr             import LiteDSPCFR
 from litedsp.level.clipper         import LiteDSPClipper
 from litedsp.level.rms             import LiteDSPRMS
 from litedsp.level.squelch         import LiteDSPSquelch
@@ -66,9 +68,11 @@ from litedsp.comm.phase_detect     import LiteDSPPhaseDetect
 from litedsp.comm.cfo_est          import LiteDSPCFOEstimator
 from litedsp.comm.diff             import LiteDSPDifferentialEncoder, LiteDSPDifferentialDecoder
 from litedsp.comm.coding           import LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC, LiteDSPConvEncoder
+from litedsp.comm.interleaver      import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.viterbi          import LiteDSPViterbiDecoder
 from litedsp.comm.puncture         import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
 from litedsp.comm.rs               import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.ldpc             import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
 from litedsp.comm.ofdm             import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.comm.ofdm_eq          import LiteDSPOFDMEqualizer
 from litedsp.analysis.window       import LiteDSPWindow
@@ -145,7 +149,9 @@ ENTRIES = [
     ("gain",               LiteDSPGain,                  {},                                     "level",      "Gain",                  None),
     ("power",              LiteDSPPower,                 {},                                     "level",      "Power meter",           None),
     ("agc",                LiteDSPAGC,                   {},                                     "level",      "AGC",                   None),
+    ("dpd",                LiteDSPDPD,                   {},                                     "level",      "DPD actuator",          None),
     ("saturate",           LiteDSPSaturate,              {},                                     "level",      "Saturate",              None),
+    ("cfr",                LiteDSPCFR,                   {},                                     "level",      "CFR (peak cancellation)", None),
     ("clipper",            LiteDSPClipper,               {},                                     "level",      "Clipper",               None),
     ("rms",                LiteDSPRMS,                   {},                                     "level",      "RMS",                   None),
     ("squelch",            LiteDSPSquelch,               {},                                     "level",      "Squelch",               None),
@@ -177,8 +183,12 @@ ENTRIES = [
     ("viterbi_decoder",    LiteDSPViterbiDecoder,        {},                                     "comm",       "Viterbi decoder",       None),
     ("puncturer",          LiteDSPPuncturer,             {"pattern": PUNCTURE_3_4},              "comm",       "Puncturer",             None),
     ("depuncturer",        LiteDSPDepuncturer,           {"pattern": PUNCTURE_3_4},              "comm",       "Depuncturer (LLR)",     None),
+    ("block_interleaver",  LiteDSPBlockInterleaver,      {},                                     "comm",       "Block interleaver",     None),
+    ("block_deinterleaver", LiteDSPBlockDeinterleaver,   {},                                     "comm",       "Block deinterleaver",   None),
     ("rs_encoder",         LiteDSPRSEncoder,             {},                                     "comm",       "RS encoder (255,k)",    None),
     ("rs_decoder",         LiteDSPRSDecoder,             {},                                     "comm",       "RS decoder (255,k)",    None),
+    ("ldpc_encoder",       LiteDSPLDPCEncoder,           {},                                     "comm",       "LDPC encoder (802.11n)", None),
+    ("ldpc_decoder",       LiteDSPLDPCDecoder,           {},                                     "comm",       "LDPC decoder (802.11n)", None),
     ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),
     ("cp_remove",          LiteDSPCPRemove,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP remove",        None),
     ("ofdm_equalizer",     LiteDSPOFDMEqualizer,         {"fft_size": 64},                       "comm",       "OFDM equalizer (1-tap)", None),

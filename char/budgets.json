@@ -9,6 +9,16 @@
       "value": 0.725
     }
   },
+  "cfr": {
+    "evm_below_threshold_pct": {
+      "direction": "max",
+      "value": 1.619
+    },
+    "papr_reduction_db": {
+      "direction": "min",
+      "value": 1.567
+    }
+  },
   "cic": {
     "droop_err_r16_n3_db": {
       "direction": "max",

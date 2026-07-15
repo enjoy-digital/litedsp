@@ -70,6 +70,38 @@ jobs:
           python3 sim/run_blocks.py --seed 2 --throttle 40 --ready-rate 60
           python3 sim/run_blocks.py --seed 3 --throttle 10 --ready-rate 90
 
+  # Verilator line coverage of the co-simulation suite (report-only; artifact for trending).
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Verilator
+        run: sudo apt-get update && sudo apt-get install -y verilator
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+          pip install git+https://github.com/enjoy-digital/litedram.git
+          pip install git+https://github.com/enjoy-digital/liteeth.git
+
+      - name: Line coverage (report-only)
+        run: python3 sim/run_coverage.py
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-results
+          path: coverage.json
+
   # Full characterization gate + rendered report artifact.
   char:
     runs-on: ubuntu-latest

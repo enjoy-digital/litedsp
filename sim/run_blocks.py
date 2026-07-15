@@ -119,7 +119,7 @@ def _ports_header(dut, top, path):
 
 # Runner -------------------------------------------------------------------------------------------
 
-def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_sim"):
+def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_sim", coverage=False):
     dut, cols, n_out, model = SPECS[name]()
     bd = os.path.join(build_dir, name)
     os.makedirs(bd, exist_ok=True)
@@ -135,7 +135,7 @@ def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_
 
     verilog = emit_verilog(dut, ios, top, bd)          # Memory .init files land beside the .v.
     binary  = build(verilog, os.path.join(ROOT, "sim", "stream_tb.cpp"), top, bd,
-        cflags=f"-I{os.path.abspath(bd)}")
+        cflags=f"-I{os.path.abspath(bd)}", coverage=coverage)
 
     fin = os.path.join(bd, "in.txt")
     with open(fin, "w") as f:

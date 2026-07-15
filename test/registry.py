@@ -67,17 +67,19 @@ VSPEC = {
     # rate.
     "decimator":          _v(rate=(1, 8)),
     "interpolator":       _v(rate=(8, 1)),
-    "downsampler":        _v("decimate_model",    rate=None),  # Runtime factor.
-    "upsampler":          _v("interpolate_model", rate=None),
+    "downsampler":        _v("decimate_model",    rate=None, cosim=True),  # Runtime factor.
+    "upsampler":          _v("interpolate_model", rate=None, cosim=True),
     "resampler_farm":     _v("farm_model",        rate=(1, 8)),  # Per channel; TDM-shared engine.
     # level.
     "gain":               _v("gain_model",  cosim=True),
     "power":              _v("power_model", latency="variable", rate=None),
-    "agc":                _v("agc_model"),
+    "agc":                _v("agc_model", cosim=True),
+    "dpd":                _v("dpd_model"),             # Actuator only; adaptation is host-side.
+    "cfr":                _v("cfr_model"),             # Single-engine peak cancellation.
     "saturate":           _v(),
-    "clipper":            _v("clipper_model"),
+    "clipper":            _v("clipper_model", cosim=True),
     "rms":                _v(latency="variable", rate=None),
-    "squelch":            _v("squelch_model"),
+    "squelch":            _v("squelch_model", cosim=True),
     "envelope":           _v("envelope_detector_model"),
     "log2":               _v("log2_model", cosim=True),
     "log_power":          _v(),
@@ -88,17 +90,17 @@ VSPEC = {
     # comm.
     "fm_demod":           _v(),
     "am_demod":           _v(),
-    "slicer":             _v("slicer_model"),
+    "slicer":             _v("slicer_model", cosim=True),
     "soft_demapper":      _v("soft_demap_model", cosim=True),
     "symbol_mapper":      _v(),
-    "correlator":         _v("fir_complex_model"),       # Matched filter = complex FIR.
+    "correlator":         _v("fir_complex_model", cosim=True),  # Matched filter = complex FIR.
     "frame_sync":         _v("frame_sync_model"),        # CFAR preamble detect + alignment.
     "timing_recovery":    _v(latency="variable", rate=None),
     "carrier_loop":       _v(),
     "phase_detect":       _v(),
     "cfo_estimator":      _v("cfo_estimator_model"),     # Delay-conj-multiply + CORDIC angle.
-    "diff_encoder":       _v("diff_encode_model"),
-    "diff_decoder":       _v("diff_decode_model"),
+    "diff_encoder":       _v("diff_encode_model", cosim=True),
+    "diff_decoder":       _v("diff_decode_model", cosim=True),
     "scrambler":          _v(),
     "descrambler":        _v(),
     "crc":                _v(),
@@ -106,8 +108,12 @@ VSPEC = {
     "viterbi_decoder":    _v("viterbi_model"),
     "puncturer":          _v("puncture_model",   latency="variable", rate=None),  # Pattern-dependent.
     "depuncturer":        _v("depuncture_model", latency="variable", rate=None),
+    "block_interleaver":  _v("block_interleave_model",   latency="variable", rate=(1, 1)),  # 1:1, framed rows*cols blocks.
+    "block_deinterleaver": _v("block_deinterleave_model", latency="variable", rate=(1, 1)),
     "rs_encoder":         _v("rs_encode_model",  latency="variable", rate=None),  # k in -> n out (framed).
     "rs_decoder":         _v("rs_decode_model",  latency="variable", rate=None),  # n in -> k out (framed).
+    "ldpc_encoder":       _v("ldpc_encode_model", latency="variable", rate=None),  # k bits in -> n bits out (framed).
+    "ldpc_decoder":       _v("ldpc_decode_model", latency="variable", rate=None),  # n LLRs in -> k bits out (framed).
     "cp_insert":          _v(latency="variable", rate=None),
     "cp_remove":          _v(rate=None),
     "ofdm_equalizer":     _v("ofdm_equalizer_model", rate=None),  # 1:1 steady-state; training frames consumed.
@@ -119,8 +125,8 @@ VSPEC = {
     "fft_iter":           _v(rate=None),
     "parallel_fft":       _v("parallel_fft_model"),            # Bit-exact (= fft_fixed_model
                                                                # re-laned); 2-lane layout: no cosim.
-    "psd":                _v("psd_model",   latency="variable", rate=None),
-    "welch":              _v("welch_model", latency="variable", rate=None),
+    "psd":                _v("psd_model",   latency="variable", rate=None, cosim=True),
+    "welch":              _v("welch_model", latency="variable", rate=None, cosim=True),
     "magnitude":          _v("magnitude_model", cosim=True),
     "magnitude_cordic":   _v(),
     "goertzel":           _v(latency="variable", rate=None),
@@ -129,16 +135,16 @@ VSPEC = {
     "energy_detector":    _v(),
     "error_counter":      _v(latency="n/a", rate=None),        # Sink-only (CSR results).
     # stream.
-    "combine":            _v("combine_model"),
+    "combine":            _v("combine_model", cosim=True),
     "split":              _v(),
     "delay":              _v(),
     "skid_buffer":        _v(),
     "channel_mux":        _v(rate=None),
     "channel_demux":      _v(rate=None),
     "capture":            _v(latency="variable", rate=None),
-    "conjugate":          _v("conjugate_model"),
-    "swap_iq":            _v("swap_iq_model"),
-    "negate":             _v("negate_model"),
+    "conjugate":          _v("conjugate_model", cosim=True),
+    "swap_iq":            _v("swap_iq_model", cosim=True),
+    "negate":             _v("negate_model", cosim=True),
     "stream_fifo":        _v(),
     "iq_pack":            _v(rate=None),
     "iq_unpack":          _v(rate=None),

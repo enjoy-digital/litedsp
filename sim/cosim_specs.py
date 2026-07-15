@@ -139,6 +139,26 @@ def spec_moving_average():
     return dut, cols, n - 4, lambda c: [models.moving_average_model(np.array(c[0]), length_log2),
                                         models.moving_average_model(np.array(c[1]), length_log2)]
 
+# Rate ---------------------------------------------------------------------------------------------
+
+def spec_downsampler():
+    from litedsp.rate.dropper import LiteDSPDownsampler
+    n, R = 300, 3
+    dut  = LiteDSPDownsampler(data_width=16, with_csr=False)
+    dut.factor.reset = R                                           # Runtime factor via reset.
+    cols = _rand_cols(2, n)
+    return dut, cols, n//R - 4, lambda c: [models.decimate_model(c[0], R),
+                                           models.decimate_model(c[1], R)]
+
+def spec_upsampler():
+    from litedsp.rate.dropper import LiteDSPUpsampler
+    n, L = 64, 4
+    dut  = LiteDSPUpsampler(data_width=16, with_csr=False)         # zero_stuff=False: repeat mode.
+    dut.factor.reset = L                                           # Runtime factor via reset.
+    cols = _rand_cols(2, n)
+    return dut, cols, n*L - 8, lambda c: [models.interpolate_model(c[0], L),
+                                          models.interpolate_model(c[1], L)]
+
 # Level --------------------------------------------------------------------------------------------
 
 def spec_gain():
@@ -157,6 +177,37 @@ def spec_log2():
     cols = _rand_cols(1, n, lo=0, hi=2**31 - 1)                    # Unsigned magnitude input.
     return dut, cols, n - 4, lambda c: [models.log2_model(np.array(c[0]))]
 
+def spec_clipper():
+    from litedsp.level.clipper import LiteDSPClipper
+    n, threshold = 300, 12000                                      # Random +/-20000: clips often.
+    dut = LiteDSPClipper(data_width=16, with_csr=False)            # bypass reset = 0 (process).
+    dut.threshold.reset = threshold
+    cols = _rand_cols(2, n)
+    return dut, cols, n - 4, lambda c: list(models.clipper_model(c[0], c[1], threshold))
+
+def spec_squelch():
+    from litedsp.level.squelch import LiteDSPSquelch
+    n = 300
+    open_thr, close_thr = 400_000_000, 100_000_000                 # ~mean power 2.7e8: gate toggles.
+    dut = LiteDSPSquelch(data_width=16, with_csr=False)
+    dut.open_threshold.reset  = open_thr
+    dut.close_threshold.reset = close_thr
+    cols = _rand_cols(2, n)
+    return dut, cols, n - 4, lambda c: list(models.squelch_model(c[0], c[1], open_thr, close_thr))
+
+def spec_agc():
+    from litedsp.level.agc import LiteDSPAGC
+    n, target = 300, 8000
+    dut = LiteDSPAGC(data_width=16, with_csr=False)                # gain_frac/mu/beta = model defaults.
+    dut.target.reset = target
+    cols = _rand_cols(2, n)
+    return dut, cols, n - 4, lambda c: list(models.agc_model(c[0], c[1], target))
+
+# spec_envelope: not cosim-eligible. The envelope register integrates on *input-idle* cycles
+# too (it re-evaluates the stale magnitude while the pipeline advances, see
+# envelope_detector_model's docstring), so it is only bit-exact for gap-free input — the
+# generic TB's randomized sink throttling breaks that precondition by design.
+
 # Comm ---------------------------------------------------------------------------------------------
 
 def spec_soft_demapper():
@@ -168,6 +219,43 @@ def spec_soft_demapper():
     cols = _rand_cols(2, n, lo=-32768, hi=32767)
     return dut, cols, n - 4, lambda c: [models.soft_demap_model(c[0], c[1], bits_per_axis=bpa,
         spacing=spacing, llr_bits=4, llr_scale=scale)]
+
+def spec_slicer():
+    from litedsp.comm.slicer import LiteDSPSlicer
+    n, bpa, spacing = 300, 2, 6000                                 # 16-QAM over the full range.
+    dut  = LiteDSPSlicer(data_width=16, bits_per_axis=bpa, spacing=spacing, with_csr=False)
+    cols = _rand_cols(2, n, lo=-32768, hi=32767)
+    return dut, cols, n - 4, lambda c: list(models.slicer_model(c[0], c[1], bits_per_axis=bpa,
+        spacing=spacing))
+
+def spec_diff_encoder():
+    from litedsp.comm.diff import LiteDSPDifferentialEncoder
+    n, M = 300, 4                                                  # DQPSK symbol indices.
+    dut  = LiteDSPDifferentialEncoder(modulus=M, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=M - 1)
+    return dut, cols, n - 4, lambda c: [models.diff_encode_model(c[0], M)]
+
+def spec_diff_decoder():
+    from litedsp.comm.diff import LiteDSPDifferentialDecoder
+    n, M = 300, 4
+    dut  = LiteDSPDifferentialDecoder(modulus=M, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=M - 1)
+    return dut, cols, n - 4, lambda c: [models.diff_decode_model(c[0], M)]
+
+def spec_correlator():
+    from litedsp.comm.correlator import LiteDSPCorrelator
+    n, seq = 300, [1, 1, 1, -1, -1, 1, -1]                         # Barker-7 matched filter.
+    dut    = LiteDSPCorrelator(sequence=seq, data_width=16, with_csr=False)
+    scale  = (1 << 15) - 1                                         # Taps: reversed, full-scale.
+    coeffs = [c*scale for c in reversed(seq)]
+    cols   = _rand_cols(2, n, lo=-8000, hi=8000)
+    return dut, cols, n - 8, lambda c: list(models.fir_complex_model(c[0], c[1], coeffs))
+
+# spec_frame_sync: not cosim-eligible yet. Its detection result lives entirely in the
+# source first/last tags (the i/q payload is a pure sample delay of the input), and the
+# generic TB does not capture first/last columns — a payload-only compare would exercise
+# the delay line but none of the correlate/threshold/peak-pick logic the block exists for.
+# TODO: add first/last capture to stream_tb.cpp, then bind frame_sync_model here.
 
 # Correction ---------------------------------------------------------------------------------------
 
@@ -200,6 +288,56 @@ def spec_window():
     cols   = _rand_cols(2, n)
     return dut, cols, n - 4, lambda c: list(models.window_model(c[0], c[1], coeffs))
 
+def spec_psd():
+    # Framed *output* (first/last markers on the emitted spectrum) is fine for the generic TB:
+    # it captures the payload samples in order and ignores the markers. data_width=14 keeps
+    # power_width = 2*14 + avg_log2 <= 32 (the TB reads outputs as int32); fft_latency=0
+    # disables the upstream-FFT fill skip (the stimulus is fed directly).
+    from litedsp.analysis.psd import LiteDSPPSD
+    n, N, avg_log2 = 280, 16, 2                                    # 4 spectra of N bins.
+    dut  = LiteDSPPSD(N=N, fft_latency=0, data_width=14, avg_log2=avg_log2, with_csr=False)
+    cols = _rand_cols(2, n, lo=-8000, hi=8000)                     # 14-bit signed range.
+    return dut, cols, 4*N, lambda c: [np.concatenate(
+        models.psd_model(c[0], c[1], N, avg_log2=avg_log2))]
+
+def spec_welch():
+    from litedsp.analysis.welch import LiteDSPWelchPSD
+    n, N, avg_log2 = 300, 16, 2                                    # 4 spectra of N bins.
+    dut  = LiteDSPWelchPSD(N=N, data_width=14, avg_log2=avg_log2, window="hann", with_csr=False)
+    cols = _rand_cols(2, n, lo=-8000, hi=8000)                     # 14-bit signed range.
+    return dut, cols, 4*N, lambda c: [np.concatenate(
+        models.welch_model(c[0], c[1], N, avg_log2=avg_log2, window="hann", data_width=14))]
+
+# Stream -------------------------------------------------------------------------------------------
+
+def spec_conjugate():
+    from litedsp.stream.ops import LiteDSPConjugate
+    n    = 300
+    dut  = LiteDSPConjugate(data_width=16)                         # Pure comb map: no CSRs.
+    cols = _rand_cols(2, n, lo=-32768, hi=32767)
+    return dut, cols, n - 2, lambda c: list(models.conjugate_model(c[0], c[1]))
+
+def spec_swap_iq():
+    from litedsp.stream.ops import LiteDSPSwapIQ
+    n    = 300
+    dut  = LiteDSPSwapIQ(data_width=16)
+    cols = _rand_cols(2, n, lo=-32768, hi=32767)
+    return dut, cols, n - 2, lambda c: list(models.swap_iq_model(c[0], c[1]))
+
+def spec_negate():
+    from litedsp.stream.ops import LiteDSPNegate
+    n    = 300
+    dut  = LiteDSPNegate(data_width=16)
+    cols = _rand_cols(2, n, lo=-32768, hi=32767)                   # -full-scale wraps (no saturation).
+    return dut, cols, n - 2, lambda c: list(models.negate_model(c[0], c[1]))
+
+def spec_combine():
+    from litedsp.stream.combine import LiteDSPCombine
+    n    = 300
+    dut  = LiteDSPCombine(n_channels=2, data_width=16, with_csr=False)  # enable reset = all-ones.
+    cols = _rand_cols(4, n)                                        # sinks[0](i,q), sinks[1](i,q).
+    return dut, cols, n - 4, lambda c: list(models.combine_model([c[0], c[2]], [c[1], c[3]]))
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -214,25 +352,39 @@ SPECS = {
     "iir_biquad":       spec_iir_biquad,
     "dc_blocker":       spec_dc_blocker,
     "moving_average":   spec_moving_average,
+    "downsampler":      spec_downsampler,
+    "upsampler":        spec_upsampler,
     "gain":             spec_gain,
     "log2":             spec_log2,
+    "clipper":          spec_clipper,
+    "squelch":          spec_squelch,
+    "agc":              spec_agc,
     "soft_demapper":    spec_soft_demapper,
+    "slicer":           spec_slicer,
+    "diff_encoder":     spec_diff_encoder,
+    "diff_decoder":     spec_diff_decoder,
+    "correlator":       spec_correlator,
     "dc_offset":        spec_dc_offset,
     "magnitude":        spec_magnitude,
     "window":           spec_window,
+    "psd":              spec_psd,
+    "welch":            spec_welch,
+    "conjugate":        spec_conjugate,
+    "swap_iq":          spec_swap_iq,
+    "negate":           spec_negate,
+    "combine":          spec_combine,
 }
 
 # Known failures -----------------------------------------------------------------------------------
 #
-# Real RTL divergence *found by this co-simulation*, kept visible as XFAIL rather than papered
-# over (the golden models and the migen simulation are correct; the emitted Verilog is not):
-# Migen prints ``sink.i * gain`` inline, and Verilog sizes ``*`` to max(operand widths) in a
-# 16-bit assignment/comparison context, so the synthesized product is truncated to 16 bits
-# (migen semantics — and hence the migen-sim-based unit tests — use the full 32). Blocks that
-# register the product into an explicitly sized Signal first (fir, mixer, iir_biquad) are
-# immune. The fix belongs in litedsp/level/gain.py and litedsp/analysis/window.py (route the
-# product through a full-width intermediate Signal before ``scaled()``); it is gateware-
-# behavior-changing and therefore out of scope for the co-sim harness.
+# Real RTL divergence *found by this co-simulation* goes here, kept visible as XFAIL rather
+# than papered over (the golden models and the migen simulation are correct; the emitted
+# Verilog is not). Historical catches, all since fixed at the source: Migen prints products
+# inline and Verilog sizes ``*`` to its assignment/comparison context, silently truncating
+# what migen semantics — and hence the migen-sim-based unit tests — evaluate full-width.
+# This hit gain, window and the fft stage twiddle path (the welch chain); all now route the
+# product through an explicitly sized full-width Signal before ``scaled()``. Blocks that
+# always registered the product first (fir, mixer, iir_biquad) were immune.
 KNOWN_FAIL = {}
 
 # Coverage ratchet ---------------------------------------------------------------------------------

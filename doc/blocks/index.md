@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-108 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+114 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -65,7 +65,9 @@
 | [Gain](gain.md) | `LiteDSPGain` | 1 | 2 | Runtime-configurable gain for a complex I/Q stream, with bypass and saturation. |
 | [Power meter](power.md) | `LiteDSPPower` | var | 2 | Average power meter: passes the I/Q stream through and measures mean ``I**2 + Q**2``. |
 | [AGC](agc.md) | `LiteDSPAGC` | 1 | 8 | Automatic gain control: drives |output| toward ``target``. |
+| [DPD actuator](dpd.md) | `LiteDSPDPD` | 3 | 12 | Memory-polynomial-lite (GMP-lite) digital predistortion actuator. |
 | [Saturate](saturate.md) | `LiteDSPSaturate` | 1 | 0 | Rescale a complex I/Q stream by a fixed right ``shift`` with round-half-up + saturation. |
+| [CFR (peak cancellation)](cfr.md) | `LiteDSPCFR` | 1 | 5 | Crest-factor reduction by peak cancellation: subtract a scaled low-pass pulse per peak. |
 | [Clipper](clipper.md) | `LiteDSPClipper` | 1 | — | Hard limiter: clamp each of I/Q to +/- ``threshold`` (runtime). ``clip`` flags a clip. |
 | [RMS](rms.md) | `LiteDSPRMS` | var | 2 | RMS magnitude over ``2**window_log2`` samples: ``sqrt(mean(I**2 + Q**2))``. |
 | [Squelch](squelch.md) | `LiteDSPSquelch` | 1 | — | Mute the I/Q stream when instantaneous power ``I**2 + Q**2`` is below threshold. |
@@ -105,8 +107,12 @@
 | [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, register-exchange survivors). |
 | [Puncturer](puncturer.md) | `LiteDSPPuncturer` | var | 0 | TX puncturer: drops coded bits of the rate-1/n stream per the puncturing matrix. |
 | [Depuncturer (LLR)](depuncturer.md) | `LiteDSPDepuncturer` | var | 0 | RX depuncturer: reassembles full soft symbols, reinserting erasures (LLR 0) per pattern. |
+| [Block interleaver](block_interleaver.md) | `LiteDSPBlockInterleaver` | var | 0 | TX block interleaver: rows x cols symbols in row-wise, out column-wise. |
+| [Block deinterleaver](block_deinterleaver.md) | `LiteDSPBlockDeinterleaver` | var | 0 | RX block deinterleaver: the exact inverse of :class:`LiteDSPBlockInterleaver`. |
 | [RS encoder (255,k)](rs_encoder.md) | `LiteDSPRSEncoder` | var | 0 | Systematic RS(255, k) encoder: k message bytes in, n = 255 codeword bytes out. |
 | [RS decoder (255,k)](rs_decoder.md) | `LiteDSPRSDecoder` | var | 0 | RS(255, k) decoder: n = 255 codeword bytes in, k corrected message bytes out. |
+| [LDPC encoder (802.11n)](ldpc_encoder.md) | `LiteDSPLDPCEncoder` | var | 0 | 802.11n rate-1/2 (648, 324) LDPC encoder: 324 message bits in, 648 codeword bits out. |
+| [LDPC decoder (802.11n)](ldpc_decoder.md) | `LiteDSPLDPCDecoder` | var | 0 | 802.11n rate-1/2 (648, 324) LDPC decoder: 648 LLRs in, 324 corrected bits out. |
 | [OFDM CP insert](cp_insert.md) | `LiteDSPCPInsert` | var | — | Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out. |
 | [OFDM CP remove](cp_remove.md) | `LiteDSPCPRemove` | 0 | — | Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out. |
 | [OFDM equalizer (1-tap)](ofdm_equalizer.md) | `LiteDSPOFDMEqualizer` | 2 | 6 | LS channel estimation + divider-free one-tap OFDM equalizer with per-bin CSI. |

@@ -21,6 +21,9 @@
 #include <vector>
 #include "tb_ports.h"
 #include "verilated.h"
+#if VM_COVERAGE
+#include "verilated_cov.h"
+#endif
 
 // Seeded xorshift32 PRNG: one stream per sink (valid throttling) plus one for source ready,
 // so per-port timing patterns are independent and reproducible from --seed.
@@ -127,6 +130,11 @@ int main(int argc, char** argv) {
             if (consume[s]) { in_i[s]++; pending[s] = false; }
     }
     fclose(fout);
+#if VM_COVERAGE
+    // Coverage build (sim/verilator.py build(coverage=True)): dump the line-coverage counters
+    // for aggregation by sim/run_coverage.py (via verilator_coverage).
+    Verilated::threadContextp()->coveragep()->write("coverage.dat");
+#endif
     delete dut;
     return out_n == n_out ? 0 : 1;
 }

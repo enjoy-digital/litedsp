@@ -7,7 +7,10 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP | Artix-7 (Vivado) LUT/FF/BRAM/DSP | Fmax min (MHz) |
 |---|---|---|---|
 | `agc` | 377/57/0/8 | 179/57/0/4 | 54 |
+| `block_deinterleaver` | 162/85/2/0 | - | 187 |
+| `block_interleaver` | 164/85/2/0 | - | 200 |
 | `cfo_estimator` | 4805/1764/0/4 | - | 120 |
+| `cfr` | 757/459/0/5 | - | 56 |
 | `channelizer` | 2786/1086/6/24 | 1280/310/2/24 | 78 |
 | `cic_decimator` | 566/484/0/0 | 776/484/0/0 | 83 |
 | `cic_interpolator` | 580/438/0/0 | 676/438/0/0 | 51 |
@@ -22,12 +25,13 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `ddc` | 890/317/2/6 | 480/122/1/6 | 107 |
 | `ddc_parallel_x4` | 1942/1071/8/18 | - | 42 |
 | `depuncturer` | 31/16/0/0 | - | 475 |
+| `dpd` | 1632/481/0/12 | - | 86 |
 | `duc` | 643/302/2/7 | 386/100/1/6 | 63 |
 | `error_counter` | 97/64/0/0 | - | 369 |
 | `farrow` | 652/281/0/14 | 470/207/0/6 | 55 |
-| `fft` | 2987/360/0/28 | 1525/367/0/35 | 73 |
+| `fft` | 3934/360/0/28 | 1525/367/0/35 | 73 |
 | `fft_iter` | 938/91/2/4 | 236/29/1/5 | 60 |
-| `fft_parallel_x2` | 6118/938/0/56 | - | 56 |
+| `fft_parallel_x2` | 8011/938/0/56 | - | 56 |
 | `fir` | 2715/1555/0/32 | - | - |
 | `fir_complex` | 181/106/0/2 | 105/38/0/8 | 118 |
 | `fir_decimator` | 471/104/0/2 | 239/78/0/2 | 122 |
@@ -44,6 +48,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `iir_biquad` | 1614/834/0/24 | 218/35/0/36 | 84 |
 | `iq_pack` | 21/133/0/0 | - | 153 |
 | `iq_unpack` | 134/2/0/0 | - | 878 |
+| `ldpc_decoder` | 561/147/2/0 | - | 85 |
+| `ldpc_encoder` | 4743/446/0/0 | - | 153 |
 | `lms_equalizer` | 1741/522/0/56 | 643/389/0/60 | 59 |
 | `magnitude` | 157/18/0/0 | 103/18/0/0 | 739 |
 | `magnitude_cordic` | 1618/601/0/1 | 540/580/0/1 | 167 |

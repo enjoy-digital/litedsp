@@ -98,6 +98,34 @@ class TestFIRDriver(unittest.TestCase):
         self.assertEqual(bus.regs.fir_coeff_1.writes, [-1 & 0xFFFF])
         self.assertEqual(bus.regs.fir_coeff_2.writes, [1 << 14])
 
+    def test_set_lowpass(self):
+        from litedsp.filter.design import firwin_lowpass
+        n_taps = 8
+        bus = MockBus({f"fir_coeff_{k}": MockCSR() for k in range(n_taps)})
+        fir = FIRDriver(bus, "fir")
+        fir.set_lowpass(0.125)   # n_taps defaults to the coeff_<k> scan count.
+        expected = firwin_lowpass(n_taps, 0.125, data_width=16)
+        self.assertEqual(len(expected), n_taps)
+        for k, t in enumerate(expected):
+            self.assertEqual(getattr(bus.regs, f"fir_coeff_{k}").writes, [t & 0xFFFF])
+
+    def test_set_lowpass_n_taps_mismatch(self):
+        bus = MockBus({f"fir_coeff_{k}": MockCSR() for k in range(8)})
+        fir = FIRDriver(bus, "fir")
+        with self.assertRaises(AssertionError):
+            fir.set_lowpass(0.125, n_taps=16)   # Explicit count must match the hardware.
+
+    def test_set_remez(self):
+        from litedsp.filter.design import remez_lowpass
+        n_taps = 15
+        bus = MockBus({f"fir_coeff_{k}": MockCSR() for k in range(n_taps)})
+        fir = FIRDriver(bus, "fir")
+        fir.set_remez(0.10, 0.20)
+        expected = remez_lowpass(n_taps, 0.10, 0.20, data_width=16)
+        self.assertEqual(len(expected), n_taps)
+        for k, t in enumerate(expected):
+            self.assertEqual(getattr(bus.regs, f"fir_coeff_{k}").writes, [t & 0xFFFF])
+
 class TestGainDriver(unittest.TestCase):
     def test_set_gain_and_saturation(self):
         bus = MockBus({"g0_gain": MockCSR(), "g0_control": MockCSR(), "g0_status": MockCSR(1)})

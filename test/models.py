@@ -106,6 +106,70 @@ def clipper_model(i, q, threshold, data_width=16):
     i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
     return np.clip(i, -threshold, threshold), np.clip(q, -threshold, threshold)
 
+# CFR (Peak Cancellation) ---------------------------------------------------------------------------
+
+def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6, recip_frac=15):
+    """Reference for litedsp.level.cfr.LiteDSPCFR (bit-exact). Returns (i, q, peaks, missed).
+
+    Per accepted sample: estimate the magnitude (alpha-max-beta-min), detect a peak on the
+    *previous* sample (above threshold, >= current estimate, > the one before), and — when
+    the single pulse engine is idle — fire a cancellation pulse: the complex amplitude is
+    ``a = g * x_pk`` with ``g = (|x_pk| - T)/|x_pk|`` computed divider-free (leading-zero
+    normalization + 64-entry midpoint reciprocal LUT, Q0.15, round-half-up, clamped), and
+    ``a * pulse[k]`` (round + saturate at each step) is subtracted from the stream delayed
+    by ``len(pulse)//2 + 2`` samples so the pulse center lands on the peak. Peaks detected
+    while the engine is busy pass uncorrected (``missed``). All state advances on accepted
+    samples only, so the sequence is handshake-invariant (holds under backpressure).
+
+    ``pulse`` must be the block's quantized taps (litedsp.level.cfr.cfr_pulse); the LUT
+    below mirrors litedsp.level.cfr.cfr_recip_lut.
+    """
+    W    = data_width
+    L    = len(pulse)
+    D    = (L - 1)//2 + 2
+    lut  = [int(round((1 << recip_frac)/(1 + (k + 0.5)/(1 << index_bits))))
+            for k in range(1 << index_bits)]
+    gmax = (1 << (W - 1)) - 1
+    i, q  = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    out_i = np.zeros(len(i), np.int64)
+    out_q = np.zeros(len(i), np.int64)
+    busy, k, a_i, a_q = False, 0, 0, 0
+    p_i = p_q = 0                  # Peak candidate (previous sample).
+    m1  = m2  = 0                  # Magnitude estimate one/two samples ago.
+    peaks = missed = 0
+    for n in range(len(i)):
+        xi, xq = int(i[n]), int(q[n])
+        ai, aq = abs(xi), abs(xq)
+        mag = (ai + (aq >> beta_shift)) if ai > aq else (aq + (ai >> beta_shift))
+        # Correction of the delayed sample (engine state as set by previous samples).
+        di = int(i[n - D]) if n >= D else 0
+        dq = int(q[n - D]) if n >= D else 0
+        ci = int(np_rounded(a_i*pulse[k], W - 1)) if busy else 0
+        cq = int(np_rounded(a_q*pulse[k], W - 1)) if busy else 0
+        out_i[n] = np_saturated(di - ci, W)
+        out_q[n] = np_saturated(dq - cq, W)
+        # Engine index update + detection (fire tests the pre-update busy, like the RTL).
+        busy_pre = busy
+        if busy:
+            k += 1
+            if k == L:
+                busy = False
+        if (m1 > threshold) and (m1 >= mag) and (m1 > m2):
+            if not busy_pre:
+                d   = m1 - threshold
+                e   = W - int(m1).bit_length()
+                mn  = m1 << e
+                idx = (mn >> (W - 1 - index_bits)) & ((1 << index_bits) - 1)
+                g   = min(int(np_rounded((d << e)*lut[idx], recip_frac)), gmax)
+                a_i = int(np_scaled(g*p_i, W - 1, W))
+                a_q = int(np_scaled(g*p_q, W - 1, W))
+                busy, k = True, 0
+                peaks  += 1
+            else:
+                missed += 1
+        p_i, p_q, m2, m1 = xi, xq, m1, mag
+    return out_i, out_q, peaks, missed
+
 # Squelch ------------------------------------------------------------------------------------------
 
 def squelch_model(i, q, open_threshold, close_threshold):
@@ -448,6 +512,50 @@ def agc_model(i, q, target, data_width=16, gain_frac=8, mu=8, gain_max=None, bet
         out_i[n] = yi
         out_q[n] = yq
     return out_i, out_q
+
+# DPD Actuator -------------------------------------------------------------------------------------
+
+def dpd_mag_model(i, q):
+    """Two-region alpha-max-beta-min magnitude of litedsp.level.dpd (max(hi, hi - hi/8 + lo/2))."""
+    ai = np.abs(np.asarray(i, np.int64))
+    aq = np.abs(np.asarray(q, np.int64))
+    hi = np.maximum(ai, aq)
+    lo = np.minimum(ai, aq)
+    return np.maximum(hi, hi - (hi >> 3) + (lo >> 1))
+
+def dpd_lut_index_model(i, q, lut_depth=64, data_width=16):
+    """LUT bin of each sample: top bits of the magnitude estimate, clamped to the last entry."""
+    shift = data_width - 1 - int(np.log2(lut_depth))
+    return np.minimum(dpd_mag_model(i, q) >> shift, lut_depth - 1)
+
+def dpd_identity_luts(n_taps=3, lut_depth=64, coeff_frac=14):
+    """Reset LUT contents of litedsp.level.dpd (tap 0 = 1.0 + 0j, memory taps = 0)."""
+    return [(np.full(lut_depth, (1 << coeff_frac) if m == 0 else 0, np.int64),
+             np.zeros(lut_depth, np.int64)) for m in range(n_taps)]
+
+def dpd_model(i, q, luts, data_width=16, coeff_frac=14):
+    """Reference for litedsp.level.dpd.LiteDSPDPD (bit-exact).
+
+    ``y[n] = sum_m x[n-m] * G_m(|x[n-m]|)``: per tap, the delayed sample is multiplied by the
+    complex LUT gain selected by its own magnitude bin; products are kept full width and a
+    single round-half-up + saturate by ``coeff_frac`` produces the output. ``luts`` is a
+    sequence of ``(lut_i, lut_q)`` integer arrays (signed Q2.coeff_frac), one per tap; the
+    delay line starts at zero (matching the hardware reset). Returns (i, q).
+    """
+    i = np.asarray(i, np.int64)
+    q = np.asarray(q, np.int64)
+    acc_i = np.zeros(len(i), np.int64)
+    acc_q = np.zeros(len(q), np.int64)
+    for m, (lut_i, lut_q) in enumerate(luts):
+        lut_i = np.asarray(lut_i, np.int64)
+        lut_q = np.asarray(lut_q, np.int64)
+        xi = np.concatenate([np.zeros(m, np.int64), i[:len(i) - m]]) if m else i
+        xq = np.concatenate([np.zeros(m, np.int64), q[:len(q) - m]]) if m else q
+        idx = dpd_lut_index_model(xi, xq, len(lut_i), data_width)
+        acc_i += xi*lut_i[idx] - xq*lut_q[idx]
+        acc_q += xi*lut_q[idx] + xq*lut_i[idx]
+    return (np_scaled(acc_i, coeff_frac, data_width),
+            np_scaled(acc_q, coeff_frac, data_width))
 
 # Magnitude ----------------------------------------------------------------------------------------
 
@@ -1257,3 +1365,180 @@ def interpolate_model(x, factor, mode="repeat"):
         out[::factor] = x
         return out
     return np.repeat(x, factor)
+
+# Block Interleaver / Deinterleaver ------------------------------------------------------------------
+
+def block_interleave_model(data, rows=5, cols=255):
+    """Reference for litedsp.comm.interleaver.LiteDSPBlockInterleaver: row-wise in, column-wise out.
+
+    Per rows*cols block: the symbols are written into a rows x cols matrix row-wise (CCSDS:
+    one RS codeword per row) and read out column-wise (the flattened transpose). Trailing
+    symbols that do not complete a block are dropped (still buffered in hardware).
+    """
+    n   = rows*cols
+    out = []
+    for b in range(len(data)//n):
+        block = np.asarray(data[b*n:(b + 1)*n]).reshape(rows, cols)
+        out  += [int(x) for x in block.T.reshape(-1)]
+    return out
+
+def block_deinterleave_model(data, rows=5, cols=255):
+    """Reference for litedsp.comm.interleaver.LiteDSPBlockDeinterleaver (the exact inverse).
+
+    Per rows*cols block: the symbols are written into a cols x rows matrix row-wise (arrival =
+    channel order = column-wise in the interleaver's matrix) and read out column-wise,
+    restoring the original order. Trailing symbols that do not complete a block are dropped.
+    """
+    n   = rows*cols
+    out = []
+    for b in range(len(data)//n):
+        block = np.asarray(data[b*n:(b + 1)*n]).reshape(cols, rows)
+        out  += [int(x) for x in block.T.reshape(-1)]
+    return out
+
+# LDPC (802.11n rate-1/2, n=648, z=27) ---------------------------------------------------------------
+
+# IEEE 802.11-2012 Annex F, Table F-1 (n = 648, rate 1/2, z = 27) base matrix — deliberately
+# duplicated from litedsp.comm.ldpc (models stay independent of the gateware): -1 = zero
+# 27x27 block, s >= 0 = identity right-cyclic-shifted by s (block row r: one at column
+# (r + s) mod 27). Info blocks 0..11, dual-diagonal parity blocks 12..23.
+LDPC_BASE = [
+    [ 0, -1, -1, -1,  0,  0, -1, -1,  0, -1, -1,  0,  1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [22,  0, -1, -1, 17, -1,  0,  0, 12, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [ 6, -1,  0, -1, 10, -1, -1, -1, 24, -1,  0, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1],
+    [ 2, -1, -1,  0, 20, -1, -1, -1, 25,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1],
+    [23, -1, -1, -1,  3, -1, -1, -1,  0, -1,  9, 11, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1],
+    [24, -1, 23,  1, 17, -1,  3, -1, 10, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1],
+    [25, -1, -1, -1,  8, -1, -1, -1,  7, 18, -1, -1,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1],
+    [13, 24, -1, -1,  0, -1,  8, -1,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1],
+    [ 7, 20, -1, 16, 22, 10, -1, -1, 23, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1],
+    [11, -1, -1, -1, 19, -1, -1, -1, 13, -1,  3, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1],
+    [25, -1,  8, -1, 23, 18, -1, 14,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0],
+    [ 3, -1, -1, -1, 16, -1, -1,  2, 25,  5, -1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0],
+]
+
+LDPC_Z = 27
+LDPC_N = 648
+LDPC_K = 324
+
+def ldpc_expand_h():
+    """Dense 324 x 648 binary H expanded from the base matrix (parity-check reference)."""
+    z, mb, nb = LDPC_Z, len(LDPC_BASE), len(LDPC_BASE[0])
+    H = np.zeros((mb*z, nb*z), dtype=np.uint8)
+    for i in range(mb):
+        for b in range(nb):
+            s = LDPC_BASE[i][b]
+            if s < 0:
+                continue
+            for r in range(z):
+                H[i*z + r, b*z + (r + s) % z] = 1
+    return H
+
+def ldpc_check_parity(codeword):
+    """True iff H*c^T = 0 over GF(2) (the mathematical validity check for a codeword)."""
+    c = np.asarray(codeword, dtype=np.uint8)
+    return not np.any((ldpc_expand_h() @ c) % 2)
+
+def ldpc_layer_edges():
+    """Per base row: the (col_block, shift) nonzero entries in ascending column order.
+
+    This is the decoder schedule: layer i processes its edges in this order, and check row
+    j of layer i touches variable ``b*z + (s + j) % z`` for each edge (b, s).
+    """
+    nb = len(LDPC_BASE[0])
+    return [[(b, s) for b, s in ((b, row[b]) for b in range(nb)) if s >= 0]
+            for row in LDPC_BASE]
+
+def ldpc_encode_model(message):
+    """Reference for litedsp.comm.ldpc.LiteDSPLDPCEncoder: 324 message bits -> 648-bit codeword.
+
+    Back-substitution over the quasi-cyclic dual-diagonal parity structure, mirroring the
+    hardware: lambda_i = sum_b P(s_ib) msg_b, p0 = sum_i lambda_i (column-12 shifts (1, 0, 1)
+    telescope to P(0)), p1 = lambda_0 + P(1) p0, p_{r+1} = p_r + lambda_r (+ p0 at r = 6);
+    row 11 closes by construction (asserted). Systematic: codeword = [message | parity].
+    """
+    z, mb = LDPC_Z, len(LDPC_BASE)
+    msg = np.asarray(message, dtype=np.uint8)
+    assert msg.shape == (LDPC_K,)
+    blocks = msg.reshape(mb, z)
+
+    def rot(x, s):  # (P(s) x)[r] = x[(r + s) % z].
+        return np.roll(x, -s)
+
+    lam = np.zeros((mb, z), dtype=np.uint8)
+    for i in range(mb):
+        for b in range(mb):  # Info block columns 0..11.
+            s = LDPC_BASE[i][b]
+            if s >= 0:
+                lam[i] ^= rot(blocks[b], s)
+    p = np.zeros((mb, z), dtype=np.uint8)
+    p[0] = lam.sum(axis=0) % 2
+    p[1] = lam[0] ^ rot(p[0], 1)
+    for r in range(1, mb - 1):
+        p[r + 1] = p[r] ^ lam[r]
+        if r == 6:
+            p[r + 1] ^= p[0]
+    assert not np.any(lam[mb - 1] ^ rot(p[0], 1) ^ p[mb - 1])  # Row 11 closes.
+    return [int(b) for b in np.concatenate([msg, p.reshape(-1)])]
+
+def ldpc_decode_model(llrs, llr_bits=4, max_iters=8):
+    """Reference for litedsp.comm.ldpc.LiteDSPLDPCDecoder; returns ``(bits, iterations, parity_ok)``.
+
+    Row-layered normalized min-sum mirroring the hardware exactly: layers = base rows in
+    order, z serial check rows per layer, edges in ascending column order, compressed check
+    messages (min1/min2/index/signs, magnitudes stored normalized by 0.75 = x - (x >> 2)),
+    Q = APP - R_old kept at full precision for the write-back with |Q| clamped to
+    2**llr_bits - 1 only on the check-node input, APP saturated to ±(2**(llr_bits+1) - 1),
+    early termination on an iteration whose on-the-fly syndrome (parity of Q signs) is clean
+    for every check row. Positive LLR = bit 0; returns the k hard-decision message bits.
+    """
+    z, mb  = LDPC_Z, len(LDPC_BASE)
+    qmax   = (1 << llr_bits) - 1
+    appmax = (1 << (llr_bits + 1)) - 1
+    app = np.clip(np.asarray(llrs, dtype=np.int64), -appmax, appmax).copy()
+    assert app.shape == (LDPC_N,)
+    edges = ldpc_layer_edges()
+    msgs  = {}  # (layer, row) -> (min1n, min2n, idx, signs): the compressed check message.
+    for it in range(1, max_iters + 1):
+        all_sat = True
+        for i in range(mb):
+            deg = len(edges[i])
+            for j in range(z):
+                addrs = [b*z + (s + j) % z for b, s in edges[i]]
+                # R_old from the compressed message (0 on the first iteration).
+                if (i, j) in msgs:
+                    om1, om2, oidx, osg = msgs[(i, j)]
+                    otot  = 0
+                    for sg in osg:
+                        otot ^= sg
+                    r_old = [(om2 if e == oidx else om1)*(1 - 2*(otot ^ osg[e]))
+                             for e in range(deg)]
+                else:
+                    r_old = [0]*deg
+                # Q = APP - R_old (full precision); check node sees |Q| clamped to qmax.
+                q = []
+                signs = []
+                m1, m2, idx = qmax, qmax, 0
+                for e in range(deg):
+                    qe = int(app[addrs[e]]) - r_old[e]
+                    q.append(qe)
+                    signs.append(1 if qe < 0 else 0)
+                    mag = min(-qe if qe < 0 else qe, qmax)
+                    if mag < m1:
+                        m2, m1, idx = m1, mag, e
+                    elif mag < m2:
+                        m2 = mag
+                tot = 0
+                for sg in signs:
+                    tot ^= sg
+                if tot:
+                    all_sat = False
+                # Normalize once at store time; write back APP = sat(Q + R_new).
+                m1n, m2n = m1 - (m1 >> 2), m2 - (m2 >> 2)
+                msgs[(i, j)] = (m1n, m2n, idx, signs)
+                for e in range(deg):
+                    r_new = (m2n if e == idx else m1n)*(1 - 2*(tot ^ signs[e]))
+                    app[addrs[e]] = max(-appmax, min(appmax, q[e] + r_new))
+        if all_sat:
+            return [int(b) for b in (app[:LDPC_K] < 0).astype(np.uint8)], it, True
+    return [int(b) for b in (app[:LDPC_K] < 0).astype(np.uint8)], max_iters, False
