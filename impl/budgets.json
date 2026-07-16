@@ -93,8 +93,11 @@
     "xilinx": {
       "bram": 2,
       "dsp": 24,
-      "ff": 418,
-      "lut": 1459
+      "ff": 419,
+      "fmax_mhz": 163.2,
+      "fmax_min": 138.7,
+      "fmax_target": 100.0,
+      "lut": 1327
     }
   },
   "cic_decimator": {
@@ -274,8 +277,10 @@
       "bram": 1,
       "dsp": 6,
       "ff": 149,
-      "fmax_min": 107.4,
-      "lut": 525
+      "fmax_mhz": 151.6,
+      "fmax_min": 128.9,
+      "fmax_target": 100.0,
+      "lut": 468
     }
   },
   "ddc_parallel_x4": {
@@ -324,7 +329,10 @@
       "bram": 0,
       "dsp": 14,
       "ff": 180,
-      "lut": 701
+      "fmax_mhz": 104.3,
+      "fmax_min": 88.7,
+      "fmax_target": 100.0,
+      "lut": 679
     }
   },
   "duc": {
@@ -694,7 +702,10 @@
       "bram": 1,
       "dsp": 0,
       "ff": 178,
-      "lut": 373
+      "fmax_mhz": 124.5,
+      "fmax_min": 105.8,
+      "fmax_target": 100.0,
+      "lut": 355
     }
   },
   "ldpc_encoder": {
