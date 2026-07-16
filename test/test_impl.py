@@ -116,7 +116,8 @@ class TestImplementationBudgets(unittest.TestCase):
              "viterbi_decoder", "viterbi_decoder_soft",
              "cic_parallel_x2", "cic_parallel_x4",
              "fft_folded", "goertzel_folded", "iir_biquad_folded",
-             "pfb_channelizer_folded", "timing_recovery", "cfr_pipelined"])
+             "pfb_channelizer_folded", "pfb_channelizer_fft",
+             "timing_recovery", "cfr_pipelined"])
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, modules.PNR_SUBSET)
             entry = data[name]["ecp5"]
