@@ -48,7 +48,7 @@ Current gain (Q?.frac).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 377 | 57 | 0 | 8 | 53.8 |
+| ecp5 | 642 | 57 | 0 | 8 | 42.2 |
 | xilinx | 179 | 57 | 0 | 4 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

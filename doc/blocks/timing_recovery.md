@@ -49,7 +49,7 @@ Samples/symbol estimate (Q.frac).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 1030 | 292 | 0 | 16 | 61.3 |
+| ecp5 | 983 | 292 | 0 | 16 | 59.8 |
 | xilinx | 629 | 244 | 0 | 8 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

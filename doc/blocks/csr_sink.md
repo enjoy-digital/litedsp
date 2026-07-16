@@ -44,5 +44,6 @@ Clear the transfer counter (write to clear).
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
 | ecp5 | 64 | 64 | 0 | 0 | 288.1 |
+| xilinx | 17 | 64 | 0 | 0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

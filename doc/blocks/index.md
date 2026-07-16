@@ -39,7 +39,7 @@
 | [IIR biquad](iir_biquad.md) | `LiteDSPIIRBiquad` | 2 | 24 | One DF2T biquad section applied to I and Q with shared coefficients. |
 | [DC blocker](dc_blocker.md) | `LiteDSPDCBlocker` | 1 | 0 | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
 | [Moving average](moving_average.md) | `LiteDSPMovingAverage` | 1 | 0 | Boxcar moving average over ``2**length_log2`` samples (per I/Q), a.k.a. CIC-1. |
-| [Farrow interpolator](farrow.md) | `LiteDSPFarrowInterpolator` | 3 | 14 | Cubic (Catmull-Rom) Farrow fractional-delay interpolator with runtime ``mu``. |
+| [Farrow interpolator](farrow.md) | `LiteDSPFarrowInterpolator` | 7 | 16 | Cubic (Catmull-Rom) Farrow fractional-delay interpolator with runtime ``mu``. |
 | [LMS equalizer](equalizer.md) | `LiteDSPLMSEqualizer` | 1 | — | Adaptive complex FIR equalizer: trained LMS, blind CMA or decision-directed. |
 | [Notch](notch.md) | `LiteDSPNotch` | 1 | — | Tunable 2nd-order notch (zeros on the unit circle, poles at radius ``r``). |
 | [Comb filter](comb_filter.md) | `LiteDSPCombFilter` | 1 | — | Feed-forward comb ``y[n] = x[n] - x[n-D]`` (nulls at multiples of fs/D), per I/Q. |
@@ -121,7 +121,7 @@
 
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
-| [Window](window.md) | `LiteDSPWindow` | 1 | 2 | Apply a length-``n`` window to a complex I/Q stream, framed every ``n`` samples. |
+| [Window](window.md) | `LiteDSPWindow` | 2 | 2 | Apply a length-``n`` window to a complex I/Q stream, framed every ``n`` samples. |
 | [FFT (SDF)](fft.md) | `LiteDSPFFT` | 63 | 28 | Streaming radix-2 SDF FFT, ``N`` points (power of two), 1 sample/cycle. |
 | [FFT (iterative)](fft_iter.md) | `LiteDSPFFTIter` | 704 | 4 | Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped). |
 | [FFT (parallel, 2 samples/clk)](parallel_fft.md) | `LiteDSPParallelFFT` | 76 | — | Streaming ``N``-point FFT at 2 samples/cycle (super-sample-rate wideband path). |

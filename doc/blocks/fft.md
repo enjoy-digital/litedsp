@@ -52,8 +52,8 @@ FFT pipeline latency (cycles from frame start to first output).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 3934 | 360 | 0 | 28 | 57.1 |
-| xilinx | 1525 | 367 | 0 | 35 | 73.2 |
+| ecp5 | 4387 | 360 | 0 | 28 | 49.9 |
+| xilinx | 1885 | 367 | 0 | 28 | 73.2 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

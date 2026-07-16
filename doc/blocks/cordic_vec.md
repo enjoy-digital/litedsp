@@ -45,7 +45,7 @@ CORDIC pipeline latency (cycles).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 1839 | 849 | 0 | 1 | 162.0 |
+| ecp5 | 1839 | 849 | 0 | 1 | 169.6 |
 | xilinx | 742 | 827 | 0 | 1 | 186.4 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

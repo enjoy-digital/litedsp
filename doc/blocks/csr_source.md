@@ -40,5 +40,6 @@ Strobe: emit the sample (write to push).
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
 | ecp5 | 1 | 33 | 0 | 0 | — |
+| xilinx | 1 | 33 | 0 | 0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

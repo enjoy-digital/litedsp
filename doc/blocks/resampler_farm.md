@@ -81,7 +81,8 @@ Write the next FIR coefficient (auto-incrementing tap index, shared by all chann
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 888 | 106 | 0 | 2 | 72.4 |
+| ecp5 | 920 | 106 | 0 | 2 | 73.4 |
+| xilinx | 450 | 80 | 0 | 2 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

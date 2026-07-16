@@ -50,7 +50,8 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 9885 | 3945 | 0 | 0 | 34.3 |
+| ecp5 | 9004 | 3945 | 0 | 0 | 40.3 |
+| xilinx | 5792 | 3976 | 0 | 0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

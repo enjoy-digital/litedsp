@@ -71,7 +71,8 @@ Uncorrected peaks (detected while the pulse engine was busy). Wraps.
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 757 | 459 | 0 | 5 | 55.5 |
+| ecp5 | 735 | 459 | 0 | 5 | 53.4 |
+| xilinx | 391 | 208 | 0 | 5 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

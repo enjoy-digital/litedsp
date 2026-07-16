@@ -2,7 +2,7 @@
 
 `LiteDSPWindow` — `litedsp.analysis.window` — category `analysis`
 
-latency: 1 sample · CSR: no · bypass: no
+latency: 2 samples · CSR: no · bypass: no
 
 ## Overview
 
@@ -33,8 +33,8 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 341 | 15 | 0 | 2 | 100.5 |
-| xilinx | 67 | 19 | 0 | 2 | — |
+| ecp5 | 391 | 82 | 0 | 2 | 99.9 |
+| xilinx | 124 | 54 | 0 | 2 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

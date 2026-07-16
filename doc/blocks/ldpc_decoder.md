@@ -68,7 +68,8 @@ Clear the failure counter (write to clear).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 561 | 147 | 2 | 0 | 85.2 |
+| ecp5 | 583 | 147 | 2 | 0 | 81.4 |
+| xilinx | 304 | 138 | 1 | 0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

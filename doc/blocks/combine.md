@@ -40,7 +40,7 @@ Per-channel enable mask (bit k enables channel k).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 371 | 33 | 0 | 0 | 562.2 |
+| ecp5 | 327 | 33 | 0 | 0 | 281.6 |
 | xilinx | 134 | 33 | 0 | 0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

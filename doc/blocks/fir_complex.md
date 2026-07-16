@@ -165,7 +165,7 @@ Bypass filter (passthrough).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 181 | 106 | 0 | 2 | 181.6 |
+| ecp5 | 209 | 106 | 0 | 2 | 180.0 |
 | xilinx | 105 | 38 | 0 | 8 | 117.7 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

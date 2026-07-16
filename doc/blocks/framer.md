@@ -36,5 +36,6 @@ Frame length in samples (assert last every N).
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
 | ecp5 | 102 | 16 | 0 | 0 | 267.7 |
+| xilinx | 27 | 16 | 0 | 0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).

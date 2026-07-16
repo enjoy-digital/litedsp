@@ -7,10 +7,10 @@ run through place-and-route and are gated on fmax.
 
 ## Toolchains & targets
 
-| Vendor | Flow | Target |
-|---|---|---|
-| Lattice **ECP5** | Yosys `synth_ecp5` (OOC) + nextpnr-ecp5 + Trellis | `LFE5UM5G-85F` / CABGA381 |
-| **Xilinx** 7-series | Vivado out-of-context synth + implementation | `xc7a200tsbg484-3` (the M2SDR part) |
+| Vendor | Reference toolchain | Flow | Target |
+|---|---|---|---|
+| Lattice **ECP5** | OSS CAD Suite `2025-06-25` (Yosys 0.54+23, nextpnr 0.8-35) | Yosys `synth_ecp5` (OOC) + nextpnr-ecp5 + Trellis | `LFE5UM5G-85F` / CABGA381 |
+| **Xilinx** 7-series | Vivado 2025.2 | Vivado out-of-context synth + implementation | `xc7a200tsbg484-3` |
 
 ## Running
 
@@ -47,9 +47,17 @@ the workflows.
   explicit area/throughput trade-offs rather than free optimizations.
 - **`rms` used an unrolled square root despite its low output rate.** Reusing one iterative
   square-root stage substantially reduced Xilinx LUT use. Lesson: *match unrolling to throughput.*
+- **Latency-only retiming cleared two feed-forward timing paths.** Registering Farrow coefficient
+  formation and each Horner multiply/add boundary raised its ECP5 result from 67.2 to 125.1 MHz
+  (latency 3 to 7 cycles). Registering the window multiplier outputs before rescaling raised that
+  block from 89.9 to 117.6 MHz (latency 1 to 2 cycles). Both remain one sample per clock and
+  bit-exact under backpressure.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
-  numerical recurrence is preserved.
+  numerical recurrence is preserved. The remaining sub-100 MHz configurations are primarily
+  recurrence- or unrolling-limited (Viterbi ACS, CIC/AGC feedback, SDF FFT feedback, and the
+  multi-lane CIC); their next step is an explicit throughput/area architecture decision rather
+  than an unsafe register insertion.
 
 ## Current results
 

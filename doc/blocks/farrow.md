@@ -2,7 +2,7 @@
 
 `LiteDSPFarrowInterpolator` — `litedsp.filter.farrow` — category `filter`
 
-latency: 3 samples · CSR: yes · bypass: no
+latency: 7 samples · CSR: yes · bypass: no
 
 ## Overview
 
@@ -39,8 +39,8 @@ Fractional delay (Q.frac).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 652 | 281 | 0 | 14 | 55.4 |
-| xilinx | 470 | 207 | 0 | 6 | — |
+| ecp5 | 808 | 922 | 0 | 16 | 106.4 |
+| xilinx | 678 | 443 | 0 | 6 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

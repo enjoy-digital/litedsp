@@ -76,7 +76,8 @@ Write the next bin's 2-bit preamble reference (bit 0 = I sign, bit 1 = Q sign, 1
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
 |---|---|---|---|---|---|
-| ecp5 | 598 | 128 | 0 | 6 | 94.7 |
+| ecp5 | 547 | 128 | 0 | 6 | 95.1 |
+| xilinx | 310 | 68 | 0 | 6 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
 
