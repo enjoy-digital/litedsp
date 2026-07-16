@@ -107,7 +107,7 @@ class TestPFBChannelizerBitExact(unittest.TestCase):
             np.testing.assert_array_equal(column(cap, "first"), pos == 0)
             np.testing.assert_array_equal(column(cap, "last"),  pos == M - 1)
             self.assertEqual(dut.cycles_per_frame,
-                M + M*(T + 1) + 3*M//2*int(np.log2(M)) + M)
+                M + M*(2*T + 1) + 2*M*int(np.log2(M)) + M)
 
 # Functional ---------------------------------------------------------------------------------------
 
