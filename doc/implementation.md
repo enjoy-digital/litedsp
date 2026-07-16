@@ -64,9 +64,9 @@ the equivalent strict Artix-7 gate on a self-hosted runner labelled `vivado`.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
-  serial CIC, AGC, and iterative-FFT configurations at 100 MHz while preserving their original
-  compatibility modes. Remaining sub-100 MHz configurations, notably streaming SDF FFT and the
-  multi-lane CIC, still require explicit throughput/area decisions rather than unsafe register
+  serial/parallel CIC, AGC, and iterative-FFT configurations at 100 MHz while preserving their
+  original compatibility modes. Remaining sub-100 MHz configurations, notably streaming SDF FFT,
+  still require explicit throughput/area decisions rather than unsafe register
   insertion. The reviewed options, trade-offs and acceptance criteria are tracked in
   [`timing_architecture.md`](timing_architecture.md).
 

@@ -15,7 +15,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Viterbi hard / soft | 47.4 / 46.5 MHz classic; 106.0 / 110.8 MHz folded | ACS metric update followed by the global-min tree and normalization | folded option landed and target-closed |
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
-| CIC parallel x4 | 55.6 MHz | four-lane prefix recurrence expands each serial integrator update | lane-prefix pipeline or fewer lanes per clock |
+| CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
 | SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz classic; iterative 107.6 MHz registered | butterfly result feeds the SDF delay or in-place RAM schedule | iterative option landed; SDF/parallel remain open |
 
 ## Viterbi decoder
@@ -122,6 +122,21 @@ Trade-offs:
 
 Acceptance requires bit identity after the declared delay/phase adjustment, impulse and random
 wrap-around vectors, runtime backpressure, and unchanged CIC droop characterization.
+
+The parallel option is now implemented with the same elastic stage boundaries, but each stage
+processes a complete vector using an inclusive Kogge-Stone lane scan. The x4 scan has two adder
+levels plus the stage accumulator rather than the old 16-adder beat recurrence. Both choices keep
+one beat per clock and add eight clocks of latency for N=4:
+
+| Parallel CIC | Peak input | ECP5 LUT/FF/Fmax | Artix-7 LUT/FF/Fmax |
+|---|---:|---:|---:|
+| x2 staged | 2 samples/clock | 1113 / 832 / 279.5 MHz | 675 / 834 / 274.8 MHz |
+| x4 staged | 4 samples/clock | 2770 / 1167 / 204.2 MHz | 1670 / 1169 / 188.8 MHz |
+| x4 classic | 4 samples/clock | 1393 / 482 / 55.6 MHz | 1219 / 482 / not routed |
+
+Thus x2 is the lower-area choice when two samples/clock suffice; x4 retains the original aggregate
+throughput for roughly 2.5x/2.0x the x2 ECP5 LUT/FF cost. The classic architecture remains the API
+default, while both staged registry configurations are strict 100 MHz timing sentinels.
 
 ## FFT family
 

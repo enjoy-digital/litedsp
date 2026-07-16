@@ -381,8 +381,14 @@ def mixer_parallel_x4(): return _parallel_mixer(4)
 def fir_parallel_x2():   return _parallel_fir(2)
 def fir_parallel_x4():   return _parallel_fir(4)
 
+def cic_parallel_x2():
+    d = LiteDSPParallelCICDecimator(n_samples=2, data_width=16, decimation=8, n_stages=4,
+        with_csr=False, staged=True)
+    return d, _eps(d.sink, d.source), 10.0
+
 def cic_parallel_x4():
-    d = LiteDSPParallelCICDecimator(n_samples=4, data_width=16, decimation=8, n_stages=4, with_csr=False)
+    d = LiteDSPParallelCICDecimator(n_samples=4, data_width=16, decimation=8, n_stages=4,
+        with_csr=False, staged=True)
     return d, _eps(d.sink, d.source), 10.0
 
 def ddc_parallel_x4():
@@ -422,7 +428,8 @@ REGISTRY = {
     "nco_parallel_x2": nco_parallel_x2, "nco_parallel_x4": nco_parallel_x4,
     "mixer_parallel_x2": mixer_parallel_x2, "mixer_parallel_x4": mixer_parallel_x4,
     "fir_parallel_x2": fir_parallel_x2, "fir_parallel_x4": fir_parallel_x4,
-    "cic_parallel_x4": cic_parallel_x4, "ddc_parallel_x4": ddc_parallel_x4,
+    "cic_parallel_x2": cic_parallel_x2, "cic_parallel_x4": cic_parallel_x4,
+    "ddc_parallel_x4": ddc_parallel_x4,
     "fft_parallel_x2": fft_parallel_x2,
 }
 
@@ -430,13 +437,14 @@ REGISTRY = {
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
               "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
-              "mixer_parallel_x2", "farrow", "window"]
+              "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
-                 "viterbi_decoder", "viterbi_decoder_soft"]
+                 "viterbi_decoder", "viterbi_decoder_soft",
+                 "cic_parallel_x2", "cic_parallel_x4"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

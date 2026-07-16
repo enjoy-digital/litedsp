@@ -335,40 +335,98 @@
       }
     }
   },
-  "cic_parallel_x4": {
+  "cic_parallel_x2": {
     "ecp5": {
       "bram": 0,
       "dsp": 0,
-      "ff": 482,
-      "fmax_mhz": 55.6,
-      "fmax_min": 47.3,
+      "ff": 832,
+      "fmax_mhz": 279.5,
+      "fmax_min": 237.6,
       "fmax_target": 100.0,
-      "lut": 1393,
+      "lut": 1113,
       "pnr": {
         "bram": 0,
         "dsp": 0,
-        "ff": 482,
-        "fmax_mhz": 55.6,
-        "fmax_min": 47.3,
-        "lut": 1393
+        "ff": 832,
+        "fmax_mhz": 279.5,
+        "fmax_min": 237.6,
+        "lut": 1113
       },
       "synth": {
         "bram": 0,
         "dsp": 0,
-        "ff": 482,
-        "lut": 1393
+        "ff": 832,
+        "lut": 1113
       }
     },
     "xilinx": {
       "bram": 0,
       "dsp": 0,
-      "ff": 482,
-      "lut": 1219,
+      "ff": 834,
+      "fmax_mhz": 274.8,
+      "fmax_min": 233.6,
+      "fmax_target": 100.0,
+      "lut": 675,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 834,
+        "fmax_mhz": 274.8,
+        "fmax_min": 233.6,
+        "lut": 675
+      },
       "synth": {
         "bram": 0,
         "dsp": 0,
-        "ff": 482,
-        "lut": 1219
+        "ff": 834,
+        "lut": 693
+      }
+    }
+  },
+  "cic_parallel_x4": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 1167,
+      "fmax_mhz": 204.2,
+      "fmax_min": 173.5,
+      "fmax_target": 100.0,
+      "lut": 2770,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1167,
+        "fmax_mhz": 204.2,
+        "fmax_min": 173.5,
+        "lut": 2770
+      },
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1167,
+        "lut": 2770
+      }
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 1169,
+      "fmax_mhz": 188.8,
+      "fmax_min": 160.5,
+      "lut": 1670,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1169,
+        "fmax_mhz": 188.8,
+        "fmax_min": 160.5,
+        "lut": 1670
+      },
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1169,
+        "lut": 1752
       }
     }
   },
