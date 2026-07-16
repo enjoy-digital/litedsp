@@ -489,18 +489,21 @@ def dc_offset_model(x, mu=10, data_width=16):
 
 # AGC ----------------------------------------------------------------------------------------------
 
-def agc_model(i, q, target, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2):
+def agc_model(i, q, target, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2,
+              delayed_feedback=False):
     """Reference for litedsp.level.agc.LiteDSPAGC (bit-exact).
 
     Per accepted sample: apply the current gain (round-half-up + saturate), measure the output
     magnitude (alpha-max-beta-min), then integrate ``gain += (target - |y|) >> mu`` clamped to
-    ``[0, gain_max]``. The gateware loop pauses with the stream, so the sequence is
-    handshake-invariant and this model holds under backpressure too. Returns (i, q).
+    ``[0, gain_max]``. With ``delayed_feedback=True`` the observation is applied on the next
+    accepted sample. The gateware loop pauses with the stream, so both sequences are handshake-
+    invariant and this model holds under backpressure too. Returns (i, q).
     """
     gain_width = gain_frac + data_width
     if gain_max is None:
         gain_max = (1 << gain_width) - 1
     gain = 1 << gain_frac                               # Start at 1.0 (Q?.gain_frac).
+    pending_mag = None
     out_i = np.zeros(len(i), np.int64)
     out_q = np.zeros(len(q), np.int64)
     for n, (xi, xq) in enumerate(zip(np.asarray(i, np.int64), np.asarray(q, np.int64))):
@@ -508,7 +511,12 @@ def agc_model(i, q, target, data_width=16, gain_frac=8, mu=8, gain_max=None, bet
         yq = int(np_scaled(int(xq)*gain, gain_frac, data_width))
         ai, aq   = abs(yi), abs(yq)
         mag      = (ai + (aq >> beta_shift)) if ai > aq else (aq + (ai >> beta_shift))
-        gain     = min(max(gain + ((target - mag) >> mu), 0), gain_max)  # >> is arithmetic.
+        if delayed_feedback:
+            if pending_mag is not None:
+                gain = min(max(gain + ((target - pending_mag) >> mu), 0), gain_max)
+            pending_mag = mag
+        else:
+            gain = min(max(gain + ((target - mag) >> mu), 0), gain_max)  # >> is arithmetic.
         out_i[n] = yi
         out_q[n] = yq
     return out_i, out_q

@@ -17,8 +17,10 @@ def tone(n, f, amp):
     return amp*np.exp(1j*2*np.pi*f*np.arange(n))
 
 class TestAGC(unittest.TestCase):
-    def run_agc(self, xi, xq, target, mu, throttle=0.0, ready_rate=1.0):
-        dut = LiteDSPAGC(data_width=16, gain_frac=8, mu=mu, with_csr=False)
+    def run_agc(self, xi, xq, target, mu, throttle=0.0, ready_rate=1.0,
+                delayed_feedback=False):
+        dut = LiteDSPAGC(data_width=16, gain_frac=8, mu=mu, with_csr=False,
+            delayed_feedback=delayed_feedback)
         dut.target.reset = target
         cap = run_stream(dut, [{"i": a, "q": b} for a, b in zip(xi, xq)],
             len(xi), ["i", "q"], ["i", "q"], sink_throttle=throttle, source_ready_rate=ready_rate)
@@ -53,6 +55,20 @@ class TestAGC(unittest.TestCase):
         mi, mq = agc_model(xi, xq, target, gain_frac=8, mu=6)
         np.testing.assert_array_equal(gi, mi[:n])
         np.testing.assert_array_equal(gq, mq[:n])
+
+    def test_delayed_feedback_bit_exact_under_backpressure(self):
+        n, target = 2400, 9000
+        x  = tone(n, 0.031, 1800)
+        xi = [int(round(v.real)) for v in x]
+        xq = [int(round(v.imag)) for v in x]
+        gi, gq = self.run_agc(xi, xq, target, mu=6, throttle=0.35, ready_rate=0.65,
+            delayed_feedback=True)
+        mi, mq = agc_model(xi, xq, target, gain_frac=8, mu=6, delayed_feedback=True)
+        np.testing.assert_array_equal(gi, mi)
+        np.testing.assert_array_equal(gq, mq)
+        self.assertEqual(LiteDSPAGC(with_csr=False, delayed_feedback=True).feedback_delay, 1)
+        self.assertAlmostEqual(np.abs(gi[-400:] + 1j*gq[-400:]).mean(), target,
+            delta=target*0.2)
 
 if __name__ == "__main__":
     unittest.main()

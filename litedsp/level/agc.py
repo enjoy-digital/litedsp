@@ -12,7 +12,7 @@ from litex.soc.interconnect.csr              import *
 from litex.soc.interconnect.csr_eventmanager import EventManager, EventSourceProcess
 from litex.soc.interconnect                  import stream
 
-from litedsp.common import iq_layout, scaled
+from litedsp.common import check, iq_layout, scaled
 
 # Automatic Gain Control ---------------------------------------------------------------------------
 
@@ -40,12 +40,18 @@ class LiteDSPAGC(LiteXModule):
     beta_shift : int
         Beta exponent of the alpha-max-beta-min magnitude estimate (|x| ~ max + min >>
         beta_shift). 2 is the usual multiplier-free compromise (~4% peak error).
+    delayed_feedback : bool
+        When true, apply each magnitude observation on the following accepted sample.  This
+        inserts one sample of control-loop delay without making the trajectory depend on stalls.
     """
     def __init__(self, data_width=16, gain_frac=8, mu=8, gain_max=None, beta_shift=2, with_csr=True,
-        with_irq=False):
+        with_irq=False, delayed_feedback=False):
+        check(isinstance(delayed_feedback, bool), "expected delayed_feedback to be a bool")
         self.data_width = data_width
         self.gain_frac  = gain_frac
         self.mu         = mu
+        self.delayed_feedback = delayed_feedback
+        self.feedback_delay   = int(delayed_feedback)
         gain_width      = gain_frac + data_width
         if gain_max is None:
             gain_max = (1 << gain_width) - 1
@@ -94,21 +100,33 @@ class LiteDSPAGC(LiteXModule):
 
         # Gain loop (leaky integrator), clamped.
         # --------------------------------------
+        feedback_mag   = Signal(data_width + 1)
+        feedback_valid = Signal()
+        loop_mag = feedback_mag if delayed_feedback else mag
         error    = Signal((data_width + 2, True))
         step     = Signal((data_width + 2, True))
         gain_nxt = Signal((gain_width + 2, True))  # Extra bits to detect clamp under/overflow.
         self.comb += [
-            error.eq(self.target - mag),
+            error.eq(self.target - loop_mag),
             step.eq(error >> self.mu),   # Loop gain 2**-mu (arithmetic shift keeps sign).
             gain_nxt.eq(self.gain + step),
         ]
-        # Gain integrates only on accepted samples, so the loop pauses with the stream.
-        self.sync += If(xfer,
+        gain_update = [
             If(gain_nxt < 0, self.gain.eq(0)
             ).Elif(gain_nxt > gain_max, self.gain.eq(gain_max)
             ).Else(self.gain.eq(gain_nxt)),
             self.railed.eq((gain_nxt < 0) | (gain_nxt > gain_max)),
-        )
+        ]
+        # Gain integrates only on accepted samples, so both architectures pause with the stream.
+        # The delayed option keeps one pending observation and applies it before replacing it.
+        if delayed_feedback:
+            self.sync += If(xfer,
+                If(feedback_valid, *gain_update),
+                feedback_mag.eq(mag),
+                feedback_valid.eq(1),
+            )
+        else:
+            self.sync += If(xfer, *gain_update)
 
         # CSR / IRQ.
         # ----------
@@ -128,4 +146,12 @@ class LiteDSPAGC(LiteXModule):
         self._target = CSRStorage(self.target.nbits, reset=1 << (self.data_width - 2),
             name="target", description="Target output magnitude.")
         self._gain   = CSRStatus(self.gain.nbits, name="gain", description="Current gain (Q?.frac).")
-        self.comb += [self.target.eq(self._target.storage), self._gain.status.eq(self.gain)]
+        self._config = CSRStatus(fields=[
+            CSRField("feedback_delay", size=2,
+                description="Accepted-sample delay in the gain feedback path."),
+        ])
+        self.comb += [
+            self.target.eq(self._target.storage),
+            self._gain.status.eq(self.gain),
+            self._config.fields.feedback_delay.eq(self.feedback_delay),
+        ]
