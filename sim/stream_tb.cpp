@@ -17,6 +17,7 @@
 
 #include <cstdio>
 #include <cstdint>
+#include <cinttypes>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -65,13 +66,13 @@ int main(int argc, char** argv) {
     TB_DUT* dut = new TB_DUT;
 
     // Input columns (sink 0 fields first, then sink 1, ...); all sinks share the sample count.
-    std::vector<std::vector<int32_t>> cols(TB_N_IN ? TB_N_IN : 1);
+    std::vector<std::vector<int64_t>> cols(TB_N_IN ? TB_N_IN : 1);
 #if TB_N_IN
     FILE* fin = fopen(fin_path, "r");
     while (true) {
-        int32_t v; bool ok = true;
+        int64_t v; bool ok = true;
         for (int k = 0; k < TB_N_IN; k++) {
-            if (fscanf(fin, "%d", &v) != 1) { ok = false; break; }
+            if (fscanf(fin, "%" SCNd64, &v) != 1) { ok = false; break; }
             cols[k].push_back(v);
         }
         if (!ok) break;
@@ -125,7 +126,7 @@ int main(int argc, char** argv) {
         for (int s = 0; s < TB_N_SINKS; s++)
             consume[s] = pending[s] && tb_get_sink_ready(dut, s);
         if (dut->source_valid && ready && out_n < n_out) {
-            for (int k = 0; k < TB_N_OUT; k++) fprintf(fout, "%d ", tb_get_out(dut, k));
+            for (int k = 0; k < TB_N_OUT; k++) fprintf(fout, "%" PRId64 " ", tb_get_out(dut, k));
             fprintf(fout, "\n");
             out_n++;
         }

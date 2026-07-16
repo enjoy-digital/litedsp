@@ -88,31 +88,34 @@ def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=(
         set_valid.append(f"if (s == {s}) dut->{prefix}_valid = v;")
         get_ready.append(f"if (s == {s}) return dut->{prefix}_ready;")
         for f, w, _ in _fields(ep):
-            mask = f" & 0x{(1 << w) - 1:x}u" if w < 32 else ""
-            set_in.append(f"if (k == {n_in}) dut->{prefix}_payload_{f} = (uint32_t)v{mask};")
+            assert w <= 64, f"generic co-sim supports payload fields up to 64 bits ({prefix}.{f} is {w})"
+            mask = f" & 0x{(1 << w) - 1:x}ull" if w < 64 else ""
+            set_in.append(f"if (k == {n_in}) dut->{prefix}_payload_{f} = (uint64_t)v{mask};")
             n_in += 1
         if sink_tags:
             for tag in ("first", "last"):
-                set_in.append(f"if (k == {n_in}) dut->{prefix}_{tag} = (uint32_t)v & 0x1u;")
+                set_in.append(f"if (k == {n_in}) dut->{prefix}_{tag} = (uint64_t)v & 0x1u;")
                 n_in += 1
     n_stream_in = n_in
     set_control = []
     for k, signal in enumerate(controls):
         signal.name_override = f"tb_control{k}"
         width = len(signal)
-        mask = f" & 0x{(1 << width) - 1:x}u" if width < 32 else ""
-        set_control.append(f"if (k == {k}) dut->tb_control{k} = (uint32_t)v{mask};")
+        assert width <= 64, f"generic co-sim supports controls up to 64 bits (control {k} is {width})"
+        mask = f" & 0x{(1 << width) - 1:x}ull" if width < 64 else ""
+        set_control.append(f"if (k == {k}) dut->tb_control{k} = (uint64_t)v{mask};")
     get_out = []
     for k, (f, w, signed) in enumerate(outs):
+        assert w <= 64, f"generic co-sim supports payload fields up to 64 bits ({src_prefix}.{f} is {w})"
         port = f"dut->{src_prefix}_payload_{f}"
-        if signed or w >= 32:  # Sign-extend from the payload width (shift 0 when w == 32).
-            get_out.append(f"if (k == {k}) return ((int32_t)((uint32_t){port} << {32 - w})) >> {32 - w};")
+        if signed or w >= 32:  # Packed wide fields use a signed host integer representation.
+            get_out.append(f"if (k == {k}) return ((int64_t)((uint64_t){port} << {64 - w})) >> {64 - w};")
         else:                  # Unsigned payload (e.g. log2): plain zero-extended read.
-            get_out.append(f"if (k == {k}) return (int32_t)(uint32_t){port};")
+            get_out.append(f"if (k == {k}) return (int64_t)(uint64_t){port};")
     if source_tags:
         for tag in ("first", "last"):
             k = len(get_out)
-            get_out.append(f"if (k == {k}) return (int32_t)(uint32_t)dut->{src_prefix}_{tag};")
+            get_out.append(f"if (k == {k}) return (int64_t)(uint64_t)dut->{src_prefix}_{tag};")
 
     void = "(void)dut; (void)s; (void)v;"
     with open(path, "w") as f:
@@ -129,11 +132,11 @@ def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=(
                 f"{{ {' '.join(set_valid) or void} }}\n"
                 f"static inline int tb_get_sink_ready(TB_DUT* dut, int s) "
                 f"{{ {' '.join(get_ready) or '(void)dut; (void)s;'} return 0; }}\n"
-                f"static inline void tb_set_in(TB_DUT* dut, int k, int32_t v) "
+                f"static inline void tb_set_in(TB_DUT* dut, int k, int64_t v) "
                 f"{{ {' '.join(set_in) or '(void)dut; (void)k; (void)v;'} }}\n"
-                f"static inline void tb_set_control(TB_DUT* dut, int k, int32_t v) "
+                f"static inline void tb_set_control(TB_DUT* dut, int k, int64_t v) "
                 f"{{ {' '.join(set_control) or '(void)dut; (void)k; (void)v;'} }}\n"
-                f"static inline int32_t tb_get_out(TB_DUT* dut, int k) "
+                f"static inline int64_t tb_get_out(TB_DUT* dut, int k) "
                 f"{{ {' '.join(get_out)} return 0; }}\n")
     return sinks, (src_prefix, src_ep)
 
@@ -179,7 +182,7 @@ def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_
     run(binary, [fin, n_out, fout,
         "--seed", seed, "--throttle", throttle, "--ready-rate", ready_rate], cwd=bd)
 
-    got = np.loadtxt(fout).astype(int).reshape(n_out, -1)
+    got = np.loadtxt(fout, dtype=np.int64).reshape(n_out, -1)
     ref = model(cols)
     ok  = all(np.array_equal(got[:, k], np.asarray(r)[:n_out]) for k, r in enumerate(ref))
     # Known RTL divergence (see cosim_specs.KNOWN_FAIL): expected to mismatch until the block
