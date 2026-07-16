@@ -421,16 +421,18 @@ def moving_average_model(x, length_log2=4):
 # LMS Equalizer ------------------------------------------------------------------------------------
 
 def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14, wint=4,
-    mu_shift=20, cma_egain=0, mode=0, cma_r2=0, dd_level=0, train=1):
+    mu_shift=20, cma_egain=0, mode=0, cma_r2=0, dd_level=0, train=1,
+    adaptation_delay=1):
     """Reference for litedsp.filter.equalizer.LiteDSPLMSEqualizer (bit-exact, all modes).
 
     Per accepted sample (the gateware gates everything on xfer, so the sequence is
     handshake-invariant): shift the input window, filter with the current weights, form the
     mode-selected error (0 = trained ``e = d - y``, 1 = CMA ``e = y*(R2 - |y|^2)`` with the
     gateware's frac-(W-1-cma_egain) rescale/round/saturate, 2 = DD nearest-QPSK at ``dd_level``), then
-    apply the *previous* sample's error on its window snapshot (delayed LMS), gated by
+    apply a prior sample's error on its window snapshot (delayed LMS), gated by
     ``train``. ``mode`` and ``train`` accept scalars or per-sample sequences (runtime
-    switching). Returns (i, q) output arrays.
+    switching). ``adaptation_delay`` selects the one-sample classic or three-sample pipelined
+    update distance. Returns (i, q) output arrays.
     """
     W  = data_width
     F  = W - 1                                          # Sample fractional bits (Q1.F).
@@ -444,7 +446,7 @@ def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14,
     wr, wi = [0]*n_taps, [0]*n_taps
     wr[n_taps//2] = 1 << wfrac                          # Center tap = 1.0.
     xr, xi = [0]*n_taps, [0]*n_taps                     # Input window (tap 0 = current).
-    prev   = None                                       # (e, window) of the previous sample.
+    errors = []                                         # Pending (e, window) updates.
     out_i  = np.zeros(n, np.int64)
     out_q  = np.zeros(n, np.int64)
     for k in range(n):
@@ -462,12 +464,12 @@ def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14,
         else:                                           # Trained: e = d - y.
             e_i = int(d_i[k]) - yi
             e_q = int(d_q[k]) - yq
-        if train[k] and prev is not None:               # Delayed update: e[k-1] on window[k-1].
-            pei, peq, pxr, pxi = prev
+        if train[k] and len(errors) >= adaptation_delay:
+            pei, peq, pxr, pxi = errors[-adaptation_delay]
             for t in range(n_taps):
                 wr[t] = int(np_saturated(np.int64(wr[t] + ((pei*pxr[t] + peq*pxi[t]) >> mu_shift)), ww))
                 wi[t] = int(np_saturated(np.int64(wi[t] + ((peq*pxr[t] - pei*pxi[t]) >> mu_shift)), ww))
-        prev = (e_i, e_q, list(xr), list(xi))
+        errors.append((e_i, e_q, list(xr), list(xi)))
         out_i[k], out_q[k] = yi, yq
     return out_i, out_q
 

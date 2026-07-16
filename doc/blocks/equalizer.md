@@ -31,12 +31,11 @@ Drive ``train`` low to freeze adaptation in any mode (weights hold, filtering co
 ``mu_shift`` sets the (inverse) step size; weights are Q.``wfrac`` with the center tap
 initialized to 1.0.
 
-Adaptation is *delayed LMS* (the standard hardware form): the update applies the previous
-sample's error (registered with its input-window snapshot), so the filter and the update
-each carry one multiply level per cycle instead of chaining y -> e -> update
-combinationally. Convergence is indistinguishable at practical step sizes. (The CMA error
-itself adds two multiply levels — ``|y|^2`` then ``y * dm`` — in front of the error
-register; pipeline externally or lower the clock if that path limits timing.)
+Adaptation is *delayed LMS* (the standard hardware form). ``architecture="classic"``
+applies the previous sample's registered error/window. ``"pipelined"`` registers the FIR
+result, modulus square, and selected error separately and applies it after three accepted
+samples. Both retain one-sample-per-clock filter throughput and latency; the latter trades
+adaptation-loop delay and registers for a shorter CMA timing cone.
 
 ## Parameters
 
@@ -48,6 +47,7 @@ register; pipeline externally or lower the clock if that path limits timing.)
 | `wint` | `4` | int | Integer bits of each weight; bounds the weight magnitude (updates saturate). Keep wint + wfrac <= 18 so each weight*sample product fits one 18x18 DSP block. |
 | `mu_shift` | `20` | int | LMS step-size exponent, mu = 2**-mu_shift (update uses a bare right shift). Larger = slower but more stable convergence with lower steady-state misadjustment. |
 | `cma_egain` | `0` | int | Log2 gain applied to the CMA error before its saturation, e = sat(y * dm * 2**cma_egain) with dm the modulus error R2 - mag(y)^2; other modes are unaffected. The CMA gradient scales as signal power times amplitude, so at operating levels well below full scale it is much smaller than the trained/DD error (~30x at 0.2 of full scale): set cma_egain so both land at a comparable magnitude and a single mu_shift serves blind acquisition and decision-directed tracking (each unit doubles the effective CMA step). 0 keeps the exact derived Q-format. |
+| `architecture` | `"classic"` | str | ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a three-sample adaptation delay with unchanged filter throughput/output latency. Choices: `classic`, `pipelined`. |
 
 ## Ports
 

@@ -48,12 +48,11 @@ class LiteDSPLMSEqualizer(LiteXModule):
     ``mu_shift`` sets the (inverse) step size; weights are Q.``wfrac`` with the center tap
     initialized to 1.0.
 
-    Adaptation is *delayed LMS* (the standard hardware form): the update applies the previous
-    sample's error (registered with its input-window snapshot), so the filter and the update
-    each carry one multiply level per cycle instead of chaining y -> e -> update
-    combinationally. Convergence is indistinguishable at practical step sizes. (The CMA error
-    itself adds two multiply levels — ``|y|^2`` then ``y * dm`` — in front of the error
-    register; pipeline externally or lower the clock if that path limits timing.)
+    Adaptation is *delayed LMS* (the standard hardware form). ``architecture="classic"``
+    applies the previous sample's registered error/window. ``"pipelined"`` registers the FIR
+    result, modulus square, and selected error separately and applies it after three accepted
+    samples. Both retain one-sample-per-clock filter throughput and latency; the latter trades
+    adaptation-loop delay and registers for a shorter CMA timing cone.
 
     Parameters
     ----------
@@ -74,13 +73,20 @@ class LiteDSPLMSEqualizer(LiteXModule):
         scale): set cma_egain so both land at a comparable magnitude and a single mu_shift
         serves blind acquisition and decision-directed tracking (each unit doubles the
         effective CMA step). 0 keeps the exact derived Q-format.
+    architecture : str
+        ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a three-sample
+        adaptation delay with unchanged filter throughput/output latency.
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, cma_egain=0,
-        with_csr=True):
+        architecture="classic", with_csr=True):
         check(n_taps >= 1, "expected n_taps >= 1")
         check(0 <= cma_egain <= data_width - 1, "expected 0 <= cma_egain <= data_width - 1")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         self.n_taps   = n_taps
         self.mu_shift = mu_shift                         # LMS step size: mu = 2**-mu_shift.
+        self.architecture     = architecture
+        self.adaptation_delay = 1 if architecture == "classic" else 3
         # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude
         # (saturated below); keeping ww = wint + wfrac <= 18 makes each weight*sample a single
         # 18x18 DSP. Stable equalizers have O(1) weights, so a few integer bits suffice.
@@ -150,47 +156,95 @@ class LiteDSPLMSEqualizer(LiteXModule):
         # shift bounds the worst-case weight step during blind acquisition (large-modulus
         # transients make |dm| ~ 2^W), which is what keeps CMA stable at practical step sizes.
         F   = data_width - 1                             # Sample fractional bits (Q1.F).
-        e_i = Signal((data_width + 1, True))             # Selected error Re{e}.
-        e_q = Signal((data_width + 1, True))             # Selected error Im{e}.
-        m2  = Signal((data_width + 2, True))             # |y|^2 rescaled to frac F.
-        dm  = Signal((data_width + 2, True))             # Modulus error R2 - |y|^2 (frac F).
-        self.comb += [
-            m2.eq(rounded(yi*yi + yq*yq, F)),
-            dm.eq(self.cma_r2 - m2),
-        ]
-        self.comb += Case(self.mode, {
-            MODE_CMA: [                                  # Blind: e = y * (R2 - |y|^2).
-                e_i.eq(scaled(yi*dm, F - cma_egain, data_width + 1)[0]),
-                e_q.eq(scaled(yq*dm, F - cma_egain, data_width + 1)[0]),
-            ],
-            MODE_DD: [                                   # Decision-directed: e = slice(y) - y.
-                e_i.eq(Mux(yi < 0, -self.dd_level, self.dd_level) - yi),
-                e_q.eq(Mux(yq < 0, -self.dd_level, self.dd_level) - yq),
-            ],
-            "default": [                                 # Trained (0, and reserved 3): e = d - y.
-                e_i.eq(self.sink.d_i - yi),
-                e_q.eq(self.sink.d_q - yq),
-            ],
-        })
-
         # LMS Update.
         # -----------
-        # Delayed-LMS update: register the error with its input-window snapshot, apply it on
-        # the next accepted sample: w_k += mu * e[n-1] * conj(x[n-1-k]).
         ei_d = Signal((data_width + 1, True))            # Registered error Re{e} (1 growth bit).
         eq_d = Signal((data_width + 1, True))            # Registered error Im{e}.
         xr_d = [Signal((data_width, True)) for _ in range(n_taps)]
         xi_d = [Signal((data_width, True)) for _ in range(n_taps)]
-        v_e  = Signal()                                  # A registered error is pending.
-        self.sync += If(xfer,
-            ei_d.eq(e_i),
-            eq_d.eq(e_q),
-            *[xr_d[k].eq(xr[k]) for k in range(n_taps)],
-            *[xi_d[k].eq(xi[k]) for k in range(n_taps)],
-            v_e.eq(1),
-        )
+        if architecture == "classic":
+            e_i = Signal((data_width + 1, True))
+            e_q = Signal((data_width + 1, True))
+            m2  = Signal((data_width + 2, True))
+            dm  = Signal((data_width + 2, True))
+            self.comb += [
+                m2.eq(rounded(yi*yi + yq*yq, F)),
+                dm.eq(self.cma_r2 - m2),
+            ]
+            self.comb += Case(self.mode, {
+                MODE_CMA: [
+                    e_i.eq(scaled(yi*dm, F - cma_egain, data_width + 1)[0]),
+                    e_q.eq(scaled(yq*dm, F - cma_egain, data_width + 1)[0]),
+                ],
+                MODE_DD: [
+                    e_i.eq(Mux(yi < 0, -self.dd_level, self.dd_level) - yi),
+                    e_q.eq(Mux(yq < 0, -self.dd_level, self.dd_level) - yq),
+                ],
+                "default": [
+                    e_i.eq(self.sink.d_i - yi),
+                    e_q.eq(self.sink.d_q - yq),
+                ],
+            })
+            v_update = Signal()
+            self.sync += If(xfer,
+                ei_d.eq(e_i), eq_d.eq(e_q),
+                *[xr_d[k].eq(xr[k]) for k in range(n_taps)],
+                *[xi_d[k].eq(xi[k]) for k in range(n_taps)],
+                v_update.eq(1),
+            )
+        else:
+            # Three-sample delayed LMS: capture filter result/window, register |y|^2, then
+            # register the selected error. All stages advance only on accepted samples.
+            v0, v1, v2 = Signal(), Signal(), Signal()
+            yi0, yq0 = Signal((data_width, True)), Signal((data_width, True))
+            yi1, yq1 = Signal((data_width, True)), Signal((data_width, True))
+            di0, dq0 = Signal((data_width, True)), Signal((data_width, True))
+            di1, dq1 = Signal((data_width, True)), Signal((data_width, True))
+            mode0, mode1 = Signal(2), Signal(2)
+            r20, r21 = Signal(data_width + 1), Signal(data_width + 1)
+            ddl0, ddl1 = Signal(data_width - 1), Signal(data_width - 1)
+            m2_1 = Signal((data_width + 2, True))
+            dm_1 = Signal((data_width + 2, True))
+            ep_i = Signal((data_width + 1, True))
+            ep_q = Signal((data_width + 1, True))
+            xr0 = [Signal((data_width, True)) for _ in range(n_taps)]
+            xi0 = [Signal((data_width, True)) for _ in range(n_taps)]
+            xr1 = [Signal((data_width, True)) for _ in range(n_taps)]
+            xi1 = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.comb += dm_1.eq(r21 - m2_1)
+            self.comb += Case(mode1, {
+                MODE_CMA: [
+                    ep_i.eq(scaled(yi1*dm_1, F - cma_egain, data_width + 1)[0]),
+                    ep_q.eq(scaled(yq1*dm_1, F - cma_egain, data_width + 1)[0]),
+                ],
+                MODE_DD: [
+                    ep_i.eq(Mux(yi1 < 0, -ddl1, ddl1) - yi1),
+                    ep_q.eq(Mux(yq1 < 0, -ddl1, ddl1) - yq1),
+                ],
+                "default": [ep_i.eq(di1 - yi1), ep_q.eq(dq1 - yq1)],
+            })
+            self.sync += If(xfer,
+                v0.eq(1), v1.eq(v0), v2.eq(v1),
+                yi0.eq(yi), yq0.eq(yq), di0.eq(self.sink.d_i), dq0.eq(self.sink.d_q),
+                mode0.eq(self.mode), r20.eq(self.cma_r2), ddl0.eq(self.dd_level),
+                *[xr0[k].eq(xr[k]) for k in range(n_taps)],
+                *[xi0[k].eq(xi[k]) for k in range(n_taps)],
+                If(v0,
+                    yi1.eq(yi0), yq1.eq(yq0), di1.eq(di0), dq1.eq(dq0),
+                    mode1.eq(mode0), r21.eq(r20), ddl1.eq(ddl0),
+                    m2_1.eq(rounded(yi0*yi0 + yq0*yq0, F)),
+                    *[xr1[k].eq(xr0[k]) for k in range(n_taps)],
+                    *[xi1[k].eq(xi0[k]) for k in range(n_taps)],
+                ),
+                If(v1,
+                    ei_d.eq(ep_i), eq_d.eq(ep_q),
+                    *[xr_d[k].eq(xr1[k]) for k in range(n_taps)],
+                    *[xi_d[k].eq(xi1[k]) for k in range(n_taps)],
+                ),
+            )
+            v_update = v2
         for k in range(n_taps):
-            self.sync += If(xfer & self.train & v_e,
+            self.sync += If(xfer & self.train & v_update,
                 wr[k].eq(saturated(wr[k] + ((ei_d*xr_d[k] + eq_d*xi_d[k]) >> mu_shift), ww)),
                 wi[k].eq(saturated(wi[k] + ((eq_d*xr_d[k] - ei_d*xi_d[k]) >> mu_shift), ww)),
             )

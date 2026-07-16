@@ -132,7 +132,7 @@ ENTRIES = [
     ("dc_blocker",         LiteDSPDCBlocker,             {},                                     "filter",     "DC blocker",            None),
     ("moving_average",     LiteDSPMovingAverage,         {},                                     "filter",     "Moving average",        None),
     ("farrow",             LiteDSPFarrowInterpolator,    {},                                     "filter",     "Farrow interpolator",   None),
-    ("equalizer",          LiteDSPLMSEqualizer,          {"n_taps": 7},                          "filter",     "LMS equalizer",         None),
+    ("equalizer",          LiteDSPLMSEqualizer,          {"n_taps": 7},                          "filter",     "LMS equalizer",         {"architecture": ["classic", "pipelined"]}),
     ("notch",              LiteDSPNotch,                 {},                                     "filter",     "Notch",                 None),
     ("comb_filter",        LiteDSPCombFilter,            {},                                     "filter",     "Comb filter",           None),
     ("allpass",            LiteDSPAllpass,               {},                                     "filter",     "Allpass",               None),

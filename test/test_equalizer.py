@@ -110,10 +110,10 @@ class TestLMSEqualizer(unittest.TestCase):
     # is handshake-invariant). Aggressive step sizes so the weights move (and, for CMA, the
     # pre-mu error saturation is exercised) within the short run.
     def _run_bit_exact(self, samples, model_kwargs, controls, n_taps=5, mu_shift=12,
-        cma_egain=0, extra=None):
+        cma_egain=0, extra=None, architecture="classic", adaptation_delay=1):
         N   = len(samples)
         dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, wfrac=14, mu_shift=mu_shift,
-            cma_egain=cma_egain, with_csr=False)
+            cma_egain=cma_egain, architecture=architecture, with_csr=False)
         gens = [_set_controls(dut, controls)] + (extra or [])
         cap  = run_stream(dut, samples, N, ["i", "q", "d_i", "d_q"], ["i", "q"], extra=gens)
         y_i  = to_signed(column(cap, "i"), 16)
@@ -122,7 +122,7 @@ class TestLMSEqualizer(unittest.TestCase):
             [s["i"] for s in samples], [s["q"] for s in samples],
             [s["d_i"] for s in samples], [s["d_q"] for s in samples],
             n_taps=n_taps, data_width=16, wfrac=14, mu_shift=mu_shift, cma_egain=cma_egain,
-            **model_kwargs)
+            adaptation_delay=adaptation_delay, **model_kwargs)
         np.testing.assert_array_equal(y_i, m_i)
         np.testing.assert_array_equal(y_q, m_q)
 
@@ -153,6 +153,25 @@ class TestLMSEqualizer(unittest.TestCase):
         sym, i, q = _qpsk_channel(N, seed=5)
         self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
             {"mode": MODE_DD, "dd_level": 7000})
+
+    # verify-tier: model — the full-rate adaptation pipeline delays updates by exactly three
+    # accepted samples in trained, CMA and decision-directed modes.
+    def test_pipelined_modes_bit_exact(self):
+        N = 240
+        sym, i, q = _qpsk_channel(N, seed=21)
+        d = np.concatenate([np.zeros(2, complex), sym])[:N]
+        common = {"architecture": "pipelined", "adaptation_delay": 3}
+        self._run_bit_exact(_sink_samples(i, q, np.round(d.real).astype(int),
+            np.round(d.imag).astype(int)), {"mode": MODE_TRAINED}, {}, **common)
+        r2 = _r2(7000)
+        self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_CMA, "cma_r2": r2},
+            {"mode": MODE_CMA, "cma_r2": r2}, mu_shift=16, cma_egain=6, **common)
+        self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
+            {"mode": MODE_DD, "dd_level": 7000}, **common)
+
+    def test_invalid_architecture(self):
+        with self.assertRaises(ValueError):
+            LiteDSPLMSEqualizer(architecture="invalid", with_csr=False)
 
     # verify-tier: bound — blind CMA on a 2-tap ISI channel, no training data at all: the
     # constant-modulus dispersion (|y|^2 - R2)^2 must fall and the eye must open. Measured at
