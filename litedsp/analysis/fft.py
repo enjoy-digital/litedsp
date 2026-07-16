@@ -290,6 +290,8 @@ class LiteDSPFFTFoldedStage(LiteXModule):
         # the ROM/delay reads and the arithmetic cone.
         xr_r, xi_r = Signal((data_width, True)), Signal((data_width, True))
         fr_r, fi_r = Signal((data_width, True)), Signal((data_width, True))
+        sum_i_r    = Signal((data_width + 1, True))
+        sum_q_r    = Signal((data_width + 1, True))
         c_r        = Signal()
         if D > 1:
             sin_func = (lambda a: -math.sin(a)) if inverse else math.sin
@@ -299,13 +301,35 @@ class LiteDSPFFTFoldedStage(LiteXModule):
             sin_rp  = sin_rom.get_port(async_read=True)
             self.specials += cos_rom, sin_rom, cos_rp, sin_rp
             self.comb += [cos_rp.adr.eq(p), sin_rp.adr.eq(p)]
-            tr_r = Signal((twiddle_width, True))
-            ti_r = Signal((twiddle_width, True))
-            self.sync += If(accept, tr_r.eq(cos_rp.dat_r), ti_r.eq(sin_rp.dat_r))
+            tr = Signal((twiddle_width, True))
+            ti = Signal((twiddle_width, True))
+            self.comb += [tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r)]
+            # Register each real multiplier result independently.  The second cycle then has
+            # only the complex add/subtract plus rounding, rather than multiplier + adder.
+            term_width = data_width + twiddle_width + 1
+            prod_rr = Signal((term_width, True))
+            prod_ii = Signal((term_width, True))
+            prod_ri = Signal((term_width, True))
+            prod_ir = Signal((term_width, True))
+            self.sync += If(accept,
+                prod_rr.eq((fr - self.sink.i)*tr),
+                prod_ii.eq((fi - self.sink.q)*ti),
+                prod_ri.eq((fr - self.sink.i)*ti),
+                prod_ir.eq((fi - self.sink.q)*tr),
+            )
+        else:
+            diff_i_r = Signal((data_width + 1, True))
+            diff_q_r = Signal((data_width + 1, True))
+            self.sync += If(accept,
+                diff_i_r.eq(fr - self.sink.i),
+                diff_q_r.eq(fi - self.sink.q),
+            )
 
         self.sync += If(accept,
             xr_r.eq(self.sink.i), xi_r.eq(self.sink.q),
             fr_r.eq(fr),          fi_r.eq(fi),
+            sum_i_r.eq(fr + self.sink.i),
+            sum_q_r.eq(fi + self.sink.q),
             c_r.eq(c),
             pending.eq(1),
             self.source.valid.eq(0),
@@ -313,26 +337,18 @@ class LiteDSPFFTFoldedStage(LiteXModule):
 
         # Cycle two arithmetic.  Explicit full-width intermediates keep Migen and generated
         # Verilog sizing identical.
-        sum_i_full = Signal((data_width + 1, True))
-        sum_q_full = Signal((data_width + 1, True))
-        dr          = Signal((data_width + 1, True))
-        di          = Signal((data_width + 1, True))
-        self.comb += [
-            sum_i_full.eq(fr_r + xr_r), sum_q_full.eq(fi_r + xi_r),
-            dr.eq(fr_r - xr_r),         di.eq(fi_r - xi_r),
-        ]
-        sum_i, _ = scaled(sum_i_full, 1, data_width)
-        sum_q, _ = scaled(sum_q_full, 1, data_width)
+        sum_i, _ = scaled(sum_i_r, 1, data_width)
+        sum_q, _ = scaled(sum_q_r, 1, data_width)
         if D > 1:
             prod_i = Signal((data_width + twiddle_width + 2, True))
             prod_q = Signal((data_width + twiddle_width + 2, True))
-            self.comb += [prod_i.eq(dr*tr_r - di*ti_r), prod_q.eq(dr*ti_r + di*tr_r)]
+            self.comb += [prod_i.eq(prod_rr - prod_ii), prod_q.eq(prod_ri + prod_ir)]
             tw_shift  = twiddle_width
             diff_i, _ = scaled(prod_i, tw_shift, data_width)
             diff_q, _ = scaled(prod_q, tw_shift, data_width)
         else:
-            diff_i, _ = scaled(dr, 1, data_width)
-            diff_q, _ = scaled(di, 1, data_width)
+            diff_i, _ = scaled(diff_i_r, 1, data_width)
+            diff_q, _ = scaled(diff_q_r, 1, data_width)
 
         out_i = Signal((data_width, True))
         out_q = Signal((data_width, True))

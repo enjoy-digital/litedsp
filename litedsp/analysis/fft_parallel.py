@@ -178,30 +178,37 @@ class LiteDSPParallelFFT(LiteXModule):
             tr, ti = Signal((twiddle_width, True)), Signal((twiddle_width, True))
             ar, ai = Signal((data_width, True)), Signal((data_width, True))  # x[p] (delayed).
             br, bi = Signal((data_width, True)), Signal((data_width, True))  # x[p + N/2].
-            if rank_pipeline:
-                self.sync += If(xfer,
-                    tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r),
-                    ar.eq(rp_i.dat_r[k*data_width:(k + 1)*data_width]),
-                    ai.eq(rp_q.dat_r[k*data_width:(k + 1)*data_width]),
-                    br.eq(x_lanes[k][0]), bi.eq(x_lanes[k][1]),
-                )
-            else:
-                self.comb += [
-                    tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r),
-                    ar.eq(rp_i.dat_r[k*data_width:(k + 1)*data_width]),
-                    ai.eq(rp_q.dat_r[k*data_width:(k + 1)*data_width]),
-                    br.eq(x_lanes[k][0]), bi.eq(x_lanes[k][1]),
-                ]
             sum_i_full = Signal((data_width + 1, True))
             sum_q_full = Signal((data_width + 1, True))
             dr, di   = Signal((data_width + 1, True)), Signal((data_width + 1, True))
             prod_i = Signal((data_width + twiddle_width + 2, True))
             prod_q = Signal((data_width + twiddle_width + 2, True))
             self.comb += [
-                sum_i_full.eq(ar + br), sum_q_full.eq(ai + bi),
+                tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r),
+                ar.eq(rp_i.dat_r[k*data_width:(k + 1)*data_width]),
+                ai.eq(rp_q.dat_r[k*data_width:(k + 1)*data_width]),
+                br.eq(x_lanes[k][0]), bi.eq(x_lanes[k][1]),
                 dr.eq(ar - br), di.eq(ai - bi),
-                prod_i.eq(dr*tr - di*ti), prod_q.eq(dr*ti + di*tr),
             ]
+            if rank_pipeline:
+                term_width = data_width + twiddle_width + 1
+                prod_rr = Signal((term_width, True))
+                prod_ii = Signal((term_width, True))
+                prod_ri = Signal((term_width, True))
+                prod_ir = Signal((term_width, True))
+                self.sync += If(xfer,
+                    sum_i_full.eq(ar + br), sum_q_full.eq(ai + bi),
+                    prod_rr.eq(dr*tr), prod_ii.eq(di*ti),
+                    prod_ri.eq(dr*ti), prod_ir.eq(di*tr),
+                )
+                self.comb += [
+                    prod_i.eq(prod_rr - prod_ii), prod_q.eq(prod_ri + prod_ir),
+                ]
+            else:
+                self.comb += [
+                    sum_i_full.eq(ar + br), sum_q_full.eq(ai + bi),
+                    prod_i.eq(dr*tr - di*ti), prod_q.eq(dr*ti + di*tr),
+                ]
             sum_i, _  = scaled(sum_i_full, 1, data_width)
             sum_q, _  = scaled(sum_q_full, 1, data_width)
             diff_i, _ = scaled(prod_i, twiddle_width, data_width)
