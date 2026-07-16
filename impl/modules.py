@@ -45,7 +45,7 @@ from litedsp.level.saturate       import LiteDSPSaturate
 from litedsp.level.rms            import LiteDSPRMS
 from litedsp.analysis.magnitude   import LiteDSPMagnitude
 from litedsp.analysis.window      import LiteDSPWindow
-from litedsp.analysis.fft         import LiteDSPFFT
+from litedsp.analysis.fft         import LiteDSPFFT, LiteDSPInterleavedFFT
 from litedsp.analysis.fft_iter    import LiteDSPFFTIter
 from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
 from litedsp.analysis.psd         import LiteDSPPSD
@@ -144,6 +144,12 @@ def iir_biquad():
     d = LiteDSPIIRBiquadCascade(data_width=16, sections=sos, frac_bits=frac, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def iir_biquad_folded():
+    sos, frac = _lowpass_sos(3)
+    d = LiteDSPIIRBiquadCascade(data_width=16, sections=sos, frac_bits=frac,
+        architecture="folded", with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def dc_blocker():
     d = LiteDSPDCBlocker(data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
@@ -178,6 +184,10 @@ def cfr():
     # Expose the counters too, or the detection path folds away.
     return d, {d.threshold, d.peak_count, d.missed_count, d.bypass} | _eps(d.sink, d.source), 10.0
 
+def cfr_pipelined():
+    d = LiteDSPCFR(data_width=16, pulse_span=16, architecture="pipelined", with_csr=False)
+    return d, {d.threshold, d.peak_count, d.missed_count, d.bypass} | _eps(d.sink, d.source), 10.0
+
 def saturate():
     d = LiteDSPSaturate(data_width=16, in_width=32, shift=15, with_csr=False)
     return d, {d.clear_sat} | _eps(d.sink, d.source), 10.0
@@ -206,6 +216,14 @@ def fft():
     d = LiteDSPFFT(256, data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def fft_folded():
+    d = LiteDSPFFT(256, data_width=16, architecture="folded", with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def fft_interleaved_x2():
+    d = LiteDSPInterleavedFFT(256, data_width=16, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def fft_iter():
     d = LiteDSPFFTIter(256, data_width=16, with_csr=False, registered_butterfly=True)
     return d, _eps(d.sink, d.source), 10.0
@@ -216,6 +234,10 @@ def psd():
 
 def goertzel():
     d = LiteDSPGoertzel(64, 5, data_width=16, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def goertzel_folded():
+    d = LiteDSPGoertzel(64, 5, data_width=16, architecture="folded", with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def stats():
@@ -242,9 +264,19 @@ def pfb_channelizer():
     d = LiteDSPPFBChannelizer(n_channels=4, taps_per_channel=8, data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def pfb_channelizer_folded():
+    d = LiteDSPPFBChannelizer(n_channels=4, taps_per_channel=8, data_width=16,
+        architecture="folded", with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def lms_equalizer():
     d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, with_csr=False)
     return d, {d.train} | _eps(d.sink, d.source), 12.0
+
+def lms_equalizer_pipelined():
+    d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, architecture="pipelined", with_csr=False)
+    # A small implementation margin keeps the reviewed 100 MHz target out of route noise.
+    return d, {d.train} | _eps(d.sink, d.source), 9.8
 
 def timing_recovery():
     d = LiteDSPTimingRecovery(data_width=16, with_csr=False)
@@ -399,6 +431,12 @@ def fft_parallel_x2():
     d = LiteDSPParallelFFT(N=256, data_width=16, with_csr=False)   # Same N as the serial fft entry.
     return d, _eps(d.sink, d.source), 10.0
 
+def fft_parallel_x2_folded():
+    d = LiteDSPParallelFFT(N=256, data_width=16, core_architecture="folded", with_csr=False)
+    # Two full cores put ECP5 routing near the utilization cliff; constrain at its measured
+    # operating class so nextpnr can complete instead of chasing the serial core's 100 MHz.
+    return d, _eps(d.sink, d.source), 14.3
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -407,13 +445,18 @@ REGISTRY = {
     "fir_interpolator": fir_interpolator, "resampler_farm": resampler_farm,
     "cic_decimator": cic_decimator,
     "cic_interpolator": cic_interpolator, "halfband": halfband, "iir_biquad": iir_biquad,
+    "iir_biquad_folded": iir_biquad_folded,
     "dc_blocker": dc_blocker, "moving_average": moving_average, "farrow": farrow,
-    "gain": gain, "power": power, "agc": agc, "dpd": dpd, "cfr": cfr, "saturate": saturate, "rms": rms,
+    "gain": gain, "power": power, "agc": agc, "dpd": dpd, "cfr": cfr,
+    "cfr_pipelined": cfr_pipelined, "saturate": saturate, "rms": rms,
     "magnitude": magnitude, "magnitude_cordic": magnitude_cordic, "combine": combine,
-    "window": window, "fft": fft, "fft_iter": fft_iter, "psd": psd, "goertzel": goertzel,
+    "window": window, "fft": fft, "fft_folded": fft_folded,
+    "fft_interleaved_x2": fft_interleaved_x2, "fft_iter": fft_iter, "psd": psd,
+    "goertzel": goertzel, "goertzel_folded": goertzel_folded,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
-    "pfb_channelizer": pfb_channelizer,
-    "lms_equalizer": lms_equalizer, "timing_recovery": timing_recovery, "fm_demod": fm_demod,
+    "pfb_channelizer": pfb_channelizer, "pfb_channelizer_folded": pfb_channelizer_folded,
+    "lms_equalizer": lms_equalizer, "lms_equalizer_pipelined": lms_equalizer_pipelined,
+    "timing_recovery": timing_recovery, "fm_demod": fm_demod,
     "correlator": correlator, "frame_sync": frame_sync, "cfo_estimator": cfo_estimator,
     "soft_demapper": soft_demapper, "ofdm_equalizer": ofdm_equalizer,
     "puncturer": puncturer, "depuncturer": depuncturer,
@@ -431,20 +474,26 @@ REGISTRY = {
     "cic_parallel_x2": cic_parallel_x2, "cic_parallel_x4": cic_parallel_x4,
     "ddc_parallel_x4": ddc_parallel_x4,
     "fft_parallel_x2": fft_parallel_x2,
+    "fft_parallel_x2_folded": fft_parallel_x2_folded,
 }
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
               "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
-              "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window"]
+              "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
+              "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
+              "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded", "cfr_pipelined",
+              "lms_equalizer_pipelined", "timing_recovery"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
-                 "cic_parallel_x2", "cic_parallel_x4"]
+                 "cic_parallel_x2", "cic_parallel_x4",
+                 "fft_folded", "goertzel_folded", "iir_biquad_folded",
+                 "pfb_channelizer_folded", "timing_recovery", "cfr_pipelined"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

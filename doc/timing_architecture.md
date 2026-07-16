@@ -16,7 +16,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
-| SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz classic; iterative 107.6 MHz registered | butterfly result feeds the SDF delay or in-place RAM schedule | iterative option landed; SDF/parallel remain open |
+| SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz classic; 102.7 folded SDF; 107.6 registered iterative | butterfly result feeds the SDF delay or in-place RAM schedule | folded SDF and iterative target-closed; interleaved/parallel remain open |
 
 ## Viterbi decoder
 
@@ -145,18 +145,27 @@ feedback on the same beat. The iterative core has an equivalent read/butterfly/w
 BRAM. A register in either feedback edge changes which operands meet unless the schedule or the
 number of independent contexts also changes.
 
-Two explicit options should be evaluated:
+Two explicit SDF options are implemented:
 
-1. A folded SDF stage splits butterfly/twiddle work over two clocks. Area stays close to the
-   current core and timing improves, but throughput becomes one sample every two clocks.
+1. A folded SDF stage splits butterfly/twiddle work over two clocks. Timing improves, but
+   throughput becomes one sample every two clocks and the stage-state registers substantially
+   increase FF use.
 2. An interleaved stage pipelines the butterfly and alternates two independent frames/channels.
    Aggregate throughput returns to one sample per clock, at the cost of duplicated delay state,
    stricter framing, and roughly doubled storage.
 
-The iterative FFT should independently add registered butterfly sub-stages to its existing
-read/compute/write FSM. It keeps the lowest-area position but increases `cycles_per_frame`; this
-is preferable to making the streaming SDF default slower. The x2 parallel FFT inherits the SDF
-choice in both sub-cores and must report aggregate samples/clock, not just clock frequency.
+At N=256 the folded serial core is bit-identical to scaled classic mode and reaches 102.7 MHz on
+ECP5 and 119.1 MHz on Artix-7, versus 58.7 MHz for ECP5 classic. It uses 4243 LUT / 2118 FF / 28
+DSP on ECP5 and sustains 0.5 sample/clock. Two alternating folded contexts restore aggregate
+one-sample/clock throughput; they reach 95.2 MHz on ECP5 and 117.4 MHz on Artix-7 at roughly
+twice the state and multiplier cost. The framing contract deliberately requires two independent
+interleaved frames/channels rather than pretending this is a latency-only classic replacement.
+
+The x2 parallel FFT inherits the SDF choice in both sub-cores. Folded mode reduces average
+throughput from two to one sample/clock and raises Artix-7 timing from 81.0 to 94.6 MHz, with
+5312 LUT / 3354 FF / 104 DSP post-route. The current ECP5 netlist synthesizes to 9253 LUT / 4386
+FF / 56 DSP but does not complete nextpnr placement at this utilization, even with a 70 MHz
+constraint; it is therefore excluded from the nightly P&R subset and carries no stale ECP5 fmax.
 
 The iterative option is now implemented as `registered_butterfly=True`: the read phase registers
 the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and
@@ -165,7 +174,7 @@ ECP5 resources move from 995 LUT / 91 FF / 2 BRAM / 4 DSP to 1013 / 187 / 2 / 4,
 from 73.6 to 107.6 MHz.  Artix-7 closes at 104.5 MHz with 295 pre-opt synthesis LUTs (254
 post-route), 90 FF, 1 BRAM, and 5 DSP.  The
 default three-cycle butterfly remains available; the implementation registry selects the
-registered option.  Streaming SDF and parallel-x2 choices remain separate future changes.
+registered option.
 
 Acceptance requires bit identity versus `fft_fixed_model` for scaled mode, the existing BFP
 exponent/overflow contract, forward/inverse operation, exact frame markers under backpressure,
