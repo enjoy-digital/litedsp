@@ -135,18 +135,21 @@ def block_page(spec, budgets):
     out.append("## FPGA Resources")
     out.append("")
     if b:
-        out.append("| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |")
-        out.append("|---|---|---|---|---|---|")
+        out.append("| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |")
+        out.append("|---|---|---|---|---|---|---|")
         for dev in ("ecp5", "xilinx"):
             d = b.get(dev)
             if not d:
                 continue
-            fmax = d.get("fmax_min")
+            floor  = d.get("fmax_min")
+            target = d.get("fmax_target")
             out.append(f"| {dev} | {d.get('lut', '—')} | {d.get('ff', '—')} | {d.get('bram', '—')} "
-                       f"| {d.get('dsp', '—')} | {fmax if fmax is not None else '—'} |")
+                       f"| {d.get('dsp', '—')} | {floor if floor is not None else '—'} "
+                       f"| {target if target is not None else '—'} |")
         out.append("")
         out.append("Resources are measured by the `impl/` flows at the registry configuration; "
-                   "the fmax value is the regression floor (85% of the baseline P&R result). "
+                   "the fmax floor is the regression guard (85% of baseline P&R); an optional "
+                   "target is the independent engineering objective. "
                    "Regenerate with `python3 impl/report.py` (budget-gated in CI).")
     else:
         out.append("Not characterized yet (no `impl/budgets.json` entry).")

@@ -69,12 +69,12 @@ Uncorrected peaks (detected while the pulse engine was busy). Wraps.
 
 ## FPGA Resources
 
-| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
-|---|---|---|---|---|---|
-| ecp5 | 735 | 459 | 0 | 5 | 53.4 |
-| xilinx | 391 | 208 | 0 | 5 | — |
+| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
+|---|---|---|---|---|---|---|
+| ecp5 | 735 | 459 | 0 | 5 | 53.4 | — |
+| xilinx | 391 | 208 | 0 | 5 | — | — |
 
-Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
+Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 
 ## Verification
 

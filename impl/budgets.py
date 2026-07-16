@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Per-module / per-device resource budgets (the 'expected usage' manifest) + the gate check."""
+"""Per-module/device implementation baselines, regression floors and timing targets."""
 
 import os
 import json
@@ -55,3 +55,18 @@ def check(device, name, res):
     if data.get("fmax_min") and fmax is not None and fmax < data["fmax_min"]:
         bad.append(f"fmax {fmax:.1f} < {data['fmax_min']} MHz")
     return bad
+
+def check_target(device, name, res):
+    """Return timing-target misses for one module (separate from regression failures).
+
+    ``fmax_min`` remains the noise-tolerant CI regression floor. ``fmax_target`` is the
+    engineering objective: normal implementation runs report misses, while callers decide
+    whether to gate on them (``impl/run.py --target-gate`` does).
+    """
+    data = load().get(name, {}).get(device)
+    if not data or data.get("fmax_target") is None:
+        return []
+    fmax = res.get("pnr", {}).get("fmax_mhz")
+    if fmax is not None and fmax < data["fmax_target"]:
+        return [f"fmax {fmax:.1f} < target {data['fmax_target']} MHz"]
+    return []

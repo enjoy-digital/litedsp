@@ -26,8 +26,10 @@ python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the 
 LUT/FF/BRAM/DSP usage plus P&R timing, and fails on implementation errors or budget violations.
 Resource results may exceed their checked-in baseline by 15%; the fmax floor is set to 85% of the
 baseline P&R result. Both the raw measurement (`fmax_mhz`) and its regression floor
-(`fmax_min`) are retained in `impl/budgets.json`. The CAD suite used by budgeted CI is pinned in
-the workflows.
+(`fmax_min`) are retained in `impl/budgets.json`. An optional `fmax_target` is a separate
+engineering objective: misses are reported but only fail a run when `--target-gate` is selected.
+Refreshing measured budgets preserves these manually reviewed targets. The CAD suite used by
+budgeted CI is pinned in the workflows.
 
 ## Findings (what implementation testing caught)
 

@@ -53,6 +53,7 @@ def main():
     parser.add_argument("--build",          default="/tmp/litedsp_impl", help="Build directory.")
     parser.add_argument("--update-budgets", action="store_true",         help="Rewrite the budget baseline from this run.")
     parser.add_argument("--no-gate",        action="store_true",         help="Don't fail on budget violations (portability/compile-clean check only).")
+    parser.add_argument("--target-gate",    action="store_true",         help="Also fail when P&R misses an explicit fmax_target.")
     parser.add_argument("--report",         default=None,                help="Write a Markdown table to this path.")
     args = parser.parse_args()
 
@@ -76,17 +77,18 @@ def main():
         print(f"[skip] toolchain for {args.device} not installed")
         return 0
 
-    results, violations, errors = {}, {}, {}
+    results, violations, target_misses, errors = {}, {}, {}, {}
     for name in names:
         try:
             res = build_one(args.device, args.flow, name, args.build)
             results[name] = res
             if not args.update_budgets:
                 violations[name] = budgets.check(args.device, name, res)
+                target_misses[name] = budgets.check_target(args.device, name, res)
         except Exception as e:
             errors[name] = f"{type(e).__name__}: {e}"
 
-    report.console(args.device, results, violations)
+    report.console(args.device, results, violations, target_misses)
     if errors:
         print("\n--- errors ---")
         for n, e in errors.items():
@@ -98,7 +100,8 @@ def main():
         with open(args.report, "w") as f:
             f.write(report.markdown({args.device: results}))
 
-    failed = bool(errors) or (any(violations.values()) and not args.no_gate and not args.update_budgets)
+    gated = any(violations.values()) or (args.target_gate and any(target_misses.values()))
+    failed = bool(errors) or (gated and not args.no_gate and not args.update_budgets)
     return 1 if failed else 0
 
 if __name__ == "__main__":

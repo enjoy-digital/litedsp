@@ -15,12 +15,16 @@ def _cells(res):
     fmax = res.get("pnr", {}).get("fmax_mhz")
     return s + (f" {fmax:>6.0f}" if fmax is not None else f" {'-':>6}")
 
-def console(device, results, violations):
+def console(device, results, violations, target_misses=None):
+    target_misses = target_misses or {}
     print(f"\n=== {device} implementation: {len(results)} modules ===")
     print(f"{'module':18} {'lut':>6} {'ff':>6} {'bram':>4} {'dsp':>4} {'fmax':>6}  status")
     for name, res in results.items():
         bad = violations.get(name, [])
+        misses = target_misses.get(name, [])
         status = "ok" if not bad else "BUDGET: " + "; ".join(bad)
+        if misses:
+            status += "; TARGET: " + "; ".join(misses)
         print(f"{name:18} {_cells(res)}  {status}")
 
 def markdown(all_results):
@@ -49,7 +53,7 @@ _DEVICE_LABELS = {"ecp5": "ECP5 (Yosys/nextpnr)", "xilinx": "Artix-7 (Vivado)"}
 def budgets_markdown(budgets):
     """Render the checked-in per-block budgets as a Markdown resource table."""
     devices = sorted({d for entry in budgets.values() for d in entry})
-    hdr = ["module"] + [f"{_DEVICE_LABELS.get(d, d)} LUT/FF/BRAM/DSP/Fmax floor" for d in devices]
+    hdr = ["module"] + [f"{_DEVICE_LABELS.get(d, d)} LUT/FF/BRAM/DSP/Fmax floor/target" for d in devices]
     out = [
         "# Resource usage per block",
         "",
@@ -67,9 +71,13 @@ def budgets_markdown(budgets):
             if r is None:
                 row.append("-")
                 continue
-            fmax = r.get("fmax_min")
+            floor  = r.get("fmax_min")
+            target = r.get("fmax_target")
+            timing = "-" if floor is None else f"{floor:.1f}"
+            if target is not None:
+                timing += f"/{target:.1f}"
             row.append(f"{r.get('lut', 0)}/{r.get('ff', 0)}/{r.get('bram', 0)}/{r.get('dsp', 0)}/"
-                       + (f"{fmax:.1f}" if fmax is not None else "-"))
+                       + timing)
         out.append("| " + " | ".join(row) + " |")
     return "\n".join(out) + "\n"
 

@@ -4,14 +4,14 @@ Reference numbers from the FPGA implementation sweeps (`impl/run.py`, default bl
 parameters, 16-bit datapaths). Regenerate with `python3 impl/report.py` after a sweep
 updates `impl/budgets.json`; CI checks new results against these budgets.
 
-| module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP/Fmax floor | Artix-7 (Vivado) LUT/FF/BRAM/DSP/Fmax floor |
+| module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP/Fmax floor/target | Artix-7 (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target |
 |---|---|---|
 | `agc` | 642/57/0/8/42.2 | 179/57/0/4/- |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- |
 | `cfo_estimator` | 4805/1764/0/4/115.0 | 1527/1650/0/5/- |
 | `cfr` | 735/459/0/5/53.4 | 391/208/0/5/- |
-| `channelizer` | 3023/1086/6/24/77.8 | 1280/310/2/24/- |
+| `channelizer` | 3023/1086/6/24/77.8/100.0 | 1280/310/2/24/- |
 | `cic_decimator` | 566/484/0/0/68.0 | 776/484/0/0/82.6 |
 | `cic_interpolator` | 550/438/0/0/59.2 | 676/438/0/0/- |
 | `cic_parallel_x4` | 1393/482/0/0/47.3 | 1219/482/0/0/- |
@@ -22,10 +22,10 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `csr_sink` | 64/64/0/0/288.1 | 17/64/0/0/- |
 | `csr_source` | 1/33/0/0/- | 1/33/0/0/- |
 | `dc_blocker` | 226/97/0/0/202.0 | 90/97/0/0/- |
-| `ddc` | 918/317/2/6/81.5 | 480/122/1/6/107.4 |
+| `ddc` | 918/317/2/6/81.5/100.0 | 480/122/1/6/107.4 |
 | `ddc_parallel_x4` | 1919/1071/8/18/42.5 | 1256/367/2/16/- |
 | `depuncturer` | 31/16/0/0/474.3 | 12/16/0/0/- |
-| `dpd` | 1565/481/0/12/82.7 | 666/187/0/14/- |
+| `dpd` | 1565/481/0/12/82.7/100.0 | 666/187/0/14/- |
 | `duc` | 705/302/2/7/62.3 | 386/100/1/6/- |
 | `error_counter` | 93/64/0/0/382.4 | 17/64/0/0/- |
 | `farrow` | 808/922/0/16/106.4 | 678/443/0/6/- |
@@ -48,7 +48,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `iir_biquad` | 1722/834/0/24/57.2 | 218/35/0/36/83.5 |
 | `iq_pack` | 21/133/0/0/122.7 | 10/133/0/0/- |
 | `iq_unpack` | 134/2/0/0/878.1 | 36/2/0/0/- |
-| `ldpc_decoder` | 583/147/2/0/81.4 | 304/138/1/0/- |
+| `ldpc_decoder` | 583/147/2/0/81.4/100.0 | 304/138/1/0/- |
 | `ldpc_encoder` | 4719/446/0/0/177.4 | 1271/458/0/0/- |
 | `lms_equalizer` | 1773/522/0/56/58.7 | 643/389/0/60/- |
 | `magnitude` | 157/18/0/0/369.7 | 103/18/0/0/- |

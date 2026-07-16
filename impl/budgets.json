@@ -86,6 +86,7 @@
       "ff": 1086,
       "fmax_mhz": 91.6,
       "fmax_min": 77.8,
+      "fmax_target": 100.0,
       "lut": 3023
     },
     "xilinx": {
@@ -262,6 +263,7 @@
       "ff": 317,
       "fmax_mhz": 95.9,
       "fmax_min": 81.5,
+      "fmax_target": 100.0,
       "lut": 918
     },
     "xilinx": {
@@ -311,6 +313,7 @@
       "ff": 481,
       "fmax_mhz": 97.2,
       "fmax_min": 82.7,
+      "fmax_target": 100.0,
       "lut": 1565
     },
     "xilinx": {
@@ -677,6 +680,7 @@
       "ff": 147,
       "fmax_mhz": 95.8,
       "fmax_min": 81.4,
+      "fmax_target": 100.0,
       "lut": 583
     },
     "xilinx": {

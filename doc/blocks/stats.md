@@ -29,9 +29,9 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 ## FPGA Resources
 
-| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) |
-|---|---|---|---|---|---|
-| ecp5 | 273 | 186 | 0 | 2 | 114.2 |
-| xilinx | 92 | 114 | 0 | 3 | — |
+| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
+|---|---|---|---|---|---|---|
+| ecp5 | 273 | 186 | 0 | 2 | 114.2 | — |
+| xilinx | 92 | 114 | 0 | 3 | — | — |
 
-Resources are measured by the `impl/` flows at the registry configuration; the fmax value is the regression floor (85% of the baseline P&R result). Regenerate with `python3 impl/report.py` (budget-gated in CI).
+Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

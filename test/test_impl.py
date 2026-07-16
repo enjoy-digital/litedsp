@@ -35,6 +35,30 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertEqual(entry["fmax_mhz"], 123.5)
         self.assertEqual(entry["fmax_min"], 104.9)
 
+    def test_update_preserves_explicit_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "budgets.json")
+            with open(path, "w") as f:
+                json.dump({"example": {"ecp5": {"fmax_target": 150.0}}}, f)
+            with mock.patch.object(budgets, "PATH", path):
+                budgets.update("ecp5", {"example": {"pnr": {"fmax_mhz": 123.456}}})
+                entry = budgets.load()["example"]["ecp5"]
+        self.assertEqual(entry["fmax_target"], 150.0)
+        self.assertEqual(entry["fmax_min"], 104.9)
+
+    def test_target_check_is_separate_from_regression_floor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "budgets.json")
+            with open(path, "w") as f:
+                json.dump({"example": {"ecp5": {
+                    "fmax_min": 80.0, "fmax_target": 100.0,
+                }}}, f)
+            result = {"pnr": {"fmax_mhz": 90.0}}
+            with mock.patch.object(budgets, "PATH", path):
+                self.assertEqual(budgets.check("ecp5", "example", result), [])
+                self.assertEqual(budgets.check_target("ecp5", "example", result),
+                    ["fmax 90.0 < target 100.0 MHz"])
+
 @unittest.skipUnless(ecp5.have_yosys(), "yosys not installed")
 class TestImplementationECP5(unittest.TestCase):
     def synth(self, name):
