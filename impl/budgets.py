@@ -37,7 +37,9 @@ def update(device, results):
             if m in res:
                 entry[m] = res[m]
         if res.get("pnr", {}).get("fmax_mhz"):
-            entry["fmax_min"] = round(res["pnr"]["fmax_mhz"]*0.85, 1)   # 15% fmax margin.
+            measured = res["pnr"]["fmax_mhz"]
+            entry["fmax_mhz"] = round(measured, 1)              # Preserve measurement provenance.
+            entry["fmax_min"] = round(measured*0.85, 1)         # 15% gate margin.
     save(data)
 
 def check(device, name, res):

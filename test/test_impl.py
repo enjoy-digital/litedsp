@@ -11,9 +11,29 @@ just guards portability/compile-cleanliness in the normal test run. Skipped with
 """
 
 import os
+import json
+import tempfile
 import unittest
+from unittest import mock
 
-from impl import ecp5, wrap, modules
+from impl import budgets, ecp5, wrap, modules
+
+
+class TestImplementationBudgets(unittest.TestCase):
+    def test_update_preserves_measured_fmax_and_gate_floor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "budgets.json")
+            with mock.patch.object(budgets, "PATH", path):
+                budgets.update("ecp5", {
+                    "example": {
+                        "lut": 10, "ff": 20, "bram": 1, "dsp": 2,
+                        "pnr": {"fmax_mhz": 123.456},
+                    },
+                })
+                with open(path) as f:
+                    entry = json.load(f)["example"]["ecp5"]
+        self.assertEqual(entry["fmax_mhz"], 123.5)
+        self.assertEqual(entry["fmax_min"], 104.9)
 
 @unittest.skipUnless(ecp5.have_yosys(), "yosys not installed")
 class TestImplementationECP5(unittest.TestCase):

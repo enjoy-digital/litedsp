@@ -25,7 +25,9 @@ python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the 
 `impl/run.py` builds each configuration (`impl/modules.py` registry → generated Verilog), parses
 LUT/FF/BRAM/DSP usage plus P&R timing, and fails on implementation errors or budget violations.
 Resource results may exceed their checked-in baseline by 15%; the fmax floor is set to 85% of the
-baseline P&R result. The CAD suite used by budgeted CI is pinned in the workflows.
+baseline P&R result. Both the raw measurement (`fmax_mhz`) and its regression floor
+(`fmax_min`) are retained in `impl/budgets.json`. The CAD suite used by budgeted CI is pinned in
+the workflows.
 
 ## Findings (what implementation testing caught)
 
