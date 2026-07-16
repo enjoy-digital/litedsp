@@ -17,10 +17,263 @@ from litedsp.common       import check, iq_layout, iq_lanes, scaled
 from litedsp.analysis.fft import LiteDSPFFT, _twiddle_rom
 from litedsp.stream.adapt import LiteDSPIQSerialToParallel, LiteDSPIQParallelToSerial
 
+# Native Parallel FFT Stage ------------------------------------------------------------------------
+
+class _LiteDSPFFTVectorStage(LiteXModule):
+    """One radix-2 SDF stage advanced by ``n_samples`` consecutive samples per clock.
+
+    This is the serial :class:`LiteDSPFFTStage` recurrence unrolled across the lanes of one
+    beat.  Each stage keeps one shared delay-feedback line and therefore avoids the branch
+    FIFOs, serializers and duplicated serial cores used by the original split architecture.
+    A register between every FFT rank keeps the cascade elastic and limits the combinational
+    path to one rank.  The few final ranks whose delay is shorter than a beat forward their
+    state within the beat, exactly matching consecutive serial updates.
+    """
+    def __init__(self, N, stage, n_samples=2, data_width=16, twiddle_width=16):
+        D     = N >> (stage + 1)
+        dbits = D.bit_length() - 1
+        pbits = n_samples.bit_length() - 1
+        self.D       = D
+        self.latency = 1
+        self.sink    = stream.Endpoint(iq_layout(data_width, n_samples))
+        self.source  = stream.Endpoint(iq_layout(data_width, n_samples))
+
+        # # #
+
+        adv  = Signal()
+        xfer = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            self.sink.ready.eq(adv),
+            xfer.eq(self.sink.valid & adv),
+        ]
+
+        counter = Signal(dbits + 1)
+        if D >= n_samples:
+            self.sync += If(xfer, counter.eq(counter + n_samples))
+
+        state_i = [Signal((data_width, True), name=f"state_i{p}") for p in range(D)]
+        state_q = [Signal((data_width, True), name=f"state_q{p}") for p in range(D)]
+        in_lanes  = iq_lanes(self.sink,   data_width, n_samples)
+        out_lanes = iq_lanes(self.source, data_width, n_samples)
+
+        # For D >= P, all lanes are in the same store/compute half and address distinct
+        # feedback entries. Split each asynchronous twiddle ROM into P banks and prefetch
+        # the next beat's coefficients, removing counter -> ROM from the multiplier path.
+        if D >= n_samples:
+            c = counter[dbits]
+            base = counter[:dbits]
+            twiddles = []
+            if D > 1:
+                cos_init = _twiddle_rom(D, math.cos, twiddle_width)
+                sin_init = _twiddle_rom(D, math.sin, twiddle_width)
+                next_counter = Signal(dbits + 1)
+                self.comb += next_counter.eq(counter + n_samples)
+                for k in range(n_samples):
+                    depth   = D//n_samples
+                    if depth > 1:
+                        cos_rom = Memory(twiddle_width, depth, init=cos_init[k::n_samples])
+                        sin_rom = Memory(twiddle_width, depth, init=sin_init[k::n_samples])
+                        cos_rp  = cos_rom.get_port(async_read=True)
+                        sin_rp  = sin_rom.get_port(async_read=True)
+                        self.specials += cos_rom, sin_rom, cos_rp, sin_rp
+                        self.comb += [
+                            cos_rp.adr.eq(next_counter[pbits:dbits]),
+                            sin_rp.adr.eq(next_counter[pbits:dbits]),
+                        ]
+                        tr = Signal((twiddle_width, True), reset=cos_init[k])
+                        ti = Signal((twiddle_width, True), reset=sin_init[k])
+                        self.sync += If(xfer, tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r))
+                    else:
+                        sign = 1 << (twiddle_width - 1)
+                        tr_v = cos_init[k] - (1 << twiddle_width) if cos_init[k] & sign else cos_init[k]
+                        ti_v = sin_init[k] - (1 << twiddle_width) if sin_init[k] & sign else sin_init[k]
+                        tr = Constant(tr_v, (twiddle_width, True))
+                        ti = Constant(ti_v, (twiddle_width, True))
+                    twiddles.append((tr, ti))
+
+            for k in range(n_samples):
+                xr, xq = Signal((data_width, True)), Signal((data_width, True))
+                fr, fq = Signal((data_width, True)), Signal((data_width, True))
+                addr   = Signal(dbits) if dbits else None
+                if dbits:
+                    self.comb += addr.eq(base + k)
+                    fr_expr, fq_expr = Array(state_i)[addr], Array(state_q)[addr]
+                else:
+                    fr_expr, fq_expr = state_i[0], state_q[0]
+                self.comb += [
+                    xr.eq(in_lanes[k][0]), xq.eq(in_lanes[k][1]),
+                    fr.eq(fr_expr), fq.eq(fq_expr),
+                ]
+                sum_i_full = Signal((data_width + 1, True))
+                sum_q_full = Signal((data_width + 1, True))
+                dr = Signal((data_width + 1, True))
+                dq = Signal((data_width + 1, True))
+                self.comb += [
+                    sum_i_full.eq(fr + xr), sum_q_full.eq(fq + xq),
+                    dr.eq(fr - xr), dq.eq(fq - xq),
+                ]
+                sum_i, _ = scaled(sum_i_full, 1, data_width)
+                sum_q, _ = scaled(sum_q_full, 1, data_width)
+                if D > 1:
+                    tr, ti = twiddles[k]
+                    prod_i = Signal((data_width + twiddle_width + 2, True))
+                    prod_q = Signal((data_width + twiddle_width + 2, True))
+                    self.comb += [prod_i.eq(dr*tr - dq*ti), prod_q.eq(dr*ti + dq*tr)]
+                    diff_i, _ = scaled(prod_i, twiddle_width, data_width)
+                    diff_q, _ = scaled(prod_q, twiddle_width, data_width)
+                else:
+                    diff_i, _ = scaled(dr, 1, data_width)
+                    diff_q, _ = scaled(dq, 1, data_width)
+                store_i = Mux(c, diff_i, xr)
+                store_q = Mux(c, diff_q, xq)
+                self.sync += If(xfer,
+                    Array(state_i)[addr].eq(store_i) if dbits else state_i[0].eq(store_i),
+                    Array(state_q)[addr].eq(store_q) if dbits else state_q[0].eq(store_q),
+                )
+                self.sync += If(adv,
+                    out_lanes[k][0].eq(Mux(c, sum_i, fr)),
+                    out_lanes[k][1].eq(Mux(c, sum_q, fq)),
+                )
+
+        # For D < P a beat contains several complete 2D blocks. Symbolically forward each
+        # feedback update to the following lane(s), then commit the final state at the edge.
+        # This is a small late-rank network (at most two dependent butterflies for P=4).
+        else:
+            cur_i = list(state_i)
+            cur_q = list(state_q)
+            for k in range(n_samples):
+                p = k % D
+                c = (k // D) & 1
+                xr = Signal((data_width, True))
+                xq = Signal((data_width, True))
+                self.comb += [xr.eq(in_lanes[k][0]), xq.eq(in_lanes[k][1])]
+                fr, fq = cur_i[p], cur_q[p]
+                if c:
+                    sum_i_full = Signal((data_width + 1, True))
+                    sum_q_full = Signal((data_width + 1, True))
+                    dr = Signal((data_width + 1, True))
+                    dq = Signal((data_width + 1, True))
+                    self.comb += [
+                        sum_i_full.eq(fr + xr), sum_q_full.eq(fq + xq),
+                        dr.eq(fr - xr), dq.eq(fq - xq),
+                    ]
+                    out_i, _ = scaled(sum_i_full, 1, data_width)
+                    out_q, _ = scaled(sum_q_full, 1, data_width)
+                    if D > 1:
+                        cos_init = _twiddle_rom(D, math.cos, twiddle_width)
+                        sin_init = _twiddle_rom(D, math.sin, twiddle_width)
+                        sign = 1 << (twiddle_width - 1)
+                        tr_v = cos_init[p] - (1 << twiddle_width) if cos_init[p] & sign else cos_init[p]
+                        ti_v = sin_init[p] - (1 << twiddle_width) if sin_init[p] & sign else sin_init[p]
+                        tr = Constant(tr_v, (twiddle_width, True))
+                        ti = Constant(ti_v, (twiddle_width, True))
+                        prod_i = Signal((data_width + twiddle_width + 2, True))
+                        prod_q = Signal((data_width + twiddle_width + 2, True))
+                        self.comb += [prod_i.eq(dr*tr - dq*ti), prod_q.eq(dr*ti + dq*tr)]
+                        next_i, _ = scaled(prod_i, twiddle_width, data_width)
+                        next_q, _ = scaled(prod_q, twiddle_width, data_width)
+                    else:
+                        next_i, _ = scaled(dr, 1, data_width)
+                        next_q, _ = scaled(dq, 1, data_width)
+                else:
+                    out_i, out_q = fr, fq
+                    next_i, next_q = xr, xq
+                self.sync += If(adv,
+                    out_lanes[k][0].eq(out_i), out_lanes[k][1].eq(out_q),
+                )
+                cur_i[p], cur_q[p] = next_i, next_q
+            for p in range(D):
+                self.sync += If(xfer, state_i[p].eq(cur_i[p]), state_q[p].eq(cur_q[p]))
+
+        self.sync += If(adv, self.source.valid.eq(self.sink.valid))
+
+
+class LiteDSPNativeParallelFFT(LiteXModule):
+    """Native vector-SDF FFT with a sustained P=2 or P=4 samples/clock."""
+    def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16, with_csr=True):
+        check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
+        check(n_samples in (2, 4), "native n_samples must be 2 or 4.")
+        check(N >= 2*n_samples, "N must be at least twice n_samples.")
+        self.N          = N
+        self.n_samples  = n_samples
+        self.data_width = data_width
+        self.core_architecture         = "native"
+        self.implementation            = "native"
+        self.peak_samples_per_cycle    = n_samples
+        self.average_samples_per_cycle = n_samples
+        self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
+        self.source = stream.Endpoint(iq_layout(data_width, n_samples))
+
+        # # #
+
+        stages = []
+        for stage in range(log2_int(N)):
+            s = _LiteDSPFFTVectorStage(N, stage, n_samples, data_width, twiddle_width)
+            setattr(self.submodules, f"stage{stage}", s)
+            stages.append(s)
+        self.comb += self.sink.connect(stages[0].sink)
+        for a, b in zip(stages, stages[1:]):
+            self.comb += a.source.connect(b.sink)
+
+        # The SDF cascade's first valid frame begins at scalar offset N-1. Realign that
+        # lane-P-1 sample with the following beat so output frames again contain P samples.
+        raw       = stages[-1].source
+        raw_lanes = iq_lanes(raw, data_width, n_samples)
+        out_lanes = iq_lanes(self.source, data_width, n_samples)
+        warm_beats = N//n_samples
+        warm       = Signal(max=warm_beats)
+        primed     = Signal()
+        tail_i     = Signal((data_width, True))
+        tail_q     = Signal((data_width, True))
+        out_count  = Signal(max=N//n_samples)
+        adv        = Signal()
+        take       = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            raw.ready.eq(Mux(primed, adv, 1)),
+            take.eq(raw.valid & raw.ready),
+        ]
+        self.sync += [
+            If(~primed,
+                self.source.valid.eq(0),
+                If(take,
+                    If(warm == (warm_beats - 1),
+                        tail_i.eq(raw_lanes[-1][0]),
+                        tail_q.eq(raw_lanes[-1][1]),
+                        primed.eq(1),
+                    ).Else(
+                        warm.eq(warm + 1),
+                    ),
+                ),
+            ).Elif(adv,
+                self.source.valid.eq(raw.valid),
+                If(raw.valid,
+                    out_lanes[0][0].eq(tail_i),
+                    out_lanes[0][1].eq(tail_q),
+                    *[out_lanes[k][0].eq(raw_lanes[k - 1][0]) for k in range(1, n_samples)],
+                    *[out_lanes[k][1].eq(raw_lanes[k - 1][1]) for k in range(1, n_samples)],
+                    tail_i.eq(raw_lanes[-1][0]),
+                    tail_q.eq(raw_lanes[-1][1]),
+                    self.source.first.eq(out_count == 0),
+                    self.source.last.eq(out_count == (N//n_samples - 1)),
+                    out_count.eq(out_count + 1),
+                ),
+            ),
+        ]
+
+        self.latency = log2_int(N) + N//n_samples + 1
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._latency = CSRStatus(32, reset=self.latency, name="latency",
+            description="FFT pipeline latency (cycles from frame start to first output).")
+
 # Parallel FFT (Radix-2 DIF split, 2 samples/cycle) -------------------------------------------------
 
 class LiteDSPParallelFFT(LiteXModule):
-    """Streaming ``N``-point FFT at 2 samples/cycle (super-sample-rate wideband path).
+    """Streaming ``N``-point FFT at P samples/cycle (super-sample-rate wideband path).
 
     The serial radix-2 SDF schedule of :class:`~litedsp.analysis.fft.LiteDSPFFT` regrouped for
     two lanes per beat, **bit-identical** to the serial FFT on the flattened lane stream. The
@@ -53,38 +306,58 @@ class LiteDSPParallelFFT(LiteXModule):
     i.e. lanes carry consecutive bit-reversed indices: lane 0 sweeps bins [0, N/2) in
     ``N/2``-point bit-reversed order and lane 1 the mirrored bin ``+ N/2``.
 
-    With ``core_architecture="classic"`` throughput is a sustained 2 samples/cycle under
-    free flow.  ``"folded"`` adds a timing register to the wide butterfly rank and uses
-    two-cycle serial sub-cores; it has a peak width of two samples and an average throughput
-    of one sample/cycle.  The internal FIFOs absorb the deterministic half-frame bursts and
-    the source starts only when a complete branch is buffered.
+    The default ``implementation="split"`` preserves the original P=2 architecture. With
+    ``core_architecture="classic"`` it sustains 2 samples/cycle; ``"folded"`` adds a timing
+    register to the wide butterfly rank and uses two-cycle serial sub-cores, for a peak width
+    of two and an average rate of one sample/cycle.
 
-    Only ``n_samples=2`` and the serial FFT's ``scaling="scaled"`` arithmetic (unconditional
-    1/2 per stage, 1/N overall) are implemented; P=4 and block-floating-point ("bfp") are
-    planned follow-ups.
+    ``implementation="native"`` instead advances a single SDF feedback line by P consecutive
+    samples per clock. It supports P=2 and P=4, sustains P samples/cycle, eliminates the split
+    implementation's branch FIFOs/serializers/duplicated cores, and remains bit-identical to
+    the serial FFT on the flattened lane stream. Both implementations currently use the
+    serial FFT's ``scaling="scaled"`` arithmetic (1/2 per stage, 1/N overall).
 
     Parameters
     ----------
     N : int
         Transform size (power of two >= 8).
     n_samples : int
-        Samples per beat; only 2 is supported (P=4 is a planned follow-up).
+        Samples per beat; 2 for ``"split"``, or 2/4 for ``"native"``.
     twiddle_width : int
         Twiddle-factor width in bits (signed Q1.(W-1)), as in the serial FFT.
     core_architecture : str
         ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a
-        registered timing-oriented path with one-sample/cycle average throughput.
+        registered timing-oriented split path with one-sample/cycle average throughput.
+    implementation : str
+        ``"split"`` (compatibility default) or the scalable ``"native"`` vector-SDF engine.
     """
     def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
-        core_architecture="classic", with_csr=True):
+        core_architecture="classic", implementation="split", with_csr=True):
         check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
-        check(n_samples == 2, "n_samples must be 2 (P=4 is a planned follow-up).")
+        check(implementation in ("split", "native"),
+            "implementation must be 'split' or 'native'.")
+        if implementation == "native":
+            self.native = LiteDSPNativeParallelFFT(N, n_samples, data_width, twiddle_width,
+                with_csr=with_csr)
+            self.N          = self.native.N
+            self.n_samples  = self.native.n_samples
+            self.data_width = self.native.data_width
+            self.core_architecture         = self.native.core_architecture
+            self.implementation            = implementation
+            self.peak_samples_per_cycle    = self.native.peak_samples_per_cycle
+            self.average_samples_per_cycle = self.native.average_samples_per_cycle
+            self.latency = self.native.latency
+            self.sink    = self.native.sink
+            self.source  = self.native.source
+            return
+        check(n_samples == 2, "split n_samples must be 2; use implementation='native' for P=4.")
         check(core_architecture in ("classic", "folded"),
             "core_architecture must be 'classic' or 'folded'.")
         self.N          = N
         self.n_samples  = n_samples
         self.data_width = data_width
         self.core_architecture       = core_architecture
+        self.implementation          = implementation
         self.peak_samples_per_cycle  = 2
         self.average_samples_per_cycle = 2 if core_architecture == "classic" else 1
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
