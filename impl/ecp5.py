@@ -54,18 +54,29 @@ def synth(verilog, top, build_dir, json_out=None):
 
 # Place & route (subset) ---------------------------------------------------------------------------
 
-def pnr(json_in, top, build_dir, clock_ns):
+class PNRTimeout(RuntimeError):
+    pass
+
+def pnr(json_in, top, build_dir, clock_ns, seed=None, timeout=1800):
     """Run nextpnr-ecp5 on a synthesized JSON; return {fmax_mhz, util cells}."""
-    log = os.path.join(build_dir, top + "_ecp5_pnr.log")
-    cfg = os.path.join(build_dir, top + ".cfg")
+    suffix = "" if seed is None else f"_seed{seed}"
+    log = os.path.join(build_dir, top + f"_ecp5_pnr{suffix}.log")
+    cfg = os.path.join(build_dir, top + suffix + ".cfg")
     freq = 1000.0/clock_ns
     cmd = ["nextpnr-ecp5", NEXTPNR, "--package", PACKAGE,
            "--json", os.path.basename(json_in), "--textcfg", os.path.basename(cfg),
            "--freq", f"{freq:.1f}"]
+    if seed is not None:
+        cmd += ["--seed", str(seed)]
     # nextpnr exits nonzero when it misses the target frequency, but still routes and reports the
     # achieved fmax -- which is exactly what we want -- so don't treat a timing miss as fatal.
     with open(log, "w") as f:
-        subprocess.run(cmd, cwd=build_dir, stdout=f, stderr=subprocess.STDOUT, check=False)
+        try:
+            subprocess.run(cmd, cwd=build_dir, stdout=f, stderr=subprocess.STDOUT, check=False,
+                timeout=timeout)
+        except subprocess.TimeoutExpired as e:
+            raise PNRTimeout(
+                f"nextpnr-ecp5 timed out after {timeout}s (seed={seed}, log={log})") from e
     with open(log) as f:
         text = f.read()
     fmax = None

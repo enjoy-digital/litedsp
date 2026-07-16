@@ -47,7 +47,7 @@ def _parse_util(path):
         "bram": row("Block RAM Tile"),
     }
 
-def synth(verilog, top, build_dir, impl=False, clock_ns=10.0):
+def synth(verilog, top, build_dir, impl=False, clock_ns=10.0, timeout=1800):
     """Run Vivado OOC synth (and impl if ``impl``); return a resource dict (+ pnr fmax if impl)."""
     tcl = os.path.join(build_dir, top + "_vivado.tcl")
     with open(tcl, "w") as f:
@@ -56,7 +56,7 @@ def synth(verilog, top, build_dir, impl=False, clock_ns=10.0):
     with open(log, "w") as f:
         subprocess.run(["vivado", "-mode", "batch", "-source", os.path.basename(tcl),
             "-nojournal", "-log", top + "_vivado.log"], cwd=build_dir,
-            stdout=f, stderr=subprocess.STDOUT, check=True)
+            stdout=f, stderr=subprocess.STDOUT, check=True, timeout=timeout)
     res = _parse_util(os.path.join(build_dir, "util.rpt"))
     if impl:
         with open(log) as f:

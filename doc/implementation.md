@@ -21,6 +21,7 @@ python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
 python3 impl/run.py --device xilinx --flow pnr  --target-closed --target-gate # strict Artix targets
+python3 impl/run.py --device ecp5 --flow pnr --module fft_interleaved_x2 --repeat 3 --pnr-timeout 600
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
 
@@ -32,6 +33,10 @@ utilization. The fmax floor is set to 85% of the baseline P&R result. Both the r
 (`fmax_mhz`) and its regression floor (`fmax_min`) are retained in `impl/budgets.json`. A flat
 P&R-preferred compatibility summary continues to feed generated docs and GUI badges. An optional `fmax_target` is a separate
 engineering objective: misses are reported but only fail a run when `--target-gate` is selected.
+For route-sensitive investigations, `--seeds` or `--repeat` synthesizes once and runs bounded
+nextpnr variants, retaining per-seed logs and reporting worst/median/best fmax. Budget updates
+use the median completed route. `--pnr-timeout` bounds each nextpnr/Vivado invocation so a
+capacity-cliff design cannot stall a nightly job indefinitely.
 Refreshing measured budgets preserves these manually reviewed targets. The CAD suite used by
 budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed subset that has
 already achieved its objective; CI reruns those blocks with strict target gating while targets

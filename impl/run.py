@@ -19,6 +19,7 @@
 import os
 import sys
 import argparse
+import statistics
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -26,7 +27,27 @@ sys.path.insert(0, ROOT)
 from impl.modules import REGISTRY, PNR_SUBSET, TARGET_CLOSED, SYNTH_ONLY
 from impl import wrap, ecp5, xilinx, report, budgets
 
-def build_one(device, flow, name, build_root):
+def aggregate_pnr_runs(runs, failures):
+    """Select the median completed route and attach best/median/worst statistics."""
+    if not runs:
+        details = "; ".join(f"seed {seed}: {error}" for seed, error in failures)
+        raise RuntimeError("no P&R run completed" + (f" ({details})" if details else ""))
+    ordered = sorted(runs, key=lambda item: item[1]["fmax_mhz"])
+    median_fmax = statistics.median(item[1]["fmax_mhz"] for item in ordered)
+    selected = min(ordered, key=lambda item: abs(item[1]["fmax_mhz"] - median_fmax))
+    stats = {
+        "completed": len(ordered),
+        "failed": len(failures),
+        "best_mhz": ordered[-1][1]["fmax_mhz"],
+        "median_mhz": median_fmax,
+        "worst_mhz": ordered[0][1]["fmax_mhz"],
+        "runs": [{"seed": seed, "fmax_mhz": result["fmax_mhz"]}
+                 for seed, result in ordered],
+        "failures": [{"seed": seed, "error": error} for seed, error in failures],
+    }
+    return selected[1], stats
+
+def build_one(device, flow, name, build_root, seeds=None, pnr_timeout=1800):
     dut, ios, clock_ns = REGISTRY[name]()
     bd = os.path.join(build_root, device, name)
     verilog = wrap.gen(name, dut, ios, bd)
@@ -36,9 +57,18 @@ def build_one(device, flow, name, build_root):
         if flow == "pnr":
             if not ecp5.have_nextpnr():
                 raise RuntimeError("nextpnr-ecp5 not installed")
-            res["pnr"] = ecp5.pnr(os.path.join(bd, json_out), name, bd, clock_ns)
+            runs, failures = [], []
+            for seed in seeds or [None]:
+                try:
+                    route = ecp5.pnr(os.path.join(bd, json_out), name, bd, clock_ns,
+                        seed=seed, timeout=pnr_timeout)
+                    runs.append((seed, route))
+                except (ecp5.PNRTimeout, RuntimeError) as e:
+                    failures.append((seed, str(e)))
+            res["pnr"], res["pnr_stats"] = aggregate_pnr_runs(runs, failures)
     else:
-        res = xilinx.synth(verilog, name, bd, impl=(flow == "pnr"), clock_ns=clock_ns)
+        res = xilinx.synth(verilog, name, bd, impl=(flow == "pnr"), clock_ns=clock_ns,
+            timeout=pnr_timeout)
     return res
 
 def main():
@@ -57,7 +87,31 @@ def main():
     parser.add_argument("--no-gate",        action="store_true",         help="Don't fail on budget violations (portability/compile-clean check only).")
     parser.add_argument("--target-gate",    action="store_true",         help="Also fail when P&R misses an explicit fmax_target.")
     parser.add_argument("--report",         default=None,                help="Write a Markdown table to this path.")
+    routes = parser.add_mutually_exclusive_group()
+    routes.add_argument("--seeds", default=None,
+        help="Comma-separated nextpnr seeds; synthesize once and report best/median/worst.")
+    routes.add_argument("--repeat", type=int, default=None,
+        help="Run nextpnr with seeds 0..N-1; synthesize once and report route statistics.")
+    parser.add_argument("--pnr-timeout", type=int, default=1800,
+        help="Per-route timeout in seconds (default: 1800; 0 disables the timeout).")
     args = parser.parse_args()
+
+    if args.seeds is not None:
+        try:
+            seeds = [int(seed.strip()) for seed in args.seeds.split(",") if seed.strip()]
+        except ValueError:
+            parser.error("--seeds must be a comma-separated list of integers")
+        if not seeds:
+            parser.error("--seeds must not be empty")
+    elif args.repeat is not None:
+        if args.repeat < 1:
+            parser.error("--repeat must be >= 1")
+        seeds = list(range(args.repeat))
+    else:
+        seeds = None
+    if seeds is not None and (args.device != "ecp5" or args.flow != "pnr"):
+        parser.error("--seeds/--repeat are supported only for ECP5 P&R")
+    pnr_timeout = None if args.pnr_timeout == 0 else args.pnr_timeout
 
     if args.module:
         names = [args.module]
@@ -84,7 +138,8 @@ def main():
     results, violations, target_misses, errors = {}, {}, {}, {}
     for name in names:
         try:
-            res = build_one(args.device, args.flow, name, args.build)
+            res = build_one(args.device, args.flow, name, args.build,
+                seeds=seeds, pnr_timeout=pnr_timeout)
             results[name] = res
             if not args.update_budgets:
                 violations[name] = budgets.check(args.device, name, res, flow=args.flow)
@@ -93,6 +148,12 @@ def main():
             errors[name] = f"{type(e).__name__}: {e}"
 
     report.console(args.device, results, violations, target_misses)
+    for name, res in results.items():
+        stats = res.get("pnr_stats")
+        if stats and (stats["completed"] > 1 or stats["failed"]):
+            print(f"  {name}: routes {stats['completed']} completed/{stats['failed']} failed; "
+                  f"worst/median/best {stats['worst_mhz']:.1f}/"
+                  f"{stats['median_mhz']:.1f}/{stats['best_mhz']:.1f} MHz")
     if errors:
         print("\n--- errors ---")
         for n, e in errors.items():

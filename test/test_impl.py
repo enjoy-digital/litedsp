@@ -17,9 +17,28 @@ import unittest
 from unittest import mock
 
 from impl import budgets, ecp5, wrap, modules
+from impl import run as impl_run
 
 
 class TestImplementationBudgets(unittest.TestCase):
+    def test_route_statistics_select_median_run(self):
+        runs = [
+            (0, {"fmax_mhz": 91.0, "lut": 10}),
+            (1, {"fmax_mhz": 105.0, "lut": 12}),
+            (2, {"fmax_mhz": 99.0, "lut": 11}),
+        ]
+        selected, stats = impl_run.aggregate_pnr_runs(runs, [(3, "timeout")])
+        self.assertEqual(selected["fmax_mhz"], 99.0)
+        self.assertEqual(stats["worst_mhz"], 91.0)
+        self.assertEqual(stats["median_mhz"], 99.0)
+        self.assertEqual(stats["best_mhz"], 105.0)
+        self.assertEqual(stats["completed"], 3)
+        self.assertEqual(stats["failed"], 1)
+
+    def test_route_statistics_require_a_completed_run(self):
+        with self.assertRaisesRegex(RuntimeError, "no P&R run completed"):
+            impl_run.aggregate_pnr_runs([], [(0, "timeout")])
+
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")
