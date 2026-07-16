@@ -54,7 +54,7 @@ class LiteDSPWindow(LiteXModule):
     def __init__(self, n, data_width=16, window="hann", with_csr=True):
         self.n          = n
         self.data_width = data_width
-        self.latency    = 1
+        self.latency    = 2
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -87,17 +87,23 @@ class LiteDSPWindow(LiteXModule):
         # context in the emitted Verilog and truncate (found by Verilator co-simulation).
         prod_i = Signal((2*data_width, True))
         prod_q = Signal((2*data_width, True))
-        self.comb += [
-            coeff.eq(rp.dat_r),
-            prod_i.eq(self.sink.i*coeff),
-            prod_q.eq(self.sink.q*coeff),
-        ]
+        self.comb += coeff.eq(rp.dat_r)
         res_i, _ = scaled(prod_i, data_width - 1, data_width)
         res_q, _ = scaled(prod_q, data_width - 1, data_width)
+        valid_d = Signal()
+        first_d = Signal()
+        last_d  = Signal()
         self.sync += If(adv,
+            # Register the full-width DSP products before rounding/saturation. This cuts the
+            # product-to-carry-chain timing path without changing arithmetic or throughput.
+            prod_i.eq(self.sink.i*coeff),
+            prod_q.eq(self.sink.q*coeff),
+            valid_d.eq(self.sink.valid),
+            first_d.eq(self.sink.valid & (cnt == 0)),
+            last_d.eq( self.sink.valid & (cnt == (n - 1))),
             self.source.i.eq(res_i),
             self.source.q.eq(res_q),
-            self.source.valid.eq(self.sink.valid),
-            self.source.first.eq(self.sink.valid & (cnt == 0)),
-            self.source.last.eq( self.sink.valid & (cnt == (n - 1))),
+            self.source.valid.eq(valid_d),
+            self.source.first.eq(first_d),
+            self.source.last.eq(last_d),
         )
