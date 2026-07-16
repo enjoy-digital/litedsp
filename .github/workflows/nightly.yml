@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install numpy pyyaml hypothesis
+          pip install numpy pyyaml
           pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
           pip install git+https://github.com/enjoy-digital/litex.git
           pip install git+https://github.com/enjoy-digital/litedram.git
@@ -171,10 +171,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install OSS CAD Suite (yosys/sby)
-        run: |
-          wget -q https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-06-25/oss-cad-suite-linux-x64-20250625.tgz
-          tar -xzf oss-cad-suite-linux-x64-20250625.tgz
-          echo "$PWD/oss-cad-suite/bin" >> $GITHUB_PATH
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: "2025-06-25"
 
       - name: Install dependencies
         run: |
@@ -200,10 +200,10 @@ jobs:
           python-version: "3.11"
 
       - name: Install OSS CAD Suite (yosys/nextpnr)
-        run: |
-          wget -q https://github.com/YosysHQ/oss-cad-suite-build/releases/download/2025-06-25/oss-cad-suite-linux-x64-20250625.tgz
-          tar -xzf oss-cad-suite-linux-x64-20250625.tgz
-          echo "$PWD/oss-cad-suite/bin" >> $GITHUB_PATH
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: "2025-06-25"
 
       - name: Install dependencies
         run: |

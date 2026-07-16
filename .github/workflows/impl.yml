@@ -47,6 +47,7 @@ jobs:
         uses: YosysHQ/setup-oss-cad-suite@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}   # Unauthenticated lookups get rate-limited.
+          version: "2025-06-25"
 
       - name: Install Python dependencies
         run: |
