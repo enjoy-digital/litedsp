@@ -37,6 +37,15 @@ def _rand_cols(n_cols, n, lo=-20000, hi=20000, seed=1):
     prng = random.Random(seed)
     return [[prng.randint(lo, hi) for _ in range(n)] for _ in range(n_cols)]
 
+def _conv_symbols(bits, constraint=7, polys=(0o171, 0o133)):
+    """Small deterministic convolutional-encoder stimulus helper (same bit order as RTL)."""
+    state, mask, out = 0, (1 << (constraint - 1)) - 1, []
+    for bit in bits:
+        full = int(bit) | (state << 1)
+        out.append(sum(((g & full).bit_count() & 1) << k for k, g in enumerate(polys)))
+        state = full & mask
+    return out
+
 # Generation ---------------------------------------------------------------------------------------
 
 def spec_nco():
@@ -290,11 +299,35 @@ def spec_diff_decoder():
 
 def spec_viterbi_decoder():
     from litedsp.comm.viterbi import LiteDSPViterbiDecoder
-    n = 160
+    n, prng = 448, random.Random(19)
     dut  = LiteDSPViterbiDecoder(with_csr=False, decision_memory=True,
         normalize_interval=16)
-    cols = _rand_cols(1, n, lo=0, hi=3, seed=19)
-    return dut, cols, n - dut.traceback - 4, lambda c: [models.viterbi_model(c[0])]
+    data = _conv_symbols([prng.randint(0, 1) for _ in range(n)])
+    for pos in range(73, n - 16, 29):
+        data[pos] ^= 1 << ((pos // 29) & 1)                      # Exercise alternate survivors.
+    return dut, [data], n - dut.traceback - 8, lambda c: [models.viterbi_model(c[0])]
+
+def spec_viterbi_decoder_soft():
+    from litedsp.comm.viterbi import LiteDSPViterbiDecoder
+    n, llr_bits, prng = 384, 4, random.Random(20)
+    dut = LiteDSPViterbiDecoder(llr_bits=llr_bits, with_csr=False,
+        decision_memory=True, normalize_interval=16)
+    syms = _conv_symbols([prng.randint(0, 1) for _ in range(n)])
+    llrs = []
+    for pos, sym in enumerate(syms):
+        values = []
+        for bit in range(2):
+            magnitude = 2 + ((pos + 3*bit) % 6)
+            value = -magnitude if (sym >> bit) & 1 else magnitude
+            if pos % 31 == 7 + bit:
+                value = 0                                      # Punctured/erased observation.
+            elif pos % 37 == 11 + bit:
+                value = -value                                 # Controlled soft error.
+            values.append(value)
+        llrs.append(values)
+    words = models.pack_llrs(llrs, llr_bits)
+    return dut, [words], n - dut.traceback - 8, \
+        lambda c: [models.viterbi_model(c[0], llr_bits=llr_bits)]
 
 def spec_puncturer():
     from litedsp.comm.puncture import LiteDSPPuncturer, PUNCTURE_3_4
@@ -435,10 +468,14 @@ def spec_frame_sync():
     dut = LiteDSPFrameSync(sequence, data_width=16, frame_len=frame_len,
         peak_window=4, with_csr=False)
     dut.threshold.reset = threshold
-    cols  = [xi, xq]
+    dut.offset.reset = 3
+    fir_reset = [int(k == 196) for k in range(n)]
+    clear  = [int(k == 180) for k in range(n)]
+    cols  = [xi, xq, fir_reset, clear]
     n_out = n - dut.latency - 4
     return dut, cols, n_out, lambda c: list(models.frame_sync_model(
-        c[0], c[1], sequence, threshold, frame_len=frame_len)[:4]), False, True
+        c[0], c[1], sequence, threshold, frame_len=frame_len, offset=3)[:4]), \
+        False, True, (dut.fir_r.reset, dut.clear_count)
 
 # Correction ---------------------------------------------------------------------------------------
 
@@ -587,7 +624,8 @@ SPECS = {
     "slicer":           spec_slicer,
     "diff_encoder":     spec_diff_encoder,
     "diff_decoder":     spec_diff_decoder,
-    "viterbi_decoder": spec_viterbi_decoder,
+    "viterbi_decoder":      spec_viterbi_decoder,
+    "viterbi_decoder_soft": spec_viterbi_decoder_soft,
     "puncturer":        spec_puncturer,
     "depuncturer":      spec_depuncturer,
     "block_interleaver": spec_block_interleaver,
@@ -627,8 +665,12 @@ KNOWN_FAIL = {}
 def check_coverage():
     """SPECS must cover exactly the ``cosim=True`` blocks of ``test/registry.py`` VSPEC."""
     from test.registry import VSPEC
+    variants = {"viterbi_decoder_soft": "viterbi_decoder"}
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)
-    extra    = set(SPECS) - eligible
-    if missing or extra:
-        raise RuntimeError(f"cosim spec/VSPEC mismatch: missing={sorted(missing)} extra={sorted(extra)}")
+    extra    = set(SPECS) - eligible - set(variants)
+    invalid  = {name: base for name, base in variants.items()
+                if name not in SPECS or base not in eligible}
+    if missing or extra or invalid:
+        raise RuntimeError(f"cosim spec/VSPEC mismatch: missing={sorted(missing)} "
+                           f"extra={sorted(extra)} invalid_variants={invalid}")

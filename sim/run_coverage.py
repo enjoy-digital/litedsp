@@ -17,7 +17,7 @@ coverage measures exercised lines, not data match.
 
     python3 sim/run_coverage.py                # All table entries, report-only (exit 0).
     python3 sim/run_coverage.py nco gain       # A selection.
-    python3 sim/run_coverage.py --min 85       # Gate: exit 1 if a non-waived block is < 85%.
+    python3 sim/run_coverage.py --min 90       # Gate: exit 1 if a non-waived block is < 90%.
 
 Waivers: ``sim/coverage_waivers.json`` maps block name -> reason string for documented
 exclusions from the ``--min`` gate (e.g. reset-only paths unreachable under the cosim

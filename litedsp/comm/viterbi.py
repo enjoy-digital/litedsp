@@ -163,15 +163,16 @@ def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
         group_state_rs.append(state_r)
     best_metric, best_state = _min_tree(
         list(zip(group_metric_rs, group_state_rs)), dut.comb)
-    pred0 = Array([C(preds[s][0][0], state_bits) for s in range(n_states)])
-    pred1 = Array([C(preds[s][1][0], state_bits) for s in range(n_states)])
     decision = Signal()
     predecessor = Signal(state_bits)
     decision_bits = Array([decision_rd.dat_r[s] for s in range(n_states)])
     dut.comb += [
         decision_rd.adr.eq(trace_ptr),
         decision.eq(decision_bits[trace_state]),
-        predecessor.eq(Mux(decision, pred1[trace_state], pred0[trace_state])),
+        # For next state s = b | (p << 1), both predecessors share p[:-1] = s[1:];
+        # the stored decision is the predecessor MSB. Expressing the trellis algebraically
+        # avoids two 64-arm constant selector trees in the generated Verilog.
+        predecessor.eq(Cat(trace_state[1:], decision)),
     ]
 
     dut.fsm = fsm = FSM(reset_state="ACS")
