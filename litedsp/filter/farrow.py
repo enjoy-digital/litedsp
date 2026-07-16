@@ -27,7 +27,7 @@ class LiteDSPFarrowInterpolator(LiteXModule):
     def __init__(self, data_width=16, frac_bits=15, with_csr=True):
         self.data_width = data_width
         self.frac_bits  = frac_bits
-        self.latency    = 3                      # One register per Horner multiply stage.
+        self.latency    = 7                      # Coefficient, then multiply/add Horner registers.
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.mu     = Signal(frac_bits)          # Fractional position in [0, 1).
@@ -45,6 +45,22 @@ class LiteDSPFarrowInterpolator(LiteXModule):
         ]
         mu = Signal((frac_bits + 1, True))       # Zero-extended to signed for the DSP multiplies.
         self.comb += mu.eq(self.mu)
+
+        # Keep each sample's runtime fraction aligned with its Horner intermediates. Splitting
+        # multiply and add across separate registers removes the DSP-to-carry-chain critical
+        # paths while retaining one-sample-per-clock throughput.
+        mu_d1 = Signal.like(mu)
+        mu_d2 = Signal.like(mu)
+        mu_d3 = Signal.like(mu)
+        mu_d4 = Signal.like(mu)
+        mu_d5 = Signal.like(mu)
+        self.sync += If(adv,
+            mu_d1.eq(mu),
+            mu_d2.eq(mu_d1),
+            mu_d3.eq(mu_d2),
+            mu_d4.eq(mu_d3),
+            mu_d5.eq(mu_d4),
+        )
 
         # Datapath.
         # ---------
@@ -66,20 +82,44 @@ class LiteDSPFarrowInterpolator(LiteXModule):
                 a2.eq((2*xm1 - 5*x0 + 4*x1 - x2) >> 1),
                 a3.eq((-xm1 + 3*x0 - 3*x1 + x2) >> 1),
             ]
-            # Horner: y = a0 + mu*(a1 + mu*(a2 + mu*a3)), one register per multiply stage
-            # (a0/a1 delayed alongside) so a single DSP level remains per clock.
-            y2    = Signal((data_width + 6, True))
-            y1    = Signal((data_width + 6, True))
-            a1_d  = Signal((data_width + 2, True))
-            a0_d  = Signal((data_width, True))
-            a0_d2 = Signal((data_width, True))
+            # Horner: y = a0 + mu*(a1 + mu*(a2 + mu*a3)). Each multiply and following
+            # addition gets its own register; coefficient delays preserve sample alignment.
+            mul3_w = frac_bits + data_width + 5
+            mul2_w = frac_bits + data_width + 7
+            mul1_w = frac_bits + data_width + 7
+            mul3   = Signal((mul3_w, True))
+            mul2   = Signal((mul2_w, True))
+            mul1   = Signal((mul1_w, True))
+            y2     = Signal((data_width + 6, True))
+            y1     = Signal((data_width + 6, True))
+            a3_d1  = Signal.like(a3)
+            a2_d1  = Signal.like(a2)
+            a2_d2  = Signal.like(a2)
+            a1_d1  = Signal.like(a1)
+            a1_d2  = Signal.like(a1)
+            a1_d3  = Signal.like(a1)
+            a1_d4  = Signal.like(a1)
+            a0_d1  = Signal.like(a0)
+            a0_d2  = Signal.like(a0)
+            a0_d3  = Signal.like(a0)
+            a0_d4  = Signal.like(a0)
+            a0_d5  = Signal.like(a0)
+            a0_d6  = Signal.like(a0)
             self.sync += If(adv,
-                y2.eq(a2 + ((mu*a3) >> frac_bits)),      # Stage 1.
-                a1_d.eq(a1), a0_d.eq(a0),
-                y1.eq(a1_d + ((mu*y2) >> frac_bits)),    # Stage 2.
-                a0_d2.eq(a0_d),
-                getattr(self.source, field).eq(          # Stage 3.
-                    scaled(a0_d2*(1 << frac_bits) + mu*y1, frac_bits, data_width)[0]),
+                a3_d1.eq(a3), a2_d1.eq(a2),              # Stage 1: coefficients.
+                a1_d1.eq(a1), a0_d1.eq(a0),
+                mul3.eq(mu_d1*a3_d1),                    # Stage 2: inner multiply.
+                a2_d2.eq(a2_d1), a1_d2.eq(a1_d1), a0_d2.eq(a0_d1),
+                y2.eq(a2_d2 + (mul3 >> frac_bits)),      # Stage 3: inner add.
+                a1_d3.eq(a1_d2), a0_d3.eq(a0_d2),
+                mul2.eq(mu_d3*y2),                       # Stage 4: middle multiply.
+                a1_d4.eq(a1_d3), a0_d4.eq(a0_d3),
+                y1.eq(a1_d4 + (mul2 >> frac_bits)),      # Stage 5: middle add.
+                a0_d5.eq(a0_d4),
+                mul1.eq(mu_d5*y1),                       # Stage 6: outer multiply.
+                a0_d6.eq(a0_d5),
+                getattr(self.source, field).eq(          # Stage 7: outer add/scale.
+                    scaled(a0_d6*(1 << frac_bits) + mul1, frac_bits, data_width)[0]),
             )
 
         # Valid Pipeline.
