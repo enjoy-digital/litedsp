@@ -86,7 +86,7 @@ class LiteDSPTimingRecovery(LiteXModule):
         # window/mu stop changing; emission waits SETTLE cycles after the last consumed sample
         # so only one multiply level remains per clock (was: three chained multiplies, the
         # block's critical path). Throughput cost: sps + SETTLE cycles per symbol.
-        SETTLE = 4                                       # 3 interpolator stages + registered error.
+        SETTLE = 5                                       # Coefficients + 3 Horner stages + error.
         settle    = Signal(max=SETTLE + 1)
         consuming = Signal()
         emitting  = Signal()
@@ -117,12 +117,17 @@ class LiteDSPTimingRecovery(LiteXModule):
                 a2.eq((2*w[0] - 5*w[1] + 4*w[2] - w[3]) >> 1),
                 a3.eq((-w[0] + 3*w[1] - 3*w[2] + w[3]) >> 1),
             ]
+            a0_r = Signal((data_width, True))
+            a1_r = Signal((data_width + 2, True))
+            a2_r = Signal((data_width + 4, True))
+            a3_r = Signal((data_width + 4, True))
             y2 = Signal((data_width + 6, True)); y1 = Signal((data_width + 6, True))
             y  = Signal((data_width, True))
             self.sync += [
-                y2.eq(a2 + ((mu_f*a3) >> frac)),
-                y1.eq(a1 + ((mu_f*y2) >> frac)),
-                y.eq(scaled(a0*ONE + mu_f*y1, frac, data_width)[0]),
+                a0_r.eq(a0), a1_r.eq(a1), a2_r.eq(a2), a3_r.eq(a3),
+                y2.eq(a2_r + ((mu_f*a3_r) >> frac)),
+                y1.eq(a1_r + ((mu_f*y2) >> frac)),
+                y.eq(scaled(a0_r*ONE + mu_f*y1, frac, data_width)[0]),
             ]
             return y
         yr = interp(wr[nw-4:])
