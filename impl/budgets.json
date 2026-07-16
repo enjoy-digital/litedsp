@@ -1199,7 +1199,7 @@
       "dsp": 52,
       "ff": 990,
       "fmax_mhz": 63.0,
-      "fmax_min": 53.6,
+      "fmax_min": 53.5,
       "fmax_target": 100.0,
       "lut": 6344,
       "pnr": {
@@ -1207,7 +1207,7 @@
         "dsp": 52,
         "ff": 990,
         "fmax_mhz": 63.0,
-        "fmax_min": 53.6,
+        "fmax_min": 53.5,
         "lut": 6344
       },
       "synth": {
