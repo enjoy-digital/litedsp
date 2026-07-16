@@ -23,7 +23,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common        import check, iq_layout, scaled
+from litedsp.common        import check, iq_layout, rounded, scaled
 from litedsp.filter.design import firwin_lowpass
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -66,16 +66,20 @@ class LiteDSPPFBChannelizer(LiteXModule):
     increasing this to ``M + M*(2*T + 1) + M*(2*M + 1)`` cycles while preserving the exact
     full-precision sums. ``"classic"`` remains the default.
 
-    Follow-ups (documented, not implemented here): an FFT-based DFT stage for ``M >= 16``
-    (the direct DFT is O(M^2) per frame) and a 2x-oversampled variant (M outputs per M/2
-    inputs, halved commutator stride + alternating DFT phase correction).
+    ``architecture="fft"`` selects a time-multiplexed radix-2 DIF transform for ``M >= 16``.
+    It computes one butterfly in two clocks (registered multiply, then write), reducing the
+    DFT work from O(M^2) to O(M log2(M)) while retaining full branch precision and natural
+    channel order. Twiddle products round back to the branch accumulator's fractional scale
+    after each FFT rank; this arithmetic has its own bit-exact golden model.
+
+    Follow-up (documented, not implemented here): a 2x-oversampled variant (M outputs per
+    M/2 inputs, halved commutator stride + alternating DFT phase correction).
 
     Parameters
     ----------
     n_channels : int
-        Number of uniformly-spaced channels M (power of two, 2..8 — direct DFT; the
-        FFT-based stage is the M >= 16 follow-up). Channel k is centered at ``k/M`` of
-        the input sample rate.
+        Number of uniformly-spaced channels M (power of two; 2..8 for direct/folded DFT,
+        M >= 16 for the FFT stage). Channel k is centered at ``k/M`` of the input rate.
     taps_per_channel : int
         Prototype taps per polyphase branch T (prototype length = ``n_channels *
         taps_per_channel``). Sets the channel shape/stopband and the MAC length.
@@ -84,17 +88,20 @@ class LiteDSPPFBChannelizer(LiteXModule):
         taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a
         full-scale tone at a channel center emerges at full scale in that channel).
     architecture : str
-        ``"classic"`` for one MAC term per clock, or ``"folded"`` for separate multiply and
-        accumulate clocks in both the polyphase FIR and direct DFT.
+        ``"classic"`` for one MAC term per clock, ``"folded"`` for separate multiply and
+        accumulate clocks in both direct sections, or ``"fft"`` for the scalable DFT stage.
     """
     def __init__(self, n_channels=4, taps_per_channel=8, data_width=16, coefficients=None,
         architecture="classic", with_csr=True):
         M, T = n_channels, taps_per_channel  # Literature names.
         check(M >= 2 and (M & (M - 1)) == 0, "expected n_channels power of two and >= 2")
-        check(M <= 8, "expected n_channels <= 8 (direct DFT; FFT-based stage is the M >= 16 follow-up)")
         check(T >= 1, "expected taps_per_channel >= 1")
-        check(architecture in ("classic", "folded"),
-            "architecture must be 'classic' or 'folded'.")
+        check(architecture in ("classic", "folded", "fft"),
+            "architecture must be 'classic', 'folded', or 'fft'.")
+        if architecture == "fft":
+            check(M >= 16, "fft architecture requires n_channels >= 16")
+        else:
+            check(M <= 8, "direct/folded architecture requires n_channels <= 8")
         if coefficients is None:
             coefficients = firwin_lowpass(M*T, 0.4/M, data_width=data_width)
         check(len(coefficients) == M*T, "expected len(coefficients) == n_channels*taps_per_channel")
@@ -105,8 +112,10 @@ class LiteDSPPFBChannelizer(LiteXModule):
         self.architecture     = architecture
         if architecture == "classic":
             self.cycles_per_frame = M + M*(T + 1) + M*(M + 1)
-        else:
+        elif architecture == "folded":
             self.cycles_per_frame = M + M*(2*T + 1) + M*(2*M + 1)
+        else:
+            self.cycles_per_frame = M + M*(T + 1) + M*int(math.log2(M)) + M
         self.latency = self.cycles_per_frame               # Burst latency (cycles per frame).
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Wide-band I/Q input.
         self.source = stream.Endpoint(iq_layout(data_width))  # Framed channel samples (M per frame).
@@ -184,6 +193,69 @@ class LiteDSPPFBChannelizer(LiteXModule):
             tc.eq(cos_rp.dat_r), ts.eq(sin_rp.dat_r),
         ]
 
+        # Scalable DFT state. The polyphase branch sums already carry one Q1.(W-1)
+        # coefficient factor. Each FFT twiddle multiplication rounds back by W-1 bits, so
+        # the transform retains that scale and needs one final W-1 output shift.
+        if architecture == "fft":
+            fft_bits = int(math.log2(M))
+            fft_w    = acc_w + fft_bits
+            fft_i    = [Signal((fft_w, True), name=f"fft_i{j}") for j in range(M)]
+            fft_q    = [Signal((fft_w, True), name=f"fft_q{j}") for j in range(M)]
+            fft_stage = Signal(max=fft_bits)
+            fft_bfly = Signal(max=M//2)
+            fft_a    = Signal(max=M)
+            fft_b    = Signal(max=M)
+            fft_tw   = Signal(max=M)
+            fft_cases = {}
+            for s in range(fft_bits):
+                D      = M >> (s + 1)
+                dbits  = int(math.log2(D)) if D > 1 else 0
+                p_expr = (fft_bfly & (D - 1)) if D > 1 else 0
+                a_expr = p_expr | ((fft_bfly >> dbits) << (dbits + 1))
+                fft_cases[s] = [
+                    fft_a.eq(a_expr),
+                    fft_b.eq(a_expr + D),
+                    fft_tw.eq(p_expr << s),
+                ]
+            self.comb += Case(fft_stage, fft_cases)
+            self.comb += [cos_rp.adr.eq(fft_tw), sin_rp.adr.eq(fft_tw)]
+
+            far = Signal((fft_w, True))
+            faq = Signal((fft_w, True))
+            fbr = Signal((fft_w, True))
+            fbq = Signal((fft_w, True))
+            self.comb += [
+                far.eq(Array(fft_i)[fft_a]), faq.eq(Array(fft_q)[fft_a]),
+                fbr.eq(Array(fft_i)[fft_b]), fbq.eq(Array(fft_q)[fft_b]),
+            ]
+            fft_sum_i = Signal((fft_w + 1, True))
+            fft_sum_q = Signal((fft_w + 1, True))
+            fft_diff_i = Signal((fft_w + 1, True))
+            fft_diff_q = Signal((fft_w + 1, True))
+            fft_term_w = fft_w + data_width
+            fft_rr = Signal((fft_term_w, True))
+            fft_ii = Signal((fft_term_w, True))
+            fft_ri = Signal((fft_term_w, True))
+            fft_ir = Signal((fft_term_w, True))
+            fft_prod_i = Signal((fft_term_w + 1, True))
+            fft_prod_q = Signal((fft_term_w + 1, True))
+            self.comb += [
+                fft_prod_i.eq(fft_rr - fft_ii),
+                fft_prod_q.eq(fft_ri + fft_ir),
+            ]
+            fft_diff_tw_i = Signal((fft_w, True))
+            fft_diff_tw_q = Signal((fft_w, True))
+            self.comb += [
+                fft_diff_tw_i.eq(Mux(fft_tw == 0, fft_diff_i,
+                    rounded(fft_prod_i, data_width - 1))),
+                fft_diff_tw_q.eq(Mux(fft_tw == 0, fft_diff_q,
+                    rounded(fft_prod_q, data_width - 1))),
+            ]
+            fft_emit_i = Array([fft_i[int(f"{j:0{fft_bits}b}"[::-1], 2)] for j in range(M)])[k]
+            fft_emit_q = Array([fft_q[int(f"{j:0{fft_bits}b}"[::-1], 2)] for j in range(M)])[k]
+            fft_out_i, _ = scaled(fft_emit_i, data_width - 1, data_width)
+            fft_out_q, _ = scaled(fft_emit_q, data_width - 1, data_width)
+
         out_i, _ = scaled(dacc_i, shift, data_width)
         out_q, _ = scaled(dacc_q, shift, data_width)
 
@@ -202,7 +274,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
                     NextValue(acc_i, 0), NextValue(acc_q, 0),
                     NextValue(base, wptr),       # Newest sample (just written at wptr).
                     NextValue(radr, wptr),       # Branch 0, tap 0 = the newest sample.
-                    NextState("MAC" if architecture == "classic" else "MAC_MUL"),
+                    NextState("MAC_MUL" if architecture == "folded" else "MAC"),
                 ).Else(
                     NextValue(pos, pos + 1),
                 )
@@ -210,7 +282,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
         )
         # MAC: one branch tap per cycle; radr walks the history back with stride M (branch p
         # reads samples base - p - t*M) while p*T + t addresses the phase-major coefficients.
-        if architecture == "classic":
+        if architecture in ("classic", "fft"):
             fsm.act("MAC",
                 NextValue(acc_i, acc_i + ci*cc),
                 NextValue(acc_q, acc_q + cq*cc),
@@ -241,14 +313,19 @@ class LiteDSPPFBChannelizer(LiteXModule):
             NextValue(acc_i, 0), NextValue(acc_q, 0),
             NextValue(t, 0),
             NextValue(radr, base - 1 - p),       # Branch p+1, tap 0 = base - (p + 1).
+            *([NextValue(Array(fft_i)[p], acc_i), NextValue(Array(fft_q)[p], acc_q)]
+              if architecture == "fft" else []),
             If(p == (M - 1),
                 NextValue(k, 0), NextValue(pd, 0),
                 NextValue(tw_addr, 0),
                 NextValue(dacc_i, 0), NextValue(dacc_q, 0),
-                NextState("DFT" if architecture == "classic" else "DFT_MUL"),
+                *([NextValue(fft_stage, 0), NextValue(fft_bfly, 0)]
+                  if architecture == "fft" else []),
+                NextState("FFT_MUL" if architecture == "fft" else
+                          ("DFT" if architecture == "classic" else "DFT_MUL")),
             ).Else(
                 NextValue(p, p + 1),
-                NextState("MAC" if architecture == "classic" else "MAC_MUL"),
+                NextState("MAC_MUL" if architecture == "folded" else "MAC"),
             )
         )
         # DFT: channel k = sum over branches of u[p] * exp(+2j*pi*k*p/M), one branch per cycle.
@@ -259,7 +336,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
                 NextValue(pd, pd + 1),
                 If(pd == (M - 1), NextState("EMIT")),
             )
-        else:
+        elif architecture == "folded":
             fsm.act("DFT_MUL",
                 NextValue(dft_prod_rr, ur*tc), NextValue(dft_prod_ii, uj*ts),
                 NextValue(dft_prod_ri, ur*ts), NextValue(dft_prod_ir, uj*tc),
@@ -276,14 +353,45 @@ class LiteDSPPFBChannelizer(LiteXModule):
                     NextState("DFT_MUL"),
                 ),
             )
+        if architecture == "fft":
+            fsm.act("FFT_MUL",
+                NextValue(fft_sum_i, far + fbr),
+                NextValue(fft_sum_q, faq + fbq),
+                NextValue(fft_diff_i, far - fbr),
+                NextValue(fft_diff_q, faq - fbq),
+                NextValue(fft_rr, (far - fbr)*tc),
+                NextValue(fft_ii, (faq - fbq)*ts),
+                NextValue(fft_ri, (far - fbr)*ts),
+                NextValue(fft_ir, (faq - fbq)*tc),
+                NextState("FFT_WRITE"),
+            )
+            fsm.act("FFT_WRITE",
+                NextValue(Array(fft_i)[fft_a], fft_sum_i),
+                NextValue(Array(fft_q)[fft_a], fft_sum_q),
+                NextValue(Array(fft_i)[fft_b], fft_diff_tw_i),
+                NextValue(Array(fft_q)[fft_b], fft_diff_tw_q),
+                If(fft_bfly == (M//2 - 1),
+                    NextValue(fft_bfly, 0),
+                    If(fft_stage == (fft_bits - 1),
+                        NextValue(k, 0),
+                        NextState("EMIT"),
+                    ).Else(
+                        NextValue(fft_stage, fft_stage + 1),
+                        NextState("FFT_MUL"),
+                    ),
+                ).Else(
+                    NextValue(fft_bfly, fft_bfly + 1),
+                    NextState("FFT_MUL"),
+                ),
+            )
         # EMIT: present channel k (frame position = channel index); loop back through DFT for
         # the next channel, then return to LOAD after channel M-1.
         fsm.act("EMIT",
             self.source.valid.eq(1),
             self.source.first.eq(k == 0),
             self.source.last.eq(k == (M - 1)),
-            self.source.i.eq(out_i),
-            self.source.q.eq(out_q),
+            self.source.i.eq(fft_out_i if architecture == "fft" else out_i),
+            self.source.q.eq(fft_out_q if architecture == "fft" else out_q),
             If(self.source.ready,
                 If(k == (M - 1),
                     NextState("LOAD"),
@@ -292,7 +400,8 @@ class LiteDSPPFBChannelizer(LiteXModule):
                     NextValue(pd, 0),
                     NextValue(tw_addr, 0),
                     NextValue(dacc_i, 0), NextValue(dacc_q, 0),
-                    NextState("DFT" if architecture == "classic" else "DFT_MUL"),
+                    NextState("EMIT" if architecture == "fft" else
+                              ("DFT" if architecture == "classic" else "DFT_MUL")),
                 )
             )
         )

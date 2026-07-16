@@ -18,7 +18,7 @@ from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
 from litedsp.filter.design          import firwin_lowpass, report
 
 from test.common import run_stream, column
-from test.models import pfb_channelizer_model
+from test.models import pfb_channelizer_fft_model, pfb_channelizer_model
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -81,6 +81,33 @@ class TestPFBChannelizerBitExact(unittest.TestCase):
     def test_invalid_architecture(self):
         with self.assertRaises(ValueError):
             LiteDSPPFBChannelizer(architecture="invalid", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPPFBChannelizer(n_channels=16, architecture="classic", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPPFBChannelizer(n_channels=8, architecture="fft", with_csr=False)
+
+    # verify-tier: model — M>=16 uses the O(M log M) radix-2 DFT schedule with its explicit
+    # per-rank twiddle rounding, natural channel order, framing, and randomized stream stalls.
+    def test_fft_architecture_bit_exact(self):
+        for M, T in [(16, 4), (32, 2)]:
+            coeffs = firwin_lowpass(M*T, 0.4/M)
+            prng   = random.Random(900 + M)
+            n      = M*8
+            x_i    = [prng.randint(-25000, 25000) for _ in range(n)]
+            x_q    = [prng.randint(-25000, 25000) for _ in range(n)]
+            dut = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T, data_width=16,
+                coefficients=coeffs, architecture="fft", with_csr=False)
+            cap = run_stream(dut, [{"i": i, "q": q} for i, q in zip(x_i, x_q)], n,
+                ["i", "q"], ["i", "q", "first", "last"], sink_throttle=0.2,
+                source_ready_rate=0.6)
+            ri, rq = pfb_channelizer_fft_model(x_i, x_q, coeffs, M)
+            np.testing.assert_array_equal(column(cap, "i", 16), ri)
+            np.testing.assert_array_equal(column(cap, "q", 16), rq)
+            pos = np.arange(n) % M
+            np.testing.assert_array_equal(column(cap, "first"), pos == 0)
+            np.testing.assert_array_equal(column(cap, "last"),  pos == M - 1)
+            self.assertEqual(dut.cycles_per_frame,
+                M + M*(T + 1) + M*int(np.log2(M)) + M)
 
 # Functional ---------------------------------------------------------------------------------------
 

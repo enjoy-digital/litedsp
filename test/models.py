@@ -345,6 +345,55 @@ def pfb_channelizer_model(i, q, coefficients, n_channels, data_width=16):
             out_q.append(int(np_scaled(np.sum(ui*s) + np.sum(uq*c), shift, data_width)))
     return np.array(out_i, np.int64), np.array(out_q, np.int64)
 
+def pfb_channelizer_fft_model(i, q, coefficients, n_channels, data_width=16):
+    """Bit-exact reference for the PFB channelizer's radix-2 FFT architecture.
+
+    The polyphase FIR is identical to :func:`pfb_channelizer_model`. Its full-precision
+    branch sums feed a radix-2 DIF transform; non-trivial twiddle products round back to the
+    branch accumulator's Q scale after each rank, and natural channel order is recovered from
+    the bit-reversed DIF state before the final coefficient-scale round/saturate.
+    """
+    M     = n_channels
+    T     = len(coefficients)//M
+    bits  = M.bit_length() - 1
+    xi    = np.asarray(i, np.int64)
+    xq    = np.asarray(q, np.int64)
+    h     = np.asarray(coefficients, np.int64)
+    scale = (1 << (data_width - 1)) - 1
+    tw_c  = np.array([int(round(math.cos(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
+    tw_s  = np.array([int(round(math.sin(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
+    out_i, out_q = [], []
+    for m in range(len(xi)//M):
+        base = m*M + M - 1
+        fi, fq = [0]*M, [0]*M
+        for p in range(M):
+            for t in range(T):
+                n = base - p - t*M
+                if n >= 0:
+                    fi[p] += int(h[p + t*M])*int(xi[n])
+                    fq[p] += int(h[p + t*M])*int(xq[n])
+        for s in range(bits):
+            D = M >> (s + 1)
+            for group in range(0, M, 2*D):
+                for p in range(D):
+                    a, b = group + p, group + p + D
+                    ar, aq, br, bq = fi[a], fq[a], fi[b], fq[b]
+                    fi[a], fq[a] = ar + br, aq + bq
+                    dr, dq = ar - br, aq - bq
+                    if p == 0:
+                        fi[b], fq[b] = dr, dq
+                    else:
+                        j = p << s
+                        fi[b] = int(np_rounded(dr*int(tw_c[j]) - dq*int(tw_s[j]),
+                                               data_width - 1))
+                        fq[b] = int(np_rounded(dr*int(tw_s[j]) + dq*int(tw_c[j]),
+                                               data_width - 1))
+        for k in range(M):
+            r = _bit_reverse(k, bits)
+            out_i.append(int(np_scaled(fi[r], data_width - 1, data_width)))
+            out_q.append(int(np_scaled(fq[r], data_width - 1, data_width)))
+    return np.array(out_i, np.int64), np.array(out_q, np.int64)
+
 # IIR Biquad ---------------------------------------------------------------------------------------
 
 def iir_biquad_model(x, coeffs, frac_bits=14, data_width=16):
