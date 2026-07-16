@@ -11,6 +11,11 @@ One DF2T biquad section applied to I and Q with shared coefficients.
 ``coefficients`` is a dict ``{b0,b1,b2,a1,a2}`` of signed integers in Q?.``frac_bits``
 (a1,a2 are the *denominator* taps; a0 is normalized to 1).
 
+``architecture="classic"`` accepts one sample per clock. ``"folded"`` divides the
+feedback recurrence into feed-forward/y, feedback-product, and state-update cycles. It
+accepts one sample every three clocks, uses two extra cycles of latency, and is
+bit-identical to classic mode. The bypass value is sampled with each folded input.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -18,6 +23,7 @@ One DF2T biquad section applied to I and Q with shared coefficients.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `frac_bits` | `14` | int | Fractional bits of the coefficient/control fixed-point format. |
+| `architecture` | `"classic"` | str | Choices: `classic`, `folded`. |
 
 ## Ports
 

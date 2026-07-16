@@ -128,7 +128,7 @@ ENTRIES = [
     ("halfband_dec",       LiteDSPHalfbandDecimator,     {},                                     "filter",     "Halfband decimator",    None),
     ("halfband_int",       LiteDSPHalfbandInterpolator,  {},                                     "filter",     "Halfband interpolator", None),
     ("hilbert",            LiteDSPHilbert,               {},                                     "filter",     "Hilbert",               None),
-    ("iir_biquad",         LiteDSPIIRBiquad,             {},                                     "filter",     "IIR biquad",            None),
+    ("iir_biquad",         LiteDSPIIRBiquad,             {},                                     "filter",     "IIR biquad",            {"architecture": ["classic", "folded"]}),
     ("dc_blocker",         LiteDSPDCBlocker,             {},                                     "filter",     "DC blocker",            None),
     ("moving_average",     LiteDSPMovingAverage,         {},                                     "filter",     "Moving average",        None),
     ("farrow",             LiteDSPFarrowInterpolator,    {},                                     "filter",     "Farrow interpolator",   None),

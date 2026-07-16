@@ -48,6 +48,41 @@ class TestIIRBiquad(unittest.TestCase):
             sink_throttle=0.2, source_ready_rate=0.7)
         self.assertTrue(np.array_equal(column(cap, "i", 16), iir_cascade_model(xi, secs, frac)))
 
+    # verify-tier: model — the timing-oriented feedback fold changes cycles only.
+    def test_folded_bit_exact(self):
+        secs, frac = biquad_sos_quantize([rbj_lowpass(0.1)], frac_bits=14)
+        dut = LiteDSPIIRBiquad(data_width=16, coefficients=secs[0], frac_bits=frac,
+            architecture="folded", with_csr=False)
+        prng = random.Random(31)
+        xi = [prng.randint(-20000, 20000) for _ in range(180)]
+        xq = [prng.randint(-20000, 20000) for _ in range(180)]
+        samples = [{"i": i, "q": q} for i, q in zip(xi, xq)]
+        cap = run_stream(dut, samples, len(samples), ["i", "q"], ["i", "q"],
+            sink_throttle=0.25, source_ready_rate=0.6)
+        np.testing.assert_array_equal(column(cap, "i", 16),
+            iir_biquad_model(xi, secs[0], frac))
+        np.testing.assert_array_equal(column(cap, "q", 16),
+            iir_biquad_model(xq, secs[0], frac))
+        self.assertEqual(dut.sample_interval, 3)
+        self.assertEqual(dut.latency, 4)
+
+    # verify-tier: model — folded sections compose without changing cascade arithmetic.
+    def test_folded_cascade_bit_exact(self):
+        secs, frac = biquad_sos_quantize([rbj_lowpass(0.1), rbj_lowpass(0.08)], frac_bits=14)
+        dut = LiteDSPIIRBiquadCascade(data_width=16, sections=secs, frac_bits=frac,
+            architecture="folded", with_csr=False)
+        prng = random.Random(32)
+        xi = [prng.randint(-15000, 15000) for _ in range(140)]
+        xq = [prng.randint(-15000, 15000) for _ in range(140)]
+        cap = run_stream(dut, [{"i": i, "q": q} for i, q in zip(xi, xq)], len(xi),
+            ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.65)
+        np.testing.assert_array_equal(column(cap, "i", 16),
+            iir_cascade_model(xi, secs, frac))
+
+    def test_invalid_architecture(self):
+        with self.assertRaises(ValueError):
+            LiteDSPIIRBiquad(architecture="invalid", with_csr=False)
+
     def test_lowpass_response(self):
         secs, frac = biquad_sos_quantize([rbj_lowpass(0.05)], frac_bits=14)
         n = 2000

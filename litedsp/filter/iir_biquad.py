@@ -31,8 +31,16 @@ class LiteDSPIIRBiquad(LiteXModule):
 
     ``coefficients`` is a dict ``{b0,b1,b2,a1,a2}`` of signed integers in Q?.``frac_bits``
     (a1,a2 are the *denominator* taps; a0 is normalized to 1).
+
+    ``architecture="classic"`` accepts one sample per clock. ``"folded"`` divides the
+    feedback recurrence into feed-forward/y, feedback-product, and state-update cycles. It
+    accepts one sample every three clocks, uses two extra cycles of latency, and is
+    bit-identical to classic mode. The bypass value is sampled with each folded input.
     """
-    def __init__(self, data_width=16, coefficients=None, frac_bits=14, with_csr=True):
+    def __init__(self, data_width=16, coefficients=None, frac_bits=14,
+        architecture="classic", with_csr=True):
+        check(architecture in ("classic", "folded"),
+            "architecture must be 'classic' or 'folded'.")
         coeffs = coefficients
         if coeffs is None:
             coeffs = {"b0": 1 << frac_bits, "b1": 0, "b2": 0, "a1": 0, "a2": 0}  # Passthrough.
@@ -40,7 +48,9 @@ class LiteDSPIIRBiquad(LiteXModule):
         self.frac_bits    = frac_bits
         self.coefficients = coeffs
         self.state_width = data_width + frac_bits + 4
-        self.latency    = 2                       # Registered b·x intake + recurrence/output.
+        self.architecture    = architecture
+        self.sample_interval = 1 if architecture == "classic" else 3
+        self.latency    = 2 if architecture == "classic" else 4
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -52,55 +62,104 @@ class LiteDSPIIRBiquad(LiteXModule):
         a1, a2     = coeffs["a1"], coeffs["a2"]
         SW         = self.state_width
 
-        # Handshake.
-        # ----------
-        adv = Signal()
-        self.comb += [
-            adv.eq(self.source.ready | ~self.source.valid),
-            self.sink.ready.eq(adv),
-        ]
+        if architecture == "classic":
+            # Handshake.
+            # ----------
+            adv = Signal()
+            self.comb += [
+                adv.eq(self.source.ready | ~self.source.valid),
+                self.sink.ready.eq(adv),
+            ]
 
-        # Datapath.
-        # ---------
-        # The recursive loop s -> y -> a·y -> s' is a single pass per sample by nature; hoist
-        # the feed-forward b·x products into a registered intake stage so only one multiply
-        # level remains inside it.
-        v_px = Signal()                           # Intake stage holds a real sample.
-        self.sync += If(adv, v_px.eq(self.sink.valid))
-        for field in ["i", "q"]:
-            x   = getattr(self.sink, field)
-            px0 = Signal((SW, True))              # Registered b*x products (intake stage).
-            px1 = Signal((SW, True))
-            px2 = Signal((SW, True))
-            self.sync += If(adv, px0.eq(b0*x), px1.eq(b1*x), px2.eq(b2*x))
+            # Datapath.
+            # ---------
+            # The recursive loop s -> y -> a·y -> s' is a single pass per sample by nature;
+            # hoist the feed-forward b·x products into a registered intake stage.
+            v_px = Signal()
+            self.sync += If(adv, v_px.eq(self.sink.valid))
+            for field in ["i", "q"]:
+                x   = getattr(self.sink, field)
+                px0 = Signal((SW, True))
+                px1 = Signal((SW, True))
+                px2 = Signal((SW, True))
+                self.sync += If(adv, px0.eq(b0*x), px1.eq(b1*x), px2.eq(b2*x))
 
-            s1 = Signal((SW, True))               # DF2T state (Q.frac, saturated on update).
-            s2 = Signal((SW, True))
-            y  = Signal((data_width, True))
-            self.comb += y.eq(scaled(px0 + s1, frac_bits, data_width)[0])  # y = b0*x + s1, back to Q1.(N-1).
-            # State advances only when the intake holds a real sample (v_px), so pipeline
-            # bubbles cannot corrupt the recursion.
-            self.sync += If(adv & v_px,
-                s1.eq(saturated(px1 + s2 - a1*y, SW)),
-                s2.eq(saturated(px2 - a2*y, SW)),
-            )
-            self.sync += If(adv, getattr(self.source, field).eq(y))
+                s1 = Signal((SW, True))
+                s2 = Signal((SW, True))
+                y  = Signal((data_width, True))
+                self.comb += y.eq(scaled(px0 + s1, frac_bits, data_width)[0])
+                self.sync += If(adv & v_px,
+                    s1.eq(saturated(px1 + s2 - a1*y, SW)),
+                    s2.eq(saturated(px2 - a2*y, SW)),
+                )
+                self.sync += If(adv, getattr(self.source, field).eq(y))
 
-        # Valid Pipeline.
-        # ---------------
-        valid_pipe = Signal(2)                    # Matches intake + output register stages.
-        self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[0])))
-        self.comb += self.source.valid.eq(valid_pipe[1])
-
-        # Bypass.
-        # -------
-        add_bypass(self)
+            valid_pipe = Signal(2)
+            self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[0])))
+            self.comb += self.source.valid.eq(valid_pipe[1])
+            add_bypass(self)
+        else:
+            # Three-clock feedback fold: (1) b*x and y, (2) a*y products, (3) state update.
+            # The recurrence boundary is therefore explicit and timing-safe, at the cost of
+            # accepting one sample every three clocks.
+            self.bypass = Signal()
+            phase    = Signal(2)
+            advance  = Signal()
+            accept   = Signal()
+            bypass_r = Signal()
+            self.comb += [
+                advance.eq(self.source.ready | ~self.source.valid),
+                self.sink.ready.eq(((phase == 0) | (phase == 3)) & advance),
+                accept.eq(self.sink.valid & self.sink.ready),
+            ]
+            self.sync += [
+                If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
+                If(accept, bypass_r.eq(self.bypass), phase.eq(1)),
+                If(phase == 1,
+                    phase.eq(2),
+                ).Elif(phase == 2,
+                    phase.eq(3),
+                ).Elif((phase == 3) & advance,
+                    self.source.valid.eq(1),
+                    If(accept, phase.eq(1)).Else(phase.eq(0)),
+                ),
+            ]
+            for field in ["i", "q"]:
+                x   = getattr(self.sink, field)
+                x_r = Signal((data_width, True))
+                px0 = Signal((SW, True))
+                px1 = Signal((SW, True))
+                px2 = Signal((SW, True))
+                s1  = Signal((SW, True))
+                s2  = Signal((SW, True))
+                y_r = Signal((data_width, True))
+                ay1 = Signal((SW, True))
+                ay2 = Signal((SW, True))
+                self.sync += [
+                    If(accept,
+                        x_r.eq(x), px0.eq(b0*x), px1.eq(b1*x), px2.eq(b2*x),
+                    ),
+                    If(phase == 1,
+                        y_r.eq(scaled(px0 + s1, frac_bits, data_width)[0]),
+                    ),
+                    If(phase == 2,
+                        ay1.eq(a1*y_r), ay2.eq(a2*y_r),
+                    ),
+                    If((phase == 3) & advance,
+                        If(~bypass_r,
+                            s1.eq(saturated(px1 + s2 - ay1, SW)),
+                            s2.eq(saturated(px2 - ay2, SW)),
+                        ),
+                        getattr(self.source, field).eq(Mux(bypass_r, x_r, y_r)),
+                    ),
+                ]
 
 # IIR Biquad cascade -------------------------------------------------------------------------------
 
 class LiteDSPIIRBiquadCascade(LiteXModule):
     """Cascade of DF2T biquad sections (``sections`` = list of coeff dicts)."""
-    def __init__(self, data_width=16, sections=None, frac_bits=14, with_csr=True):
+    def __init__(self, data_width=16, sections=None, frac_bits=14,
+        architecture="classic", with_csr=True):
         check(sections, "Provide at least one biquad section.")
         self.sections = []
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -110,7 +169,8 @@ class LiteDSPIIRBiquadCascade(LiteXModule):
 
         last = self.sink
         for n, sec in enumerate(sections):
-            bq = LiteDSPIIRBiquad(data_width=data_width, coefficients=sec, frac_bits=frac_bits, with_csr=False)
+            bq = LiteDSPIIRBiquad(data_width=data_width, coefficients=sec,
+                frac_bits=frac_bits, architecture=architecture, with_csr=False)
             self.add_module(name=f"section{n}", module=bq)
             self.comb += last.connect(bq.sink)
             self.sections.append(bq)
