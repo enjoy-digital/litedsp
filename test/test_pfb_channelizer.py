@@ -59,6 +59,29 @@ class TestPFBChannelizerBitExact(unittest.TestCase):
         dut = LiteDSPPFBChannelizer(with_csr=False)
         self.assertEqual(dut.coefficients, firwin_lowpass(32, 0.1))
 
+    # verify-tier: model — folded multiply/accumulate states retain the exact full-precision
+    # branch and DFT sums under randomized stream stalls.
+    def test_folded_bit_exact(self):
+        for M, T in [(4, 8), (2, 6)]:
+            coeffs = firwin_lowpass(M*T, 0.4/M)
+            prng   = random.Random(700 + M*10 + T)
+            n      = M*16
+            x_i    = [prng.randint(-25000, 25000) for _ in range(n)]
+            x_q    = [prng.randint(-25000, 25000) for _ in range(n)]
+            dut = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T, data_width=16,
+                coefficients=coeffs, architecture="folded", with_csr=False)
+            cap = run_stream(dut, [{"i": i, "q": q} for i, q in zip(x_i, x_q)], n,
+                ["i", "q"], ["i", "q", "first", "last"], sink_throttle=0.2,
+                source_ready_rate=0.6)
+            ri, rq = pfb_channelizer_model(x_i, x_q, coeffs, M)
+            np.testing.assert_array_equal(column(cap, "i", 16), ri)
+            np.testing.assert_array_equal(column(cap, "q", 16), rq)
+            self.assertEqual(dut.cycles_per_frame, M + M*(2*T + 1) + M*(2*M + 1))
+
+    def test_invalid_architecture(self):
+        with self.assertRaises(ValueError):
+            LiteDSPPFBChannelizer(architecture="invalid", with_csr=False)
+
 # Functional ---------------------------------------------------------------------------------------
 
 class TestPFBChannelizerFunctional(unittest.TestCase):

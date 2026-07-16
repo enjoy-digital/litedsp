@@ -32,6 +32,9 @@ coefficient + twiddle fractional bits) produces the output — no intermediate r
 Throughput: one shared MAC, ``M + M*(T + 1) + M*(M + 1)`` cycles per M-sample frame
 (load + branch FIRs + DFT/emit), so ``fs_in <= f_clk * M / cycles_per_frame`` (roughly
 ``f_clk / (T + M + 3)``); the input is stalled (backpressured) while a frame computes.
+``architecture="folded"`` separates every multiply from its recursive accumulation,
+increasing this to ``M + M*(2*T + 1) + M*(2*M + 1)`` cycles while preserving the exact
+full-precision sums. ``"classic"`` remains the default.
 
 Follow-ups (documented, not implemented here): an FFT-based DFT stage for ``M >= 16``
 (the direct DFT is O(M^2) per frame) and a 2x-oversampled variant (M outputs per M/2
@@ -45,6 +48,7 @@ inputs, halved commutator stride + alternating DFT phase correction).
 | `taps_per_channel` | `8` | int | Prototype taps per polyphase branch T (prototype length = ``n_channels * taps_per_channel``). Sets the channel shape/stopband and the MAC length. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Prototype low-pass taps, signed Q1.(W-1) integers, length ``n_channels * taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a full-scale tone at a channel center emerges at full scale in that channel). |
+| `architecture` | `"classic"` | str | ``"classic"`` for one MAC term per clock, or ``"folded"`` for separate multiply and accumulate clocks in both the polyphase FIR and direct DFT. Choices: `classic`, `folded`. |
 
 ## Ports
 

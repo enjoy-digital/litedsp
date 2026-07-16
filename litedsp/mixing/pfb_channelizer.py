@@ -62,6 +62,9 @@ class LiteDSPPFBChannelizer(LiteXModule):
     Throughput: one shared MAC, ``M + M*(T + 1) + M*(M + 1)`` cycles per M-sample frame
     (load + branch FIRs + DFT/emit), so ``fs_in <= f_clk * M / cycles_per_frame`` (roughly
     ``f_clk / (T + M + 3)``); the input is stalled (backpressured) while a frame computes.
+    ``architecture="folded"`` separates every multiply from its recursive accumulation,
+    increasing this to ``M + M*(2*T + 1) + M*(2*M + 1)`` cycles while preserving the exact
+    full-precision sums. ``"classic"`` remains the default.
 
     Follow-ups (documented, not implemented here): an FFT-based DFT stage for ``M >= 16``
     (the direct DFT is O(M^2) per frame) and a 2x-oversampled variant (M outputs per M/2
@@ -80,13 +83,18 @@ class LiteDSPPFBChannelizer(LiteXModule):
         Prototype low-pass taps, signed Q1.(W-1) integers, length ``n_channels *
         taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a
         full-scale tone at a channel center emerges at full scale in that channel).
+    architecture : str
+        ``"classic"`` for one MAC term per clock, or ``"folded"`` for separate multiply and
+        accumulate clocks in both the polyphase FIR and direct DFT.
     """
     def __init__(self, n_channels=4, taps_per_channel=8, data_width=16, coefficients=None,
-        with_csr=True):
+        architecture="classic", with_csr=True):
         M, T = n_channels, taps_per_channel  # Literature names.
         check(M >= 2 and (M & (M - 1)) == 0, "expected n_channels power of two and >= 2")
         check(M <= 8, "expected n_channels <= 8 (direct DFT; FFT-based stage is the M >= 16 follow-up)")
         check(T >= 1, "expected taps_per_channel >= 1")
+        check(architecture in ("classic", "folded"),
+            "architecture must be 'classic' or 'folded'.")
         if coefficients is None:
             coefficients = firwin_lowpass(M*T, 0.4/M, data_width=data_width)
         check(len(coefficients) == M*T, "expected len(coefficients) == n_channels*taps_per_channel")
@@ -94,7 +102,11 @@ class LiteDSPPFBChannelizer(LiteXModule):
         self.taps_per_channel = T
         self.data_width       = data_width
         self.coefficients     = coefficients
-        self.cycles_per_frame = M + M*(T + 1) + M*(M + 1)  # Load + branch MACs + DFT/emit.
+        self.architecture     = architecture
+        if architecture == "classic":
+            self.cycles_per_frame = M + M*(T + 1) + M*(M + 1)
+        else:
+            self.cycles_per_frame = M + M*(2*T + 1) + M*(2*M + 1)
         self.latency = self.cycles_per_frame               # Burst latency (cycles per frame).
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Wide-band I/Q input.
         self.source = stream.Endpoint(iq_layout(data_width))  # Framed channel samples (M per frame).
@@ -150,6 +162,12 @@ class LiteDSPPFBChannelizer(LiteXModule):
         ts = Signal((data_width, True))
         ur = Signal((acc_w, True))
         uj = Signal((acc_w, True))
+        mac_prod_i = Signal((2*data_width, True))
+        mac_prod_q = Signal((2*data_width, True))
+        dft_prod_rr = Signal((acc_w + data_width, True))
+        dft_prod_ii = Signal((acc_w + data_width, True))
+        dft_prod_ri = Signal((acc_w + data_width, True))
+        dft_prod_ir = Signal((acc_w + data_width, True))
         self.comb += [
             wip.adr.eq(wptr), wqp.adr.eq(wptr),
             wip.dat_w.eq(self.sink.i), wqp.dat_w.eq(self.sink.q),
@@ -183,7 +201,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
                     NextValue(acc_i, 0), NextValue(acc_q, 0),
                     NextValue(base, wptr),       # Newest sample (just written at wptr).
                     NextValue(radr, wptr),       # Branch 0, tap 0 = the newest sample.
-                    NextState("MAC"),
+                    NextState("MAC" if architecture == "classic" else "MAC_MUL"),
                 ).Else(
                     NextValue(pos, pos + 1),
                 )
@@ -191,13 +209,31 @@ class LiteDSPPFBChannelizer(LiteXModule):
         )
         # MAC: one branch tap per cycle; radr walks the history back with stride M (branch p
         # reads samples base - p - t*M) while p*T + t addresses the phase-major coefficients.
-        fsm.act("MAC",
-            NextValue(acc_i, acc_i + ci*cc),
-            NextValue(acc_q, acc_q + cq*cc),
-            NextValue(radr, radr - M),
-            NextValue(t, t + 1),
-            If(t == (T - 1), NextState("STORE")),
-        )
+        if architecture == "classic":
+            fsm.act("MAC",
+                NextValue(acc_i, acc_i + ci*cc),
+                NextValue(acc_q, acc_q + cq*cc),
+                NextValue(radr, radr - M),
+                NextValue(t, t + 1),
+                If(t == (T - 1), NextState("STORE")),
+            )
+        else:
+            fsm.act("MAC_MUL",
+                NextValue(mac_prod_i, ci*cc),
+                NextValue(mac_prod_q, cq*cc),
+                NextState("MAC_ACC"),
+            )
+            fsm.act("MAC_ACC",
+                NextValue(acc_i, acc_i + mac_prod_i),
+                NextValue(acc_q, acc_q + mac_prod_q),
+                NextValue(radr, radr - M),
+                NextValue(t, t + 1),
+                If(t == (T - 1),
+                    NextState("STORE"),
+                ).Else(
+                    NextState("MAC_MUL"),
+                ),
+            )
         # STORE: latch branch p's dot-product into u[p]; next branch, or the DFT after branch M-1.
         fsm.act("STORE",
             uiw.we.eq(1), uqw.we.eq(1),
@@ -207,19 +243,36 @@ class LiteDSPPFBChannelizer(LiteXModule):
             If(p == (M - 1),
                 NextValue(k, 0), NextValue(pd, 0),
                 NextValue(dacc_i, 0), NextValue(dacc_q, 0),
-                NextState("DFT"),
+                NextState("DFT" if architecture == "classic" else "DFT_MUL"),
             ).Else(
                 NextValue(p, p + 1),
-                NextState("MAC"),
+                NextState("MAC" if architecture == "classic" else "MAC_MUL"),
             )
         )
         # DFT: channel k = sum over branches of u[p] * exp(+2j*pi*k*p/M), one branch per cycle.
-        fsm.act("DFT",
-            NextValue(dacc_i, dacc_i + ur*tc - uj*ts),
-            NextValue(dacc_q, dacc_q + ur*ts + uj*tc),
-            NextValue(pd, pd + 1),
-            If(pd == (M - 1), NextState("EMIT")),
-        )
+        if architecture == "classic":
+            fsm.act("DFT",
+                NextValue(dacc_i, dacc_i + ur*tc - uj*ts),
+                NextValue(dacc_q, dacc_q + ur*ts + uj*tc),
+                NextValue(pd, pd + 1),
+                If(pd == (M - 1), NextState("EMIT")),
+            )
+        else:
+            fsm.act("DFT_MUL",
+                NextValue(dft_prod_rr, ur*tc), NextValue(dft_prod_ii, uj*ts),
+                NextValue(dft_prod_ri, ur*ts), NextValue(dft_prod_ir, uj*tc),
+                NextState("DFT_ACC"),
+            )
+            fsm.act("DFT_ACC",
+                NextValue(dacc_i, dacc_i + dft_prod_rr - dft_prod_ii),
+                NextValue(dacc_q, dacc_q + dft_prod_ri + dft_prod_ir),
+                NextValue(pd, pd + 1),
+                If(pd == (M - 1),
+                    NextState("EMIT"),
+                ).Else(
+                    NextState("DFT_MUL"),
+                ),
+            )
         # EMIT: present channel k (frame position = channel index); loop back through DFT for
         # the next channel, then return to LOAD after channel M-1.
         fsm.act("EMIT",
@@ -235,7 +288,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
                     NextValue(k, k + 1),
                     NextValue(pd, 0),
                     NextValue(dacc_i, 0), NextValue(dacc_q, 0),
-                    NextState("DFT"),
+                    NextState("DFT" if architecture == "classic" else "DFT_MUL"),
                 )
             )
         )
