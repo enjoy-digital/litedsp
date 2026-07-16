@@ -16,7 +16,8 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
-| SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz classic; 102.7 folded SDF; 107.6 registered iterative | butterfly result feeds the SDF delay or in-place RAM schedule | folded SDF and iterative target-closed; interleaved/parallel remain open |
+| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 104.0 folded SDF; 107.6 registered iterative; 63.0/61.2 native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded SDF and iterative target-closed; interleaved/native parallel remain open |
+| PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
 ## Viterbi decoder
 
@@ -154,18 +155,40 @@ Two explicit SDF options are implemented:
    Aggregate throughput returns to one sample per clock, at the cost of duplicated delay state,
    stricter framing, and roughly doubled storage.
 
-At N=256 the folded serial core is bit-identical to scaled classic mode and reaches 102.7 MHz on
-ECP5 and 119.1 MHz on Artix-7, versus 58.7 MHz for ECP5 classic. It uses 4243 LUT / 2118 FF / 28
-DSP on ECP5 and sustains 0.5 sample/clock. Two alternating folded contexts restore aggregate
-one-sample/clock throughput; they reach 95.2 MHz on ECP5 and 117.4 MHz on Artix-7 at roughly
-twice the state and multiplier cost. The framing contract deliberately requires two independent
-interleaved frames/channels rather than pretending this is a latency-only classic replacement.
+At N=256 the folded serial core is bit-identical to scaled classic mode and reaches a
+101.2/104.0/105.3 MHz worst/median/best ECP5 route sweep and 119.7 MHz on Artix-7, versus
+58.7 MHz for ECP5 classic. It uses 4197 LUT / 2273 FF / 28 DSP on ECP5 and sustains
+0.5 sample/clock. Prefetching the next twiddle in the otherwise-idle finish half-cycle removes
+the counter/ROM delay without changing latency or arithmetic.
+
+Two alternating folded contexts restore aggregate one-sample/clock throughput at roughly twice
+the state and multiplier cost. The dense N=256 ECP5 build does not complete a 100 MHz placement
+within the bounded 30-minute route limit; an 80 MHz placement constraint reports 93.2 MHz, so
+the 100 MHz objective remains open. Artix-7 closes at 116.0 MHz. The framing contract deliberately
+requires two independent interleaved frames/channels rather than pretending this is a
+latency-only classic replacement.
 
 The x2 parallel FFT inherits the SDF choice in both sub-cores. Folded mode reduces average
 throughput from two to one sample/clock and raises Artix-7 timing from 81.0 to 94.6 MHz, with
 5312 LUT / 3354 FF / 104 DSP post-route. The current ECP5 netlist synthesizes to 9253 LUT / 4386
 FF / 56 DSP but does not complete nextpnr placement at this utilization, even with a 70 MHz
 constraint; it is therefore excluded from the nightly P&R subset and carries no stale ECP5 fmax.
+
+The native vector-SDF implementation advances one shared feedback line by P consecutive samples
+per clock and removes the split architecture's branch FIFOs, serializers and duplicated cores.
+It keeps every serial fixed-point rounding boundary and sustains its full lane rate under
+backpressure:
+
+| Native FFT (N=256) | Latency | ECP5 LUT/FF/DSP/Fmax | Artix-7 LUT/FF/DSP/Fmax |
+|---|---:|---:|---:|
+| P=2 | 137 clocks | 6344 / 990 / 52 / 63.0 MHz | 3167 / 941 / 52 / 82.4 MHz |
+| P=4 | 73 clocks | 10780 / 1784 / 94 / 61.2 MHz | 5637 / 1842 / 94 / 75.1 MHz |
+
+For comparison, split P=2 uses 9163 LUT / 994 FF / 56 DSP at 56.9 MHz on ECP5 and 4346 LUT /
+999 FF / 56 DSP at 81.0 MHz on Artix-7. Native P=2 therefore saves 31% of the ECP5 LUTs and four
+DSPs while modestly improving timing; P=4 adds true four-sample throughput for 1.7x the native
+P=2 ECP5 LUT cost. Neither native width is target-closed: registering its feedback multiplier
+requires a hazard-bypassed recurrence pipeline, not a latency-only edit.
 
 The iterative option is now implemented as `registered_butterfly=True`: the read phase registers
 the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and
@@ -179,6 +202,25 @@ registered option.
 Acceptance requires bit identity versus `fft_fixed_model` for scaled mode, the existing BFP
 exponent/overflow contract, forward/inverse operation, exact frame markers under backpressure,
 and published latency, frame gap, samples/clock, LUT/FF/BRAM/DSP and achieved fmax.
+
+## PFB channel transform
+
+The direct PFB channelizer time-shares one DFT multiply/accumulate over all M² branch/bin pairs.
+That is compact for M<=8, but a folded M=16/T=8 frame would take 816 clocks. The scalable
+`architecture="fft"` option retains the same full-precision polyphase FIR, then runs a radix-2
+DIF transform with explicit per-rank twiddle rounding and natural-order output.
+
+The timing path is split into the proven two-cycle polyphase MAC plus four FFT phases: register
+the dual-memory read/difference, register the twiddle products, write the sum, and write the
+difference. A single-write distributed-memory state keeps M=16/T=8 to 2477 LUT / 583 FF / 14 DSP
+on ECP5 and 1019 LUT / 346 FF / 10 DSP on Artix-7. Three ECP5 routes reach
+110.5/113.2/114.4 MHz; Artix-7 reaches 120.1 MHz. The frame takes 432 clocks—1.9x shorter than
+the folded direct schedule—and the advantage grows as O(M log M) versus O(M²).
+
+The FFT arithmetic intentionally has its own bit-exact model: each non-trivial twiddle product
+rounds back to the branch accumulator scale after a rank, whereas the small direct DFT rounds
+only once after its full sum. Acceptance covers M=16 and M=32, natural channel order, framing,
+randomized stalls, Verilator co-simulation, and both FPGA implementation targets.
 
 ## Landing policy
 

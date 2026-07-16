@@ -21,7 +21,7 @@ python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
 python3 impl/run.py --device xilinx --flow pnr  --target-closed --target-gate # strict Artix targets
-python3 impl/run.py --device ecp5 --flow pnr --module fft_interleaved_x2 --repeat 3 --pnr-timeout 600
+python3 impl/run.py --device ecp5 --flow pnr --module fft_interleaved_x2 --repeat 3 --pnr-timeout 1800
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
 
@@ -74,6 +74,16 @@ the equivalent strict Artix-7 gate on a self-hosted runner labelled `vivado`.
   still require explicit throughput/area decisions rather than unsafe register
   insertion. The reviewed options, trade-offs and acceptance criteria are tracked in
   [`timing_architecture.md`](timing_architecture.md).
+- **Vector SDF improves parallel FFT area, not its recurrence timing by itself.** A shared P-wide
+  feedback memory makes native P=2 31% smaller in ECP5 LUTs than the split P=2 implementation
+  and enables sustained P=4 operation. Both widths remain near 60 MHz because the same
+  feedback multiplier still lies between state updates; their 100 MHz objectives remain
+  distinct from their regression floors.
+- **The scalable PFB needs both algorithmic and timing architecture changes.** Replacing the
+  M² direct DFT with a time-multiplexed radix-2 transform makes M>=16 practical, but its first
+  memory-read/multiply schedule reached only 74.6 MHz. Registering read/difference, multiply,
+  and the two single-port writes raises the M=16/T=8 median to 113.2 MHz while retaining the
+  O(M log M) schedule and bit-exact per-rank rounding model.
 
 ## Current results
 

@@ -1,4 +1,4 @@
-# FFT (parallel, 2 samples/clk)
+# FFT (parallel, P samples/clk)
 
 `LiteDSPParallelFFT` — `litedsp.analysis.fft_parallel` — category `analysis`
 
@@ -6,7 +6,7 @@ latency: 76 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Streaming ``N``-point FFT at 2 samples/cycle (super-sample-rate wideband path).
+Streaming ``N``-point FFT at P samples/cycle (super-sample-rate wideband path).
 
 The serial radix-2 SDF schedule of :class:`~litedsp.analysis.fft.LiteDSPFFT` regrouped for
 two lanes per beat, **bit-identical** to the serial FFT on the flattened lane stream. The
@@ -39,25 +39,27 @@ FFT's (bit-reversed, 1/N-scaled) output stream two beats at a time::
 i.e. lanes carry consecutive bit-reversed indices: lane 0 sweeps bins [0, N/2) in
 ``N/2``-point bit-reversed order and lane 1 the mirrored bin ``+ N/2``.
 
-With ``core_architecture="classic"`` throughput is a sustained 2 samples/cycle under
-free flow.  ``"folded"`` adds a timing register to the wide butterfly rank and uses
-two-cycle serial sub-cores; it has a peak width of two samples and an average throughput
-of one sample/cycle.  The internal FIFOs absorb the deterministic half-frame bursts and
-the source starts only when a complete branch is buffered.
+The default ``implementation="split"`` preserves the original P=2 architecture. With
+``core_architecture="classic"`` it sustains 2 samples/cycle; ``"folded"`` adds a timing
+register to the wide butterfly rank and uses two-cycle serial sub-cores, for a peak width
+of two and an average rate of one sample/cycle.
 
-Only ``n_samples=2`` and the serial FFT's ``scaling="scaled"`` arithmetic (unconditional
-1/2 per stage, 1/N overall) are implemented; P=4 and block-floating-point ("bfp") are
-planned follow-ups.
+``implementation="native"`` instead advances a single SDF feedback line by P consecutive
+samples per clock. It supports P=2 and P=4, sustains P samples/cycle, eliminates the split
+implementation's branch FIFOs/serializers/duplicated cores, and remains bit-identical to
+the serial FFT on the flattened lane stream. Both implementations currently use the
+serial FFT's ``scaling="scaled"`` arithmetic (1/2 per stage, 1/N overall).
 
 ## Parameters
 
 | Parameter | Default | Type | Description |
 |---|---|---|---|
 | `N` | `64` | int | Transform size (power of two >= 8). |
-| `n_samples` | `2` | int | Samples per beat; only 2 is supported (P=4 is a planned follow-up). |
+| `n_samples` | `2` | int | Samples per beat; 2 for ``"split"``, or 2/4 for ``"native"``. Choices: `2`, `4`. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `twiddle_width` | `16` | int | Twiddle-factor width in bits (signed Q1.(W-1)), as in the serial FFT. |
-| `core_architecture` | `"classic"` | str | ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a registered timing-oriented path with one-sample/cycle average throughput. Choices: `classic`, `folded`. |
+| `core_architecture` | `"classic"` | str | ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a registered timing-oriented split path with one-sample/cycle average throughput. Choices: `classic`, `folded`. |
+| `implementation` | `"split"` | str | ``"split"`` (compatibility default) or the scalable ``"native"`` vector-SDF engine. Choices: `split`, `native`. |
 
 ## Ports
 

@@ -36,19 +36,26 @@ Throughput: one shared MAC, ``M + M*(T + 1) + M*(M + 1)`` cycles per M-sample fr
 increasing this to ``M + M*(2*T + 1) + M*(2*M + 1)`` cycles while preserving the exact
 full-precision sums. ``"classic"`` remains the default.
 
-Follow-ups (documented, not implemented here): an FFT-based DFT stage for ``M >= 16``
-(the direct DFT is O(M^2) per frame) and a 2x-oversampled variant (M outputs per M/2
-inputs, halved commutator stride + alternating DFT phase correction).
+``architecture="fft"`` selects a time-multiplexed radix-2 DIF transform for ``M >= 16``.
+It uses the timing-oriented two-cycle polyphase MAC and computes one butterfly in four
+clocks (registered read/difference, registered multiply, then two single-port
+feedback-memory writes), reducing the DFT work from O(M^2) to O(M log2(M)) while retaining
+full branch precision and natural channel order. Twiddle products round back to the branch
+accumulator's fractional scale after each FFT rank; this arithmetic has its own bit-exact
+golden model.
+
+Follow-up (documented, not implemented here): a 2x-oversampled variant (M outputs per
+M/2 inputs, halved commutator stride + alternating DFT phase correction).
 
 ## Parameters
 
 | Parameter | Default | Type | Description |
 |---|---|---|---|
-| `n_channels` | `4` | int | Number of uniformly-spaced channels M (power of two, 2..8 — direct DFT; the FFT-based stage is the M >= 16 follow-up). Channel k is centered at ``k/M`` of the input sample rate. |
+| `n_channels` | `4` | int | Number of uniformly-spaced channels M (power of two; 2..8 for direct/folded DFT, M >= 16 for the FFT stage). Channel k is centered at ``k/M`` of the input rate. |
 | `taps_per_channel` | `8` | int | Prototype taps per polyphase branch T (prototype length = ``n_channels * taps_per_channel``). Sets the channel shape/stopband and the MAC length. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Prototype low-pass taps, signed Q1.(W-1) integers, length ``n_channels * taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a full-scale tone at a channel center emerges at full scale in that channel). |
-| `architecture` | `"classic"` | str | ``"classic"`` for one MAC term per clock, or ``"folded"`` for separate multiply and accumulate clocks in both the polyphase FIR and direct DFT. Choices: `classic`, `folded`. |
+| `architecture` | `"classic"` | str | ``"classic"`` for one MAC term per clock, ``"folded"`` for separate multiply and accumulate clocks in both direct sections, or ``"fft"`` for the scalable DFT stage. Choices: `classic`, `folded`, `fft`. |
 
 ## Ports
 

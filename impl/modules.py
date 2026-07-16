@@ -512,7 +512,8 @@ TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",
                  "fft_folded", "goertzel_folded", "iir_biquad_folded",
-                 "pfb_channelizer_folded", "timing_recovery", "cfr_pipelined"]
+                 "pfb_channelizer_folded", "pfb_channelizer_fft",
+                 "timing_recovery", "cfr_pipelined"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]
