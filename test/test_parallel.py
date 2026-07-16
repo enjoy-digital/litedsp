@@ -202,6 +202,31 @@ class TestParallelCIC(unittest.TestCase):
             self.assertTrue(np.array_equal(gi, ri), f"n={n_samples} R={R}")
             self.assertTrue(np.array_equal(gq, rq), f"n={n_samples} R={R}")
 
+    def test_staged_prefix_matches_model(self):
+        for n_samples in (2, 4):
+            R, N, n_beats = 8, 4, 160
+            prng = random.Random(41 + n_samples)
+            x = [(prng.randint(-32768, 32767), prng.randint(-32768, 32767))
+                 for _ in range(n_samples*n_beats)]
+            dut = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=16,
+                decimation=R, n_stages=N, with_csr=False, staged=True)
+            beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
+                      "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
+                     for k in range(0, len(x), n_samples)]
+            n_out = len(x)//R - 4
+            cap = []
+            run_simulation(dut, [
+                stream_driver(dut.sink, beats, ("i", "q"), throttle=0.25),
+                stream_capture(dut.source, cap, n_out, ("i", "q"), ready_rate=0.6),
+            ])
+            gi = np.array(to_signed([c["i"] for c in cap], 16))
+            gq = np.array(to_signed([c["q"] for c in cap], 16))
+            ri = cic_decimator_model(np.array([s[0] for s in x]), R, N)[:n_out]
+            rq = cic_decimator_model(np.array([s[1] for s in x]), R, N)[:n_out]
+            self.assertTrue(np.array_equal(gi, ri), f"staged n={n_samples}")
+            self.assertTrue(np.array_equal(gq, rq), f"staged n={n_samples}")
+            self.assertEqual(dut.latency, 2*N)
+
 # Parallel DDC -------------------------------------------------------------------------------------
 
 class TestParallelDDC(unittest.TestCase):
