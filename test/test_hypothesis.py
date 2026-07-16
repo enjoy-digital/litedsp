@@ -75,7 +75,7 @@ class TestConstructorSpace(unittest.TestCase):
             @given(kwargs=kwargs_strategy(spec))
             @settings(max_examples=int(os.environ.get("LITEDSP_HYPOTHESIS_EXAMPLES", "8")),
                       deadline=None, derandomize=True)
-            def check(kwargs, spec=spec):
+            def check(kwargs):
                 build = dict(spec.kwargs)
                 build.update(kwargs)
                 if _accepts_with_csr(spec.cls):

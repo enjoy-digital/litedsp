@@ -64,7 +64,11 @@ class LiteDSPFIRDecimator(LiteXModule):
         mask  = depth - 1
         acc_w = 2*data_width + (n_taps - 1).bit_length() + 1  # Product + log2(n_taps) accumulation growth.
 
-        crom = Memory(data_width, n_taps, init=[c & ((1 << data_width) - 1) for c in coefficients])
+        # Migen cannot build an address Signal for a depth-one Memory. Keep the public one-tap
+        # configuration useful by padding the physical ROM; the FSM still visits only tap 0.
+        crom_depth = max(2, n_taps)
+        coeff_init = [c & ((1 << data_width) - 1) for c in coefficients] + [0]*(crom_depth - n_taps)
+        crom = Memory(data_width, crom_depth, init=coeff_init)
         mi   = Memory(data_width, depth)
         mq   = Memory(data_width, depth)
         crp  = crom.get_port(async_read=True)
@@ -79,7 +83,7 @@ class LiteDSPFIRDecimator(LiteXModule):
         self.coeff_data = Signal(data_width)
         self.coeff_we   = Signal()
         self.coeff_rst  = Signal()
-        cwptr = Signal(max=n_taps)
+        cwptr = Signal(max=n_taps) if n_taps > 1 else Signal()
         self.comb += [cwp.adr.eq(cwptr), cwp.dat_w.eq(self.coeff_data), cwp.we.eq(self.coeff_we)]
         self.sync += If(self.coeff_rst, cwptr.eq(0)).Elif(self.coeff_we,
             If(cwptr == (n_taps - 1), cwptr.eq(0)).Else(cwptr.eq(cwptr + 1)))
@@ -199,7 +203,10 @@ class LiteDSPFIRInterpolator(LiteXModule):
             for k in range(sub):
                 idx = p + k*L
                 coeff_init.append((coefficients[idx] if idx < n_taps else 0) & ((1 << data_width) - 1))
-        crom = Memory(data_width, L*sub, init=coeff_init)
+        # As above, preserve the valid n_taps=interpolation=1 boundary by padding the ROM.
+        crom_depth = max(2, L*sub)
+        coeff_init += [0]*(crom_depth - len(coeff_init))
+        crom = Memory(data_width, crom_depth, init=coeff_init)
         mi   = Memory(data_width, depth)
         mq   = Memory(data_width, depth)
         crp  = crom.get_port(async_read=True)
