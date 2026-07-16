@@ -424,7 +424,8 @@ REGISTRY = {
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
-              "iir_biquad", "fft", "cordic_vec", "ddc", "mixer_parallel_x2"]
+              "iir_biquad", "fft", "cordic_vec", "ddc", "mixer_parallel_x2",
+              "farrow", "window"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]
