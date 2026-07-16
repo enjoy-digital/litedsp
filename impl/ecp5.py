@@ -49,7 +49,8 @@ def synth(verilog, top, build_dir, json_out=None):
     with open(log, "w") as f:
         subprocess.run(["yosys", "-p", script], cwd=build_dir,
             stdout=f, stderr=subprocess.STDOUT, check=True)
-    return _parse_stat(open(log).read())
+    with open(log) as f:
+        return _parse_stat(f.read())
 
 # Place & route (subset) ---------------------------------------------------------------------------
 
@@ -65,7 +66,8 @@ def pnr(json_in, top, build_dir, clock_ns):
     # achieved fmax -- which is exactly what we want -- so don't treat a timing miss as fatal.
     with open(log, "w") as f:
         subprocess.run(cmd, cwd=build_dir, stdout=f, stderr=subprocess.STDOUT, check=False)
-    text = open(log).read()
+    with open(log) as f:
+        text = f.read()
     fmax = None
     for m in re.finditer(r"Max frequency for clock\s+'[^']*':\s+([\d.]+)\s*MHz", text):
         fmax = float(m.group(1))                                   # Last reported (post-route).

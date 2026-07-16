@@ -32,7 +32,8 @@ def _tcl(verilog, top, clock_ns, impl):
     return "\n".join(lines) + "\n"
 
 def _parse_util(path):
-    text = open(path).read()
+    with open(path) as f:
+        text = f.read()
     def row(*labels):
         for lab in labels:
             m = re.search(rf"\|\s*{re.escape(lab)}\*?\s*\|\s*(\d+)\s*\|", text)
@@ -58,7 +59,8 @@ def synth(verilog, top, build_dir, impl=False, clock_ns=10.0):
             stdout=f, stderr=subprocess.STDOUT, check=True)
     res = _parse_util(os.path.join(build_dir, "util.rpt"))
     if impl:
-        m = re.search(r"WNS:\s*(-?[\d.]+)", open(log).read())
+        with open(log) as f:
+            m = re.search(r"WNS:\s*(-?[\d.]+)", f.read())
         if m:
             wns = float(m.group(1))
             res["pnr"] = {"fmax_mhz": 1000.0/(clock_ns - wns)}

@@ -22,6 +22,7 @@ def load():
 def save(data):
     with open(PATH, "w") as f:
         json.dump(data, f, indent=2, sort_keys=True)
+        f.write("\n")
 
 def missing(device, names):
     """Return registry names that have no baseline for ``device`` yet."""
