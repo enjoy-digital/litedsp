@@ -70,9 +70,10 @@ the equivalent strict Artix-7 gate on a self-hosted runner labelled `vivado`.
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
   serial/parallel CIC, AGC, and iterative-FFT configurations at 100 MHz while preserving their
-  original compatibility modes. Remaining sub-100 MHz configurations, notably streaming SDF FFT,
-  still require explicit throughput/area decisions rather than unsafe register
-  insertion. The reviewed options, trade-offs and acceptance criteria are tracked in
+  original compatibility modes. The folded streaming SDF FFT now also closes at half-rate, and
+  its two-context interleaved composition closes at one aggregate sample per clock. Native P-wide
+  FFTs remain sub-100 MHz and require a hazard-bypassed recurrence pipeline rather than unsafe
+  register insertion. The reviewed options, trade-offs and acceptance criteria are tracked in
   [`timing_architecture.md`](timing_architecture.md).
 - **Vector SDF improves parallel FFT area, not its recurrence timing by itself.** A shared P-wide
   feedback memory makes native P=2 31% smaller in ECP5 LUTs than the split P=2 implementation

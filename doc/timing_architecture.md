@@ -16,7 +16,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
-| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 104.0 folded SDF; 107.6 registered iterative; 63.0/61.2 native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded SDF and iterative target-closed; interleaved/native parallel remain open |
+| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 63.0/61.2 native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native parallel remains open |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
 ## Viterbi decoder
@@ -148,25 +148,30 @@ number of independent contexts also changes.
 
 Two explicit SDF options are implemented:
 
-1. A folded SDF stage splits butterfly/twiddle work over two clocks. Timing improves, but
-   throughput becomes one sample every two clocks and the stage-state registers substantially
+1. A folded SDF stage pipelines capture, twiddle multiplication, and feedback completion over
+   three edges while overlapping completion with the next capture. Timing improves, but
+   throughput remains one sample every two clocks and the stage-state registers substantially
    increase FF use.
 2. An interleaved stage pipelines the butterfly and alternates two independent frames/channels.
    Aggregate throughput returns to one sample per clock, at the cost of duplicated delay state,
    stricter framing, and roughly doubled storage.
 
 At N=256 the folded serial core is bit-identical to scaled classic mode and reaches a
-101.2/104.0/105.3 MHz worst/median/best ECP5 route sweep and 119.7 MHz on Artix-7, versus
-58.7 MHz for ECP5 classic. It uses 4197 LUT / 2273 FF / 28 DSP on ECP5 and sustains
-0.5 sample/clock. Prefetching the next twiddle in the otherwise-idle finish half-cycle removes
-the counter/ROM delay without changing latency or arithmetic.
+105.5/113.6/117.3 MHz worst/median/best ECP5 route sweep and 110.9 MHz on Artix-7, versus
+58.7 MHz for ECP5 classic. It uses 4936 LUT / 2674 FF / 28 DSP on ECP5 and sustains
+0.5 sample/clock. Registering the butterfly difference and four real twiddle products removes
+the multiplier/add chain from the feedback edge. Completion overlaps the next capture, with a
+same-address bypass preserving the depth-one recurrence. This adds one clock per FFT rank
+(518 clocks total latency at N=256) without changing the two-clock initiation interval or
+arithmetic. Artix-7 maps the two largest twiddle tables to BRAM and uses 1726 LUT / 1251 FF /
+2 BRAM / 28 DSP post-route.
 
 Two alternating folded contexts restore aggregate one-sample/clock throughput at roughly twice
-the state and multiplier cost. The dense N=256 ECP5 build does not complete a 100 MHz placement
-within the bounded 30-minute route limit; an 80 MHz placement constraint reports 93.2 MHz, so
-the 100 MHz objective remains open. Artix-7 closes at 116.0 MHz. The framing contract deliberately
-requires two independent interleaved frames/channels rather than pretending this is a
-latency-only classic replacement.
+the state and multiplier cost. The N=256 ECP5 build now reaches 107.5/110.5/115.8 MHz across
+three routes with 9898 LUT / 5350 FF / 56 DSP; Artix-7 reaches 112.8 MHz with 3435 LUT / 2504 FF /
+2 BRAM / 56 DSP. Both devices therefore close the 100 MHz objective. The framing contract
+deliberately requires two independent interleaved frames/channels rather than pretending this
+is a latency-only classic replacement.
 
 The x2 parallel FFT inherits the SDF choice in both sub-cores. Folded mode reduces average
 throughput from two to one sample/clock and raises Artix-7 timing from 81.0 to 94.6 MHz, with

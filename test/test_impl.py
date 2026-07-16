@@ -115,7 +115,7 @@ class TestImplementationBudgets(unittest.TestCase):
              "cic_decimator", "cic_interpolator", "agc", "fft_iter",
              "viterbi_decoder", "viterbi_decoder_soft",
              "cic_parallel_x2", "cic_parallel_x4",
-             "fft_folded", "goertzel_folded", "iir_biquad_folded",
+             "fft_folded", "fft_interleaved_x2", "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft",
              "timing_recovery", "cfr_pipelined"])
         for name in modules.TARGET_CLOSED:
