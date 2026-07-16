@@ -269,6 +269,11 @@ def pfb_channelizer_folded():
         architecture="folded", with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def pfb_channelizer_fft():
+    d = LiteDSPPFBChannelizer(n_channels=16, taps_per_channel=8, data_width=16,
+        architecture="fft", with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def lms_equalizer():
     d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, with_csr=False)
     return d, {d.train} | _eps(d.sink, d.source), 12.0
@@ -465,6 +470,7 @@ REGISTRY = {
     "goertzel": goertzel, "goertzel_folded": goertzel_folded,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
     "pfb_channelizer": pfb_channelizer, "pfb_channelizer_folded": pfb_channelizer_folded,
+    "pfb_channelizer_fft": pfb_channelizer_fft,
     "lms_equalizer": lms_equalizer, "lms_equalizer_pipelined": lms_equalizer_pipelined,
     "timing_recovery": timing_recovery, "fm_demod": fm_demod,
     "correlator": correlator, "frame_sync": frame_sync, "cfo_estimator": cfo_estimator,
@@ -495,8 +501,9 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
-              "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded", "cfr_pipelined",
-              "lms_equalizer_pipelined", "timing_recovery"]
+              "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
+              "pfb_channelizer_fft", "fft_parallel_native_x2", "fft_parallel_native_x4",
+              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.

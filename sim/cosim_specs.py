@@ -176,6 +176,19 @@ def spec_pfb_channelizer():
     return dut, cols, n, lambda c: [
         *models.pfb_channelizer_model(c[0], c[1], coeffs, M), first, last], False, True
 
+def spec_pfb_channelizer_fft():
+    from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
+    from litedsp.filter.design import firwin_lowpass
+    M, T, n = 16, 2, 64
+    coeffs = firwin_lowpass(M*T, 0.4/M)
+    dut = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T, data_width=16,
+        coefficients=coeffs, architecture="fft", with_csr=False)
+    cols  = _rand_cols(2, n, seed=69)
+    first = [int(k % M == 0) for k in range(n)]
+    last  = [int(k % M == M - 1) for k in range(n)]
+    return dut, cols, n, lambda c: [
+        *models.pfb_channelizer_fft_model(c[0], c[1], coeffs, M), first, last], False, True
+
 # Rate ---------------------------------------------------------------------------------------------
 
 def spec_downsampler():
@@ -626,6 +639,7 @@ SPECS = {
     "dc_blocker":       spec_dc_blocker,
     "moving_average":   spec_moving_average,
     "pfb_channelizer":  spec_pfb_channelizer,
+    "pfb_channelizer_fft": spec_pfb_channelizer_fft,
     "downsampler":      spec_downsampler,
     "upsampler":        spec_upsampler,
     "gain":             spec_gain,
@@ -687,6 +701,7 @@ def check_coverage():
         "parallel_fft_folded":       "parallel_fft",
         "parallel_fft_native_x2":    "parallel_fft",
         "parallel_fft_native_x4":    "parallel_fft",
+        "pfb_channelizer_fft":       "pfb_channelizer",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)
