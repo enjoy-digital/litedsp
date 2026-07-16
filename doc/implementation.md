@@ -19,6 +19,7 @@ python3 impl/run.py --device ecp5   --flow synth                 # all blocks, Y
 python3 impl/run.py --device xilinx --flow synth --subset        # Vivado OOC synth (subset)
 python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R -> fmax
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
+python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
 
@@ -29,7 +30,9 @@ baseline P&R result. Both the raw measurement (`fmax_mhz`) and its regression fl
 (`fmax_min`) are retained in `impl/budgets.json`. An optional `fmax_target` is a separate
 engineering objective: misses are reported but only fail a run when `--target-gate` is selected.
 Refreshing measured budgets preserves these manually reviewed targets. The CAD suite used by
-budgeted CI is pinned in the workflows.
+budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed subset that has
+already achieved its objective; CI reruns those blocks with strict target gating while targets
+for architecture work in progress remain advisory.
 
 ## Findings (what implementation testing caught)
 

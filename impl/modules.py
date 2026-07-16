@@ -427,5 +427,9 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "iir_biquad", "fft", "cordic_vec", "dpd", "ddc", "channelizer",
               "ldpc_decoder", "mixer_parallel_x2", "farrow", "window"]
 
+# Blocks whose reviewed engineering target is already closed and therefore strict in CI.
+# Other explicit targets remain visible objectives until their architecture work lands.
+TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder"]
+
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

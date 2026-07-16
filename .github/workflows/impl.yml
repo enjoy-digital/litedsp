@@ -58,3 +58,6 @@ jobs:
 
       - name: Place & route the P&R subset (resource + fmax budgets)
         run: python3 impl/run.py --device ecp5 --flow pnr --subset
+
+      - name: Enforce closed 100 MHz timing targets
+        run: python3 impl/run.py --device ecp5 --flow pnr --target-closed --target-gate
