@@ -50,10 +50,19 @@ def spec_nco():
 
 def spec_mixer():
     from litedsp.mixing.mixer import LiteDSPMixer
-    n    = 300
+    n    = 360
     dut  = LiteDSPMixer(data_width=16, with_csr=False)             # mode reset = 0 (down).
     cols = _rand_cols(4, n)                                        # sink_a(i,q), sink_b(i,q).
-    return dut, cols, n - 4, lambda c: list(models.mixer_model(c[0], c[1], c[2], c[3]))
+    # After the random down-conversion payload has drained, zero-valued guard/input regions
+    # exercise up-conversion and both bypass mux arms without making configuration-boundary
+    # timing part of the sample-by-sample numerical contract.
+    for c in cols:
+        c[240:] = [0]*(n - 240)
+    mode   = [int(k >= 264) for k in range(n)]
+    bypass = [0 if k < 296 else (1 if k < 328 else 2) for k in range(n)]
+    return dut, cols + [mode, bypass], n - 4, \
+        lambda c: list(models.mixer_model(c[0], c[1], c[2], c[3])), \
+        False, False, (dut.mode, dut.bypass)
 
 # Filter -------------------------------------------------------------------------------------------
 
@@ -396,12 +405,18 @@ def spec_ldpc_decoder():
 
 def spec_correlator():
     from litedsp.comm.correlator import LiteDSPCorrelator
-    n, seq = 300, [1, 1, 1, -1, -1, 1, -1]                         # Barker-7 matched filter.
+    n, seq = 340, [1, 1, 1, -1, -1, 1, -1]                         # Barker-7 matched filter.
     dut    = LiteDSPCorrelator(sequence=seq, data_width=16, with_csr=False)
     scale  = (1 << 15) - 1                                         # Taps: reversed, full-scale.
     coeffs = [c*scale for c in reversed(seq)]
     cols   = _rand_cols(2, n, lo=-8000, hi=8000)
-    return dut, cols, n - 8, lambda c: list(models.fir_complex_model(c[0], c[1], coeffs))
+    for c in cols:
+        c[240:] = [0]*(n - 240)
+    reset  = [int(k == 260) for k in range(n)]
+    bypass = [int(k >= 280) for k in range(n)]
+    return dut, cols + [reset, bypass], n - 8, \
+        lambda c: list(models.fir_complex_model(c[0], c[1], coeffs)), \
+        False, False, (dut.fir.reset, dut.fir.bypass)
 
 def spec_frame_sync():
     from litedsp.comm.frame_sync import LiteDSPFrameSync
@@ -455,14 +470,25 @@ def spec_window():
 def spec_psd():
     # Framed *output* (first/last markers on the emitted spectrum) is fine for the generic TB:
     # it captures the payload samples in order and ignores the markers. data_width=14 keeps
-    # power_width = 2*14 + avg_log2 <= 32 (the TB reads outputs as int32); fft_latency=0
-    # disables the upstream-FFT fill skip (the stimulus is fed directly).
+    # power_width = 2*14 + avg_log2 <= 32 (the TB reads outputs as int32); a short explicit
+    # fft_latency exercises the upstream-FFT fill skip while the stimulus is fed directly.
     from litedsp.analysis.psd import LiteDSPPSD
-    n, N, avg_log2 = 280, 16, 2                                    # 4 spectra of N bins.
-    dut  = LiteDSPPSD(N=N, fft_latency=0, data_width=14, avg_log2=avg_log2, with_csr=False)
-    cols = _rand_cols(2, n, lo=-8000, hi=8000)                     # 14-bit signed range.
-    return dut, cols, 4*N, lambda c: [np.concatenate(
-        models.psd_model(c[0], c[1], N, avg_log2=avg_log2))]
+    n, N, avg_log2 = 300, 16, 2                                    # 4 spectra of N bins.
+    dut  = LiteDSPPSD(N=N, fft_latency=2, data_width=14, avg_log2=avg_log2, with_csr=False)
+    # Constant non-zero power is invariant under linear, exponential, max and min combining.
+    # It therefore exercises every runtime mode, clear, FFT-fill skip and readout arm in one
+    # deterministic co-simulation while test_psd.py remains the detailed per-mode value check.
+    ci, cq = 1234, -567
+    cols   = [[ci]*n, [cq]*n]
+    # The pending sample supplies controls while READ backpressures the sink, so retain each
+    # mode through that boundary sample (skip consumes indices 0..1; spectra end at 65, 129,
+    # 193 and 257). The first sample after each boundary may use the preceding mode, which is
+    # harmless for constant power and still exercises all four combine/readout selections.
+    mode   = [0 if k <= 66 else 1 if k <= 130 else 2 if k <= 194 else 3 for k in range(n)]
+    clear  = [int(k in (100, 220)) for k in range(n)]
+    power  = ci*ci + cq*cq
+    return dut, cols + [mode, clear], 4*N, lambda c: [[power]*(4*N)], \
+        False, False, (dut.mode, dut.clear)
 
 def spec_parallel_fft():
     from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
