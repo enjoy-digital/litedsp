@@ -67,10 +67,11 @@ class LiteDSPPFBChannelizer(LiteXModule):
     full-precision sums. ``"classic"`` remains the default.
 
     ``architecture="fft"`` selects a time-multiplexed radix-2 DIF transform for ``M >= 16``.
-    It computes one butterfly in two clocks (registered multiply, then write), reducing the
-    DFT work from O(M^2) to O(M log2(M)) while retaining full branch precision and natural
-    channel order. Twiddle products round back to the branch accumulator's fractional scale
-    after each FFT rank; this arithmetic has its own bit-exact golden model.
+    It computes one butterfly in three clocks (registered multiply, then two single-port
+    feedback-memory writes), reducing the DFT work from O(M^2) to O(M log2(M)) while retaining
+    full branch precision and natural channel order. Twiddle products round back to the branch
+    accumulator's fractional scale after each FFT rank; this arithmetic has its own bit-exact
+    golden model.
 
     Follow-up (documented, not implemented here): a 2x-oversampled variant (M outputs per
     M/2 inputs, halved commutator stride + alternating DFT phase correction).
@@ -115,7 +116,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
         elif architecture == "folded":
             self.cycles_per_frame = M + M*(2*T + 1) + M*(2*M + 1)
         else:
-            self.cycles_per_frame = M + M*(T + 1) + M*int(math.log2(M)) + M
+            self.cycles_per_frame = M + M*(T + 1) + 3*M//2*int(math.log2(M)) + M
         self.latency = self.cycles_per_frame               # Burst latency (cycles per frame).
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Wide-band I/Q input.
         self.source = stream.Endpoint(iq_layout(data_width))  # Framed channel samples (M per frame).
@@ -199,13 +200,26 @@ class LiteDSPPFBChannelizer(LiteXModule):
         if architecture == "fft":
             fft_bits = int(math.log2(M))
             fft_w    = acc_w + fft_bits
-            fft_i    = [Signal((fft_w, True), name=f"fft_i{j}") for j in range(M)]
-            fft_q    = [Signal((fft_w, True), name=f"fft_q{j}") for j in range(M)]
+            fft_mem_i = Memory(fft_w, M)
+            fft_mem_q = Memory(fft_w, M)
+            fft_wp_i  = fft_mem_i.get_port(write_capable=True)
+            fft_wp_q  = fft_mem_q.get_port(write_capable=True)
+            fft_ra_i  = fft_mem_i.get_port(async_read=True)
+            fft_ra_q  = fft_mem_q.get_port(async_read=True)
+            fft_rb_i  = fft_mem_i.get_port(async_read=True)
+            fft_rb_q  = fft_mem_q.get_port(async_read=True)
+            self.specials += fft_mem_i, fft_mem_q, fft_wp_i, fft_wp_q
+            self.specials += fft_ra_i, fft_ra_q, fft_rb_i, fft_rb_q
             fft_stage = Signal(max=fft_bits)
             fft_bfly = Signal(max=M//2)
             fft_a    = Signal(max=M)
             fft_b    = Signal(max=M)
             fft_tw   = Signal(max=M)
+            fft_raddr_a = Signal(max=M)
+            fft_waddr = Signal(max=M)
+            fft_wdata_i = Signal((fft_w, True))
+            fft_wdata_q = Signal((fft_w, True))
+            fft_we = Signal()
             fft_cases = {}
             for s in range(fft_bits):
                 D      = M >> (s + 1)
@@ -225,8 +239,15 @@ class LiteDSPPFBChannelizer(LiteXModule):
             fbr = Signal((fft_w, True))
             fbq = Signal((fft_w, True))
             self.comb += [
-                far.eq(Array(fft_i)[fft_a]), faq.eq(Array(fft_q)[fft_a]),
-                fbr.eq(Array(fft_i)[fft_b]), fbq.eq(Array(fft_q)[fft_b]),
+                fft_raddr_a.eq(fft_a),
+                fft_ra_i.adr.eq(fft_raddr_a), fft_ra_q.adr.eq(fft_raddr_a),
+                fft_rb_i.adr.eq(fft_b),       fft_rb_q.adr.eq(fft_b),
+                far.eq(fft_ra_i.dat_r), faq.eq(fft_ra_q.dat_r),
+                fbr.eq(fft_rb_i.dat_r), fbq.eq(fft_rb_q.dat_r),
+                fft_wp_i.adr.eq(fft_waddr), fft_wp_q.adr.eq(fft_waddr),
+                fft_wp_i.dat_w.eq(fft_wdata_i), fft_wp_q.dat_w.eq(fft_wdata_q),
+                fft_wp_i.we.eq(fft_we), fft_wp_q.we.eq(fft_we),
+                fft_waddr.eq(0), fft_wdata_i.eq(0), fft_wdata_q.eq(0), fft_we.eq(0),
             ]
             fft_sum_i = Signal((fft_w + 1, True))
             fft_sum_q = Signal((fft_w + 1, True))
@@ -251,10 +272,9 @@ class LiteDSPPFBChannelizer(LiteXModule):
                 fft_diff_tw_q.eq(Mux(fft_tw == 0, fft_diff_q,
                     rounded(fft_prod_q, data_width - 1))),
             ]
-            fft_emit_i = Array([fft_i[int(f"{j:0{fft_bits}b}"[::-1], 2)] for j in range(M)])[k]
-            fft_emit_q = Array([fft_q[int(f"{j:0{fft_bits}b}"[::-1], 2)] for j in range(M)])[k]
-            fft_out_i, _ = scaled(fft_emit_i, data_width - 1, data_width)
-            fft_out_q, _ = scaled(fft_emit_q, data_width - 1, data_width)
+            fft_emit_addr = Array([int(f"{j:0{fft_bits}b}"[::-1], 2) for j in range(M)])[k]
+            fft_out_i, _ = scaled(far, data_width - 1, data_width)
+            fft_out_q, _ = scaled(faq, data_width - 1, data_width)
 
         out_i, _ = scaled(dacc_i, shift, data_width)
         out_q, _ = scaled(dacc_q, shift, data_width)
@@ -313,7 +333,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
             NextValue(acc_i, 0), NextValue(acc_q, 0),
             NextValue(t, 0),
             NextValue(radr, base - 1 - p),       # Branch p+1, tap 0 = base - (p + 1).
-            *([NextValue(Array(fft_i)[p], acc_i), NextValue(Array(fft_q)[p], acc_q)]
+            *([fft_we.eq(1), fft_waddr.eq(p), fft_wdata_i.eq(acc_i), fft_wdata_q.eq(acc_q)]
               if architecture == "fft" else []),
             If(p == (M - 1),
                 NextValue(k, 0), NextValue(pd, 0),
@@ -363,13 +383,16 @@ class LiteDSPPFBChannelizer(LiteXModule):
                 NextValue(fft_ii, (faq - fbq)*ts),
                 NextValue(fft_ri, (far - fbr)*ts),
                 NextValue(fft_ir, (faq - fbq)*tc),
-                NextState("FFT_WRITE"),
+                NextState("FFT_WRITE_SUM"),
             )
-            fsm.act("FFT_WRITE",
-                NextValue(Array(fft_i)[fft_a], fft_sum_i),
-                NextValue(Array(fft_q)[fft_a], fft_sum_q),
-                NextValue(Array(fft_i)[fft_b], fft_diff_tw_i),
-                NextValue(Array(fft_q)[fft_b], fft_diff_tw_q),
+            fsm.act("FFT_WRITE_SUM",
+                fft_we.eq(1), fft_waddr.eq(fft_a),
+                fft_wdata_i.eq(fft_sum_i), fft_wdata_q.eq(fft_sum_q),
+                NextState("FFT_WRITE_DIFF"),
+            )
+            fsm.act("FFT_WRITE_DIFF",
+                fft_we.eq(1), fft_waddr.eq(fft_b),
+                fft_wdata_i.eq(fft_diff_tw_i), fft_wdata_q.eq(fft_diff_tw_q),
                 If(fft_bfly == (M//2 - 1),
                     NextValue(fft_bfly, 0),
                     If(fft_stage == (fft_bits - 1),
@@ -387,6 +410,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
         # EMIT: present channel k (frame position = channel index); loop back through DFT for
         # the next channel, then return to LOAD after channel M-1.
         fsm.act("EMIT",
+            *([fft_raddr_a.eq(fft_emit_addr)] if architecture == "fft" else []),
             self.source.valid.eq(1),
             self.source.first.eq(k == 0),
             self.source.last.eq(k == (M - 1)),
