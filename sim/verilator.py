@@ -10,6 +10,16 @@ import os
 import shutil
 import subprocess
 
+# Migen's Verilog emitter is deliberately explicit about implicit extension/truncation and
+# emits non-blocking assignments in generated combinational/initial blocks. Those constructs
+# are already checked by the Python fixed-width tests and create thousands of diagnostics on
+# recent Verilator releases. Keep structural warnings (latches, combinational loops, multiple
+# drivers, undriven signals, etc.) enabled in both build and lint modes.
+CODEGEN_WARNING_WAIVERS = [
+    "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-WIDTH", "-Wno-INITIALDLY",
+    "-Wno-COMBDLY", "-Wno-CASEINCOMPLETE", "-Wno-VARHIDDEN",
+]
+
 def have_verilator():
     return shutil.which("verilator") is not None
 
@@ -23,7 +33,7 @@ def build(verilog, tb_cpp, top, build_dir, cflags=None, coverage=False):
     cmd = [
         "verilator", "--cc", "--exe", "--build", "-j", "0",
         "-Wno-fatal", "-Mdir", obj, "-o", "V" + top, "--top-module", top,
-    ]
+    ] + CODEGEN_WARNING_WAIVERS
     if coverage:
         cmd += ["--coverage-line"]
     if cflags:
@@ -43,9 +53,7 @@ def lint(verilog, top):
         # as `initial x <= ...`), COMBDLY (non-blocking in comb always), CASEINCOMPLETE (Migen
         # assigns defaults at the top of each comb block, so no latch), VARHIDDEN (namespacing).
         # LATCH/UNOPTFLAT/MULTIDRIVEN/UNDRIVEN & co stay fatal.
-        subprocess.check_call(["verilator", "--lint-only", "-Wall", "-Wno-DECLFILENAME",
-            "-Wno-UNUSED", "-Wno-WIDTH", "-Wno-INITIALDLY", "-Wno-COMBDLY",
-            "-Wno-CASEINCOMPLETE", "-Wno-VARHIDDEN",
+        subprocess.check_call(["verilator", "--lint-only", "-Wall", *CODEGEN_WARNING_WAIVERS,
             "--top-module", top, os.path.abspath(verilog)],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True

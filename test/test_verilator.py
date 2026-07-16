@@ -7,8 +7,19 @@
 """Verilator (real HDL) co-simulation checks. Skipped when verilator is not installed."""
 
 import unittest
+from unittest import mock
 
-from sim.verilator import have_verilator
+from sim.verilator import build, have_verilator
+
+class TestVerilatorCommand(unittest.TestCase):
+    def test_build_waives_codegen_noise_but_keeps_structural_warnings(self):
+        with mock.patch("sim.verilator.subprocess.check_call") as check_call:
+            build("dut.v", "tb.cpp", "dut", "/tmp/litedsp_verilator_command")
+        cmd = check_call.call_args.args[0]
+        for flag in ("-Wno-WIDTH", "-Wno-INITIALDLY", "-Wno-COMBDLY"):
+            self.assertIn(flag, cmd)
+        for structural in ("-Wno-LATCH", "-Wno-UNOPTFLAT", "-Wno-MULTIDRIVEN"):
+            self.assertNotIn(structural, cmd)
 
 @unittest.skipUnless(have_verilator(), "verilator not installed")
 class TestVerilator(unittest.TestCase):
