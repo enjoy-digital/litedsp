@@ -1,1 +1,3 @@
-{}
+{
+  "ldpc_decoder": "The fixed 802.11n topology duplicates selector arms for every edge and layer; clean, noisy, max-iteration, clear, and failure vectors exercise the decoder outcomes without reaching every structurally repeated arm."
+}

@@ -287,9 +287,13 @@ def spec_puncturer():
     from litedsp.comm.puncture import LiteDSPPuncturer, PUNCTURE_3_4
     n = 180
     dut  = LiteDSPPuncturer(pattern=PUNCTURE_3_4, with_csr=False)
-    cols = _rand_cols(1, n, lo=0, hi=3, seed=23)
-    ref  = models.puncture_model(cols[0], PUNCTURE_3_4)
-    return dut, cols, len(ref), lambda c: [models.puncture_model(c[0], PUNCTURE_3_4)]
+    data = _rand_cols(1, n, lo=0, hi=3, seed=23)[0]
+    phase_rst = [int(k == 90) for k in range(n)]
+    ref = (models.puncture_model(data[:91], PUNCTURE_3_4) +
+           models.puncture_model(data[91:], PUNCTURE_3_4))
+    return dut, [data, phase_rst], len(ref), lambda c: [
+        models.puncture_model(c[0][:91], PUNCTURE_3_4) +
+        models.puncture_model(c[0][91:], PUNCTURE_3_4)], False, False, (dut.phase_rst,)
 
 def spec_depuncturer():
     from litedsp.comm.puncture import LiteDSPDepuncturer, PUNCTURE_3_4
@@ -361,15 +365,34 @@ def spec_ldpc_encoder():
 
 def spec_ldpc_decoder():
     from litedsp.comm.ldpc import LiteDSPLDPCDecoder, LDPC_K, LDPC_N
-    msg  = _rand_cols(1, LDPC_K, lo=0, hi=1, seed=59)[0]
-    llrs = [7*(1 - 2*b) for b in models.ldpc_encode_model(msg)]
+    def random_message(seed):
+        return [int(b) for b in np.random.default_rng(seed).integers(0, 2, LDPC_K)]
+
+    def awgn_llrs(message, ebno_db, seed):
+        codeword = models.ldpc_encode_model(message)
+        rng   = np.random.default_rng(seed)
+        sigma = np.sqrt(1/(2*0.5*10**(ebno_db/10)))
+        y     = (1 - 2*np.asarray(codeword, dtype=np.float64)) + rng.normal(0, sigma, LDPC_N)
+        return [int(v) for v in np.clip(np.round(4*y), -7, 7)]
+
+    clean = random_message(59)
+    blocks = [
+        [7*(1 - 2*b) for b in models.ldpc_encode_model(clean)],
+        awgn_llrs(random_message(54), 2.5, 64),
+        awgn_llrs(random_message(52), 2.0, 62),
+        [int(v) for v in np.random.default_rng(50).integers(-7, 8, LDPC_N)],
+    ]
+    expected = [bit for block in blocks for bit in models.ldpc_decode_model(block)[0]]
+    llrs = [v for block in blocks for v in block]
     dut  = LiteDSPLDPCDecoder(llr_bits=4, max_iters=8, with_csr=False)
-    first = [1] + [0]*(LDPC_N - 1)
-    last  = [0]*(LDPC_N - 1) + [1]
-    out_first = [1] + [0]*(LDPC_K - 1)
-    out_last  = [0]*(LDPC_K - 1) + [1]
-    return dut, [llrs, first, last], LDPC_K, lambda c: [
-        models.ldpc_decode_model(c[0])[0], out_first, out_last], True, True
+    first = [int(k % LDPC_N == 0) for k in range(len(llrs))]
+    last  = [int(k % LDPC_N == LDPC_N - 1) for k in range(len(llrs))]
+    clear = [int(k == 3*LDPC_N) for k in range(len(llrs))]
+    n_out = len(blocks)*LDPC_K
+    out_first = [int(k % LDPC_K == 0) for k in range(n_out)]
+    out_last  = [int(k % LDPC_K == LDPC_K - 1) for k in range(n_out)]
+    return dut, [llrs, first, last, clear], n_out, lambda c: [
+        expected, out_first, out_last], True, True, (dut.clear,)
 
 def spec_correlator():
     from litedsp.comm.correlator import LiteDSPCorrelator
