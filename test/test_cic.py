@@ -17,8 +17,9 @@ from test.common import run_stream, column
 from test.models import cic_decimator_model, cic_interpolator_model
 
 class TestCICDecimator(unittest.TestCase):
-    def run_dec(self, xi, xq, R, N, M=1):
-        dut = LiteDSPCICDecimator(data_width=16, decimation=R, n_stages=N, diff_delay=M, with_csr=False)
+    def run_dec(self, xi, xq, R, N, M=1, staged=False):
+        dut = LiteDSPCICDecimator(data_width=16, decimation=R, n_stages=N, diff_delay=M,
+            with_csr=False, staged=staged)
         n_out = len(xi)//R
         samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
@@ -35,6 +36,17 @@ class TestCICDecimator(unittest.TestCase):
             rq = cic_decimator_model(xq, R, N)[:n_out]
             self.assertTrue(np.array_equal(gi, ri), f"I R={R} N={N}")
             self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N}")
+
+    def test_staged_bit_exact(self):
+        for R, N, M in [(4, 3, 1), (8, 4, 1), (5, 2, 2)]:
+            prng = random.Random(100*R + 10*N + M)
+            xi = [prng.randint(-2000, 2000) for _ in range(R*32)]
+            xq = [prng.randint(-2000, 2000) for _ in range(R*32)]
+            gi, gq, n_out = self.run_dec(xi, xq, R, N, M, staged=True)
+            self.assertTrue(np.array_equal(gi, cic_decimator_model(xi, R, N, M)[:n_out]))
+            self.assertTrue(np.array_equal(gq, cic_decimator_model(xq, R, N, M)[:n_out]))
+            self.assertEqual(LiteDSPCICDecimator(decimation=R, n_stages=N,
+                with_csr=False, staged=True).latency, 2*N)
 
     def test_alias_rejection(self):
         # Tone above the output Nyquist must be strongly attenuated vs an in-band tone.
@@ -76,8 +88,9 @@ class TestCICDecimatorRuntime(unittest.TestCase):
             self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N}")
 
 class TestCICInterpolator(unittest.TestCase):
-    def run_int(self, xi, xq, R, N, M=1):
-        dut = LiteDSPCICInterpolator(data_width=16, interpolation=R, n_stages=N, diff_delay=M, with_csr=False)
+    def run_int(self, xi, xq, R, N, M=1, staged=False):
+        dut = LiteDSPCICInterpolator(data_width=16, interpolation=R, n_stages=N, diff_delay=M,
+            with_csr=False, staged=staged)
         n_out = len(xi)*R
         samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
@@ -94,6 +107,17 @@ class TestCICInterpolator(unittest.TestCase):
             rq = cic_interpolator_model(xq, R, N)[:n_out]
             self.assertTrue(np.array_equal(gi, ri), f"I R={R} N={N}")
             self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N}")
+
+    def test_staged_bit_exact(self):
+        for R, N, M in [(4, 3, 1), (8, 2, 1), (5, 2, 2)]:
+            prng = random.Random(200*R + 10*N + M)
+            xi = [prng.randint(-3000, 3000) for _ in range(32)]
+            xq = [prng.randint(-3000, 3000) for _ in range(32)]
+            gi, gq, n_out = self.run_int(xi, xq, R, N, M, staged=True)
+            self.assertTrue(np.array_equal(gi, cic_interpolator_model(xi, R, N, M)[:n_out]))
+            self.assertTrue(np.array_equal(gq, cic_interpolator_model(xq, R, N, M)[:n_out]))
+            self.assertEqual(LiteDSPCICInterpolator(interpolation=R, n_stages=N,
+                with_csr=False, staged=True).latency, 2*N)
 
 if __name__ == "__main__":
     unittest.main()
