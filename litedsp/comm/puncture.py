@@ -97,33 +97,43 @@ class LiteDSPPuncturer(LiteXModule):
         sym   = Signal(n)               # Held coded symbol.
         cur   = Signal(max=max(period, 2))  # Pattern column of the held symbol.
         idx   = Signal(max=max(n, 2))       # Position in the column's kept-bit list.
-        phase = Signal(max=max(period, 2))  # Pattern column of the next accepted symbol.
-        last  = Signal()                # Emitting the held symbol's last kept bit.
-        xfer  = Signal()                # Input symbol accepted this cycle.
+        phase   = Signal(max=max(period, 2))  # Pattern column of the next accepted symbol.
+        out_bit = Signal()                  # Held kept bit; avoids a live symbol/phase mux.
+        last    = Signal()                  # Emitting the held symbol's last kept bit.
+        xfer    = Signal()                  # Input symbol accepted this cycle.
         self.comb += [
             last.eq(idx == Array([c - 1 for c in counts])[cur]),
             self.sink.ready.eq(~busy | (self.source.ready & last)),
             xfer.eq(self.sink.valid & self.sink.ready),
             self.source.valid.eq(busy),
+            self.source.data.eq(out_bit),
         ]
 
-        # Output: kept bit idx of the held symbol's pattern column.
-        # ---------------------------------------------------------
-        for t in range(period):
-            for i, j in enumerate(kept[t]):
-                self.comb += If((cur == t) & (idx == i), self.source.data.eq(sym[j]))
+        # Capture the first kept bit with each symbol, then advance the held bit only when the
+        # preceding beat transfers.  The first valid beat remains one cycle after acceptance;
+        # the active output path no longer includes a symbol/column/index decode.
+        first_cases = {t: out_bit.eq(self.sink.data[rows[0]]) for t, rows in enumerate(kept)}
+        advance_cases = {
+            t: Case(idx, {i: out_bit.eq(sym[rows[i + 1]]) for i in range(len(rows) - 1)})
+            for t, rows in enumerate(kept) if len(rows) > 1
+        }
+        advance_stmts = [Case(cur, advance_cases)] if advance_cases else []
 
         # Serialization / phase advance (phase_rst wins over a concurrent accept).
         # ------------------------------------------------------------------------
         self.sync += [
             If(self.source.valid & self.source.ready,
-                If(last, busy.eq(0)).Else(idx.eq(idx + 1)),
+                If(last, busy.eq(0)).Else(
+                    idx.eq(idx + 1),
+                    *advance_stmts,
+                ),
             ),
             If(xfer,
                 busy.eq(1),
                 sym.eq(self.sink.data),
                 cur.eq(phase),
                 idx.eq(0),
+                Case(phase, first_cases),
                 If(phase == period - 1, phase.eq(0)).Else(phase.eq(phase + 1)),
             ),
             If(self.phase_rst, phase.eq(0)),

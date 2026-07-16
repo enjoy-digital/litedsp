@@ -93,8 +93,8 @@ jobs:
           pip install git+https://github.com/enjoy-digital/litedram.git
           pip install git+https://github.com/enjoy-digital/liteeth.git
 
-      - name: Line coverage (80% minimum)
-        run: python3 sim/run_coverage.py --min 80
+      - name: Line coverage (85% minimum)
+        run: python3 sim/run_coverage.py --min 85
 
       - name: Upload results
         uses: actions/upload-artifact@v4
