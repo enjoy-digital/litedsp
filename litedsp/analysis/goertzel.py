@@ -55,7 +55,7 @@ class LiteDSPGoertzel(LiteXModule):
         count  = Signal(max=N)                           # Position within the N-sample window.
         s      = Signal((SW, True))                      # s[n] (combinational).
         f1, f2 = Signal((SW, True)), Signal((SW, True))  # Final states latched at window end.
-        phase  = Signal(2)                               # Power pipeline stage (0: idle).
+        phase  = Signal(3)                               # Power pipeline stage (0: idle).
         if architecture == "classic":
             self.comb += [
                 self.sink.ready.eq(1),  # Always accepts (no backpressure needed).
@@ -93,12 +93,12 @@ class LiteDSPGoertzel(LiteXModule):
 
         # Power Pipeline.
         # ---------------
-        # Power from the final states (new s1 = s, new s2 = s1), computed over a 3-stage
-        # registered pipeline after the window boundary. The cross-product and its coefficient
-        # multiply are separate timing cones. Arithmetic remains bit-identical.
-        p1     = Signal((2*SW + 1, True))                # f1**2 + f2**2.
-        cross  = Signal((2*SW, True))                    # f1*f2, registered before coeff multiply.
-        p2     = Signal((2*SW + 1, True))                # coeff*f1*f2 (still scaled by coeff_frac).
+        # Power from the final states (new s1 = s, new s2 = s1). Classic mode uses a compact
+        # three-stage pipeline. Folded mode also splits the wide add/subtract into two words;
+        # this removes the 68-bit carry chains without changing the low 2*SW output bits.
+        p1     = Signal((2*SW + 1, True))
+        cross  = Signal((2*SW, True))
+        p2     = Signal((2*SW + 1, True))
         self.sync += If(self.source.valid & self.source.ready, self.source.valid.eq(0))
         if architecture == "classic":
             self.sync += If(self.sink.valid,
@@ -111,8 +111,8 @@ class LiteDSPGoertzel(LiteXModule):
                     count.eq(count + 1),
                 )
             )
-        self.sync += [
-            If(phase == 1,
+        if architecture == "classic":
+            self.sync += If(phase == 1,
                 p1.eq(f1*f1 + f2*f2),
                 cross.eq(f1*f2),
                 phase.eq(2),
@@ -123,8 +123,42 @@ class LiteDSPGoertzel(LiteXModule):
                 self.source.data.eq(p1 - (p2 >> coeff_frac)),
                 self.source.valid.eq(1),
                 phase.eq(0),
-            ),
-        ]
+            )
+        else:
+            OW = 2*SW
+            CW = OW//2
+            sq1, sq2 = Signal((OW, True)), Signal((OW, True))
+            sum_lo   = Signal(CW + 1)
+            sum_hi   = Signal(OW - CW + 1)
+            p1_lo    = Signal(CW)
+            p1_hi    = Signal(OW - CW)
+            q        = Signal(OW)
+            sub_lo   = Signal(CW + 1)
+            sub_hi   = Signal(OW - CW + 1)
+            result_hi = Signal(OW - CW)
+            self.comb += result_hi.eq(sub_hi - sub_lo[CW])
+            self.sync += If(phase == 1,
+                sq1.eq(f1*f1), sq2.eq(f2*f2), cross.eq(f1*f2),
+                phase.eq(2),
+            ).Elif(phase == 2,
+                sum_lo.eq(Cat(sq1[:CW], C(0, 1)) + Cat(sq2[:CW], C(0, 1))),
+                sum_hi.eq(Cat(sq1[CW:OW], C(0, 1)) + Cat(sq2[CW:OW], C(0, 1))),
+                p2.eq(coeff*(cross >> coeff_frac)),
+                phase.eq(3),
+            ).Elif(phase == 3,
+                p1_lo.eq(sum_lo[:CW]),
+                p1_hi.eq(sum_hi + sum_lo[CW]),
+                q.eq(p2 >> coeff_frac),
+                phase.eq(4),
+            ).Elif(phase == 4,
+                sub_lo.eq(Cat(p1_lo, C(0, 1)) - Cat(q[:CW], C(0, 1))),
+                sub_hi.eq(Cat(p1_hi, C(0, 1)) - Cat(q[CW:OW], C(0, 1))),
+                phase.eq(5),
+            ).Elif(phase == 5,
+                self.source.data.eq(Cat(sub_lo[:CW], result_hi)),
+                self.source.valid.eq(1),
+                phase.eq(0),
+            )
 
         # CSR.
         # ----
