@@ -145,6 +145,34 @@ class TestViterbi(unittest.TestCase):
         got = self._decode(words, n_out, llr_bits=4)
         self.assertEqual(got, viterbi_model(words, llr_bits=4)[:n_out])
 
+    def test_decision_memory_traceback_matches_model(self):
+        constraint, polys, traceback = 3, (0o7, 0o5), 8
+        prng = random.Random(31)
+        bits = [prng.randint(0, 1) for _ in range(120)]
+        syms = conv_encode(bits, constraint=constraint, polys=polys)
+        for pos in range(10, len(syms) - 10, 13):
+            syms[pos] ^= 1 << prng.randint(0, 1)
+        n_out = len(bits) - traceback - 4
+        got = self._decode(syms, n_out, constraint=constraint, polys=polys,
+            traceback=traceback, decision_memory=True, normalize_interval=4)
+        ref = viterbi_model(syms, constraint=constraint, polys=polys,
+            traceback=traceback)[:n_out]
+        self.assertEqual(got, ref)
+        dut = LiteDSPViterbiDecoder(constraint=constraint, polys=polys, traceback=traceback,
+            with_csr=False, decision_memory=True, normalize_interval=4)
+        self.assertIsNone(dut.latency)
+        self.assertEqual(dut.traceback_cycles, 2*(traceback - 1))
+        self.assertEqual(dut.cycles_per_output, 2*traceback + 2)
+
+    def test_soft_decision_memory_matches_model(self):
+        rng  = np.random.default_rng(32)
+        bits = list((rng.random(96) < 0.5).astype(int))
+        _, words = bpsk_awgn(conv_encode(bits), ebn0_db=2.5, rng=rng)
+        n_out = len(bits) - 56 - 4
+        got = self._decode(words, n_out, llr_bits=4, decision_memory=True,
+            normalize_interval=16)
+        self.assertEqual(got, viterbi_model(words, llr_bits=4)[:n_out])
+
     # verify-tier: model — soft-decision BER gain over hard-decision (model-based sweep;
     # the RTL is anchored to the model by test_soft_noisy_rtl_matches_model). Measured with
     # 4-bit LLRs (20k message bits, seed 7): hard BER 1.5e-2 @ 3.5 dB / 6.1e-3 @ 4.0 dB;
