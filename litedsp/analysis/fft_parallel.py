@@ -168,12 +168,20 @@ class LiteDSPParallelFFT(LiteXModule):
                 br.eq(x_lanes[k][0]),
                 bi.eq(x_lanes[k][1]),
             ]
-            sum_i, _ = scaled(ar + br, 1, data_width)
-            sum_q, _ = scaled(ai + bi, 1, data_width)
+            sum_i_full = Signal((data_width + 1, True))
+            sum_q_full = Signal((data_width + 1, True))
             dr, di   = Signal((data_width + 1, True)), Signal((data_width + 1, True))
-            self.comb += [dr.eq(ar - br), di.eq(ai - bi)]
-            diff_i, _ = scaled(dr*tr - di*ti, twiddle_width, data_width)
-            diff_q, _ = scaled(dr*ti + di*tr, twiddle_width, data_width)
+            prod_i = Signal((data_width + twiddle_width + 2, True))
+            prod_q = Signal((data_width + twiddle_width + 2, True))
+            self.comb += [
+                sum_i_full.eq(ar + br), sum_q_full.eq(ai + bi),
+                dr.eq(ar - br), di.eq(ai - bi),
+                prod_i.eq(dr*tr - di*ti), prod_q.eq(dr*ti + di*tr),
+            ]
+            sum_i, _  = scaled(sum_i_full, 1, data_width)
+            sum_q, _  = scaled(sum_q_full, 1, data_width)
+            diff_i, _ = scaled(prod_i, twiddle_width, data_width)
+            diff_q, _ = scaled(prod_q, twiddle_width, data_width)
             self.sync += If(adv,
                 s_lanes[k][0].eq(sum_i),  s_lanes[k][1].eq(sum_q),
                 d_lanes[k][0].eq(diff_i), d_lanes[k][1].eq(diff_q),

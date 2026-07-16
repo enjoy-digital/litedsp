@@ -119,17 +119,23 @@ class LiteDSPFFTStage(LiteXModule):
         # scaled by 1/2. "bfp": the 1/2 scaling is applied only when this frame's shift decision
         # sh is set; the unshifted overflow flags feed the next frame's decision (see below).
         # --------------------------------------------------------------------------------------
+        # Route sums through explicit full-width Signals. In emitted Verilog an inline
+        # ``fr + xr`` is otherwise sized to the eventual data_width-bit assignment context,
+        # dropping its carry bit before rounding; Migen simulation evaluates the full width.
+        sum_i_full = Signal((data_width + 1, True))
+        sum_q_full = Signal((data_width + 1, True))
+        self.comb += [sum_i_full.eq(fr + xr), sum_q_full.eq(fi + xi)]
         if bfp:
             sh  = Signal()  # 1/2 scaling applied to the current frame's butterflies.
             det = Signal()  # Sticky unshifted-overflow detector (current frame).
-            sum_i0, sovf_i = scaled(fr + xr, 0, data_width)
-            sum_q0, sovf_q = scaled(fi + xi, 0, data_width)
-            sum_i1, _      = scaled(fr + xr, 1, data_width)
-            sum_q1, _      = scaled(fi + xi, 1, data_width)
+            sum_i0, sovf_i = scaled(sum_i_full, 0, data_width)
+            sum_q0, sovf_q = scaled(sum_q_full, 0, data_width)
+            sum_i1, _      = scaled(sum_i_full, 1, data_width)
+            sum_q1, _      = scaled(sum_q_full, 1, data_width)
             sum_i, sum_q   = Mux(sh, sum_i1, sum_i0), Mux(sh, sum_q1, sum_q0)
         else:
-            sum_i, _ = scaled(fr + xr, 1, data_width)
-            sum_q, _ = scaled(fi + xi, 1, data_width)
+            sum_i, _ = scaled(sum_i_full, 1, data_width)
+            sum_q, _ = scaled(sum_q_full, 1, data_width)
         dr, di   = Signal((data_width + 1, True)), Signal((data_width + 1, True))
         self.comb += [dr.eq(fr - xr), di.eq(fi - xi)]
         if D > 1:
