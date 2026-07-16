@@ -52,8 +52,6 @@ class _LiteDSPFFTVectorStage(LiteXModule):
         if D >= n_samples:
             self.sync += If(xfer, counter.eq(counter + n_samples))
 
-        state_i = [Signal((data_width, True), name=f"state_i{p}") for p in range(D)]
-        state_q = [Signal((data_width, True), name=f"state_q{p}") for p in range(D)]
         in_lanes  = iq_lanes(self.sink,   data_width, n_samples)
         out_lanes = iq_lanes(self.source, data_width, n_samples)
 
@@ -62,7 +60,36 @@ class _LiteDSPFFTVectorStage(LiteXModule):
         # the next beat's coefficients, removing counter -> ROM from the multiplier path.
         if D >= n_samples:
             c = counter[dbits]
-            base = counter[:dbits]
+            depth = D//n_samples
+
+            # Store all P feedback lanes in one word. Deeper ranks infer distributed RAM with
+            # one async read and one write port, just like the serial SDF delay; D=P is a
+            # single packed register. This avoids a large register-array read/write mux.
+            feedback_i = Signal(n_samples*data_width)
+            feedback_q = Signal(n_samples*data_width)
+            store_word_i = Signal(n_samples*data_width)
+            store_word_q = Signal(n_samples*data_width)
+            if depth == 1:
+                reg_i = Signal(n_samples*data_width)
+                reg_q = Signal(n_samples*data_width)
+                self.comb += [feedback_i.eq(reg_i), feedback_q.eq(reg_q)]
+                self.sync += If(xfer, reg_i.eq(store_word_i), reg_q.eq(store_word_q))
+            else:
+                mem_i = Memory(n_samples*data_width, depth)
+                mem_q = Memory(n_samples*data_width, depth)
+                wp_i = mem_i.get_port(write_capable=True)
+                wp_q = mem_q.get_port(write_capable=True)
+                rp_i = mem_i.get_port(async_read=True)
+                rp_q = mem_q.get_port(async_read=True)
+                self.specials += mem_i, mem_q, wp_i, wp_q, rp_i, rp_q
+                addr = counter[pbits:dbits]
+                self.comb += [
+                    rp_i.adr.eq(addr), rp_q.adr.eq(addr),
+                    wp_i.adr.eq(addr), wp_q.adr.eq(addr),
+                    feedback_i.eq(rp_i.dat_r), feedback_q.eq(rp_q.dat_r),
+                    wp_i.dat_w.eq(store_word_i), wp_q.dat_w.eq(store_word_q),
+                    wp_i.we.eq(xfer), wp_q.we.eq(xfer),
+                ]
             twiddles = []
             if D > 1:
                 cos_init = _twiddle_rom(D, math.cos, twiddle_width)
@@ -95,15 +122,10 @@ class _LiteDSPFFTVectorStage(LiteXModule):
             for k in range(n_samples):
                 xr, xq = Signal((data_width, True)), Signal((data_width, True))
                 fr, fq = Signal((data_width, True)), Signal((data_width, True))
-                addr   = Signal(dbits) if dbits else None
-                if dbits:
-                    self.comb += addr.eq(base + k)
-                    fr_expr, fq_expr = Array(state_i)[addr], Array(state_q)[addr]
-                else:
-                    fr_expr, fq_expr = state_i[0], state_q[0]
                 self.comb += [
                     xr.eq(in_lanes[k][0]), xq.eq(in_lanes[k][1]),
-                    fr.eq(fr_expr), fq.eq(fq_expr),
+                    fr.eq(feedback_i[k*data_width:(k + 1)*data_width]),
+                    fq.eq(feedback_q[k*data_width:(k + 1)*data_width]),
                 ]
                 sum_i_full = Signal((data_width + 1, True))
                 sum_q_full = Signal((data_width + 1, True))
@@ -127,10 +149,10 @@ class _LiteDSPFFTVectorStage(LiteXModule):
                     diff_q, _ = scaled(dq, 1, data_width)
                 store_i = Mux(c, diff_i, xr)
                 store_q = Mux(c, diff_q, xq)
-                self.sync += If(xfer,
-                    Array(state_i)[addr].eq(store_i) if dbits else state_i[0].eq(store_i),
-                    Array(state_q)[addr].eq(store_q) if dbits else state_q[0].eq(store_q),
-                )
+                self.comb += [
+                    store_word_i[k*data_width:(k + 1)*data_width].eq(store_i),
+                    store_word_q[k*data_width:(k + 1)*data_width].eq(store_q),
+                ]
                 self.sync += If(adv,
                     out_lanes[k][0].eq(Mux(c, sum_i, fr)),
                     out_lanes[k][1].eq(Mux(c, sum_q, fq)),
@@ -140,6 +162,8 @@ class _LiteDSPFFTVectorStage(LiteXModule):
         # feedback update to the following lane(s), then commit the final state at the edge.
         # This is a small late-rank network (at most two dependent butterflies for P=4).
         else:
+            state_i = [Signal((data_width, True), name=f"state_i{p}") for p in range(D)]
+            state_q = [Signal((data_width, True), name=f"state_q{p}") for p in range(D)]
             cur_i = list(state_i)
             cur_q = list(state_q)
             for k in range(n_samples):
