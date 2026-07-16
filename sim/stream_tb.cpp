@@ -4,11 +4,12 @@
 //
 // Generic Verilator testbench for streaming blocks: any number of sinks (0..N), one source,
 // with seeded-random backpressure on both sides. The per-block port map (TB_DUT, TB_N_SINKS,
-// TB_N_IN/TB_N_OUT, tb_sink_fields[], tb_set_sink_valid/tb_get_sink_ready/tb_set_in/tb_get_out)
+// TB_N_IN/TB_N_OUT, tb_sink_fields[], payload/tag/control setters and output getters)
 // is generated into tb_ports.h by sim/run_blocks.py from the block's stream layouts.
 //
 // Usage: V<top> <in_file> <n_out> <out_file> [--seed S] [--throttle T] [--ready-rate R]
-//   in_file    : TB_N_IN integer columns per line (sink 0 fields first, then sink 1, ...).
+//   in_file    : TB_N_IN integer columns per line (each sink's payload, then optional
+//                first/last tags; sink 0 first, then sink 1, ...; controls last).
 //   --seed S   : PRNG seed for the sink/source timing randomization (default 1).
 //   --throttle T   : probability (%) of holding back a sink's next sample each cycle (default 25).
 //   --ready-rate R : probability (%) of asserting source_ready each cycle (default 75).
@@ -110,6 +111,9 @@ int main(int argc, char** argv) {
             if (!pending[s] && in_i[s] < n_in && !sink_prng[s].percent(throttle)) {
                 for (int k = 0; k < tb_sink_fields[s]; k++)
                     tb_set_in(dut, off[s] + k, cols[off[s] + k][in_i[s]]);
+                if (s == 0)
+                    for (int k = 0; k < TB_N_CTRL; k++)
+                        tb_set_control(dut, k, cols[TB_N_STREAM_IN + k][in_i[s]]);
                 pending[s] = true;
             }
             tb_set_sink_valid(dut, s, pending[s]);

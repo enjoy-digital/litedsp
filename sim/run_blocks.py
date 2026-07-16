@@ -77,7 +77,7 @@ def _stream_ports(dut):
 
 # Port map generation ------------------------------------------------------------------------------
 
-def _ports_header(dut, top, path):
+def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=()):
     """Generate tb_ports.h: typed per-sink/source port accessors for the generic testbench."""
     sinks, (src_prefix, src_ep) = _stream_ports(dut)
     outs = _fields(src_ep)
@@ -88,8 +88,20 @@ def _ports_header(dut, top, path):
         set_valid.append(f"if (s == {s}) dut->{prefix}_valid = v;")
         get_ready.append(f"if (s == {s}) return dut->{prefix}_ready;")
         for f, w, _ in _fields(ep):
-            set_in.append(f"if (k == {n_in}) dut->{prefix}_payload_{f} = (uint32_t)v;")
+            mask = f" & 0x{(1 << w) - 1:x}u" if w < 32 else ""
+            set_in.append(f"if (k == {n_in}) dut->{prefix}_payload_{f} = (uint32_t)v{mask};")
             n_in += 1
+        if sink_tags:
+            for tag in ("first", "last"):
+                set_in.append(f"if (k == {n_in}) dut->{prefix}_{tag} = (uint32_t)v & 0x1u;")
+                n_in += 1
+    n_stream_in = n_in
+    set_control = []
+    for k, signal in enumerate(controls):
+        signal.name_override = f"tb_control{k}"
+        width = len(signal)
+        mask = f" & 0x{(1 << width) - 1:x}u" if width < 32 else ""
+        set_control.append(f"if (k == {k}) dut->tb_control{k} = (uint32_t)v{mask};")
     get_out = []
     for k, (f, w, signed) in enumerate(outs):
         port = f"dut->{src_prefix}_payload_{f}"
@@ -97,22 +109,30 @@ def _ports_header(dut, top, path):
             get_out.append(f"if (k == {k}) return ((int32_t)((uint32_t){port} << {32 - w})) >> {32 - w};")
         else:                  # Unsigned payload (e.g. log2): plain zero-extended read.
             get_out.append(f"if (k == {k}) return (int32_t)(uint32_t){port};")
+    if source_tags:
+        for tag in ("first", "last"):
+            k = len(get_out)
+            get_out.append(f"if (k == {k}) return (int32_t)(uint32_t)dut->{src_prefix}_{tag};")
 
     void = "(void)dut; (void)s; (void)v;"
     with open(path, "w") as f:
         f.write(f'#include "V{top}.h"\n'
                 f"typedef V{top} TB_DUT;\n"
                 f"#define TB_N_SINKS {len(sinks)}\n"
-                f"#define TB_N_IN    {n_in}\n"
-                f"#define TB_N_OUT   {len(outs)}\n"
+                f"#define TB_N_IN    {n_in + len(controls)}\n"
+                f"#define TB_N_STREAM_IN {n_stream_in}\n"
+                f"#define TB_N_CTRL  {len(controls)}\n"
+                f"#define TB_N_OUT   {len(outs) + 2*source_tags}\n"
                 f"static const int tb_sink_fields[{max(len(sinks), 1)}] = "
-                f"{{{', '.join(str(len(_fields(ep))) for _, ep in sinks) or '0'}}};\n"
+                f"{{{', '.join(str(len(_fields(ep)) + 2*sink_tags) for _, ep in sinks) or '0'}}};\n"
                 f"static inline void tb_set_sink_valid(TB_DUT* dut, int s, int v) "
                 f"{{ {' '.join(set_valid) or void} }}\n"
                 f"static inline int tb_get_sink_ready(TB_DUT* dut, int s) "
                 f"{{ {' '.join(get_ready) or '(void)dut; (void)s;'} return 0; }}\n"
                 f"static inline void tb_set_in(TB_DUT* dut, int k, int32_t v) "
                 f"{{ {' '.join(set_in) or '(void)dut; (void)k; (void)v;'} }}\n"
+                f"static inline void tb_set_control(TB_DUT* dut, int k, int32_t v) "
+                f"{{ {' '.join(set_control) or '(void)dut; (void)k; (void)v;'} }}\n"
                 f"static inline int32_t tb_get_out(TB_DUT* dut, int k) "
                 f"{{ {' '.join(get_out)} return 0; }}\n")
     return sinks, (src_prefix, src_ep)
@@ -120,18 +140,32 @@ def _ports_header(dut, top, path):
 # Runner -------------------------------------------------------------------------------------------
 
 def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_sim", coverage=False):
-    dut, cols, n_out, model = SPECS[name]()
+    spec = SPECS[name]()
+    if len(spec) == 4:
+        dut, cols, n_out, model = spec
+        sink_tags = source_tags = False
+        controls = ()
+    else:
+        dut, cols, n_out, model, sink_tags, source_tags, *extra = spec
+        controls = extra[0] if extra else ()
     bd = os.path.join(build_dir, name)
     os.makedirs(bd, exist_ok=True)
 
     # "_dut" suffix: a top named like one of its signals (e.g. gain) breaks Verilator's C model.
     top = name + "_dut"
-    sinks, (_, src_ep) = _ports_header(dut, top, os.path.join(bd, "tb_ports.h"))
+    sinks, (_, src_ep) = _ports_header(dut, top, os.path.join(bd, "tb_ports.h"),
+        sink_tags=sink_tags, source_tags=source_tags, controls=controls)
     ios = {src_ep.valid, src_ep.ready} | {getattr(src_ep, f) for f, _, _ in _fields(src_ep)}
+    if source_tags:
+        ios |= {src_ep.first, src_ep.last}
     for _, ep in sinks:
         ios |= {ep.valid, ep.ready} | {getattr(ep, f) for f, _, _ in _fields(ep)}
-    assert len(cols) == sum(len(_fields(ep)) for _, ep in sinks), \
-        f"{name}: {len(cols)} stimulus columns for {sum(len(_fields(ep)) for _, ep in sinks)} sink fields"
+        if sink_tags:
+            ios |= {ep.first, ep.last}
+    ios |= set(controls)
+    expected_cols = sum(len(_fields(ep)) + 2*sink_tags for _, ep in sinks) + len(controls)
+    assert len(cols) == expected_cols, \
+        f"{name}: {len(cols)} stimulus columns for {expected_cols} sink fields/tags"
 
     verilog = emit_verilog(dut, ios, top, bd)          # Memory .init files land beside the .v.
     binary  = build(verilog, os.path.join(ROOT, "sim", "stream_tb.cpp"), top, bd,

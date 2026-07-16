@@ -42,7 +42,7 @@ VSPEC = {
     "ddc":                _v(rate=None),                       # decimation-dependent.
     "duc":                _v(rate=None),
     "channelizer":        _v(rate=None),
-    "pfb_channelizer":    _v("pfb_channelizer_model", rate=(1, 1)),  # Critically sampled: M out per M in (framed).
+    "pfb_channelizer":    _v("pfb_channelizer_model", rate=(1, 1), cosim=True),  # Critically sampled: M out per M in (framed).
     # filter.
     "fir_real":           _v("fir_model",              cosim=True),
     "fir_complex":        _v("fir_complex_model",      cosim=True),
@@ -94,7 +94,7 @@ VSPEC = {
     "soft_demapper":      _v("soft_demap_model", cosim=True),
     "symbol_mapper":      _v(),
     "correlator":         _v("fir_complex_model", cosim=True),  # Matched filter = complex FIR.
-    "frame_sync":         _v("frame_sync_model"),        # CFAR preamble detect + alignment.
+    "frame_sync":         _v("frame_sync_model", cosim=True),  # CFAR preamble detect + alignment.
     "timing_recovery":    _v(latency="variable", rate=None),
     "carrier_loop":       _v(),
     "phase_detect":       _v(),
@@ -105,15 +105,15 @@ VSPEC = {
     "descrambler":        _v(),
     "crc":                _v(),
     "conv_encoder":       _v(),
-    "viterbi_decoder":    _v("viterbi_model"),
-    "puncturer":          _v("puncture_model",   latency="variable", rate=None),  # Pattern-dependent.
-    "depuncturer":        _v("depuncture_model", latency="variable", rate=None),
-    "block_interleaver":  _v("block_interleave_model",   latency="variable", rate=(1, 1)),  # 1:1, framed rows*cols blocks.
-    "block_deinterleaver": _v("block_deinterleave_model", latency="variable", rate=(1, 1)),
-    "rs_encoder":         _v("rs_encode_model",  latency="variable", rate=None),  # k in -> n out (framed).
-    "rs_decoder":         _v("rs_decode_model",  latency="variable", rate=None),  # n in -> k out (framed).
-    "ldpc_encoder":       _v("ldpc_encode_model", latency="variable", rate=None),  # k bits in -> n bits out (framed).
-    "ldpc_decoder":       _v("ldpc_decode_model", latency="variable", rate=None),  # n LLRs in -> k bits out (framed).
+    "viterbi_decoder":    _v("viterbi_model", cosim=True),
+    "puncturer":          _v("puncture_model",   latency="variable", rate=None, cosim=True),  # Pattern-dependent.
+    "depuncturer":        _v("depuncture_model", latency="variable", rate=None, cosim=True),
+    "block_interleaver":  _v("block_interleave_model",   latency="variable", rate=(1, 1), cosim=True),  # 1:1, framed rows*cols blocks.
+    "block_deinterleaver": _v("block_deinterleave_model", latency="variable", rate=(1, 1), cosim=True),
+    "rs_encoder":         _v("rs_encode_model",  latency="variable", rate=None, cosim=True),  # k in -> n out (framed).
+    "rs_decoder":         _v("rs_decode_model",  latency="variable", rate=None, cosim=True),  # n in -> k out (framed).
+    "ldpc_encoder":       _v("ldpc_encode_model", latency="variable", rate=None, cosim=True),  # k bits in -> n bits out (framed).
+    "ldpc_decoder":       _v("ldpc_decode_model", latency="variable", rate=None, cosim=True),  # n LLRs in -> k bits out (framed).
     "cp_insert":          _v(latency="variable", rate=None),
     "cp_remove":          _v(rate=None),
     "ofdm_equalizer":     _v("ofdm_equalizer_model", rate=None),  # 1:1 steady-state; training frames consumed.
@@ -123,7 +123,7 @@ VSPEC = {
                                                                # scaling="bfp" is bit-exact vs
                                                                # fft_bfp_model (test_fft_bfp).
     "fft_iter":           _v(rate=None),
-    "parallel_fft":       _v("parallel_fft_model"),            # Bit-exact (= fft_fixed_model
+    "parallel_fft":       _v("parallel_fft_model", cosim=True),  # Bit-exact (= fft_fixed_model
                                                                # re-laned); 2-lane layout: no cosim.
     "psd":                _v("psd_model",   latency="variable", rate=None, cosim=True),
     "welch":              _v("welch_model", latency="variable", rate=None, cosim=True),

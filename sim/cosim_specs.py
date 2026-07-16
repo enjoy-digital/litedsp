@@ -8,17 +8,21 @@
 
 ``SPECS`` covers exactly the blocks marked ``cosim=True`` in ``test/registry.py`` (enforced by
 :func:`check_coverage`, called by the runner). Each spec function returns
-``(dut, cols, n_out, model)``:
+``(dut, cols, n_out, model)``. Framed cases append ``(sink_tags, source_tags)``; cases with
+runtime controls append a final tuple of control Signals, whose per-sample columns follow all
+stream columns:
 
 - ``dut``   : the block, built with ``with_csr=False``; controls are set through reset values
               (``signal.reset = value``), so they need no top-level ports.
 - ``cols``  : stimulus columns, one per sink payload field, sinks in discovery order
               (``litedsp.flow.metadata._ports``: sorted names, fields in layout order);
-              empty for source-only blocks (NCO).
+              when ``sink_tags`` is true, each sink's ``first`` and ``last`` columns follow
+              its payload fields; empty for source-only blocks (NCO).
 - ``n_out`` : number of output samples to capture (kept a few short of the steady-state total
               so the run terminates on an exact count).
 - ``model`` : ``model(cols) -> [expected output columns]`` (bit-exact NumPy golden model from
-              ``test/models.py``), one array (>= n_out long) per source payload field.
+              ``test/models.py``), one array (>= n_out long) per source payload field and,
+              when ``source_tags`` is true, the source ``first`` and ``last`` arrays.
 """
 
 import random
@@ -139,6 +143,19 @@ def spec_moving_average():
     return dut, cols, n - 4, lambda c: [models.moving_average_model(np.array(c[0]), length_log2),
                                         models.moving_average_model(np.array(c[1]), length_log2)]
 
+def spec_pfb_channelizer():
+    from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
+    from litedsp.filter.design import firwin_lowpass
+    M, T, n = 4, 4, 64
+    coeffs = firwin_lowpass(M*T, 0.4/M)
+    dut  = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T, data_width=16,
+        coefficients=coeffs, with_csr=False)
+    cols = _rand_cols(2, n, seed=67)
+    first = [int(k % M == 0) for k in range(n)]
+    last  = [int(k % M == M - 1) for k in range(n)]
+    return dut, cols, n, lambda c: [
+        *models.pfb_channelizer_model(c[0], c[1], coeffs, M), first, last], False, True
+
 # Rate ---------------------------------------------------------------------------------------------
 
 def spec_downsampler():
@@ -163,12 +180,26 @@ def spec_upsampler():
 
 def spec_gain():
     from litedsp.level.gain import LiteDSPGain
-    n, gain, shift = 300, 0x2C00, 1                                # 0.6875 in Q2.14, extra /2.
+    n, gain = 300, 0x7000                                           # 1.75 in Q2.14.
     dut = LiteDSPGain(data_width=16, with_csr=False)
     dut.gain.reset  = gain
-    dut.shift.reset = shift
     cols = _rand_cols(2, n)
-    return dut, cols, n - 4, lambda c: list(models.gain_model(c[0], c[1], gain, shift))
+    shifts = [(k//48) % 4 for k in range(n)]
+    bypass = [int(240 <= k < 288) for k in range(n)]
+    clear  = [int(k == 180) for k in range(n)]
+
+    def model(c):
+        ri, rq = np.zeros(n, np.int64), np.zeros(n, np.int64)
+        for k in range(n):
+            if bypass[k]:
+                ri[k], rq[k] = c[0][k], c[1][k]
+            else:
+                yi, yq = models.gain_model([c[0][k]], [c[1][k]], gain, shifts[k])
+                ri[k], rq[k] = yi[0], yq[0]
+        return [ri, rq]
+
+    return dut, cols + [shifts, bypass, clear], n - 4, model, False, False, \
+        (dut.shift, dut.bypass, dut.clear_sat)
 
 def spec_log2():
     from litedsp.level.logdb import LiteDSPLog2
@@ -245,6 +276,101 @@ def spec_diff_decoder():
     cols = _rand_cols(1, n, lo=0, hi=M - 1)
     return dut, cols, n - 4, lambda c: [models.diff_decode_model(c[0], M)]
 
+def spec_viterbi_decoder():
+    from litedsp.comm.viterbi import LiteDSPViterbiDecoder
+    n = 160
+    dut  = LiteDSPViterbiDecoder(with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=3, seed=19)
+    return dut, cols, n - dut.traceback - 4, lambda c: [models.viterbi_model(c[0])]
+
+def spec_puncturer():
+    from litedsp.comm.puncture import LiteDSPPuncturer, PUNCTURE_3_4
+    n = 180
+    dut  = LiteDSPPuncturer(pattern=PUNCTURE_3_4, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=3, seed=23)
+    ref  = models.puncture_model(cols[0], PUNCTURE_3_4)
+    return dut, cols, len(ref), lambda c: [models.puncture_model(c[0], PUNCTURE_3_4)]
+
+def spec_depuncturer():
+    from litedsp.comm.puncture import LiteDSPDepuncturer, PUNCTURE_3_4
+    n, llr_bits = 180, 4
+    dut  = LiteDSPDepuncturer(pattern=PUNCTURE_3_4, llr_bits=llr_bits, with_csr=False)
+    cols = _rand_cols(1, n, lo=-7, hi=7, seed=29)
+    ref  = models.depuncture_model(cols[0], PUNCTURE_3_4, llr_bits=llr_bits)
+    return dut, cols, len(ref), lambda c: [models.depuncture_model(
+        c[0], PUNCTURE_3_4, llr_bits=llr_bits)]
+
+def _block_permuter_spec(deinterleave=False):
+    from litedsp.comm.interleaver import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
+    rows, columns, blocks = 3, 5, 3
+    n = rows*columns*blocks
+    cls   = LiteDSPBlockDeinterleaver if deinterleave else LiteDSPBlockInterleaver
+    model = models.block_deinterleave_model if deinterleave else models.block_interleave_model
+    dut   = cls(rows=rows, cols=columns, width=8, with_csr=False)
+    data  = _rand_cols(1, n, lo=0, hi=255, seed=31 + deinterleave)[0]
+    first = [int(k % (rows*columns) == 0) for k in range(n)]
+    last  = [int(k % (rows*columns) == rows*columns - 1) for k in range(n)]
+    out_first = first
+    out_last  = last
+    return dut, [data, first, last], n, lambda c: [
+        model(c[0], rows=rows, cols=columns), out_first, out_last], True, True
+
+def spec_block_interleaver():
+    return _block_permuter_spec(deinterleave=False)
+
+def spec_block_deinterleaver():
+    return _block_permuter_spec(deinterleave=True)
+
+def spec_rs_encoder():
+    from litedsp.comm.rs import LiteDSPRSEncoder
+    n, k = 255, 251
+    dut  = LiteDSPRSEncoder(n=n, k=k, with_csr=False)
+    data = _rand_cols(1, k, lo=0, hi=255, seed=41)[0]
+    first = [1] + [0]*(k - 1)
+    last  = [0]*(k - 1) + [1]
+    out_first = [1] + [0]*(n - 1)
+    out_last  = [0]*(n - 1) + [1]
+    return dut, [data, first, last], n, lambda c: [
+        models.rs_encode_model(c[0], n=n, k=k), out_first, out_last], True, True
+
+def spec_rs_decoder():
+    from litedsp.comm.rs import LiteDSPRSDecoder
+    n, k = 255, 251
+    msg = _rand_cols(1, k, lo=0, hi=255, seed=43)[0]
+    rx  = models.rs_encode_model(msg, n=n, k=k)
+    rx[17]  ^= 0x53
+    rx[211] ^= 0xa6
+    dut   = LiteDSPRSDecoder(n=n, k=k, with_csr=False)
+    first = [1] + [0]*(n - 1)
+    last  = [0]*(n - 1) + [1]
+    out_first = [1] + [0]*(k - 1)
+    out_last  = [0]*(k - 1) + [1]
+    return dut, [rx, first, last], k, lambda c: [
+        models.rs_decode_model(c[0], n=n, k=k)[0], out_first, out_last], True, True
+
+def spec_ldpc_encoder():
+    from litedsp.comm.ldpc import LiteDSPLDPCEncoder, LDPC_K, LDPC_N
+    dut  = LiteDSPLDPCEncoder(with_csr=False)
+    data = _rand_cols(1, LDPC_K, lo=0, hi=1, seed=53)[0]
+    first = [1] + [0]*(LDPC_K - 1)
+    last  = [0]*(LDPC_K - 1) + [1]
+    out_first = [1] + [0]*(LDPC_N - 1)
+    out_last  = [0]*(LDPC_N - 1) + [1]
+    return dut, [data, first, last], LDPC_N, lambda c: [
+        models.ldpc_encode_model(c[0]), out_first, out_last], True, True
+
+def spec_ldpc_decoder():
+    from litedsp.comm.ldpc import LiteDSPLDPCDecoder, LDPC_K, LDPC_N
+    msg  = _rand_cols(1, LDPC_K, lo=0, hi=1, seed=59)[0]
+    llrs = [7*(1 - 2*b) for b in models.ldpc_encode_model(msg)]
+    dut  = LiteDSPLDPCDecoder(llr_bits=4, max_iters=8, with_csr=False)
+    first = [1] + [0]*(LDPC_N - 1)
+    last  = [0]*(LDPC_N - 1) + [1]
+    out_first = [1] + [0]*(LDPC_K - 1)
+    out_last  = [0]*(LDPC_K - 1) + [1]
+    return dut, [llrs, first, last], LDPC_K, lambda c: [
+        models.ldpc_decode_model(c[0])[0], out_first, out_last], True, True
+
 def spec_correlator():
     from litedsp.comm.correlator import LiteDSPCorrelator
     n, seq = 300, [1, 1, 1, -1, -1, 1, -1]                         # Barker-7 matched filter.
@@ -254,11 +380,23 @@ def spec_correlator():
     cols   = _rand_cols(2, n, lo=-8000, hi=8000)
     return dut, cols, n - 8, lambda c: list(models.fir_complex_model(c[0], c[1], coeffs))
 
-# spec_frame_sync: not cosim-eligible yet. Its detection result lives entirely in the
-# source first/last tags (the i/q payload is a pure sample delay of the input), and the
-# generic TB does not capture first/last columns — a payload-only compare would exercise
-# the delay line but none of the correlate/threshold/peak-pick logic the block exists for.
-# TODO: add first/last capture to stream_tb.cpp, then bind frame_sync_model here.
+def spec_frame_sync():
+    from litedsp.comm.frame_sync import LiteDSPFrameSync
+    sequence, n, frame_len = [1, 1, 1, -1, -1, 1, -1], 256, 16
+    rng = np.random.RandomState(3)
+    xi  = rng.randint(-1500, 1500, n).astype(np.int64)
+    xq  = rng.randint(-1500, 1500, n).astype(np.int64)
+    for pos in (40, 120):
+        xi[pos:pos + len(sequence)] = [4000*c for c in sequence]
+        xq[pos:pos + len(sequence)] = 0
+    threshold = int(0.8*(1 << 14))
+    dut = LiteDSPFrameSync(sequence, data_width=16, frame_len=frame_len,
+        peak_window=4, with_csr=False)
+    dut.threshold.reset = threshold
+    cols  = [xi, xq]
+    n_out = n - dut.latency - 4
+    return dut, cols, n_out, lambda c: list(models.frame_sync_model(
+        c[0], c[1], sequence, threshold, frame_len=frame_len)[:4]), False, True
 
 # Correction ---------------------------------------------------------------------------------------
 
@@ -302,6 +440,34 @@ def spec_psd():
     cols = _rand_cols(2, n, lo=-8000, hi=8000)                     # 14-bit signed range.
     return dut, cols, 4*N, lambda c: [np.concatenate(
         models.psd_model(c[0], c[1], N, avg_log2=avg_log2))]
+
+def spec_parallel_fft():
+    from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
+    N, n_frames = 16, 4
+    rng = np.random.RandomState(73)
+    xi  = rng.randint(-25000, 25000, n_frames*N)
+    xq  = rng.randint(-25000, 25000, n_frames*N)
+
+    def pack(a, b):
+        word = (int(a) & 0xffff) | ((int(b) & 0xffff) << 16)
+        return word - (1 << 32) if word >= (1 << 31) else word
+
+    in_i = [pack(xi[k], xi[k + 1]) for k in range(0, len(xi), 2)]
+    in_q = [pack(xq[k], xq[k + 1]) for k in range(0, len(xq), 2)]
+    beats = N//2
+    first = [int(k % beats == 0) for k in range(len(in_i))]
+    last  = [int(k % beats == beats - 1) for k in range(len(in_i))]
+    ref_i, ref_q = [], []
+    for f in range(n_frames - 1):
+        yi, yq = models.parallel_fft_model(xi[f*N:(f + 1)*N], xq[f*N:(f + 1)*N])
+        ref_i += [pack(*row) for row in yi]
+        ref_q += [pack(*row) for row in yq]
+    n_out = (n_frames - 1)*beats
+    out_first = [int(k % beats == 0) for k in range(n_out)]
+    out_last  = [int(k % beats == beats - 1) for k in range(n_out)]
+    dut = LiteDSPParallelFFT(N=N, with_csr=False)
+    return dut, [in_i, in_q, first, last], n_out, \
+        lambda c: [ref_i, ref_q, out_first, out_last], True, True
 
 def spec_welch():
     from litedsp.analysis.welch import LiteDSPWelchPSD
@@ -355,6 +521,7 @@ SPECS = {
     "iir_biquad":       spec_iir_biquad,
     "dc_blocker":       spec_dc_blocker,
     "moving_average":   spec_moving_average,
+    "pfb_channelizer":  spec_pfb_channelizer,
     "downsampler":      spec_downsampler,
     "upsampler":        spec_upsampler,
     "gain":             spec_gain,
@@ -367,11 +534,22 @@ SPECS = {
     "slicer":           spec_slicer,
     "diff_encoder":     spec_diff_encoder,
     "diff_decoder":     spec_diff_decoder,
+    "viterbi_decoder": spec_viterbi_decoder,
+    "puncturer":        spec_puncturer,
+    "depuncturer":      spec_depuncturer,
+    "block_interleaver": spec_block_interleaver,
+    "block_deinterleaver": spec_block_deinterleaver,
+    "rs_encoder":        spec_rs_encoder,
+    "rs_decoder":        spec_rs_decoder,
+    "ldpc_encoder":      spec_ldpc_encoder,
+    "ldpc_decoder":      spec_ldpc_decoder,
     "correlator":       spec_correlator,
+    "frame_sync":       spec_frame_sync,
     "dc_offset":        spec_dc_offset,
     "magnitude":        spec_magnitude,
     "window":           spec_window,
     "psd":              spec_psd,
+    "parallel_fft":     spec_parallel_fft,
     "welch":            spec_welch,
     "conjugate":        spec_conjugate,
     "swap_iq":          spec_swap_iq,
