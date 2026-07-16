@@ -48,24 +48,27 @@ def flatten(captured, field, n_samples=2, data_width=16):
 # Bit-Identity -------------------------------------------------------------------------------------
 
 class TestParallelFFTBitExact(unittest.TestCase):
-    def run_parallel(self, xi, xq, N, n_frames, throttle=0.0, ready=1.0):
+    def run_parallel(self, xi, xq, N, n_frames, throttle=0.0, ready=1.0,
+        core_architecture="classic"):
         """Feed 2 samples/beat, capture ``n_frames`` output frames (i/q + framing markers).
 
         As with the serial SDF FFT, the pipeline holds about one frame (frame f streams out
         while frame f+1 streams in), so ``n_frames`` must leave the last input frame in
         flight (callers pass one frame more than they capture).
         """
-        dut   = LiteDSPParallelFFT(N=N, with_csr=False)
+        dut   = LiteDSPParallelFFT(N=N, core_architecture=core_architecture, with_csr=False)
         beats = [{"i": pack_lanes(xi[k:k + 2]), "q": pack_lanes(xq[k:k + 2])}
                  for k in range(0, len(xi), 2)]
         return run_stream(dut, beats, n_frames*N//2, ["i", "q"],
             ["i", "q", "first", "last"], sink_throttle=throttle, source_ready_rate=ready)
 
-    def check_bit_identical(self, N, throttle=0.0, ready=1.0, nfr=4):
+    def check_bit_identical(self, N, throttle=0.0, ready=1.0, nfr=4,
+        core_architecture="classic"):
         rng = np.random.RandomState(N)
         xi  = rng.randint(-25000, 25000, nfr*N)
         xq  = rng.randint(-25000, 25000, nfr*N)
-        cap = self.run_parallel(xi, xq, N, nfr - 1, throttle=throttle, ready=ready)
+        cap = self.run_parallel(xi, xq, N, nfr - 1, throttle=throttle, ready=ready,
+            core_architecture=core_architecture)
         gi  = flatten(cap, "i")
         gq  = flatten(cap, "q")
         # Serial gateware co-simulation on the same sample sequence (flattened lanes): the
@@ -106,6 +109,13 @@ class TestParallelFFTBitExact(unittest.TestCase):
         self.check_bit_identical(64, throttle=0.3, ready=0.6)
         self.check_bit_identical(16, throttle=0.5, ready=0.4, nfr=5)
 
+    # verify-tier: model — timing-oriented registered-rank/folded-core option retains every
+    # serial fixed-point rounding boundary under stalls.
+    def test_folded_cores_bit_identical(self):
+        for N in [16, 64]:
+            self.check_bit_identical(N, throttle=0.25, ready=0.65, nfr=4,
+                core_architecture="folded")
+
     def test_invalid_params_rejected(self):
         with self.assertRaises(ValueError):
             LiteDSPParallelFFT(N=100, with_csr=False)          # Not a power of two.
@@ -113,6 +123,8 @@ class TestParallelFFTBitExact(unittest.TestCase):
             LiteDSPParallelFFT(N=4, with_csr=False)            # Below minimum size.
         with self.assertRaises(ValueError):
             LiteDSPParallelFFT(N=64, n_samples=4, with_csr=False)  # P=4 not landed yet.
+        with self.assertRaises(ValueError):
+            LiteDSPParallelFFT(N=64, core_architecture="unknown", with_csr=False)
 
 # Throughput / Latency -----------------------------------------------------------------------------
 
@@ -123,6 +135,52 @@ class TestParallelFFTThroughput(unittest.TestCase):
         for N in [16, 64, 256]:
             with self.subTest(N=N):
                 self.check_throughput(N)
+
+    # verify-tier: model — the registered-rank/folded-core configuration pins its declared
+    # first-frame latency and exposes the intentional 2-wide peak / 1-sample-clock average.
+    def test_folded_latency_and_rate_contract(self):
+        for N in [16, 64]:
+            with self.subTest(N=N):
+                dut = LiteDSPParallelFFT(N=N, core_architecture="folded", with_csr=False)
+                nfr = 5
+                values = np.arange(nfr*N)
+                beats = [(pack_lanes(values[k:k + 2]), 0) for k in range(0, len(values), 2)]
+                stats = {"first_in": None, "out_cycles": []}
+
+                @passive
+                def driver():
+                    cycle = 0
+                    idx   = 0
+                    yield dut.sink.valid.eq(1)
+                    yield dut.sink.i.eq(beats[0][0])
+                    yield dut.sink.q.eq(0)
+                    while True:
+                        yield
+                        cycle += 1
+                        if (yield dut.sink.valid) and (yield dut.sink.ready):
+                            if stats["first_in"] is None:
+                                stats["first_in"] = cycle
+                            idx += 1
+                            if idx < len(beats):
+                                yield dut.sink.i.eq(beats[idx][0])
+                            else:
+                                yield dut.sink.valid.eq(0)
+
+                def capture():
+                    cycle = 0
+                    yield dut.source.ready.eq(1)
+                    while len(stats["out_cycles"]) < N//2:
+                        yield
+                        cycle += 1
+                        if (yield dut.source.valid):
+                            stats["out_cycles"].append(cycle)
+
+                run_simulation(dut, [driver(), capture()])
+                self.assertEqual(stats["out_cycles"][0] - stats["first_in"], dut.latency)
+                np.testing.assert_array_equal(np.diff(stats["out_cycles"]),
+                    np.ones(N//2 - 1, dtype=int))
+                self.assertEqual(dut.peak_samples_per_cycle, 2)
+                self.assertEqual(dut.average_samples_per_cycle, 1)
 
     def check_throughput(self, N, nfr=5):
         dut = LiteDSPParallelFFT(N=N, with_csr=False)

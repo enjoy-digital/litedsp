@@ -53,12 +53,11 @@ class LiteDSPParallelFFT(LiteXModule):
     i.e. lanes carry consecutive bit-reversed indices: lane 0 sweeps bins [0, N/2) in
     ``N/2``-point bit-reversed order and lane 1 the mirrored bin ``+ N/2``.
 
-    Throughput is a sustained 2 samples/cycle under free flow (the internal FIFOs absorb the
-    butterfly rank's half-frame burst and the output re-pairing; the source starts a frame
-    only once enough of it is buffered to stream gap-free). ``self.latency`` is the cycles
-    from a frame's first accepted input beat to its first output beat. As with the serial SDF
-    FFT, the delay-feedback pipeline holds about one frame: frame ``f`` streams out while
-    frame ``f + 1`` streams in.
+    With ``core_architecture="classic"`` throughput is a sustained 2 samples/cycle under
+    free flow.  ``"folded"`` adds a timing register to the wide butterfly rank and uses
+    two-cycle serial sub-cores; it has a peak width of two samples and an average throughput
+    of one sample/cycle.  The internal FIFOs absorb the deterministic half-frame bursts and
+    the source starts only when a complete branch is buffered.
 
     Only ``n_samples=2`` and the serial FFT's ``scaling="scaled"`` arithmetic (unconditional
     1/2 per stage, 1/N overall) are implemented; P=4 and block-floating-point ("bfp") are
@@ -72,13 +71,22 @@ class LiteDSPParallelFFT(LiteXModule):
         Samples per beat; only 2 is supported (P=4 is a planned follow-up).
     twiddle_width : int
         Twiddle-factor width in bits (signed Q1.(W-1)), as in the serial FFT.
+    core_architecture : str
+        ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a
+        registered timing-oriented path with one-sample/cycle average throughput.
     """
-    def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16, with_csr=True):
+    def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
+        core_architecture="classic", with_csr=True):
         check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
         check(n_samples == 2, "n_samples must be 2 (P=4 is a planned follow-up).")
+        check(core_architecture in ("classic", "folded"),
+            "core_architecture must be 'classic' or 'folded'.")
         self.N          = N
         self.n_samples  = n_samples
         self.data_width = data_width
+        self.core_architecture       = core_architecture
+        self.peak_samples_per_cycle  = 2
+        self.average_samples_per_cycle = 2 if core_architecture == "classic" else 1
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
         self.source = stream.Endpoint(iq_layout(data_width, n_samples))
 
@@ -93,14 +101,15 @@ class LiteDSPParallelFFT(LiteXModule):
         # bins, last N/4 beats). FIFO depths cover the deterministic free-flow occupancy
         # (burst N/4 pairs vs 1-pair-per-2-cycle drain/fill: ~N/8) with slack.
         # -----------------------------------------------------------------------------------
-        self.fifo_s = stream.SyncFIFO(layout, N//8 + 2)
-        self.fifo_d = stream.SyncFIFO(layout, N//8 + 2)
+        fifo_depth = (N//8 + 2) if core_architecture == "classic" else (N//4 + 2)
+        self.fifo_s = stream.SyncFIFO(layout, fifo_depth)
+        self.fifo_d = stream.SyncFIFO(layout, fifo_depth)
         self.p2s_s  = LiteDSPIQParallelToSerial(n_samples=2, data_width=data_width)
         self.p2s_d  = LiteDSPIQParallelToSerial(n_samples=2, data_width=data_width)
         self.fft_s  = LiteDSPFFT(N//2, data_width=data_width, twiddle_width=twiddle_width,
-            scaling="scaled", with_csr=False)
+            scaling="scaled", architecture=core_architecture, with_csr=False)
         self.fft_d  = LiteDSPFFT(N//2, data_width=data_width, twiddle_width=twiddle_width,
-            scaling="scaled", with_csr=False)
+            scaling="scaled", architecture=core_architecture, with_csr=False)
         self.s2p_s  = LiteDSPIQSerialToParallel(n_samples=2, data_width=data_width)
         self.s2p_d  = LiteDSPIQSerialToParallel(n_samples=2, data_width=data_width)
         self.buf_s  = stream.SyncFIFO(layout, N//4 + 4)
@@ -115,6 +124,7 @@ class LiteDSPParallelFFT(LiteXModule):
         s_pair = stream.Endpoint(layout)
         d_pair = stream.Endpoint(layout)
 
+        rank_pipeline = (core_architecture == "folded")
         adv  = Signal()  # Butterfly rank advances (both branch outputs free or consumed).
         xfer = Signal()  # An input beat is consumed this cycle.
         self.comb += [
@@ -151,6 +161,13 @@ class LiteDSPParallelFFT(LiteXModule):
         s_lanes  = iq_lanes(s_pair,    data_width, 2)
         d_lanes  = iq_lanes(d_pair,    data_width, 2)
         x_lanes  = iq_lanes(self.sink, data_width, 2)
+        if rank_pipeline:
+            work_valid = Signal()
+            work_c     = Signal()
+            self.sync += If(adv,
+                work_valid.eq(self.sink.valid),
+                If(xfer, work_c.eq(c)),
+            )
         for k in range(2):
             cos_rom = Memory(twiddle_width, N//4, init=cos_init[k::2])
             sin_rom = Memory(twiddle_width, N//4, init=sin_init[k::2])
@@ -159,15 +176,22 @@ class LiteDSPParallelFFT(LiteXModule):
             self.specials += cos_rom, sin_rom, cos_rp, sin_rp
             self.comb += [cos_rp.adr.eq(addr), sin_rp.adr.eq(addr)]
             tr, ti = Signal((twiddle_width, True)), Signal((twiddle_width, True))
-            self.comb += [tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r)]
             ar, ai = Signal((data_width, True)), Signal((data_width, True))  # x[p] (delayed).
             br, bi = Signal((data_width, True)), Signal((data_width, True))  # x[p + N/2].
-            self.comb += [
-                ar.eq(rp_i.dat_r[k*data_width:(k + 1)*data_width]),
-                ai.eq(rp_q.dat_r[k*data_width:(k + 1)*data_width]),
-                br.eq(x_lanes[k][0]),
-                bi.eq(x_lanes[k][1]),
-            ]
+            if rank_pipeline:
+                self.sync += If(xfer,
+                    tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r),
+                    ar.eq(rp_i.dat_r[k*data_width:(k + 1)*data_width]),
+                    ai.eq(rp_q.dat_r[k*data_width:(k + 1)*data_width]),
+                    br.eq(x_lanes[k][0]), bi.eq(x_lanes[k][1]),
+                )
+            else:
+                self.comb += [
+                    tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r),
+                    ar.eq(rp_i.dat_r[k*data_width:(k + 1)*data_width]),
+                    ai.eq(rp_q.dat_r[k*data_width:(k + 1)*data_width]),
+                    br.eq(x_lanes[k][0]), bi.eq(x_lanes[k][1]),
+                ]
             sum_i_full = Signal((data_width + 1, True))
             sum_q_full = Signal((data_width + 1, True))
             dr, di   = Signal((data_width + 1, True)), Signal((data_width + 1, True))
@@ -187,8 +211,8 @@ class LiteDSPParallelFFT(LiteXModule):
                 d_lanes[k][0].eq(diff_i), d_lanes[k][1].eq(diff_q),
             )
         self.sync += If(adv,
-            s_pair.valid.eq(self.sink.valid & c),
-            d_pair.valid.eq(self.sink.valid & c),
+            s_pair.valid.eq((work_valid & work_c) if rank_pipeline else (self.sink.valid & c)),
+            d_pair.valid.eq((work_valid & work_c) if rank_pipeline else (self.sink.valid & c)),
         )
 
         # Branch datapaths.
@@ -224,7 +248,7 @@ class LiteDSPParallelFFT(LiteXModule):
         # (pairs keep arriving at one per two cycles while the frame drains); once streaming,
         # frames are emitted back-to-back.
         # ------------------------------------------------------------------------------------
-        threshold = min(N//8 + 2, N//4)
+        threshold = min(N//8 + 2, N//4) if core_architecture == "classic" else N//4
         out_cnt   = Signal(nb)
         active    = Signal()
         sel       = Signal()
@@ -259,7 +283,12 @@ class LiteDSPParallelFFT(LiteXModule):
         # pipeline (log2(N/2)) and delay-feedback fill (N/2 - 1) + re-pairing of the first
         # `threshold` pairs at one per two cycles (2*threshold + 1) + scheduler start (1).
         # Pinned cycle-exact against simulation by test_fft_parallel.
-        self.latency = 3*N//4 + 2*threshold + log2_int(N) + 2
+        if core_architecture == "classic":
+            self.latency = 3*N//4 + 2*threshold + log2_int(N) + 2
+        else:
+            # Folded-core latency is pinned by the architecture tests after construction;
+            # one extra cycle accounts for the registered wide butterfly rank.
+            self.latency = 5*N//4 + 4*threshold + 2*log2_int(N)
 
         if with_csr:
             self.add_csr()

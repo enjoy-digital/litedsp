@@ -39,12 +39,11 @@ FFT's (bit-reversed, 1/N-scaled) output stream two beats at a time::
 i.e. lanes carry consecutive bit-reversed indices: lane 0 sweeps bins [0, N/2) in
 ``N/2``-point bit-reversed order and lane 1 the mirrored bin ``+ N/2``.
 
-Throughput is a sustained 2 samples/cycle under free flow (the internal FIFOs absorb the
-butterfly rank's half-frame burst and the output re-pairing; the source starts a frame
-only once enough of it is buffered to stream gap-free). ``self.latency`` is the cycles
-from a frame's first accepted input beat to its first output beat. As with the serial SDF
-FFT, the delay-feedback pipeline holds about one frame: frame ``f`` streams out while
-frame ``f + 1`` streams in.
+With ``core_architecture="classic"`` throughput is a sustained 2 samples/cycle under
+free flow.  ``"folded"`` adds a timing register to the wide butterfly rank and uses
+two-cycle serial sub-cores; it has a peak width of two samples and an average throughput
+of one sample/cycle.  The internal FIFOs absorb the deterministic half-frame bursts and
+the source starts only when a complete branch is buffered.
 
 Only ``n_samples=2`` and the serial FFT's ``scaling="scaled"`` arithmetic (unconditional
 1/2 per stage, 1/N overall) are implemented; P=4 and block-floating-point ("bfp") are
@@ -58,6 +57,7 @@ planned follow-ups.
 | `n_samples` | `2` | int | Samples per beat; only 2 is supported (P=4 is a planned follow-up). |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `twiddle_width` | `16` | int | Twiddle-factor width in bits (signed Q1.(W-1)), as in the serial FFT. |
+| `core_architecture` | `"classic"` | str | ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a registered timing-oriented path with one-sample/cycle average throughput. Choices: `classic`, `folded`. |
 
 ## Ports
 

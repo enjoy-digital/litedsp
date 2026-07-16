@@ -223,10 +223,140 @@ class LiteDSPFFTStage(LiteXModule):
             # Frame k's outputs occupy counter in [D, N) + [0, D) of the next wrap (D-beat skew).
             self.sync += If(adv, self.source.exp.eq(Mux(counter < D, exp_prv, exp_cur)))
 
+# Folded FFT Stage (Radix-2 SDF, DIF) --------------------------------------------------------------
+
+class LiteDSPFFTFoldedStage(LiteXModule):
+    """Two-cycle radix-2 SDF stage for timing-oriented implementations.
+
+    The first cycle captures the asynchronous delay-line and twiddle-ROM reads.  The second
+    cycle performs the butterfly, complex multiply, rounding and delay-line write.  This
+    removes the delay-memory read from the multiplier path at the cost of accepting one sample
+    every two clocks.  Arithmetic and output ordering are bit-identical to a ``"scaled"``
+    :class:`LiteDSPFFTStage`.
+    """
+    def __init__(self, N, stage, data_width=16, twiddle_width=16, inverse=False):
+        D     = N >> (stage + 1)
+        dbits = D.bit_length() - 1
+        self.D               = D
+        self.data_width      = data_width
+        self.latency         = 2
+        self.sample_interval = 2
+        self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.source = stream.Endpoint(iq_layout(data_width))
+
+        # # #
+
+        pending = Signal()
+        advance = Signal()
+        accept  = Signal()
+        finish  = Signal()
+        self.comb += [
+            advance.eq(self.source.ready | ~self.source.valid),
+            self.sink.ready.eq(~pending & advance),
+            accept.eq(self.sink.valid & self.sink.ready),
+            finish.eq(pending & advance),
+        ]
+
+        # Phase and delay-feedback line.  The pointer advances only after the second cycle,
+        # so the asynchronous read remains stable while it is captured into the work regs.
+        counter = Signal(dbits + 1)
+        c       = Signal()
+        self.comb += c.eq(counter[dbits])
+        p = counter[:dbits] if dbits > 0 else None
+
+        fr, fi  = Signal((data_width, True)), Signal((data_width, True))
+        store_i = Signal((data_width, True))
+        store_q = Signal((data_width, True))
+        if D == 1:
+            reg_i, reg_q = Signal((data_width, True)), Signal((data_width, True))
+            self.comb += [fr.eq(reg_i), fi.eq(reg_q)]
+            self.sync += If(finish, reg_i.eq(store_i), reg_q.eq(store_q))
+        else:
+            mem_i = Memory(data_width, D)
+            mem_q = Memory(data_width, D)
+            wp_i, wp_q = mem_i.get_port(write_capable=True), mem_q.get_port(write_capable=True)
+            rp_i, rp_q = mem_i.get_port(async_read=True),    mem_q.get_port(async_read=True)
+            self.specials += mem_i, mem_q, wp_i, wp_q, rp_i, rp_q
+            ptr = Signal(max=D)
+            self.comb += [
+                rp_i.adr.eq(ptr), rp_q.adr.eq(ptr), wp_i.adr.eq(ptr), wp_q.adr.eq(ptr),
+                fr.eq(rp_i.dat_r), fi.eq(rp_q.dat_r),
+                wp_i.dat_w.eq(store_i), wp_i.we.eq(finish),
+                wp_q.dat_w.eq(store_q), wp_q.we.eq(finish),
+            ]
+            self.sync += If(finish, If(ptr == (D - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
+
+        # Cycle one work registers.  Capturing the twiddle here is the timing boundary between
+        # the ROM/delay reads and the arithmetic cone.
+        xr_r, xi_r = Signal((data_width, True)), Signal((data_width, True))
+        fr_r, fi_r = Signal((data_width, True)), Signal((data_width, True))
+        c_r        = Signal()
+        if D > 1:
+            sin_func = (lambda a: -math.sin(a)) if inverse else math.sin
+            cos_rom = Memory(twiddle_width, D, init=_twiddle_rom(D, math.cos, twiddle_width))
+            sin_rom = Memory(twiddle_width, D, init=_twiddle_rom(D, sin_func, twiddle_width))
+            cos_rp  = cos_rom.get_port(async_read=True)
+            sin_rp  = sin_rom.get_port(async_read=True)
+            self.specials += cos_rom, sin_rom, cos_rp, sin_rp
+            self.comb += [cos_rp.adr.eq(p), sin_rp.adr.eq(p)]
+            tr_r = Signal((twiddle_width, True))
+            ti_r = Signal((twiddle_width, True))
+            self.sync += If(accept, tr_r.eq(cos_rp.dat_r), ti_r.eq(sin_rp.dat_r))
+
+        self.sync += If(accept,
+            xr_r.eq(self.sink.i), xi_r.eq(self.sink.q),
+            fr_r.eq(fr),          fi_r.eq(fi),
+            c_r.eq(c),
+            pending.eq(1),
+            self.source.valid.eq(0),
+        )
+
+        # Cycle two arithmetic.  Explicit full-width intermediates keep Migen and generated
+        # Verilog sizing identical.
+        sum_i_full = Signal((data_width + 1, True))
+        sum_q_full = Signal((data_width + 1, True))
+        dr          = Signal((data_width + 1, True))
+        di          = Signal((data_width + 1, True))
+        self.comb += [
+            sum_i_full.eq(fr_r + xr_r), sum_q_full.eq(fi_r + xi_r),
+            dr.eq(fr_r - xr_r),         di.eq(fi_r - xi_r),
+        ]
+        sum_i, _ = scaled(sum_i_full, 1, data_width)
+        sum_q, _ = scaled(sum_q_full, 1, data_width)
+        if D > 1:
+            prod_i = Signal((data_width + twiddle_width + 2, True))
+            prod_q = Signal((data_width + twiddle_width + 2, True))
+            self.comb += [prod_i.eq(dr*tr_r - di*ti_r), prod_q.eq(dr*ti_r + di*tr_r)]
+            tw_shift  = twiddle_width
+            diff_i, _ = scaled(prod_i, tw_shift, data_width)
+            diff_q, _ = scaled(prod_q, tw_shift, data_width)
+        else:
+            diff_i, _ = scaled(dr, 1, data_width)
+            diff_q, _ = scaled(di, 1, data_width)
+
+        out_i = Signal((data_width, True))
+        out_q = Signal((data_width, True))
+        self.comb += [
+            out_i.eq(  Mux(c_r, sum_i,  fr_r)),
+            out_q.eq(  Mux(c_r, sum_q,  fi_r)),
+            store_i.eq(Mux(c_r, diff_i, xr_r)),
+            store_q.eq(Mux(c_r, diff_q, xi_r)),
+        ]
+
+        self.sync += If(finish,
+            self.source.i.eq(out_i),
+            self.source.q.eq(out_q),
+            self.source.valid.eq(1),
+            pending.eq(0),
+            counter.eq(counter + 1),
+        ).Elif(~pending & advance,
+            self.source.valid.eq(0),
+        )
+
 # FFT (Radix-2 SDF) --------------------------------------------------------------------------------
 
 class LiteDSPFFT(LiteXModule):
-    """Streaming radix-2 SDF FFT, ``N`` points (power of two), 1 sample/cycle.
+    """Streaming radix-2 SDF FFT, ``N`` points (power of two).
 
     Cascades ``log2(N)`` :class:`LiteDSPFFTStage`s. Output is in **bit-reversed** order (use
     :func:`bit_reverse` to reorder), scaled per ``scaling`` below. ``self.latency`` is the
@@ -254,15 +384,26 @@ class LiteDSPFFT(LiteXModule):
         Output scaling. ``"scaled"`` (default): unconditional 1/2 per stage (1/N overall).
         ``"bfp"``: block floating point — per-frame conditional scaling, per-frame exponent
         on a 5-bit ``exp`` source param field (see overview above).
+    architecture : str
+        ``"classic"`` (default) accepts one sample per clock. ``"folded"`` places a
+        register between delay/ROM reads and the butterfly arithmetic and accepts one sample
+        every two clocks. Folded mode currently supports ``scaling="scaled"`` only.
     """
-    def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, scaling="scaled", with_csr=True):
+    def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, scaling="scaled",
+        architecture="classic", with_csr=True):
         check(N >= 2 and (N & (N - 1)) == 0, "N must be a power of two >= 2.")
         check(scaling in ("scaled", "bfp"), "scaling must be 'scaled' or 'bfp'.")
+        check(architecture in ("classic", "folded"),
+            "architecture must be 'classic' or 'folded'.")
+        check(not (architecture == "folded" and scaling == "bfp"),
+            "folded architecture currently supports scaled mode only.")
         self.N          = N
         self.bits       = N.bit_length() - 1
         self.data_width = data_width
         self.inverse    = inverse
         self.scaling    = scaling
+        self.architecture = architecture
+        self.sample_interval = 1 if architecture == "classic" else 2
         self.sink = stream.Endpoint(iq_layout(data_width))
         if scaling == "bfp":
             self.source = stream.Endpoint(stream.EndpointDescription(iq_layout(data_width), [("exp", 5)]))
@@ -277,8 +418,12 @@ class LiteDSPFFT(LiteXModule):
         self.stages = []
         last = self.sink
         for k in range(self.bits):
-            stage = LiteDSPFFTStage(N, k, data_width=data_width, twiddle_width=twiddle_width,
-                inverse=inverse, scaling=scaling)
+            if architecture == "classic":
+                stage = LiteDSPFFTStage(N, k, data_width=data_width, twiddle_width=twiddle_width,
+                    inverse=inverse, scaling=scaling)
+            else:
+                stage = LiteDSPFFTFoldedStage(N, k, data_width=data_width,
+                    twiddle_width=twiddle_width, inverse=inverse)
             self.add_module(name=f"stage{k}", module=stage)
             self.comb += last.connect(stage.sink)
             self.stages.append(stage)
@@ -287,7 +432,7 @@ class LiteDSPFFT(LiteXModule):
 
         # Frame latency (measured): the combined delay-feedback fill, N-1 cycles. The per-stage
         # output registers are not in the forward path, so they do not add latency.
-        self.latency = N - 1
+        self.latency = (N - 1) if architecture == "classic" else 2*(N - 1)
 
         if with_csr:
             self.add_csr()
@@ -295,3 +440,63 @@ class LiteDSPFFT(LiteXModule):
     def add_csr(self):
         self._latency = CSRStatus(32, reset=self.latency, name="latency",
             description="FFT pipeline latency (cycles from frame start to first output).")
+
+# Interleaved Folded FFT --------------------------------------------------------------------------
+
+class LiteDSPInterleavedFFT(LiteXModule):
+    """Two-context timing-oriented FFT with one aggregate input sample per clock.
+
+    Consecutive accepted input samples alternate between two independent folded FFT contexts;
+    outputs use the same context-0/context-1 alternation.  Each context is an independent
+    logical stream and therefore sees one sample every two clocks.  This is not a transparent
+    replacement for a single-frame classic FFT: callers must interleave two complete streams.
+    """
+    def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, with_csr=True):
+        check(N >= 2 and (N & (N - 1)) == 0, "N must be a power of two >= 2.")
+        self.N                       = N
+        self.data_width              = data_width
+        self.contexts                = 2
+        self.sample_interval         = 1
+        self.context_sample_interval = 2
+        self.sink   = stream.Endpoint(iq_layout(data_width))
+        self.source = stream.Endpoint(iq_layout(data_width))
+
+        # # #
+
+        self.context_fft = []
+        for n in range(2):
+            fft = LiteDSPFFT(N=N, data_width=data_width, twiddle_width=twiddle_width,
+                inverse=inverse, architecture="folded", with_csr=False)
+            self.add_module(name=f"context{n}", module=fft)
+            self.context_fft.append(fft)
+
+        input_context  = Signal()
+        output_context = Signal()
+        fft0, fft1     = self.context_fft
+        self.comb += [
+            fft0.sink.valid.eq(self.sink.valid & ~input_context),
+            fft1.sink.valid.eq(self.sink.valid &  input_context),
+            fft0.sink.i.eq(self.sink.i), fft0.sink.q.eq(self.sink.q),
+            fft1.sink.i.eq(self.sink.i), fft1.sink.q.eq(self.sink.q),
+            self.sink.ready.eq(Mux(input_context, fft1.sink.ready, fft0.sink.ready)),
+
+            self.source.valid.eq(Mux(output_context, fft1.source.valid, fft0.source.valid)),
+            self.source.i.eq(Mux(output_context, fft1.source.i, fft0.source.i)),
+            self.source.q.eq(Mux(output_context, fft1.source.q, fft0.source.q)),
+            fft0.source.ready.eq(self.source.ready & ~output_context),
+            fft1.source.ready.eq(self.source.ready &  output_context),
+        ]
+        self.sync += [
+            If(self.sink.valid & self.sink.ready, input_context.eq(~input_context)),
+            If(self.source.valid & self.source.ready, output_context.eq(~output_context)),
+        ]
+
+        self.latency = fft0.latency
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._latency = CSRStatus(32, reset=self.latency, name="latency",
+            description="Per-context FFT latency in aggregate clock cycles.")
+        self._contexts = CSRStatus(2, reset=self.contexts, name="contexts",
+            description="Number of alternating folded FFT contexts.")
