@@ -80,7 +80,7 @@ VSPEC = {
     "clipper":            _v("clipper_model", cosim=True),
     "rms":                _v(latency="variable", rate=None),
     "squelch":            _v("squelch_model", cosim=True),
-    "envelope":           _v("envelope_detector_model"),
+    "envelope":           _v("envelope_detector_model", cosim=True),
     "log2":               _v("log2_model", cosim=True),
     "log_power":          _v(),
     # correction.

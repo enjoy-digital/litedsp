@@ -65,7 +65,11 @@ class LiteDSPEnvelopeDetector(LiteXModule):
             step.eq(Mux(delta >= 0, delta >> attack, delta >> release)),  # Rising: fast; falling: slow.
         ]
         self.sync += If(adv,
-            env.eq(env + step),
-            self.source.data.eq(env + step),  # Register the updated envelope (same value env takes).
             self.source.valid.eq(self.mag.source.valid),
+            # Envelope time constants are expressed in accepted samples, not wall-clock cycles.
+            # A bubble may advance the pipeline, but must not re-integrate stale magnitude data.
+            If(self.mag.source.valid,
+                env.eq(env + step),
+                self.source.data.eq(env + step),  # Register the updated envelope (same value env takes).
+            )
         )

@@ -570,14 +570,12 @@ def magnitude_model(i, q, beta_shift=2):
 # Envelope Detector --------------------------------------------------------------------------------
 
 def envelope_detector_model(i, q, attack=2, release=6, data_width=16, beta_shift=2):
-    """Reference for litedsp.level.peak.LiteDSPEnvelopeDetector (gap-free input stream).
+    """Reference for litedsp.level.peak.LiteDSPEnvelopeDetector.
 
     Per sample: ``env += (|x| - env) >> attack`` when rising, ``>> release`` when falling
     (arithmetic shifts, matching the signed Migen shifts), with |x| the alpha-max-beta-min
-    magnitude. Bit-exact against the HW when the input stream has no bubbles: the HW envelope
-    register also steps on input-idle cycles (it re-evaluates the stale magnitude while the
-    pipeline advances), i.e. it converges in cycle time rather than sample time. Output-side
-    backpressure freezes the whole pipeline and is therefore safe.
+    magnitude. Hardware state advances on accepted stream transfers, so valid/ready timing
+    does not enter the model.
     """
     mag = magnitude_model(i, q, beta_shift)
     env = 0

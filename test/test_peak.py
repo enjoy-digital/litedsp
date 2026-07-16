@@ -8,11 +8,8 @@
 
 verify-tier: model
 
-The model is a per-sample recurrence and matches the HW bit-for-bit for gap-free input
-(``sink_throttle=0``): the HW envelope register also steps on input-idle cycles (re-evaluating
-the stale magnitude while the pipeline advances), i.e. it converges in cycle time rather than
-sample time. Output-side backpressure freezes the whole pipeline, so randomized backpressure
-is applied on the source side only.
+The recurrence advances only for accepted input samples, so randomized gaps and output
+backpressure must not affect its values.
 """
 
 import random
@@ -32,7 +29,7 @@ class TestEnvelope(unittest.TestCase):
     def run_env(self, xi, xq, attack, release):
         dut = LiteDSPEnvelopeDetector(data_width=16, attack=attack, release=release, with_csr=False)
         cap = run_stream(dut, [{"i": xi[k], "q": xq[k]} for k in range(len(xi))],
-            len(xi), ["i", "q"], ["data"], sink_throttle=0.0)  # Gap-free input (see docstring).
+            len(xi), ["i", "q"], ["data"])
         return column(cap, "data")  # Envelope is unsigned (W = data_width + 1 bits).
 
     def test_bit_exact(self):

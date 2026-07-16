@@ -203,10 +203,13 @@ def spec_agc():
     cols = _rand_cols(2, n)
     return dut, cols, n - 4, lambda c: list(models.agc_model(c[0], c[1], target))
 
-# spec_envelope: not cosim-eligible. The envelope register integrates on *input-idle* cycles
-# too (it re-evaluates the stale magnitude while the pipeline advances, see
-# envelope_detector_model's docstring), so it is only bit-exact for gap-free input — the
-# generic TB's randomized sink throttling breaks that precondition by design.
+def spec_envelope():
+    from litedsp.level.peak import LiteDSPEnvelopeDetector
+    n, attack, release = 300, 2, 6
+    dut  = LiteDSPEnvelopeDetector(data_width=16, attack=attack, release=release, with_csr=False)
+    cols = _rand_cols(2, n)
+    return dut, cols, n - 4, lambda c: [models.envelope_detector_model(
+        c[0], c[1], attack=attack, release=release)]
 
 # Comm ---------------------------------------------------------------------------------------------
 
@@ -359,6 +362,7 @@ SPECS = {
     "clipper":          spec_clipper,
     "squelch":          spec_squelch,
     "agc":              spec_agc,
+    "envelope":         spec_envelope,
     "soft_demapper":    spec_soft_demapper,
     "slicer":           spec_slicer,
     "diff_encoder":     spec_diff_encoder,
