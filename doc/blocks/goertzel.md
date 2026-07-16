@@ -20,6 +20,7 @@ For bin ``k`` of an ``N``-point window, runs ``s = x + (coeff*s1 - s2)`` with
 | `k` | `8` | int | Target DFT bin index (0..N-1); the detected tone frequency is ``k*f_sample/N``. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coeff_frac` | `14` | int | Fractional bits of the fixed-point resonator coefficient ``2*cos(2*pi*k/N)``; more bits sharpen the bin frequency but widen the state registers (data_width + coeff_frac + 4). |
+| `architecture` | `"classic"` | str | Choices: `classic`, `folded`. |
 
 ## Ports
 

@@ -201,7 +201,7 @@ ENTRIES = [
     ("welch",              LiteDSPWelchPSD,              {"N": 64},                              "analysis",   "Welch PSD",             _WINDOW),
     ("magnitude",          LiteDSPMagnitude,             {},                                     "analysis",   "Magnitude (approx)",    {"method": ["approx", "cordic"]}),
     ("magnitude_cordic",   LiteDSPMagnitude,             {"method": "cordic"},                   "analysis",   "Magnitude (CORDIC)",    {"method": ["approx", "cordic"]}),
-    ("goertzel",           LiteDSPGoertzel,              {"N": 64, "k": 8},                      "analysis",   "Goertzel",              None),
+    ("goertzel",           LiteDSPGoertzel,              {"N": 64, "k": 8},                      "analysis",   "Goertzel",              {"architecture": ["classic", "folded"]}),
     ("stats",              LiteDSPStats,                 {},                                     "analysis",   "Stats",                 None),
     ("histogram",          LiteDSPHistogram,             {},                                     "analysis",   "Histogram",             None),
     ("energy_detector",    LiteDSPEnergyDetector,        {},                                     "analysis",   "Energy detector",       None),
