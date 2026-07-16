@@ -5,7 +5,8 @@ calendar convention (`YYYY.MM`), synchronized with LiteX releases.
 
 ## [2026.07] - 2026-07
 
-First release.
+Initial development release. LiteDSP remains work in progress; APIs and block interfaces may
+still change before the first stable release.
 
 ### API conventions (pre-release breaking changes)
 
@@ -32,7 +33,7 @@ Additional contracts introduced with the harmonization:
 - Constructors raise `ValueError` with an actionable message on invalid parameters
   (`litedsp.common.check`); validation survives `python -O`.
 - The coding/FEC and OFDM blocks (scrambler, CRC, convolutional encoder, Viterbi decoder,
-  CP insert/remove) are now registered in the flow/GUI palette (95 blocks total).
+  CP insert/remove) are now registered in the flow/GUI palette (114 blocks total).
 
 - Portable RF/DSP block toolbox, pure Migen/LiteX (no vendor IP): `generation/` (NCO/DDS,
   CORDIC, chirp, noise, replay, patterns), `mixing/` (mixer, DDC/DUC, DDC-bank and
@@ -105,8 +106,9 @@ Additional contracts introduced with the harmonization:
   core), `litedsp_gui` (DearPyGui node editor with live mode over litex_server), `litedsp_gen`
   (YAML → standalone Verilog core + `csr.csv`/`csr.json`/`csr.h`, see `examples/*.yml`) and
   `litedsp_cli` (host-side drivers: NCO tuning in Hz, FIR tap reload, captures to NumPy).
-- Verification: per-block NumPy golden models (bit-exact or SNR-threshold, randomized
-  backpressure) under `unittest`, Verilator co-simulation and lint sweep (`sim/`), Yosys/
+- Verification: NumPy golden models (bit-exact or SNR-threshold, randomized backpressure)
+  under `unittest`, 45 Verilator co-simulation configurations and a full-registry lint sweep
+  (`sim/`), Yosys/
   nextpnr + Vivado implementation gated on resource/fmax budgets (`impl/`), board-level
   benches on litex-boards targets (`bench/`), SymbiYosys formal verification of the stream
   fabric — no sample loss/duplication under arbitrary backpressure, payload stability while

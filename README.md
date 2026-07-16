@@ -48,8 +48,10 @@ from for client-specific requirements.
 - **Fixed-point rigor**: parameterized Qm.n format (default Q1.15 / 16-bit), shared
   rounding / saturation / scaling helpers used at every downsizing point. See
   `doc/fixed_point.md`.
-- **Tested**: each block has a NumPy golden reference model; simulation output is compared
-  bit-exact or against an SNR threshold, run under `unittest` and CI.
+- **Tested**: numerical datapaths have NumPy golden reference models; simulation output is
+  compared bit-exact or against an SNR threshold under `unittest` and CI. The generic Verilator
+  harness additionally co-simulates 45 representative RTL configurations under randomized
+  backpressure.
 
 ![LiteDSP architecture](doc/architecture.svg)
 
