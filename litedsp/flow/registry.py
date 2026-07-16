@@ -196,7 +196,7 @@ ENTRIES = [
     ("window",             LiteDSPWindow,                {"n": 64},                              "analysis",   "Window",                _WINDOW),
     ("fft",                LiteDSPFFT,                   {"N": 64},                              "analysis",   "FFT (SDF)",             {"scaling": ["scaled", "bfp"], "architecture": ["classic", "folded"]}),
     ("fft_iter",           LiteDSPFFTIter,               {"N": 64},                              "analysis",   "FFT (iterative)",       None),
-    ("parallel_fft",       LiteDSPParallelFFT,           {"N": 64},                              "analysis",   "FFT (parallel, 2 samples/clk)", {"core_architecture": ["classic", "folded"]}),
+    ("parallel_fft",       LiteDSPParallelFFT,           {"N": 64},                              "analysis",   "FFT (parallel, P samples/clk)", {"core_architecture": ["classic", "folded"], "implementation": ["split", "native"], "n_samples": [2, 4]}),
     ("psd",                LiteDSPPSD,                   {"N": 64},               "analysis",   "PSD",                   None),
     ("welch",              LiteDSPWelchPSD,              {"N": 64},                              "analysis",   "Welch PSD",             _WINDOW),
     ("magnitude",          LiteDSPMagnitude,             {},                                     "analysis",   "Magnitude (approx)",    {"method": ["approx", "cordic"]}),

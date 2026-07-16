@@ -31,7 +31,7 @@ SPECIFIC = [
     ("fft_iter",        {"N": 100}),
     ("parallel_fft",    {"N": 100}),
     ("parallel_fft",    {"N": 4}),                         # Power of two >= 8 required.
-    ("parallel_fft",    {"n_samples": 4}),                 # Only P=2 landed (P=4 follow-up).
+    ("parallel_fft",    {"n_samples": 4}),                 # Split default is P=2; native adds P=4.
     ("psd",             {"N": 100}),
     ("hilbert",         {"n_taps": 8}),                    # Odd taps required.
     ("decimator",       {"method": "invalid"}),

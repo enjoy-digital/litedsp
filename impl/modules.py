@@ -437,6 +437,16 @@ def fft_parallel_x2_folded():
     # operating class so nextpnr can complete instead of chasing the serial core's 100 MHz.
     return d, _eps(d.sink, d.source), 14.3
 
+def fft_parallel_native_x2():
+    d = LiteDSPParallelFFT(N=256, n_samples=2, data_width=16, implementation="native",
+        with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def fft_parallel_native_x4():
+    d = LiteDSPParallelFFT(N=256, n_samples=4, data_width=16, implementation="native",
+        with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -475,6 +485,8 @@ REGISTRY = {
     "ddc_parallel_x4": ddc_parallel_x4,
     "fft_parallel_x2": fft_parallel_x2,
     "fft_parallel_x2_folded": fft_parallel_x2_folded,
+    "fft_parallel_native_x2": fft_parallel_native_x2,
+    "fft_parallel_native_x4": fft_parallel_native_x4,
 }
 
 # Subset for the slower full place-&-route flows.

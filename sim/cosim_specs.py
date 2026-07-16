@@ -531,33 +531,47 @@ def spec_psd():
     return dut, cols + [mode, clear], 4*N, lambda c: [[power]*(4*N)], \
         False, False, (dut.mode, dut.clear)
 
-def spec_parallel_fft():
+def _spec_parallel_fft(n_samples=2, implementation="split", core_architecture="classic"):
     from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
     N, n_frames = 16, 4
-    rng = np.random.RandomState(73)
+    rng = np.random.RandomState(73 + n_samples)
     xi  = rng.randint(-25000, 25000, n_frames*N)
     xq  = rng.randint(-25000, 25000, n_frames*N)
 
-    def pack(a, b):
-        word = (int(a) & 0xffff) | ((int(b) & 0xffff) << 16)
-        return word - (1 << 32) if word >= (1 << 31) else word
+    def pack(values):
+        width = 16*n_samples
+        word  = sum((int(v) & 0xffff) << (16*k) for k, v in enumerate(values))
+        return word - (1 << width) if word >= (1 << (width - 1)) else word
 
-    in_i = [pack(xi[k], xi[k + 1]) for k in range(0, len(xi), 2)]
-    in_q = [pack(xq[k], xq[k + 1]) for k in range(0, len(xq), 2)]
-    beats = N//2
+    in_i = [pack(xi[k:k + n_samples]) for k in range(0, len(xi), n_samples)]
+    in_q = [pack(xq[k:k + n_samples]) for k in range(0, len(xq), n_samples)]
+    beats = N//n_samples
     first = [int(k % beats == 0) for k in range(len(in_i))]
     last  = [int(k % beats == beats - 1) for k in range(len(in_i))]
     ref_i, ref_q = [], []
     for f in range(n_frames - 1):
-        yi, yq = models.parallel_fft_model(xi[f*N:(f + 1)*N], xq[f*N:(f + 1)*N])
-        ref_i += [pack(*row) for row in yi]
-        ref_q += [pack(*row) for row in yq]
+        yi, yq = models.fft_fixed_model(xi[f*N:(f + 1)*N], xq[f*N:(f + 1)*N])
+        ref_i += [pack(yi[k:k + n_samples]) for k in range(0, N, n_samples)]
+        ref_q += [pack(yq[k:k + n_samples]) for k in range(0, N, n_samples)]
     n_out = (n_frames - 1)*beats
     out_first = [int(k % beats == 0) for k in range(n_out)]
     out_last  = [int(k % beats == beats - 1) for k in range(n_out)]
-    dut = LiteDSPParallelFFT(N=N, with_csr=False)
+    dut = LiteDSPParallelFFT(N=N, n_samples=n_samples, implementation=implementation,
+        core_architecture=core_architecture, with_csr=False)
     return dut, [in_i, in_q, first, last], n_out, \
         lambda c: [ref_i, ref_q, out_first, out_last], True, True
+
+def spec_parallel_fft():
+    return _spec_parallel_fft()
+
+def spec_parallel_fft_folded():
+    return _spec_parallel_fft(core_architecture="folded")
+
+def spec_parallel_fft_native_x2():
+    return _spec_parallel_fft(2, implementation="native")
+
+def spec_parallel_fft_native_x4():
+    return _spec_parallel_fft(4, implementation="native")
 
 def spec_welch():
     from litedsp.analysis.welch import LiteDSPWelchPSD
@@ -641,6 +655,9 @@ SPECS = {
     "window":           spec_window,
     "psd":              spec_psd,
     "parallel_fft":     spec_parallel_fft,
+    "parallel_fft_folded":    spec_parallel_fft_folded,
+    "parallel_fft_native_x2": spec_parallel_fft_native_x2,
+    "parallel_fft_native_x4": spec_parallel_fft_native_x4,
     "welch":            spec_welch,
     "conjugate":        spec_conjugate,
     "swap_iq":          spec_swap_iq,
@@ -665,7 +682,12 @@ KNOWN_FAIL = {}
 def check_coverage():
     """SPECS must cover exactly the ``cosim=True`` blocks of ``test/registry.py`` VSPEC."""
     from test.registry import VSPEC
-    variants = {"viterbi_decoder_soft": "viterbi_decoder"}
+    variants = {
+        "viterbi_decoder_soft":      "viterbi_decoder",
+        "parallel_fft_folded":       "parallel_fft",
+        "parallel_fft_native_x2":    "parallel_fft",
+        "parallel_fft_native_x4":    "parallel_fft",
+    }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)
     extra    = set(SPECS) - eligible - set(variants)
