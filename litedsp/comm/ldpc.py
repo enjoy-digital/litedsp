@@ -355,14 +355,26 @@ class LiteDSPLDPCDecoder(LiteXModule):
             vaddr.eq(col_base[g] + Mux(sj >= z, sj - z, sj)),
         ]
 
-        # Old check message (captured at row start).
-        # ------------------------------------------
-        old_m1    = Signal(mag_w)
-        old_m2    = Signal(mag_w)
-        old_idx   = Signal(idx_w)
-        old_signs = Signal(max_deg)
-        old_tot   = Signal()
-        self.comb += old_tot.eq(reduce(xor, [old_signs[b] for b in range(max_deg)]))
+        # Old check message (expanded once at row start).
+        # ------------------------------------------------
+        # The RAM stores the compact {min1, min2, index, signs} representation. Expand its
+        # eight edge messages into a small register file at the row boundary so the per-edge
+        # APP update does not repeatedly traverse parity/index selection and sign restoration
+        # before the min comparator. This is a latency-neutral row-level pipeline boundary.
+        chk_m1    = Signal(mag_w)
+        chk_m2    = Signal(mag_w)
+        chk_idx   = Signal(idx_w)
+        chk_signs = Signal(max_deg)
+        chk_tot   = Signal()
+        self.comb += [
+            chk_m1.eq(chk_p.dat_r[0:mag_w]),
+            chk_m2.eq(chk_p.dat_r[mag_w:2*mag_w]),
+            chk_idx.eq(chk_p.dat_r[2*mag_w:2*mag_w + idx_w]),
+            chk_signs.eq(chk_p.dat_r[2*mag_w + idx_w:]),
+            chk_tot.eq(reduce(xor, [chk_signs[b] for b in range(max_deg)])),
+        ]
+        r_old_regs = Array(Signal((mag_w + 1, True), name=f"r_old{b}")
+                           for b in range(max_deg))
 
         # Check-node accumulation (min1/min2/index/sign) over the row's edges.
         # --------------------------------------------------------------------
@@ -374,20 +386,10 @@ class LiteDSPLDPCDecoder(LiteXModule):
         tot    = Signal()
         self.comb += e_d.eq(e - 1)
 
-        # R_old for edge e_d, reconstructed from the compressed old message (0 on the first
-        # iteration — the check RAM holds no messages for this block yet).
-        r_old_mag = Signal(mag_w)
-        r_old_sgn = Signal()
+        # R_old for edge e_d, selected from the row-expanded register file (all zero on the
+        # first iteration, when check RAM has no message for this block yet).
         r_old     = Signal((mag_w + 1, True))
-        self.comb += [
-            r_old_mag.eq(Mux(e_d == old_idx, old_m2, old_m1)),
-            r_old_sgn.eq(old_tot ^ (old_signs >> e_d)[0]),
-            If(first_it,
-                r_old.eq(0),
-            ).Else(
-                r_old.eq(Mux(r_old_sgn, -r_old_mag, r_old_mag)),
-            ),
-        ]
+        self.comb += r_old.eq(r_old_regs[e_d])
 
         # Q = APP - R_old: full precision for the write-back; the check node sees |Q|
         # clamped to qmax (clamping the write-back path would break the layered
@@ -510,11 +512,13 @@ class LiteDSPLDPCDecoder(LiteXModule):
         fsm.act("ROW_READ",  # Issue APP reads (edge e); process edge e-1's data in flight.
             chk_p.adr.eq(row_idx),
             app_p.adr.eq(vaddr),
-            If(e == 0,  # Check-RAM data registered during ROW_INIT: capture the old message.
-                NextValue(old_m1,    chk_p.dat_r[0:mag_w]),
-                NextValue(old_m2,    chk_p.dat_r[mag_w:2*mag_w]),
-                NextValue(old_idx,   chk_p.dat_r[2*mag_w:2*mag_w + idx_w]),
-                NextValue(old_signs, chk_p.dat_r[2*mag_w + idx_w:]),
+            If(e == 0,  # Check-RAM data registered during ROW_INIT: expand the old message.
+                *[NextValue(r_old_regs[b],
+                    Mux(first_it, 0,
+                        Mux(chk_tot ^ chk_signs[b],
+                            -Mux(chk_idx == b, chk_m2, chk_m1),
+                             Mux(chk_idx == b, chk_m2, chk_m1))))
+                  for b in range(max_deg)],
             ).Else(
                 q_we.eq(1),
             ),
