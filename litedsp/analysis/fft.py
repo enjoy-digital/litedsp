@@ -286,8 +286,9 @@ class LiteDSPFFTFoldedStage(LiteXModule):
             ]
             self.sync += If(finish, If(ptr == (D - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
 
-        # Cycle one work registers.  Capturing the twiddle here is the timing boundary between
-        # the ROM/delay reads and the arithmetic cone.
+        # Cycle one work registers. The next twiddle is prefetched while the current sample
+        # finishes, using the otherwise-idle half of this two-cycle stage. The following accept
+        # therefore sees a registered coefficient rather than counter -> async ROM -> DSP.
         xr_r, xi_r = Signal((data_width, True)), Signal((data_width, True))
         fr_r, fi_r = Signal((data_width, True)), Signal((data_width, True))
         sum_i_r    = Signal((data_width + 1, True))
@@ -295,15 +296,22 @@ class LiteDSPFFTFoldedStage(LiteXModule):
         c_r        = Signal()
         if D > 1:
             sin_func = (lambda a: -math.sin(a)) if inverse else math.sin
-            cos_rom = Memory(twiddle_width, D, init=_twiddle_rom(D, math.cos, twiddle_width))
-            sin_rom = Memory(twiddle_width, D, init=_twiddle_rom(D, sin_func, twiddle_width))
+            cos_init = _twiddle_rom(D, math.cos, twiddle_width)
+            sin_init = _twiddle_rom(D, sin_func, twiddle_width)
+            cos_rom = Memory(twiddle_width, D, init=cos_init)
+            sin_rom = Memory(twiddle_width, D, init=sin_init)
             cos_rp  = cos_rom.get_port(async_read=True)
             sin_rp  = sin_rom.get_port(async_read=True)
             self.specials += cos_rom, sin_rom, cos_rp, sin_rp
-            self.comb += [cos_rp.adr.eq(p), sin_rp.adr.eq(p)]
-            tr = Signal((twiddle_width, True))
-            ti = Signal((twiddle_width, True))
-            self.comb += [tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r)]
+            next_counter = Signal(dbits + 1)
+            next_p = next_counter[:dbits]
+            tr = Signal((twiddle_width, True), reset=cos_init[0])
+            ti = Signal((twiddle_width, True), reset=sin_init[0])
+            self.comb += [
+                next_counter.eq(counter + 1),
+                cos_rp.adr.eq(next_p), sin_rp.adr.eq(next_p),
+            ]
+            self.sync += If(finish, tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r))
             # Register each real multiplier result independently.  The second cycle then has
             # only the complex add/subtract plus rounding, rather than multiplier + adder.
             term_width = data_width + twiddle_width + 1
