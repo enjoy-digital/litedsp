@@ -49,7 +49,7 @@ _DEVICE_LABELS = {"ecp5": "ECP5 (Yosys/nextpnr)", "xilinx": "Artix-7 (Vivado)"}
 def budgets_markdown(budgets):
     """Render the checked-in per-block budgets as a Markdown resource table."""
     devices = sorted({d for entry in budgets.values() for d in entry})
-    hdr = ["module"] + [f"{_DEVICE_LABELS.get(d, d)} LUT/FF/BRAM/DSP" for d in devices] + ["Fmax min (MHz)"]
+    hdr = ["module"] + [f"{_DEVICE_LABELS.get(d, d)} LUT/FF/BRAM/DSP/Fmax floor" for d in devices]
     out = [
         "# Resource usage per block",
         "",
@@ -62,15 +62,14 @@ def budgets_markdown(budgets):
     ]
     for name in sorted(budgets):
         row = [f"`{name}`"]
-        fmax = None
         for d in devices:
             r = budgets[name].get(d)
             if r is None:
                 row.append("-")
                 continue
-            row.append(f"{r.get('lut', 0)}/{r.get('ff', 0)}/{r.get('bram', 0)}/{r.get('dsp', 0)}")
-            fmax = r.get("fmax_min", fmax)
-        row.append(f"{fmax:.0f}" if fmax is not None else "-")
+            fmax = r.get("fmax_min")
+            row.append(f"{r.get('lut', 0)}/{r.get('ff', 0)}/{r.get('bram', 0)}/{r.get('dsp', 0)}/"
+                       + (f"{fmax:.1f}" if fmax is not None else "-"))
         out.append("| " + " | ".join(row) + " |")
     return "\n".join(out) + "\n"
 
