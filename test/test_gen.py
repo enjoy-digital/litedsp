@@ -79,12 +79,14 @@ class TestGen(unittest.TestCase):
             build_dir = os.path.join(tmp, "build")
             path, ip = generate_core(config, output_dir=build_dir)
             self.assertEqual(os.path.basename(path), "dut_core.v")
-            v = open(path).read()
+            with open(path) as f:
+                v = f.read()
             for port in ("s_axil_awvalid", "s_axil_rdata", "in0_payload_i", "out0_payload_q"):
                 self.assertIn(port, v)
             for artifact in ("csr.csv", "csr.json", "csr.h"):
                 self.assertTrue(os.path.exists(os.path.join(build_dir, artifact)))
-            d = json.load(open(os.path.join(build_dir, "csr.json")))
+            with open(os.path.join(build_dir, "csr.json")) as f:
+                d = json.load(f)
             self.assertIn("lo_phase_inc", d["csr_registers"])
 
     def test_generate_core_example_config(self):

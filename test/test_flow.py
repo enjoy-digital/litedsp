@@ -204,10 +204,12 @@ class TestIPCore(unittest.TestCase):
         from litedsp.flow.ipcore import generate_ip
         path, ip = generate_ip(self._ddc(), "/tmp/litedsp_flow_test/ddc_ip")
         self.assertTrue(os.path.exists(path))
-        v = open(path).read()
+        with open(path) as f:
+            v = f.read()
         for port in ("s_axil_awvalid", "s_axil_wdata", "s_axil_rdata", "rx_in_payload_i"):
             self.assertIn(port, v)
-        d = json.load(open(os.path.join(os.path.dirname(path), "csr.json")))
+        with open(os.path.join(os.path.dirname(path), "csr.json")) as f:
+            d = json.load(f)
         addrs = [r["addr"] for r in d["csr_registers"].values()]
         self.assertEqual(len(addrs), len(set(addrs)))            # unique addresses.
         self.assertIn("lo_phase_inc", d["csr_registers"])         # per-block, prefixed.
