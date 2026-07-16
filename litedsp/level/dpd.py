@@ -54,7 +54,7 @@ class LiteDSPDPD(LiteXModule):
     component covers |G| < 2 plus the cross-term add), the branch sum adds
     ``ceil(log2(n_taps))`` bits, and a single ``scaled()`` (round-half-up + saturate) by
     ``coeff_frac`` produces the output — identity LUTs reproduce the input bit-exactly.
-    Latency is fixed at 3 cycles (magnitude/index, LUT read + complex multiply, sum/scale);
+    Latency is fixed at 4 cycles (magnitude, index, LUT read + complex multiply, sum/scale);
     ``bypass`` passes the input through delay-matched.
 
     Host adaptation workflow (indirect learning, see :mod:`litedsp.software.dpd`):
@@ -92,7 +92,7 @@ class LiteDSPDPD(LiteXModule):
         self.lut_depth  = lut_depth
         self.coeff_frac = coeff_frac
         self.lut_width  = lut_width
-        self.latency    = 3
+        self.latency    = 4
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.lut_tap  = Signal(max=max(n_taps, 2))  # LUT write: tap (branch) select.
@@ -141,12 +141,12 @@ class LiteDSPDPD(LiteXModule):
             taps_i.append(di)
             taps_q.append(dq)
 
-        # Stage 1: magnitude estimate + LUT index per tap (registered with the sample).
-        # ------------------------------------------------------------------------------
+        # Stage 1: magnitude estimate per tap (registered with the sample).
+        # -----------------------------------------------------------------
         log2_depth = log2_int(lut_depth)
         idx_shift  = data_width - 1 - log2_depth  # Top bits below full scale index the LUT.
-        v1, v2 = Signal(), Signal()
-        x1_i, x1_q, idx1 = [], [], []
+        v1, v2, v3 = Signal(), Signal(), Signal()
+        x1_i, x1_q, mag1 = [], [], []
         for m in range(n_taps):
             ai, aq = Signal(data_width), Signal(data_width)      # |I|, |Q| (unsigned).
             hi, lo = Signal(data_width), Signal(data_width)
@@ -161,20 +161,32 @@ class LiteDSPDPD(LiteXModule):
                 est.eq(hi - (hi >> 3) + (lo >> 1)),
                 mag.eq(Mux(est > hi, est, hi)),
             ]
+            xi, xq = Signal((data_width, True)), Signal((data_width, True))
+            mr     = Signal(data_width + 1)
+            self.sync += If(adv, xi.eq(taps_i[m]), xq.eq(taps_q[m]), mr.eq(mag))
+            x1_i.append(xi)
+            x1_q.append(xq)
+            mag1.append(mr)
+
+        # Stage 2: LUT index clamp. Keeping the magnitude approximation and its wide compare
+        # out of the LUT-address register path avoids the former near-100 MHz carry chain.
+        # -------------------------------------------------------------------------------
+        x2_i, x2_q, idx2 = [], [], []
+        for m in range(n_taps):
             raw = Signal(log2_depth + 2)                         # mag >> idx_shift, pre-clamp.
             idx = Signal(log2_depth)
             self.comb += [
-                raw.eq(mag >> idx_shift),
+                raw.eq(mag1[m] >> idx_shift),
                 idx.eq(Mux(raw >= lut_depth, lut_depth - 1, raw)),
             ]
             xi, xq = Signal((data_width, True)), Signal((data_width, True))
             ir     = Signal(log2_depth)
-            self.sync += If(adv, xi.eq(taps_i[m]), xq.eq(taps_q[m]), ir.eq(idx))
-            x1_i.append(xi)
-            x1_q.append(xq)
-            idx1.append(ir)
+            self.sync += If(adv, xi.eq(x1_i[m]), xq.eq(x1_q[m]), ir.eq(idx))
+            x2_i.append(xi)
+            x2_q.append(xq)
+            idx2.append(ir)
 
-        # Stage 2: LUT read + complex product per tap.
+        # Stage 3: LUT read + complex product per tap.
         # --------------------------------------------
         # p = x * G with G signed Q2.coeff_frac: |component| <= 2**(data_width + coeff_frac + 1)
         # (product + cross-term add), held full width.
@@ -183,19 +195,19 @@ class LiteDSPDPD(LiteXModule):
         for m in range(n_taps):
             gi, gq = Signal((lut_width, True)), Signal((lut_width, True))
             self.comb += [
-                rports[m].adr.eq(idx1[m]),
+                rports[m].adr.eq(idx2[m]),
                 gi.eq(rports[m].dat_r[:lut_width]),
                 gq.eq(rports[m].dat_r[lut_width:]),
             ]
             pr, pi = Signal((prod_w, True)), Signal((prod_w, True))
             self.sync += If(adv,
-                pr.eq(x1_i[m]*gi - x1_q[m]*gq),
-                pi.eq(x1_i[m]*gq + x1_q[m]*gi),
+                pr.eq(x2_i[m]*gi - x2_q[m]*gq),
+                pi.eq(x2_i[m]*gq + x2_q[m]*gi),
             )
             p_re.append(pr)
             p_im.append(pi)
 
-        # Stage 3: branch sum + single rescale (round-half-up + saturate).
+        # Stage 4: branch sum + single rescale (round-half-up + saturate).
         # -----------------------------------------------------------------
         acc_w = prod_w + (n_taps - 1).bit_length()  # + log2(n_taps) accumulation growth.
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
@@ -208,9 +220,10 @@ class LiteDSPDPD(LiteXModule):
         self.sync += If(adv,
             v1.eq(self.sink.valid),
             v2.eq(v1),
+            v3.eq(v2),
             self.source.i.eq(out_i),
             self.source.q.eq(out_q),
-            self.source.valid.eq(v2),
+            self.source.valid.eq(v3),
         )
 
         # Bypass.

@@ -2,7 +2,7 @@
 
 `LiteDSPDPD` — `litedsp.level.dpd` — category `level`
 
-latency: 3 samples · CSR: yes · bypass: yes
+latency: 4 samples · CSR: yes · bypass: yes
 
 ## Overview
 
@@ -34,7 +34,7 @@ Fixed point: products are kept full width (data_width + coeff_frac + 3 bits per 
 component covers |G| < 2 plus the cross-term add), the branch sum adds
 ``ceil(log2(n_taps))`` bits, and a single ``scaled()`` (round-half-up + saturate) by
 ``coeff_frac`` produces the output — identity LUTs reproduce the input bit-exactly.
-Latency is fixed at 3 cycles (magnitude/index, LUT read + complex multiply, sum/scale);
+Latency is fixed at 4 cycles (magnitude, index, LUT read + complex multiply, sum/scale);
 ``bypass`` passes the input through delay-matched.
 
 Host adaptation workflow (indirect learning, see :mod:`litedsp.software.dpd`):

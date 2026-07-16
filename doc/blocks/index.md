@@ -65,7 +65,7 @@
 | [Gain](gain.md) | `LiteDSPGain` | 1 | 2 | Runtime-configurable gain for a complex I/Q stream, with bypass and saturation. |
 | [Power meter](power.md) | `LiteDSPPower` | var | 2 | Average power meter: passes the I/Q stream through and measures mean ``I**2 + Q**2``. |
 | [AGC](agc.md) | `LiteDSPAGC` | 1 | 8 | Automatic gain control: drives |output| toward ``target``. |
-| [DPD actuator](dpd.md) | `LiteDSPDPD` | 3 | 12 | Memory-polynomial-lite (GMP-lite) digital predistortion actuator. |
+| [DPD actuator](dpd.md) | `LiteDSPDPD` | 4 | 12 | Memory-polynomial-lite (GMP-lite) digital predistortion actuator. |
 | [Saturate](saturate.md) | `LiteDSPSaturate` | 1 | 0 | Rescale a complex I/Q stream by a fixed right ``shift`` with round-half-up + saturation. |
 | [CFR (peak cancellation)](cfr.md) | `LiteDSPCFR` | 1 | 5 | Crest-factor reduction by peak cancellation: subtract a scaled low-pass pulse per peak. |
 | [Clipper](clipper.md) | `LiteDSPClipper` | 1 | — | Hard limiter: clamp each of I/Q to +/- ``threshold`` (runtime). ``clip`` flags a clip. |
