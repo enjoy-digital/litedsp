@@ -63,7 +63,7 @@ class TestImplementationBudgets(unittest.TestCase):
         data = budgets.load()
         self.assertEqual(modules.TARGET_CLOSED,
             ["dpd", "ddc", "channelizer", "ldpc_decoder",
-             "cic_decimator", "cic_interpolator", "agc"])
+             "cic_decimator", "cic_interpolator", "agc", "fft_iter"])
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, modules.PNR_SUBSET)
             entry = data[name]["ecp5"]

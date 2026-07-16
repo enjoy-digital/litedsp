@@ -413,17 +413,20 @@
     "ecp5": {
       "bram": 2,
       "dsp": 4,
-      "ff": 91,
-      "fmax_mhz": 73.6,
-      "fmax_min": 62.6,
+      "ff": 187,
+      "fmax_mhz": 107.6,
+      "fmax_min": 91.4,
       "fmax_target": 100.0,
-      "lut": 995
+      "lut": 1013
     },
     "xilinx": {
       "bram": 1,
       "dsp": 5,
-      "ff": 30,
-      "lut": 293
+      "ff": 90,
+      "fmax_mhz": 104.5,
+      "fmax_min": 88.8,
+      "fmax_target": 100.0,
+      "lut": 254
     }
   },
   "fft_parallel_x2": {

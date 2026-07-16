@@ -100,6 +100,7 @@ PARAM_GLOSSARY = {
     "diff_delay":    "CIC comb differential delay (M in the literature).",
     "staged":        "Select the elastic registered-stage CIC architecture (higher latency, one sample per clock).",
     "delayed_feedback": "Apply AGC magnitude feedback on the following accepted sample.",
+    "registered_butterfly": "Register iterative-FFT add/subtract results before BRAM writeback.",
     "frac_bits":     "Fractional bits of the coefficient/control fixed-point format.",
     "frac":          "Fractional bits of the control fixed-point format.",
     "phase_bits":    "Phase accumulator width in bits.",

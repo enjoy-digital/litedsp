@@ -16,7 +16,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x4 | 55.6 MHz | four-lane prefix recurrence expands each serial integrator update | lane-prefix pipeline or fewer lanes per clock |
-| SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz | butterfly result feeds the SDF delay or in-place RAM schedule | folded/interleaved butterfly options |
+| SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz classic; iterative 107.6 MHz registered | butterfly result feeds the SDF delay or in-place RAM schedule | iterative option landed; SDF/parallel remain open |
 
 ## Viterbi decoder
 
@@ -129,6 +129,14 @@ The iterative FFT should independently add registered butterfly sub-stages to it
 read/compute/write FSM. It keeps the lowest-area position but increases `cycles_per_frame`; this
 is preferable to making the streaming SDF default slower. The x2 parallel FFT inherits the SDF
 choice in both sub-cores and must report aggregate samples/clock, not just clock frequency.
+
+The iterative option is now implemented as `registered_butterfly=True`: the read phase registers
+the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and
+differences before BRAM writeback.  At N=256, `cycles_per_frame` rises from 3584 to 4608 (+28.6%),
+ECP5 resources move from 995 LUT / 91 FF / 2 BRAM / 4 DSP to 1013 / 187 / 2 / 4, and timing rises
+from 73.6 to 107.6 MHz.  Artix-7 closes at 104.5 MHz with 254 LUT / 90 FF / 1 BRAM / 5 DSP.  The
+default three-cycle butterfly remains available; the implementation registry selects the
+registered option.  Streaming SDF and parallel-x2 choices remain separate future changes.
 
 Acceptance requires bit identity versus `fft_fixed_model` for scaled mode, the existing BFP
 exponent/overflow contract, forward/inverse operation, exact frame markers under backpressure,

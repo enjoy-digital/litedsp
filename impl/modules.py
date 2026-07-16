@@ -207,7 +207,7 @@ def fft():
     return d, _eps(d.sink, d.source), 10.0
 
 def fft_iter():
-    d = LiteDSPFFTIter(256, data_width=16, with_csr=False)
+    d = LiteDSPFFTIter(256, data_width=16, with_csr=False, registered_butterfly=True)
     return d, _eps(d.sink, d.source), 10.0
 
 def psd():
@@ -426,13 +426,13 @@ REGISTRY = {
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
-              "cic_interpolator", "iir_biquad", "fft", "cordic_vec", "agc", "dpd", "ddc",
+              "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
               "channelizer", "ldpc_decoder", "mixer_parallel_x2", "farrow", "window"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
-                 "cic_decimator", "cic_interpolator", "agc"]
+                 "cic_decimator", "cic_interpolator", "agc", "fft_iter"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

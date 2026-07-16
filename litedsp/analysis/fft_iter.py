@@ -106,10 +106,13 @@ class LiteDSPFFTIter(LiteXModule):
         # Datapath.
         # ---------
         # Butterfly arithmetic (operands are the registered reads from the previous cycle).
-        # The twiddle product is registered in its own cycle (BFLY_CALC) so each clock carries
-        # one multiply level: read -> product register -> write.
-        tr, ti = Signal((twiddle_width, True)), Signal((twiddle_width, True))
-        self.comb += [tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r)]
+        # The twiddle product is registered in its own cycle (BFLY_CALC).  The optional path
+        # also captures the twiddle during read and the sums before writeback.
+        tr_rom, ti_rom = Signal((twiddle_width, True)), Signal((twiddle_width, True))
+        tr_r, ti_r     = Signal((twiddle_width, True)), Signal((twiddle_width, True))
+        self.comb += [tr_rom.eq(cos_rp.dat_r), ti_rom.eq(sin_rp.dat_r)]
+        tr = tr_r if registered_butterfly else tr_rom
+        ti = ti_r if registered_butterfly else ti_rom
         Ar, Aq = Signal((data_width, True)), Signal((data_width, True))
         Br, Bq = Signal((data_width, True)), Signal((data_width, True))
         self.comb += [Ar.eq(ai.dat_r), Aq.eq(aq.dat_r), Br.eq(bi.dat_r), Bq.eq(bq.dat_r)]
@@ -136,10 +139,14 @@ class LiteDSPFFTIter(LiteXModule):
         brev  = Array([_bitrev(k, S) for k in range(N)])
 
         if registered_butterfly:
-            self.sync += If(fsm.ongoing("BFLY_SUM"),
-                sum_i_r.eq(sum_i), sum_q_r.eq(sum_q),
-                dif_i_r.eq(dif_i), dif_q_r.eq(dif_q),
-            )
+            self.sync += [
+                # The read phase also cuts the stage/index -> async-ROM -> multiplier path.
+                If(read, tr_r.eq(tr_rom), ti_r.eq(ti_rom)),
+                If(fsm.ongoing("BFLY_SUM"),
+                    sum_i_r.eq(sum_i), sum_q_r.eq(sum_q),
+                    dif_i_r.eq(dif_i), dif_q_r.eq(dif_q),
+                ),
+            ]
         write_sum_i = sum_i_r if registered_butterfly else sum_i
         write_sum_q = sum_q_r if registered_butterfly else sum_q
         write_dif_i = dif_i_r if registered_butterfly else dif_i

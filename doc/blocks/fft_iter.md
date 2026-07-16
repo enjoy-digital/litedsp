@@ -15,6 +15,7 @@ Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped)
 | `N` | `64` | int | Transform size (power of two). |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `twiddle_width` | `16` | int | Twiddle-factor width in bits (signed Q1.(W-1)); sets the N/2-entry cos/sin ROM width, the butterfly multiplier size, and the coefficient-quantization noise floor. |
+| `registered_butterfly` | `False` | bool | Register butterfly sums/differences before BRAM writeback. Adds one clock per butterfly while splitting the arithmetic feedback path; output values and frame ordering are exact. |
 
 ## Ports
 
@@ -35,8 +36,8 @@ Iterative FFT burst latency (cycles).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 995 | 91 | 2 | 4 | 62.6 | 100.0 |
-| xilinx | 293 | 30 | 1 | 5 | — | — |
+| ecp5 | 1013 | 187 | 2 | 4 | 91.4 | 100.0 |
+| xilinx | 254 | 90 | 1 | 5 | 88.8 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 
