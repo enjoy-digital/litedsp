@@ -43,5 +43,21 @@ class TestFFTIter(unittest.TestCase):
         mag = np.abs(column(cap, "i", 16) + 1j*column(cap, "q", 16))
         self.assertEqual(int(np.argmax(mag)), k0)
 
+    def test_registered_butterfly_is_bit_exact(self):
+        N = 64
+        rng = np.random.RandomState(6401)
+        x = rng.randint(-10000, 10000, N) + 1j*rng.randint(-10000, 10000, N)
+        samples = [{"i": int(v.real), "q": int(v.imag)} for v in x]
+        outputs = []
+        for registered in (False, True):
+            dut = LiteDSPFFTIter(N=N, data_width=16, with_csr=False,
+                registered_butterfly=registered)
+            cap = run_stream(dut, samples, N, ["i", "q"], ["i", "q"],
+                sink_throttle=0.0, source_ready_rate=0.7)
+            outputs.append(column(cap, "i", 16) + 1j*column(cap, "q", 16))
+        np.testing.assert_array_equal(outputs[1], outputs[0])
+        self.assertEqual(LiteDSPFFTIter(N, with_csr=False,
+            registered_butterfly=True).cycles_per_frame, 2*N + 2*N*int(np.log2(N)))
+
 if __name__ == "__main__":
     unittest.main()

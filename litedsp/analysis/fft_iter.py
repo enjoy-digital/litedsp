@@ -12,6 +12,9 @@ R/W ports, synchronous read), so the design maps to BRAM rather than fabric LUTs
 the input is written bit-reversed, log2(N) stages of butterflies run (each butterfly = read,
 twiddle-product register, write — one multiply level per cycle), then the result is read out in
 natural order. Output is 1/N-scaled.
+
+An optional registered-butterfly phase splits add/scale from BRAM writeback, changing the
+butterfly schedule from three to four clocks without changing the numerical result.
 """
 
 import math
@@ -49,14 +52,22 @@ class LiteDSPFFTIter(LiteXModule):
     twiddle_width : int
         Twiddle-factor width in bits (signed Q1.(W-1)); sets the N/2-entry cos/sin ROM width,
         the butterfly multiplier size, and the coefficient-quantization noise floor.
+    registered_butterfly : bool
+        Register butterfly sums/differences before BRAM writeback. Adds one clock per butterfly
+        while splitting the arithmetic feedback path; output values and frame ordering are exact.
     """
-    def __init__(self, N, data_width=16, twiddle_width=16, with_csr=True):
+    def __init__(self, N, data_width=16, twiddle_width=16, with_csr=True,
+                 registered_butterfly=False):
         check((N & (N - 1)) == 0 and N >= 4, "expected (N & (N - 1)) == 0 and N >= 4")
+        check(isinstance(registered_butterfly, bool), "expected registered_butterfly to be a bool")
         self.N    = N
         S         = N.bit_length() - 1
         self.bits = S
         self.data_width = data_width
-        self.latency    = N + (3*N*S)//2 + N             # 3 cycles per butterfly.
+        self.registered_butterfly = registered_butterfly
+        butterfly_cycles = 4 if registered_butterfly else 3
+        self.latency = N + (butterfly_cycles*N*S)//2 + N
+        self.cycles_per_frame = self.latency
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -111,6 +122,8 @@ class LiteDSPFFTIter(LiteXModule):
         sum_q, _ = scaled(Aq + pi, 1, data_width)
         dif_i, _ = scaled(Ar - pr, 1, data_width)                      # (a - b*tw)/2.
         dif_q, _ = scaled(Aq - pi, 1, data_width)
+        sum_i_r, sum_q_r = Signal((data_width, True)), Signal((data_width, True))
+        dif_i_r, dif_q_r = Signal((data_width, True)), Signal((data_width, True))
 
         # FSM and single-driver port wiring.
         # ----------------------------------
@@ -122,15 +135,26 @@ class LiteDSPFFTIter(LiteXModule):
         uemit = fsm.ongoing("UNLD_EMIT")
         brev  = Array([_bitrev(k, S) for k in range(N)])
 
+        if registered_butterfly:
+            self.sync += If(fsm.ongoing("BFLY_SUM"),
+                sum_i_r.eq(sum_i), sum_q_r.eq(sum_q),
+                dif_i_r.eq(dif_i), dif_q_r.eq(dif_q),
+            )
+        write_sum_i = sum_i_r if registered_butterfly else sum_i
+        write_sum_q = sum_q_r if registered_butterfly else sum_q
+        write_dif_i = dif_i_r if registered_butterfly else dif_i
+        write_dif_q = dif_q_r if registered_butterfly else dif_q
+
         # Port A: load-write / butterfly addr_a (read+write) / unload-read.
         self.comb += [
             ai.adr.eq(Mux(load, brev[idx], Mux(uread | uemit, idx, addr_a))),
             aq.adr.eq(ai.adr),
-            ai.dat_w.eq(Mux(load, self.sink.i, sum_i)), aq.dat_w.eq(Mux(load, self.sink.q, sum_q)),
+            ai.dat_w.eq(Mux(load, self.sink.i, write_sum_i)),
+            aq.dat_w.eq(Mux(load, self.sink.q, write_sum_q)),
             ai.we.eq((load & self.sink.valid) | write), aq.we.eq(ai.we),
             # Port B: butterfly addr_b only.
             bi.adr.eq(addr_b), bq.adr.eq(addr_b),
-            bi.dat_w.eq(dif_i), bq.dat_w.eq(dif_q),
+            bi.dat_w.eq(write_dif_i), bq.dat_w.eq(write_dif_q),
             bi.we.eq(write), bq.we.eq(write),
         ]
 
@@ -143,7 +167,10 @@ class LiteDSPFFTIter(LiteXModule):
             )
         )
         fsm.act("BFLY_READ", NextState("BFLY_CALC"))       # Reads issued; data ready next cycle.
-        fsm.act("BFLY_CALC", NextState("BFLY_WRITE"))      # Twiddle product registers.
+        fsm.act("BFLY_CALC", NextState(
+            "BFLY_SUM" if registered_butterfly else "BFLY_WRITE"))  # Twiddle product registers.
+        if registered_butterfly:
+            fsm.act("BFLY_SUM", NextState("BFLY_WRITE"))   # Register add/subtract + scaling.
         fsm.act("BFLY_WRITE",
             If(b == (N//2 - 1),
                 NextValue(b, 0),
