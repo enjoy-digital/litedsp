@@ -426,7 +426,7 @@
       "fmax_mhz": 104.5,
       "fmax_min": 88.8,
       "fmax_target": 100.0,
-      "lut": 254
+      "lut": 295
     }
   },
   "fft_parallel_x2": {
@@ -1014,13 +1014,13 @@
       "ff": 8,
       "fmax_mhz": 428.1,
       "fmax_min": 363.9,
-      "lut": 19
+      "lut": 21
     },
     "xilinx": {
       "bram": 0,
       "dsp": 0,
       "ff": 8,
-      "lut": 7
+      "lut": 12
     }
   },
   "resampler_farm": {

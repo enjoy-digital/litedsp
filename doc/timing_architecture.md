@@ -147,7 +147,8 @@ The iterative option is now implemented as `registered_butterfly=True`: the read
 the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and
 differences before BRAM writeback.  At N=256, `cycles_per_frame` rises from 3584 to 4608 (+28.6%),
 ECP5 resources move from 995 LUT / 91 FF / 2 BRAM / 4 DSP to 1013 / 187 / 2 / 4, and timing rises
-from 73.6 to 107.6 MHz.  Artix-7 closes at 104.5 MHz with 254 LUT / 90 FF / 1 BRAM / 5 DSP.  The
+from 73.6 to 107.6 MHz.  Artix-7 closes at 104.5 MHz with 295 pre-opt synthesis LUTs (254
+post-route), 90 FF, 1 BRAM, and 5 DSP.  The
 default three-cycle butterfly remains available; the implementation registry selects the
 registered option.  Streaming SDF and parallel-x2 choices remain separate future changes.
 

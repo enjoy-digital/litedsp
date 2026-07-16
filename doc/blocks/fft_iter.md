@@ -37,7 +37,7 @@ Iterative FFT burst latency (cycles).
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
 | ecp5 | 1013 | 187 | 2 | 4 | 91.4 | 100.0 |
-| xilinx | 254 | 90 | 1 | 5 | 88.8 | 100.0 |
+| xilinx | 295 | 90 | 1 | 5 | 88.8 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 
