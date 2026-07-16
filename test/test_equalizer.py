@@ -154,13 +154,14 @@ class TestLMSEqualizer(unittest.TestCase):
         self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
             {"mode": MODE_DD, "dd_level": 7000})
 
-    # verify-tier: model — the full-rate adaptation pipeline delays updates by exactly three
+    # verify-tier: model — the full-rate adaptation pipeline delays updates by exactly four
     # accepted samples in trained, CMA and decision-directed modes.
     def test_pipelined_modes_bit_exact(self):
         N = 240
         sym, i, q = _qpsk_channel(N, seed=21)
         d = np.concatenate([np.zeros(2, complex), sym])[:N]
-        common = {"architecture": "pipelined", "adaptation_delay": 3}
+        common = {"architecture": "pipelined", "adaptation_delay": 4}
+        self.assertEqual(LiteDSPLMSEqualizer(architecture="pipelined", with_csr=False).latency, 3)
         self._run_bit_exact(_sink_samples(i, q, np.round(d.real).astype(int),
             np.round(d.imag).astype(int)), {"mode": MODE_TRAINED}, {}, **common)
         r2 = _r2(7000)

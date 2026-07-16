@@ -50,9 +50,9 @@ class LiteDSPLMSEqualizer(LiteXModule):
 
     Adaptation is *delayed LMS* (the standard hardware form). ``architecture="classic"``
     applies the previous sample's registered error/window. ``"pipelined"`` registers the FIR
-    result, modulus square, and selected error separately and applies it after three accepted
-    samples. Both retain one-sample-per-clock filter throughput and latency; the latter trades
-    adaptation-loop delay and registers for a shorter CMA timing cone.
+    products, sum, modulus square, and selected error separately and applies it after four
+    accepted samples. Both retain one-sample-per-clock filter throughput; the latter adds two
+    output cycles and trades adaptation-loop delay and registers for shorter FIR/CMA cones.
 
     Parameters
     ----------
@@ -74,8 +74,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
         serves blind acquisition and decision-directed tracking (each unit doubles the
         effective CMA step). 0 keeps the exact derived Q-format.
     architecture : str
-        ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a three-sample
-        adaptation delay with unchanged filter throughput/output latency.
+        ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a four-sample
+        adaptation delay with unchanged filter throughput and two additional output cycles.
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, cma_egain=0,
         architecture="classic", with_csr=True):
@@ -86,7 +86,7 @@ class LiteDSPLMSEqualizer(LiteXModule):
         self.n_taps   = n_taps
         self.mu_shift = mu_shift                         # LMS step size: mu = 2**-mu_shift.
         self.architecture     = architecture
-        self.adaptation_delay = 1 if architecture == "classic" else 3
+        self.adaptation_delay = 1 if architecture == "classic" else 4
         # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude
         # (saturated below); keeping ww = wint + wfrac <= 18 makes each weight*sample a single
         # 18x18 DSP. Stable equalizers have O(1) weights, so a few integer bits suffice.
@@ -100,7 +100,7 @@ class LiteDSPLMSEqualizer(LiteXModule):
         self.mode     = Signal(2, reset=MODE_TRAINED)    # Error-term select (MODE_*).
         self.cma_r2   = Signal(data_width + 1)           # CMA target modulus R2 (frac = data_width - 1).
         self.dd_level = Signal(data_width - 1)           # DD per-axis decision amplitude (positive).
-        self.latency  = 1
+        self.latency  = 1 if architecture == "classic" else 3
 
         # # #
 
@@ -134,9 +134,61 @@ class LiteDSPLMSEqualizer(LiteXModule):
         wi = [Signal((ww, True)) for _ in range(n_taps)]
         wr[n_taps//2].reset = 1 << wfrac                 # Center tap = 1.0.
 
-        # Complex FIR: y = sum w_k * x_k (balanced adder trees).
-        yi_full = _adder_tree([wr[k]*xr[k] - wi[k]*xi[k] for k in range(n_taps)])
-        yq_full = _adder_tree([wr[k]*xi[k] + wi[k]*xr[k] for k in range(n_taps)])
+        # Complex FIR: y = sum w_k * x_k (balanced adder trees). The pipelined architecture
+        # registers each complex product before the tree and carries the sample metadata with
+        # it; this adds one filter-output cycle without reducing throughput.
+        if architecture == "classic":
+            yi_full = _adder_tree([wr[k]*xr[k] - wi[k]*xi[k] for k in range(n_taps)])
+            yq_full = _adder_tree([wr[k]*xi[k] + wi[k]*xr[k] for k in range(n_taps)])
+            fir_valid = self.sink.valid
+        else:
+            term_width = ww + data_width + 1
+            fir_i_terms = [Signal((term_width, True)) for _ in range(n_taps)]
+            fir_q_terms = [Signal((term_width, True)) for _ in range(n_taps)]
+            fir_valid = Signal()
+            fir_d_i, fir_d_q = Signal((data_width, True)), Signal((data_width, True))
+            fir_mode = Signal(2)
+            fir_r2   = Signal(data_width + 1)
+            fir_ddl  = Signal(data_width - 1)
+            fir_xr = [Signal((data_width, True)) for _ in range(n_taps)]
+            fir_xi = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.sync += If(adv,
+                fir_valid.eq(self.sink.valid),
+                If(self.sink.valid,
+                    *[fir_i_terms[k].eq(wr[k]*xr[k] - wi[k]*xi[k]) for k in range(n_taps)],
+                    *[fir_q_terms[k].eq(wr[k]*xi[k] + wi[k]*xr[k]) for k in range(n_taps)],
+                    fir_d_i.eq(self.sink.d_i), fir_d_q.eq(self.sink.d_q),
+                    fir_mode.eq(self.mode), fir_r2.eq(self.cma_r2), fir_ddl.eq(self.dd_level),
+                    *[fir_xr[k].eq(xr[k]) for k in range(n_taps)],
+                    *[fir_xi[k].eq(xi[k]) for k in range(n_taps)],
+                ),
+            )
+            sum_width = term_width + (n_taps - 1).bit_length()
+            sum_i, sum_q = Signal((sum_width, True)), Signal((sum_width, True))
+            sum_valid = Signal()
+            sum_d_i, sum_d_q = Signal((data_width, True)), Signal((data_width, True))
+            sum_mode = Signal(2)
+            sum_r2   = Signal(data_width + 1)
+            sum_ddl  = Signal(data_width - 1)
+            sum_xr = [Signal((data_width, True)) for _ in range(n_taps)]
+            sum_xi = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.sync += If(adv,
+                sum_valid.eq(fir_valid),
+                If(fir_valid,
+                    sum_i.eq(_adder_tree(fir_i_terms)),
+                    sum_q.eq(_adder_tree(fir_q_terms)),
+                    sum_d_i.eq(fir_d_i), sum_d_q.eq(fir_d_q),
+                    sum_mode.eq(fir_mode), sum_r2.eq(fir_r2), sum_ddl.eq(fir_ddl),
+                    *[sum_xr[k].eq(fir_xr[k]) for k in range(n_taps)],
+                    *[sum_xi[k].eq(fir_xi[k]) for k in range(n_taps)],
+                ),
+            )
+            yi_full = sum_i
+            yq_full = sum_q
+            fir_valid = sum_valid
+            fir_d_i, fir_d_q = sum_d_i, sum_d_q
+            fir_mode, fir_r2, fir_ddl = sum_mode, sum_r2, sum_ddl
+            fir_xr, fir_xi = sum_xr, sum_xi
         yi = scaled(yi_full, wfrac, data_width)[0]
         yq = scaled(yq_full, wfrac, data_width)[0]
 
@@ -192,25 +244,26 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 *[xi_d[k].eq(xi[k]) for k in range(n_taps)],
                 v_update.eq(1),
             )
+            update_step = xfer & v_update
+            update_ei, update_eq = ei_d, eq_d
+            update_xr, update_xi = xr_d, xi_d
         else:
-            # Three-sample delayed LMS: capture filter result/window, register |y|^2, then
-            # register the selected error. All stages advance only on accepted samples.
-            v0, v1, v2 = Signal(), Signal(), Signal()
-            yi0, yq0 = Signal((data_width, True)), Signal((data_width, True))
+            # The product and sum registers above are the first adaptation stages. Register
+            # |y|^2, then the selected error; updates remain four accepted samples behind.
+            v1 = Signal()
             yi1, yq1 = Signal((data_width, True)), Signal((data_width, True))
-            di0, dq0 = Signal((data_width, True)), Signal((data_width, True))
             di1, dq1 = Signal((data_width, True)), Signal((data_width, True))
-            mode0, mode1 = Signal(2), Signal(2)
-            r20, r21 = Signal(data_width + 1), Signal(data_width + 1)
-            ddl0, ddl1 = Signal(data_width - 1), Signal(data_width - 1)
+            mode1 = Signal(2)
+            r21 = Signal(data_width + 1)
+            ddl1 = Signal(data_width - 1)
             m2_1 = Signal((data_width + 2, True))
             dm_1 = Signal((data_width + 2, True))
             ep_i = Signal((data_width + 1, True))
             ep_q = Signal((data_width + 1, True))
-            xr0 = [Signal((data_width, True)) for _ in range(n_taps)]
-            xi0 = [Signal((data_width, True)) for _ in range(n_taps)]
             xr1 = [Signal((data_width, True)) for _ in range(n_taps)]
             xi1 = [Signal((data_width, True)) for _ in range(n_taps)]
+            adapt_step = Signal()
+            self.comb += adapt_step.eq(fir_valid & adv)
             self.comb += dm_1.eq(r21 - m2_1)
             self.comb += Case(mode1, {
                 MODE_CMA: [
@@ -223,30 +276,76 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 ],
                 "default": [ep_i.eq(di1 - yi1), ep_q.eq(dq1 - yq1)],
             })
-            self.sync += If(xfer,
-                v0.eq(1), v1.eq(v0), v2.eq(v1),
-                yi0.eq(yi), yq0.eq(yq), di0.eq(self.sink.d_i), dq0.eq(self.sink.d_q),
-                mode0.eq(self.mode), r20.eq(self.cma_r2), ddl0.eq(self.dd_level),
-                *[xr0[k].eq(xr[k]) for k in range(n_taps)],
-                *[xi0[k].eq(xi[k]) for k in range(n_taps)],
-                If(v0,
-                    yi1.eq(yi0), yq1.eq(yq0), di1.eq(di0), dq1.eq(dq0),
-                    mode1.eq(mode0), r21.eq(r20), ddl1.eq(ddl0),
-                    m2_1.eq(rounded(yi0*yi0 + yq0*yq0, F)),
-                    *[xr1[k].eq(xr0[k]) for k in range(n_taps)],
-                    *[xi1[k].eq(xi0[k]) for k in range(n_taps)],
-                ),
-                If(v1,
-                    ei_d.eq(ep_i), eq_d.eq(ep_q),
-                    *[xr_d[k].eq(xr1[k]) for k in range(n_taps)],
-                    *[xi_d[k].eq(xi1[k]) for k in range(n_taps)],
-                ),
+            self.sync += If(adapt_step,
+                v1.eq(1),
+                yi1.eq(yi), yq1.eq(yq), di1.eq(fir_d_i), dq1.eq(fir_d_q),
+                mode1.eq(fir_mode), r21.eq(fir_r2), ddl1.eq(fir_ddl),
+                m2_1.eq(rounded(yi*yi + yq*yq, F)),
+                *[xr1[k].eq(fir_xr[k]) for k in range(n_taps)],
+                *[xi1[k].eq(fir_xi[k]) for k in range(n_taps)],
             )
-            v_update = v2
+
+            # Completed errors can arrive while the input has a bubble (the last FIR product
+            # is still draining). Keep them in a three-entry queue and consume exactly one per
+            # new FIR product. This makes the update-to-input distance independent of valid /
+            # ready stalls; three entries cover the product and sum stages draining without
+            # a simultaneous input.
+            update_count = Signal(2)
+            update_ei = [Signal((data_width + 1, True)) for _ in range(3)]
+            update_eq = [Signal((data_width + 1, True)) for _ in range(3)]
+            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(3)]
+            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(3)]
+            error_ready = Signal()
+            update_step = Signal()
+            self.comb += [
+                error_ready.eq(adapt_step & v1),
+                update_step.eq(xfer & (update_count != 0)),
+            ]
+            push0 = [
+                update_ei[0].eq(ep_i), update_eq[0].eq(ep_q),
+                *[update_xr[0][k].eq(xr1[k]) for k in range(n_taps)],
+                *[update_xi[0][k].eq(xi1[k]) for k in range(n_taps)],
+            ]
+            push1 = [
+                update_ei[1].eq(ep_i), update_eq[1].eq(ep_q),
+                *[update_xr[1][k].eq(xr1[k]) for k in range(n_taps)],
+                *[update_xi[1][k].eq(xi1[k]) for k in range(n_taps)],
+            ]
+            push2 = [
+                update_ei[2].eq(ep_i), update_eq[2].eq(ep_q),
+                *[update_xr[2][k].eq(xr1[k]) for k in range(n_taps)],
+                *[update_xi[2][k].eq(xi1[k]) for k in range(n_taps)],
+            ]
+            shift_down = [
+                update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
+                *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
+                *[update_xi[0][k].eq(update_xi[1][k]) for k in range(n_taps)],
+                update_ei[1].eq(update_ei[2]), update_eq[1].eq(update_eq[2]),
+                *[update_xr[1][k].eq(update_xr[2][k]) for k in range(n_taps)],
+                *[update_xi[1][k].eq(update_xi[2][k]) for k in range(n_taps)],
+            ]
+            self.sync += Case(Cat(update_step, error_ready), {
+                0b01: [
+                    If(update_count >= 2, *shift_down),
+                    update_count.eq(update_count - 1),
+                ],
+                0b10: [
+                    If(update_count == 0, *push0, update_count.eq(1)).
+                    Elif(update_count == 1, *push1, update_count.eq(2)).
+                    Elif(update_count == 2, *push2, update_count.eq(3)),
+                ],
+                0b11: [
+                    If(update_count == 1, *push0).
+                    Elif(update_count == 2, *shift_down, *push1).
+                    Elif(update_count == 3, *shift_down, *push2),
+                ],
+            })
+            update_ei, update_eq = update_ei[0], update_eq[0]
+            update_xr, update_xi = update_xr[0], update_xi[0]
         for k in range(n_taps):
-            self.sync += If(xfer & self.train & v_update,
-                wr[k].eq(saturated(wr[k] + ((ei_d*xr_d[k] + eq_d*xi_d[k]) >> mu_shift), ww)),
-                wi[k].eq(saturated(wi[k] + ((eq_d*xr_d[k] - ei_d*xi_d[k]) >> mu_shift), ww)),
+            self.sync += If(update_step & self.train,
+                wr[k].eq(saturated(wr[k] + ((update_ei*update_xr[k] + update_eq*update_xi[k]) >> mu_shift), ww)),
+                wi[k].eq(saturated(wi[k] + ((update_eq*update_xr[k] - update_ei*update_xi[k]) >> mu_shift), ww)),
             )
 
         # Output.
@@ -254,7 +353,7 @@ class LiteDSPLMSEqualizer(LiteXModule):
         self.sync += If(adv,
             self.source.i.eq(yi),
             self.source.q.eq(yq),
-            self.source.valid.eq(self.sink.valid),
+            self.source.valid.eq(fir_valid),
         )
 
         # CSR.
