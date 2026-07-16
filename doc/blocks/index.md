@@ -104,7 +104,7 @@
 | [Descrambler (LFSR)](descrambler.md) | `LiteDSPDescrambler` | 1 | — | Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing). |
 | [CRC](crc.md) | `LiteDSPCRC` | 1 | — | Bit-serial MSB-first CRC; passes ``data`` through and updates the ``crc`` register. |
 | [Convolutional encoder](conv_encoder.md) | `LiteDSPConvEncoder` | 1 | — | Rate-1/2 convolutional encoder (default K=7, G=[0o171, 0o133]). |
-| [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, register-exchange survivors). |
+| [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, selectable survivor architecture). |
 | [Puncturer](puncturer.md) | `LiteDSPPuncturer` | var | 0 | TX puncturer: drops coded bits of the rate-1/n stream per the puncturing matrix. |
 | [Depuncturer (LLR)](depuncturer.md) | `LiteDSPDepuncturer` | var | 0 | RX depuncturer: reassembles full soft symbols, reinserting erasures (LLR 0) per pattern. |
 | [Block interleaver](block_interleaver.md) | `LiteDSPBlockInterleaver` | var | 0 | TX block interleaver: rows x cols symbols in row-wise, out column-wise. |

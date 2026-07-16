@@ -291,7 +291,8 @@ def spec_diff_decoder():
 def spec_viterbi_decoder():
     from litedsp.comm.viterbi import LiteDSPViterbiDecoder
     n = 160
-    dut  = LiteDSPViterbiDecoder(with_csr=False)
+    dut  = LiteDSPViterbiDecoder(with_csr=False, decision_memory=True,
+        normalize_interval=16)
     cols = _rand_cols(1, n, lo=0, hi=3, seed=19)
     return dut, cols, n - dut.traceback - 4, lambda c: [models.viterbi_model(c[0])]
 

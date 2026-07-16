@@ -284,12 +284,14 @@ def depuncturer():
     return d, {d.phase_rst} | _eps(d.sink, d.source), 8.0
 
 def viterbi_decoder():
-    d = LiteDSPViterbiDecoder(with_csr=False)                # Hard-decision, K=7 (171, 133).
-    return d, _eps(d.sink, d.source), 12.0
+    d = LiteDSPViterbiDecoder(with_csr=False, decision_memory=True,
+        normalize_interval=16)                               # Hard-decision, K=7 (171, 133).
+    return d, _eps(d.sink, d.source), 10.0
 
 def viterbi_decoder_soft():
-    d = LiteDSPViterbiDecoder(llr_bits=4, with_csr=False)    # Soft-decision, 4-bit LLRs.
-    return d, _eps(d.sink, d.source), 12.0
+    d = LiteDSPViterbiDecoder(llr_bits=4, with_csr=False, decision_memory=True,
+        normalize_interval=16)                               # Soft-decision, 4-bit LLRs.
+    return d, _eps(d.sink, d.source), 10.0
 
 def block_interleaver():
     d = LiteDSPBlockInterleaver(rows=5, cols=255, width=8, with_csr=False)   # CCSDS I=5.
@@ -427,12 +429,14 @@ REGISTRY = {
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
-              "channelizer", "ldpc_decoder", "mixer_parallel_x2", "farrow", "window"]
+              "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
+              "mixer_parallel_x2", "farrow", "window"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
-                 "cic_decimator", "cic_interpolator", "agc", "fft_iter"]
+                 "cic_decimator", "cic_interpolator", "agc", "fft_iter",
+                 "viterbi_decoder", "viterbi_decoder_soft"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

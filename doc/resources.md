@@ -77,6 +77,6 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `stats` | 273/186/0/2/114.2 | 92/114/0/3/- |
 | `stream_fifo` | 32/14/0/0/231.8 | 40/14/0/0/- |
 | `timing_recovery` | 983/292/0/16/59.8 | 629/244/0/8/- |
-| `viterbi_decoder` | 11053/3945/0/0/40.3/100.0 | 5792/3976/0/0/- |
-| `viterbi_decoder_soft` | 11942/3945/0/0/39.5/100.0 | 5491/3976/0/0/- |
+| `viterbi_decoder` | 6634/864/2/0/90.1/100.0 | 4171/802/1/0/90.6/100.0 |
+| `viterbi_decoder_soft` | 6848/864/2/0/94.2/100.0 | 3440/802/1/0/89.6/100.0 |
 | `window` | 391/82/0/2/99.9 | 124/54/0/2/- |

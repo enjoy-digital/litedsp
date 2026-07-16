@@ -59,11 +59,12 @@ for architecture work in progress remain advisory.
   bit-exact under backpressure.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
-  numerical recurrence is preserved. The remaining sub-100 MHz configurations are primarily
-  recurrence- or unrolling-limited (Viterbi ACS, CIC/AGC feedback, SDF FFT feedback, and the
-  multi-lane CIC); their next step is an explicit throughput/area architecture decision rather
-  than an unsafe register insertion. The reviewed options, trade-offs and acceptance criteria
-  are tracked in [`timing_architecture.md`](timing_architecture.md).
+  numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
+  serial CIC, AGC, and iterative-FFT configurations at 100 MHz while preserving their original
+  compatibility modes. Remaining sub-100 MHz configurations, notably streaming SDF FFT and the
+  multi-lane CIC, still require explicit throughput/area decisions rather than unsafe register
+  insertion. The reviewed options, trade-offs and acceptance criteria are tracked in
+  [`timing_architecture.md`](timing_architecture.md).
 
 ## Current results
 

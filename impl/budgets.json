@@ -1169,36 +1169,42 @@
   },
   "viterbi_decoder": {
     "ecp5": {
-      "bram": 0,
+      "bram": 2,
       "dsp": 0,
-      "ff": 3945,
-      "fmax_mhz": 47.4,
-      "fmax_min": 40.3,
+      "ff": 864,
+      "fmax_mhz": 106.0,
+      "fmax_min": 90.1,
       "fmax_target": 100.0,
-      "lut": 11053
+      "lut": 6634
     },
     "xilinx": {
-      "bram": 0,
+      "bram": 1,
       "dsp": 0,
-      "ff": 3976,
-      "lut": 5792
+      "ff": 802,
+      "fmax_mhz": 106.6,
+      "fmax_min": 90.6,
+      "fmax_target": 100.0,
+      "lut": 4171
     }
   },
   "viterbi_decoder_soft": {
     "ecp5": {
-      "bram": 0,
+      "bram": 2,
       "dsp": 0,
-      "ff": 3945,
-      "fmax_mhz": 46.5,
-      "fmax_min": 39.5,
+      "ff": 864,
+      "fmax_mhz": 110.8,
+      "fmax_min": 94.2,
       "fmax_target": 100.0,
-      "lut": 11942
+      "lut": 6848
     },
     "xilinx": {
-      "bram": 0,
+      "bram": 1,
       "dsp": 0,
-      "ff": 3976,
-      "lut": 5491
+      "ff": 802,
+      "fmax_mhz": 105.4,
+      "fmax_min": 89.6,
+      "fmax_target": 100.0,
+      "lut": 3440
     }
   },
   "window": {

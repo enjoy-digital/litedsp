@@ -101,6 +101,8 @@ PARAM_GLOSSARY = {
     "staged":        "Select the elastic registered-stage CIC architecture (higher latency, one sample per clock).",
     "delayed_feedback": "Apply AGC magnitude feedback on the following accepted sample.",
     "registered_butterfly": "Register iterative-FFT add/subtract results before BRAM writeback.",
+    "decision_memory": "Store Viterbi survivor decisions in RAM and use folded synchronous traceback.",
+    "normalize_interval": "Accepted Viterbi symbols between path-metric normalization cycles.",
     "frac_bits":     "Fractional bits of the coefficient/control fixed-point format.",
     "frac":          "Fractional bits of the control fixed-point format.",
     "phase_bits":    "Phase accumulator width in bits.",

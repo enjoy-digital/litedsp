@@ -70,13 +70,14 @@ fills one bank while the reader drains the other, so back-to-back blocks stream 
 | `LiteDSPBlockInterleaver` (5×255) | depth-I byte interleaver, ping-pong RAM | 164/85/2/0 | 200 |
 | `LiteDSPConvEncoder` (K=7) | inner encoder | not characterized | - |
 | `LiteDSPSymbolMapper` / `LiteDSPSoftDemapper` | QPSK map / 4-bit LLRs | 203/44/0/2 (demap) | - |
-| `LiteDSPViterbiDecoder` (soft, K=7) | inner decoder (64-state parallel ACS) | 10691/3945/0/0 | 35 |
+| `LiteDSPViterbiDecoder` (soft, K=7) | inner decoder (decision RAM + folded traceback) | 6848/864/2/0 | 94 |
 | `LiteDSPBlockDeinterleaver` (5×255) | inverse permutation | 162/85/2/0 | 187 |
 | `LiteDSPRSDecoder` (255,223) | outer decoder (BM + Chien/Forney) | 3680/1321/1/0 | 74 |
 
 (Reference numbers at the registry configurations from [`doc/resources.md`](../resources.md);
-fmax values are the budget minima. The interleaver pair costs ~326 LUT + 4 BRAM — negligible
-next to the Viterbi decoder it protects.)
+fmax values are the budget minima. The Viterbi implementation registry selects the folded
+architecture; the example below retains the faster-simulating register-exchange compatibility
+mode. The interleaver pair costs ~326 LUT + 4 BRAM.)
 
 Example configuration: QPSK with half-spacing 8000 (conv bit g0 on I, g1 on Q — two
 independent BPSK channels), Es/N0 = 8 dB AWGN (≈ 4.6 dB Eb/N0 over the rate-0.437

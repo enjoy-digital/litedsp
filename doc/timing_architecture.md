@@ -12,7 +12,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 
 | Family/configuration | Current ECP5 | Recurrence that limits timing | First implementation to evaluate |
 |---|---:|---|---|
-| Viterbi hard / soft | 47.4 / 46.5 MHz | ACS metric update followed by the global-min tree and normalization | traceback RAM plus less-frequent normalization |
+| Viterbi hard / soft | 47.4 / 46.5 MHz classic; 106.0 / 110.8 MHz folded | ACS metric update followed by the global-min tree and normalization | folded option landed and target-closed |
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x4 | 55.6 MHz | four-lane prefix recurrence expands each serial integrator update | lane-prefix pipeline or fewer lanes per clock |
@@ -25,26 +25,39 @@ every symbol. Its feedback path is predecessor metric + branch metric, ACS, a si
 minimum, then subtraction back into every metric. A register inside that chain would make the
 next symbol use stale metrics and is not a latency-only change.
 
-The first variant should replace register-exchange survivors with decision RAM and periodic
-traceback, then normalize metrics every configurable `normalize_interval` symbols instead of
-every symbol. Per-state ACS remains one symbol per clock; wider metrics absorb the bounded
-growth between normalizations, and a pipelined best-state reduction can run beside the ACS.
+The first variant replaces register-exchange survivors with decision RAM and periodic
+traceback, then normalizes metrics every configurable `normalize_interval` symbols instead of
+every symbol. Wider metrics absorb the bounded growth between normalizations, while two
+registered three-level reductions find the best of the 64 states outside the ACS recurrence.
+
+The option is now implemented as `decision_memory=True`. At the default K=7 / traceback=56,
+the synchronous RAM traceback takes 110 clocks and nominal `cycles_per_output` is 114, plus one
+normalization clock every 16 accepted symbols. The sink is stalled during best-state reduction,
+normalization, traceback, and output backpressure; the architecture therefore prioritizes area
+and clock rate over coded-symbol throughput. Hard and soft outputs remain bit-exact against the
+same golden model.
+
+On ECP5, the hard/soft configurations reach 106.0/110.8 MHz with 6634/6848 LUT, 864 FF, and two
+BRAMs, versus 47.4/46.5 MHz and 11053/11942 LUT, 3945 FF, and no BRAM for register exchange. On
+Artix-7 they reach 106.6/105.4 MHz with 4171/3440 LUT, 802 FF, and one BRAM. Both device families
+are target-closed at 100 MHz; register exchange remains the compatibility default.
 
 Trade-offs:
 
 - Decision RAM removes most of the roughly 3.9k survivor FFs and their high-fanout routing, but
-  decoded output arrives in traceback bursts rather than directly from an exchange register.
+  decoded output arrives only after a folded traceback rather than directly from an exchange
+  register.
 - Less-frequent normalization removes the global-min tree from the per-symbol feedback path at
   the cost of wider metric adders and a proof that the selected interval cannot overflow.
-- If that is still insufficient, a folded 32-ACS implementation is the low-area fallback: it
+- A folded 32-ACS implementation remains a lower-area fallback: it
   uses two clocks per symbol and roughly halves ACS logic. It is not the default because it
   reduces coded-symbol throughput.
 - A deeply pipelined one-symbol-per-clock design requires two or more independent metric
   contexts (interleaved framed codewords); state memory and control scale with the context count.
 
 Acceptance requires hard and soft bit identity, tie behavior, punctured-zero LLR handling, and
-the existing BER/waterfall bounds. The block must publish traceback latency, minimum frame gap,
-and symbols/clock for each architecture.
+the existing BER/waterfall bounds. The option publishes traceback and output-cycle counts; its
+stream handshake makes the required input gap explicit while traceback is active.
 
 ## AGC
 
