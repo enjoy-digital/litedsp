@@ -226,50 +226,63 @@ class LiteDSPFFTStage(LiteXModule):
 # Folded FFT Stage (Radix-2 SDF, DIF) --------------------------------------------------------------
 
 class LiteDSPFFTFoldedStage(LiteXModule):
-    """Two-cycle radix-2 SDF stage for timing-oriented implementations.
+    """Overlapped radix-2 SDF stage for timing-oriented implementations.
 
-    The first cycle captures the asynchronous delay-line and twiddle-ROM reads.  The second
-    cycle performs the butterfly, complex multiply, rounding and delay-line write.  This
-    removes the delay-memory read from the multiplier path at the cost of accepting one sample
-    every two clocks.  Arithmetic and output ordering are bit-identical to a ``"scaled"``
-    :class:`LiteDSPFFTStage`.
+    Each sample uses three pipeline edges: capture the delay read and butterfly difference,
+    register the four real twiddle products, then round/write the feedback and output. The
+    finish edge can accept the next sample, so the initiation interval remains two clocks.
+    A same-address bypass preserves the depth-1 feedback recurrence on that overlapping edge.
+    Arithmetic and ordering are bit-identical to a ``"scaled"`` :class:`LiteDSPFFTStage`.
     """
     def __init__(self, N, stage, data_width=16, twiddle_width=16, inverse=False):
         D     = N >> (stage + 1)
         dbits = D.bit_length() - 1
         self.D               = D
         self.data_width      = data_width
-        self.latency         = 2
+        self.latency         = 3
         self.sample_interval = 2
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
         # # #
 
-        pending = Signal()
+        phase   = Signal(2)  # 0: idle/capture, 1: multiply, 2: finish/optional recapture.
         advance = Signal()
         accept  = Signal()
         finish  = Signal()
         self.comb += [
             advance.eq(self.source.ready | ~self.source.valid),
-            self.sink.ready.eq(~pending & advance),
+            self.sink.ready.eq((phase == 0) | ((phase == 2) & advance)),
             accept.eq(self.sink.valid & self.sink.ready),
-            finish.eq(pending & advance),
+            finish.eq((phase == 2) & advance),
         ]
+        self.sync += If(phase == 0,
+            If(accept, phase.eq(1)),
+        ).Elif(phase == 1,
+            phase.eq(2),
+        ).Else(
+            If(advance, If(accept, phase.eq(1)).Else(phase.eq(0))),
+        )
 
-        # Phase and delay-feedback line.  The pointer advances only after the second cycle,
-        # so the asynchronous read remains stable while it is captured into the work regs.
+        # Counter denotes the next accepted scalar sample. It advances on capture so the delay
+        # read for an overlapping accept already addresses the next feedback entry.
         counter = Signal(dbits + 1)
         c       = Signal()
         self.comb += c.eq(counter[dbits])
         p = counter[:dbits] if dbits > 0 else None
+        self.sync += If(accept, counter.eq(counter + 1))
 
         fr, fi  = Signal((data_width, True)), Signal((data_width, True))
         store_i = Signal((data_width, True))
         store_q = Signal((data_width, True))
+        work_addr = Signal(dbits) if dbits else None
         if D == 1:
             reg_i, reg_q = Signal((data_width, True)), Signal((data_width, True))
-            self.comb += [fr.eq(reg_i), fi.eq(reg_q)]
+            # finish+accept sees the just-computed difference rather than the pre-edge state.
+            self.comb += [
+                fr.eq(Mux(finish, store_i, reg_i)),
+                fi.eq(Mux(finish, store_q, reg_q)),
+            ]
             self.sync += If(finish, reg_i.eq(store_i), reg_q.eq(store_q))
         else:
             mem_i = Memory(data_width, D)
@@ -277,22 +290,25 @@ class LiteDSPFFTFoldedStage(LiteXModule):
             wp_i, wp_q = mem_i.get_port(write_capable=True), mem_q.get_port(write_capable=True)
             rp_i, rp_q = mem_i.get_port(async_read=True),    mem_q.get_port(async_read=True)
             self.specials += mem_i, mem_q, wp_i, wp_q, rp_i, rp_q
-            ptr = Signal(max=D)
+            bypass = Signal()
             self.comb += [
-                rp_i.adr.eq(ptr), rp_q.adr.eq(ptr), wp_i.adr.eq(ptr), wp_q.adr.eq(ptr),
-                fr.eq(rp_i.dat_r), fi.eq(rp_q.dat_r),
+                rp_i.adr.eq(p), rp_q.adr.eq(p),
+                wp_i.adr.eq(work_addr), wp_q.adr.eq(work_addr),
+                bypass.eq(finish & (p == work_addr)),
+                fr.eq(Mux(bypass, store_i, rp_i.dat_r)),
+                fi.eq(Mux(bypass, store_q, rp_q.dat_r)),
                 wp_i.dat_w.eq(store_i), wp_i.we.eq(finish),
                 wp_q.dat_w.eq(store_q), wp_q.we.eq(finish),
             ]
-            self.sync += If(finish, If(ptr == (D - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
 
-        # Cycle one work registers. The next twiddle is prefetched while the current sample
-        # finishes, using the otherwise-idle half of this two-cycle stage. The following accept
-        # therefore sees a registered coefficient rather than counter -> async ROM -> DSP.
+        # Capture: register the async delay read and difference before the DSP path. The next
+        # coefficient is prefetched at the same edge for the following accepted sample.
         xr_r, xi_r = Signal((data_width, True)), Signal((data_width, True))
         fr_r, fi_r = Signal((data_width, True)), Signal((data_width, True))
         sum_i_r    = Signal((data_width + 1, True))
         sum_q_r    = Signal((data_width + 1, True))
+        diff_i_r   = Signal((data_width + 1, True))
+        diff_q_r   = Signal((data_width + 1, True))
         c_r        = Signal()
         if D > 1:
             sin_func = (lambda a: -math.sin(a)) if inverse else math.sin
@@ -307,30 +323,27 @@ class LiteDSPFFTFoldedStage(LiteXModule):
             next_p = next_counter[:dbits]
             tr = Signal((twiddle_width, True), reset=cos_init[0])
             ti = Signal((twiddle_width, True), reset=sin_init[0])
+            tr_r = Signal((twiddle_width, True))
+            ti_r = Signal((twiddle_width, True))
             self.comb += [
                 next_counter.eq(counter + 1),
                 cos_rp.adr.eq(next_p), sin_rp.adr.eq(next_p),
             ]
-            self.sync += If(finish, tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r))
-            # Register each real multiplier result independently.  The second cycle then has
-            # only the complex add/subtract plus rounding, rather than multiplier + adder.
+            self.sync += If(accept,
+                tr_r.eq(tr), ti_r.eq(ti),
+                tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r),
+            )
+            # Multiply phase: only registered difference/coefficient -> DSP -> product register.
             term_width = data_width + twiddle_width + 1
             prod_rr = Signal((term_width, True))
             prod_ii = Signal((term_width, True))
             prod_ri = Signal((term_width, True))
             prod_ir = Signal((term_width, True))
-            self.sync += If(accept,
-                prod_rr.eq((fr - self.sink.i)*tr),
-                prod_ii.eq((fi - self.sink.q)*ti),
-                prod_ri.eq((fr - self.sink.i)*ti),
-                prod_ir.eq((fi - self.sink.q)*tr),
-            )
-        else:
-            diff_i_r = Signal((data_width + 1, True))
-            diff_q_r = Signal((data_width + 1, True))
-            self.sync += If(accept,
-                diff_i_r.eq(fr - self.sink.i),
-                diff_q_r.eq(fi - self.sink.q),
+            self.sync += If(phase == 1,
+                prod_rr.eq(diff_i_r*tr_r),
+                prod_ii.eq(diff_q_r*ti_r),
+                prod_ri.eq(diff_i_r*ti_r),
+                prod_ir.eq(diff_q_r*tr_r),
             )
 
         self.sync += If(accept,
@@ -338,13 +351,13 @@ class LiteDSPFFTFoldedStage(LiteXModule):
             fr_r.eq(fr),          fi_r.eq(fi),
             sum_i_r.eq(fr + self.sink.i),
             sum_q_r.eq(fi + self.sink.q),
+            diff_i_r.eq(fr - self.sink.i),
+            diff_q_r.eq(fi - self.sink.q),
             c_r.eq(c),
-            pending.eq(1),
-            self.source.valid.eq(0),
+            *([work_addr.eq(p)] if dbits else []),
         )
 
-        # Cycle two arithmetic.  Explicit full-width intermediates keep Migen and generated
-        # Verilog sizing identical.
+        # Finish: complex add/subtract, round, feedback write, and registered output.
         sum_i, _ = scaled(sum_i_r, 1, data_width)
         sum_q, _ = scaled(sum_q_r, 1, data_width)
         if D > 1:
@@ -371,9 +384,7 @@ class LiteDSPFFTFoldedStage(LiteXModule):
             self.source.i.eq(out_i),
             self.source.q.eq(out_q),
             self.source.valid.eq(1),
-            pending.eq(0),
-            counter.eq(counter + 1),
-        ).Elif(~pending & advance,
+        ).Elif(advance,
             self.source.valid.eq(0),
         )
 
@@ -410,8 +421,9 @@ class LiteDSPFFT(LiteXModule):
         on a 5-bit ``exp`` source param field (see overview above).
     architecture : str
         ``"classic"`` (default) accepts one sample per clock. ``"folded"`` places a
-        register between delay/ROM reads and the butterfly arithmetic and accepts one sample
-        every two clocks. Folded mode currently supports ``scaling="scaled"`` only.
+        register between the delay read and twiddle multiply, overlaps finish with the next
+        capture, and accepts one sample every two clocks. Folded mode currently supports
+        ``scaling="scaled"`` only.
     """
     def __init__(self, N, data_width=16, twiddle_width=16, inverse=False, scaling="scaled",
         architecture="classic", with_csr=True):
@@ -456,7 +468,7 @@ class LiteDSPFFT(LiteXModule):
 
         # Frame latency (measured): the combined delay-feedback fill, N-1 cycles. The per-stage
         # output registers are not in the forward path, so they do not add latency.
-        self.latency = (N - 1) if architecture == "classic" else 2*(N - 1)
+        self.latency = (N - 1) if architecture == "classic" else 2*(N - 1) + self.bits
 
         if with_csr:
             self.add_csr()

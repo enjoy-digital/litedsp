@@ -592,7 +592,7 @@ class LiteDSPParallelFFT(LiteXModule):
         else:
             # Folded-core latency is pinned by the architecture tests after construction;
             # one extra cycle accounts for the registered wide butterfly rank.
-            self.latency = 5*N//4 + 4*threshold + 2*log2_int(N)
+            self.latency = 5*N//4 + 4*threshold + 3*log2_int(N) - 1
 
         if with_csr:
             self.add_csr()
