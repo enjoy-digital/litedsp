@@ -74,9 +74,12 @@ class LiteDSPCFR(LiteXModule):
     Single-engine simplification: one pulse generator; while it plays a pulse
     (``pulse_span + 1`` samples), further above-threshold local maxima pass uncorrected and
     are counted in ``missed_count`` (``peak_count`` counts fired/corrected peaks). Cycle
-    latency is 1; the datapath additionally delays the signal by ``self.delay =
+    latency is 1; the classic datapath additionally delays the signal by ``self.delay =
     pulse_span/2 + 2`` samples (delay line + 1-sample local-max lookahead) so the pulse
-    center aligns with the peak.
+    center aligns with the peak. ``architecture="pipelined"`` registers normalization,
+    reciprocal multiplication, and amplitude multiplication while retaining one accepted
+    sample per clock; it adds three samples to the matched delay and reserves the single
+    pulse engine while a coefficient is in flight.
 
     Parameters
     ----------
@@ -91,17 +94,23 @@ class LiteDSPCFR(LiteXModule):
     cutoff : float
         Pulse low-pass cutoff in normalized frequency (0..0.5]; set to the signal's
         one-sided bandwidth so corrections stay in-band (see :func:`cfr_pulse`).
+    architecture : str
+        ``"classic"`` or timing-oriented ``"pipelined"`` coefficient generation.
     """
-    def __init__(self, data_width=16, pulse_span=16, threshold=None, cutoff=0.25, with_csr=True):
+    def __init__(self, data_width=16, pulse_span=16, threshold=None, cutoff=0.25,
+        architecture="classic", with_csr=True):
         check(data_width >= 8, "expected data_width >= 8")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         # pulse_span/cutoff are validated by cfr_pulse.
         self.pulse = cfr_pulse(pulse_span, data_width, cutoff)
         if threshold is None:
             threshold = (1 << data_width) - 1  # Above any magnitude estimate: disabled.
         self.data_width = data_width
         self.pulse_span = pulse_span
+        self.architecture = architecture
         self.latency    = 1                    # Cycle latency (see also self.delay).
-        self.delay      = pulse_span//2 + 2    # Datapath delay in samples (delay line + lookahead).
+        self.delay      = pulse_span//2 + 2 + (3 if architecture == "pipelined" else 0)
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.threshold    = Signal(data_width, reset=threshold)  # Peak threshold (~|x|).
@@ -143,6 +152,14 @@ class LiteDSPCFR(LiteXModule):
         peak = Signal()
         self.comb += peak.eq((pm1 > self.threshold) & (pm1 >= mag) & (pm1 > pm2))
 
+        # Pulse-engine state is declared before coefficient generation so pipelined mode can
+        # reserve the single engine as soon as a peak enters the coefficient pipeline.
+        busy  = Signal()
+        pulse_k = Signal(max=L)
+        a_i   = Signal((W, True))
+        a_q   = Signal((W, True))
+        fire  = Signal()
+
         # Correction Coefficient (divider-free g = (|x_pk| - T)/|x_pk|).
         # --------------------------------------------------------------
         # Normalize pm1 by its leading-zero count, look the mantissa reciprocal up in a
@@ -173,6 +190,50 @@ class LiteDSPCFR(LiteXModule):
         coef_i, _ = scaled(g*pi, W - 1, W)  # a = g * x_pk (round + saturate).
         coef_q, _ = scaled(g*pq, W - 1, W)
 
+        if architecture == "classic":
+            start = fire
+            start_i, start_q = coef_i, coef_q
+            self.comb += fire.eq(peak & ~busy)
+        else:
+            # Accepted-sample pipeline: priority/normalize -> reciprocal multiply -> complex
+            # amplitude multiply.  It retains one-sample/cycle input throughput; the matched
+            # signal delay grows by three samples and the engine is reserved while in flight.
+            coef_v1, coef_v2, coef_v3 = Signal(), Signal(), Signal()
+            reserved = Signal()
+            pm_r, d_r = Signal(W), Signal(W)
+            e_r       = Signal(max=W)
+            pi_r, pq_r = Signal((W, True)), Signal((W, True))
+            mn_r, dn_r = Signal(W), Signal(W)
+            rec_r      = Signal(CFR_RECIP_FRAC)
+            g_r        = Signal(W - 1)
+            norm_pm    = Signal(W)
+            norm_d     = Signal(W)
+            rec_n      = Signal(CFR_RECIP_FRAC)
+            g_pipe_raw = Signal(W + 1)
+            g_pipe     = Signal(W - 1)
+            self.comb += [
+                reserved.eq(busy | coef_v1 | coef_v2 | coef_v3),
+                fire.eq(peak & ~reserved),
+                norm_pm.eq(pm_r << e_r), norm_d.eq(d_r << e_r),
+                rec_n.eq(Array(cfr_recip_lut(CFR_INDEX_BITS, CFR_RECIP_FRAC))
+                    [norm_pm[W - 1 - CFR_INDEX_BITS:W - 1]]),
+                g_pipe_raw.eq(rounded(dn_r*rec_r, CFR_RECIP_FRAC)),
+                g_pipe.eq(Mux(g_pipe_raw > gmax, gmax, g_pipe_raw)),
+            ]
+            self.sync += If(xfer,
+                coef_v1.eq(fire), coef_v2.eq(coef_v1), coef_v3.eq(coef_v2),
+                If(fire,
+                    pm_r.eq(pm1), d_r.eq(d), e_r.eq(e), pi_r.eq(pi), pq_r.eq(pq),
+                ),
+                If(coef_v1,
+                    mn_r.eq(norm_pm), dn_r.eq(norm_d), rec_r.eq(rec_n),
+                ),
+                If(coef_v2, g_r.eq(g_pipe)),
+            )
+            start = coef_v3
+            start_i = scaled(g_r*pi_r, W - 1, W)[0]
+            start_q = scaled(g_r*pq_r, W - 1, W)[0]
+
         # Delay Line (advances on real transfers only, so it is handshake-invariant).
         # ----------------------------------------------------------------------------
         dly_i = [Signal((W, True)) for _ in range(D)]
@@ -189,22 +250,19 @@ class LiteDSPCFR(LiteXModule):
         prom = Memory(W, L, init=[v & ((1 << W) - 1) for v in self.pulse])
         prp  = prom.get_port(async_read=True)
         self.specials += prom, prp
-        busy  = Signal()
-        k     = Signal(max=L)           # Pulse tap index.
-        a_i   = Signal((W, True))       # Registered complex pulse amplitude a = g * x_pk.
-        a_q   = Signal((W, True))
-        fire  = Signal()
-        self.comb += [fire.eq(peak & ~busy), prp.adr.eq(k)]
+        self.comb += prp.adr.eq(pulse_k)
         self.sync += If(xfer,
             If(busy,
-                k.eq(k + 1),
-                If(k == (L - 1), busy.eq(0)),
+                pulse_k.eq(pulse_k + 1),
+                If(pulse_k == (L - 1), busy.eq(0)),
+            ),
+            If(start,
+                busy.eq(1),
+                pulse_k.eq(0),
+                a_i.eq(start_i),
+                a_q.eq(start_q),
             ),
             If(fire,
-                busy.eq(1),
-                k.eq(0),
-                a_i.eq(coef_i),
-                a_q.eq(coef_q),
                 self.peak_count.eq(self.peak_count + 1),
             ).Elif(peak,
                 self.missed_count.eq(self.missed_count + 1),

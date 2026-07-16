@@ -151,7 +151,7 @@ ENTRIES = [
     ("agc",                LiteDSPAGC,                   {},                                     "level",      "AGC",                   None),
     ("dpd",                LiteDSPDPD,                   {},                                     "level",      "DPD actuator",          None),
     ("saturate",           LiteDSPSaturate,              {},                                     "level",      "Saturate",              None),
-    ("cfr",                LiteDSPCFR,                   {},                                     "level",      "CFR (peak cancellation)", None),
+    ("cfr",                LiteDSPCFR,                   {},                                     "level",      "CFR (peak cancellation)", {"architecture": ["classic", "pipelined"]}),
     ("clipper",            LiteDSPClipper,               {},                                     "level",      "Clipper",               None),
     ("rms",                LiteDSPRMS,                   {},                                     "level",      "RMS",                   None),
     ("squelch",            LiteDSPSquelch,               {},                                     "level",      "Squelch",               None),

@@ -27,9 +27,12 @@ spread (-11.6%..+3.1% vs the true magnitude), which sets the residual-peak accur
 Single-engine simplification: one pulse generator; while it plays a pulse
 (``pulse_span + 1`` samples), further above-threshold local maxima pass uncorrected and
 are counted in ``missed_count`` (``peak_count`` counts fired/corrected peaks). Cycle
-latency is 1; the datapath additionally delays the signal by ``self.delay =
+latency is 1; the classic datapath additionally delays the signal by ``self.delay =
 pulse_span/2 + 2`` samples (delay line + 1-sample local-max lookahead) so the pulse
-center aligns with the peak.
+center aligns with the peak. ``architecture="pipelined"`` registers normalization,
+reciprocal multiplication, and amplitude multiplication while retaining one accepted
+sample per clock; it adds three samples to the matched delay and reserves the single
+pulse engine while a coefficient is in flight.
 
 ## Parameters
 
@@ -39,6 +42,7 @@ center aligns with the peak.
 | `pulse_span` | `16` | int | Cancellation pulse span in samples (even, >= 4; the pulse has ``pulse_span + 1`` taps). Longer = more spectrally contained corrections, but longer engine busy time (more missed peaks at high peak density) and a deeper delay line. |
 | `threshold` | — | none | Reset value of the runtime peak threshold, compared against the alpha-max-beta-min magnitude estimate (~|x|, full-scale units). Defaults to ``2**data_width - 1`` (above any reachable estimate, i.e. correction disabled until programmed). |
 | `cutoff` | `0.25` | float | Pulse low-pass cutoff in normalized frequency (0..0.5]; set to the signal's one-sided bandwidth so corrections stay in-band (see :func:`cfr_pulse`). |
+| `architecture` | `"classic"` | str | ``"classic"`` or timing-oriented ``"pipelined"`` coefficient generation. Choices: `classic`, `pipelined`. |
 
 ## Ports
 

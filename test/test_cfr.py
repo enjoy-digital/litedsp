@@ -77,9 +77,9 @@ def evm_below_pct(in_i, in_q, out_i, out_q, threshold, delay):
 
 class TestCFR(unittest.TestCase):
     def run_cfr(self, xi, xq, threshold, pulse_span=16, cutoff=0.2, throttle=0.25,
-        ready_rate=0.75):
+        ready_rate=0.75, architecture="classic"):
         dut = LiteDSPCFR(data_width=16, pulse_span=pulse_span, threshold=threshold,
-            cutoff=cutoff, with_csr=False)
+            cutoff=cutoff, architecture=architecture, with_csr=False)
         counts = {}
 
         @passive
@@ -93,6 +93,25 @@ class TestCFR(unittest.TestCase):
             len(xi), ["i", "q"], ["i", "q"], sink_throttle=throttle,
             source_ready_rate=ready_rate, extra=[watch()])
         return column(cap, "i", 16), column(cap, "q", 16), counts
+
+    # verify-tier: model — coefficient pipelining preserves cancellation arithmetic and
+    # sample-domain busy/reservation behavior under stalls; only the matched delay grows.
+    def test_pipelined_bit_exact(self):
+        xi, xq = multi_peak(700, seed=91, spacing=29)
+        thr = 13500
+        gi, gq, counts = self.run_cfr(xi, xq, thr, architecture="pipelined",
+            throttle=0.3, ready_rate=0.65)
+        ri, rq, peaks, missed = cfr_model(xi, xq, thr, cfr_pulse(16, cutoff=0.2),
+            pipeline=3)
+        np.testing.assert_array_equal(gi, ri)
+        np.testing.assert_array_equal(gq, rq)
+        self.assertEqual((counts["peaks"], counts["missed"]), (peaks, missed))
+        self.assertEqual(LiteDSPCFR(architecture="pipelined", with_csr=False).delay,
+            16//2 + 2 + 3)
+
+    def test_invalid_architecture(self):
+        with self.assertRaises(ValueError):
+            LiteDSPCFR(architecture="invalid", with_csr=False)
 
     # verify-tier: model — the whole datapath (magnitude estimate, local-max detection,
     # reciprocal-LUT coefficient, pulse engine, busy-skip) advances on accepted samples only,
