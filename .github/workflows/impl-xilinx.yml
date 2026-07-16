@@ -1,0 +1,34 @@
+name: Implementation (Artix-7 / Vivado)
+
+# Vivado cannot run on GitHub-hosted runners. This opt-in workflow targets a Linux self-hosted
+# runner labelled "vivado" with Vivado already licensed and available on PATH.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  artix7:
+    runs-on: [self-hosted, linux, vivado]
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+
+      - name: Check Vivado installation
+        run: vivado -version
+
+      - name: Synthesize all blocks for Artix-7
+        run: python3 impl/run.py --device xilinx --flow synth
+
+      - name: Enforce closed Artix-7 timing targets
+        run: python3 impl/run.py --device xilinx --flow pnr --target-closed --target-gate

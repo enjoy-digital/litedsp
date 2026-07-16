@@ -29,11 +29,12 @@ class TestImplementationBudgets(unittest.TestCase):
                         "lut": 10, "ff": 20, "bram": 1, "dsp": 2,
                         "pnr": {"fmax_mhz": 123.456},
                     },
-                })
+                }, flow="pnr")
                 with open(path) as f:
                     entry = json.load(f)["example"]["ecp5"]
         self.assertEqual(entry["fmax_mhz"], 123.5)
         self.assertEqual(entry["fmax_min"], 104.9)
+        self.assertEqual(entry["pnr"]["fmax_mhz"], 123.5)
 
     def test_update_preserves_explicit_target(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -41,7 +42,8 @@ class TestImplementationBudgets(unittest.TestCase):
             with open(path, "w") as f:
                 json.dump({"example": {"ecp5": {"fmax_target": 150.0}}}, f)
             with mock.patch.object(budgets, "PATH", path):
-                budgets.update("ecp5", {"example": {"pnr": {"fmax_mhz": 123.456}}})
+                budgets.update("ecp5", {"example": {"pnr": {"fmax_mhz": 123.456}}},
+                    flow="pnr")
                 entry = budgets.load()["example"]["ecp5"]
         self.assertEqual(entry["fmax_target"], 150.0)
         self.assertEqual(entry["fmax_min"], 104.9)
@@ -55,9 +57,37 @@ class TestImplementationBudgets(unittest.TestCase):
                 }}}, f)
             result = {"pnr": {"fmax_mhz": 90.0}}
             with mock.patch.object(budgets, "PATH", path):
-                self.assertEqual(budgets.check("ecp5", "example", result), [])
+                self.assertEqual(budgets.check("ecp5", "example", result, flow="pnr"), [])
                 self.assertEqual(budgets.check_target("ecp5", "example", result),
                     ["fmax 90.0 < target 100.0 MHz"])
+
+    def test_synth_and_pnr_resource_baselines_are_independent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "budgets.json")
+            with mock.patch.object(budgets, "PATH", path):
+                budgets.update("xilinx", {"fft": {"lut": 295, "ff": 90}}, flow="synth")
+                budgets.update("xilinx", {"fft": {
+                    "lut": 254, "ff": 90, "pnr": {"fmax_mhz": 104.5},
+                }}, flow="pnr")
+                entry = budgets.load()["fft"]["xilinx"]
+                self.assertEqual(entry["synth"]["lut"], 295)
+                self.assertEqual(entry["pnr"]["lut"], 254)
+                self.assertEqual(entry["lut"], 254)  # Flat display view prefers P&R.
+                self.assertEqual(budgets.check("xilinx", "fft", {"lut": 295},
+                    flow="synth"), [])
+                self.assertEqual(budgets.check("xilinx", "fft", {"lut": 254},
+                    flow="pnr"), [])
+
+    def test_migrate_seeds_timed_and_synthesis_only_entries(self):
+        data = {
+            "timed": {"ecp5": {"lut": 10, "ff": 2, "fmax_mhz": 100.0,
+                "fmax_min": 85.0, "fmax_target": 100.0}},
+            "synth": {"ecp5": {"lut": 5, "ff": 1}},
+        }
+        budgets.migrate(data)
+        self.assertEqual(data["timed"]["ecp5"]["synth"]["lut"], 10)
+        self.assertEqual(data["timed"]["ecp5"]["pnr"]["fmax_min"], 85.0)
+        self.assertNotIn("pnr", data["synth"]["ecp5"])
 
     def test_closed_targets_are_pnr_sentinels(self):
         data = budgets.load()
@@ -68,7 +98,7 @@ class TestImplementationBudgets(unittest.TestCase):
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, modules.PNR_SUBSET)
             entry = data[name]["ecp5"]
-            self.assertGreaterEqual(entry["fmax_mhz"], entry["fmax_target"])
+            self.assertGreaterEqual(entry["pnr"]["fmax_mhz"], entry["fmax_target"])
 
 @unittest.skipUnless(ecp5.have_yosys(), "yosys not installed")
 class TestImplementationECP5(unittest.TestCase):

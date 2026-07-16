@@ -66,7 +66,7 @@ def main():
     elif args.target_closed:
         names = list(TARGET_CLOSED)
     elif args.missing_budgets:
-        names = budgets.missing(args.device, REGISTRY)
+        names = budgets.missing(args.device, REGISTRY, flow=args.flow)
     else:
         names = list(REGISTRY)
     if args.flow == "pnr":                                # Port count exceeds device pins.
@@ -87,7 +87,7 @@ def main():
             res = build_one(args.device, args.flow, name, args.build)
             results[name] = res
             if not args.update_budgets:
-                violations[name] = budgets.check(args.device, name, res)
+                violations[name] = budgets.check(args.device, name, res, flow=args.flow)
                 target_misses[name] = budgets.check_target(args.device, name, res)
         except Exception as e:
             errors[name] = f"{type(e).__name__}: {e}"
@@ -98,8 +98,8 @@ def main():
         for n, e in errors.items():
             print(f"  {n}: {e}")
     if args.update_budgets:
-        budgets.update(args.device, results)
-        print(f"\n[budgets] baseline updated for {args.device} ({len(results)} modules)")
+        budgets.update(args.device, results, flow=args.flow)
+        print(f"\n[budgets] baseline updated for {args.device}/{args.flow} ({len(results)} modules)")
     if args.report:
         with open(args.report, "w") as f:
             f.write(report.markdown({args.device: results}))

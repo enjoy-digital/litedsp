@@ -20,19 +20,23 @@ python3 impl/run.py --device xilinx --flow synth --subset        # Vivado OOC sy
 python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R -> fmax
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
+python3 impl/run.py --device xilinx --flow pnr  --target-closed --target-gate # strict Artix targets
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
 
 `impl/run.py` builds each configuration (`impl/modules.py` registry → generated Verilog), parses
 LUT/FF/BRAM/DSP usage plus P&R timing, and fails on implementation errors or budget violations.
-Resource results may exceed their checked-in baseline by 15%; the fmax floor is set to 85% of the
-baseline P&R result. Both the raw measurement (`fmax_mhz`) and its regression floor
-(`fmax_min`) are retained in `impl/budgets.json`. An optional `fmax_target` is a separate
+Resource results may exceed their checked-in baseline by 15%; independent `synth` and `pnr`
+resource dictionaries prevent pre-optimization synthesis utilization from overwriting post-route
+utilization. The fmax floor is set to 85% of the baseline P&R result. Both the raw measurement
+(`fmax_mhz`) and its regression floor (`fmax_min`) are retained in `impl/budgets.json`. A flat
+P&R-preferred compatibility summary continues to feed generated docs and GUI badges. An optional `fmax_target` is a separate
 engineering objective: misses are reported but only fail a run when `--target-gate` is selected.
 Refreshing measured budgets preserves these manually reviewed targets. The CAD suite used by
 budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed subset that has
 already achieved its objective; CI reruns those blocks with strict target gating while targets
-for architecture work in progress remain advisory.
+for architecture work in progress remain advisory. `.github/workflows/impl-xilinx.yml` provides
+the equivalent strict Artix-7 gate on a self-hosted runner labelled `vivado`.
 
 ## Findings (what implementation testing caught)
 
