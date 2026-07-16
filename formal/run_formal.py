@@ -38,13 +38,19 @@ sys.path.insert(0, ROOT)
 from formal.wrapper import REGISTRY, emit
 
 PROPS = os.path.join(ROOT, "formal", "stream_props.sv")
+SOLVERS = {
+    "bitwuzla": "bitwuzla",
+    "z3":        "z3",
+    "yices":     "yices-smt2",
+    "boolector": "boolector",
+}
 
 # SymbiYosys ---------------------------------------------------------------------------------------
 
 def have_sby():
     return shutil.which("sby") is not None and shutil.which("yosys") is not None
 
-def gen_sby(name, spec, build_dir, depth):
+def gen_sby(name, spec, build_dir, depth, solver):
     """Write ``<build_dir>/<name>.sby`` (property task + cover task). Returns its path."""
     mode = spec["mode"]  # "prove" where k-induction closes, else "bmc" (set in wrapper.py).
     path = os.path.join(build_dir, name + ".sby")
@@ -60,7 +66,7 @@ cover: mode cover
 depth {depth}
 
 [engines]
-smtbmc bitwuzla
+smtbmc {solver}
 
 [script]
 read_verilog -formal -sv stream_props.sv
@@ -75,6 +81,14 @@ prep -top {name}_formal
 """)
     return path
 
+def select_solver(preferred=None):
+    """Select an installed smtbmc solver, preferring the CI/reference engine."""
+    names = [preferred] if preferred else list(SOLVERS)
+    for name in names:
+        if shutil.which(SOLVERS[name]) is not None:
+            return name
+    return None
+
 def run_sby(sby_path, task, build_dir):
     """Run one sby task. Returns (ok, seconds, last log lines for diagnostics)."""
     start = time.time()
@@ -84,11 +98,11 @@ def run_sby(sby_path, task, build_dir):
 
 # Runner -------------------------------------------------------------------------------------------
 
-def run_block(name, build_dir, depth):
+def run_block(name, build_dir, depth, solver):
     bd = os.path.join(build_dir, name)
     os.makedirs(bd, exist_ok=True)
     verilog, sv, spec = emit(name, bd)
-    sby_path = gen_sby(name, spec, bd, depth)
+    sby_path = gen_sby(name, spec, bd, depth, solver)
 
     mode = spec["mode"]
     ok_p, t_p, log_p = run_sby(sby_path, mode,    bd)
@@ -112,6 +126,8 @@ def main(argv=None):
     parser.add_argument("--block", action="append", default=None,   help="Block to run (repeatable; default: all).")
     parser.add_argument("--list",  action="store_true",             help="List registry entries and exit.")
     parser.add_argument("--depth", default=30, type=int,            help="BMC / induction depth.")
+    parser.add_argument("--solver", choices=list(SOLVERS), default=None,
+        help="smtbmc solver (default: first installed of bitwuzla, z3, yices, boolector).")
     parser.add_argument("--build-dir", default="/tmp/litedsp_formal", help="Build directory.")
     args = parser.parse_args(argv)
 
@@ -122,13 +138,19 @@ def main(argv=None):
     if not have_sby():
         print("[skip] sby/yosys not installed (OSS CAD Suite)")
         return 0
+    solver = select_solver(args.solver)
+    if solver is None:
+        requested = args.solver or ", ".join(SOLVERS)
+        print(f"[skip] no supported smtbmc solver installed ({requested})")
+        return 0
     for name in args.block or ():
         if name not in REGISTRY:
             parser.error(f"unknown block '{name}' (see --list)")
 
     names   = args.block or list(REGISTRY)
     start   = time.time()
-    results = [run_block(n, args.build_dir, args.depth) for n in names]
+    print(f"[formal] smtbmc solver: {solver}")
+    results = [run_block(n, args.build_dir, args.depth, solver) for n in names]
     print(f"\n{sum(results)}/{len(names)} blocks formally verified "
           f"(stability + token conservation + cover) in {time.time() - start:.1f}s")
     return 0 if all(results) else 1

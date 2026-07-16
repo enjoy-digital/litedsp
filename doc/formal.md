@@ -1,7 +1,7 @@
 # Formal verification of the stream fabric (SymbiYosys)
 
 The plumbing blocks — the handshake-heavy, low-arithmetic blocks every chain is built from — are
-formally verified with SymbiYosys (yosys + smtbmc/bitwuzla, OSS CAD Suite) against the LiteX
+formally verified with SymbiYosys (yosys + smtbmc, OSS CAD Suite) against the LiteX
 stream contract, under **fully arbitrary traffic and backpressure**: every sink
 valid/first/last/payload and every source ready is a free `(* anyseq *)` input, so the solver
 explores *all* producer/consumer timings, not a random sample of them.
@@ -122,4 +122,5 @@ confirming the properties catch it:
   `ready` on *another* branch could deadlock — a documented property of atomic fan-out, now
   formally pinned down rather than folklore.
 
-Runtime: full suite ~25 s on a desktop (engine `smtbmc bitwuzla`).
+Runtime: full suite ~25 s on a desktop. The runner prefers `bitwuzla` and falls back to an
+installed `z3`, `yices`, or `boolector` smtbmc engine; `--solver` selects one explicitly.
