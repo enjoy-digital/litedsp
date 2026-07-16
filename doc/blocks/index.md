@@ -20,7 +20,7 @@
 | [Mixer (complex)](mixer.md) | `LiteDSPMixer` | 2 | 4 | Complex mixer with runtime up/down mode and bypass. |
 | [DDC](ddc.md) | `LiteDSPDDC` | 1 | 6 | Digital down-converter: NCO + complex mixer (down) + decimator. |
 | [DUC](duc.md) | `LiteDSPDUC` | 1 | 7 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
-| [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 33 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
+| [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 34 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
 | [PFB channelizer](pfb_channelizer.md) | `LiteDSPPFBChannelizer` | 60 | 11 | Critically-sampled uniform DFT filter bank (polyphase FIR + direct M-point DFT). |
 
 ## Filtering (`filter/`)
@@ -29,11 +29,11 @@
 |---|---|---|---|---|
 | [FIR (real)](fir_real.md) | `LiteDSPFIRFilter` | 3 | — | Pipelined single-rate real FIR filter with stream I/O and round+saturate output. |
 | [FIR (complex)](fir_complex.md) | `LiteDSPFIRFilterComplex` | 3 | 2 | Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + CSR. |
-| [FIR decimator](fir_decimator.md) | `LiteDSPFIRDecimator` | 32 | 2 | Decimate-by-R complex FIR with a single time-shared MAC per I/Q. |
+| [FIR decimator](fir_decimator.md) | `LiteDSPFIRDecimator` | 33 | 2 | Decimate-by-R complex FIR with a single time-shared MAC per I/Q. |
 | [FIR interpolator](fir_interpolator.md) | `LiteDSPFIRInterpolator` | 32 | 2 | Interpolate-by-L complex FIR with a single time-shared MAC per I/Q (polyphase). |
 | [CIC decimator](cic_decimator.md) | `LiteDSPCICDecimator` | 1 | 0 | CIC decimator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N``, rescaled to width. |
 | [CIC interpolator](cic_interpolator.md) | `LiteDSPCICInterpolator` | 1 | 0 | CIC interpolator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N / R``, rescaled. |
-| [Halfband decimator](halfband_dec.md) | `LiteDSPHalfbandDecimator` | 23 | — | Decimate-by-2 half-band FIR. |
+| [Halfband decimator](halfband_dec.md) | `LiteDSPHalfbandDecimator` | 24 | — | Decimate-by-2 half-band FIR. |
 | [Halfband interpolator](halfband_int.md) | `LiteDSPHalfbandInterpolator` | 23 | — | Interpolate-by-2 half-band FIR. |
 | [Hilbert](hilbert.md) | `LiteDSPHilbert` | 3 | — | Real -> analytic (complex) signal via a Hilbert FIR. |
 | [IIR biquad](iir_biquad.md) | `LiteDSPIIRBiquad` | 2 | 24 | One DF2T biquad section applied to I and Q with shared coefficients. |

@@ -2,7 +2,7 @@
 
 `LiteDSPFIRDecimator` — `litedsp.filter.fir_poly` — category `filter`
 
-latency: 32 samples · CSR: yes · bypass: no
+latency: 33 samples · CSR: yes · bypass: no
 
 ## Overview
 

@@ -2,7 +2,7 @@
 
 `LiteDSPHalfbandDecimator` — `litedsp.filter.halfband` — category `filter`
 
-latency: 23 samples · CSR: yes · bypass: no
+latency: 24 samples · CSR: yes · bypass: no
 
 ## Overview
 

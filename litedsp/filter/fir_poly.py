@@ -51,8 +51,8 @@ class LiteDSPFIRDecimator(LiteXModule):
         self.n_taps     = n_taps
         self.decimation = R
         self.data_width = data_width
-        self.cycles_per_output = R + n_taps
-        self.latency = n_taps
+        self.cycles_per_output = R + n_taps + 1
+        self.latency = n_taps + 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -95,6 +95,8 @@ class LiteDSPFIRDecimator(LiteXModule):
         t     = Signal(max=n_taps + 1)                # Tap index (MAC step / coefficient address).
         radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
+        prod_i = Signal((2*data_width, True))
+        prod_q = Signal((2*data_width, True))
         ci = Signal((data_width, True))               # Signed views of the I/Q/coeff read data.
         cq = Signal((data_width, True))
         cc = Signal((data_width, True))
@@ -125,13 +127,25 @@ class LiteDSPFIRDecimator(LiteXModule):
                 )
             )
         )
-        # MAC: one tap per cycle; radr walks the history backwards while t addresses c[t].
+        # MAC: register one product per cycle while accumulating the preceding tap. Splitting
+        # the multiplier from the accumulator feedback is one extra drain cycle per output,
+        # but preserves the serial-MAC area and bit-exact arithmetic while removing the
+        # multiplier-plus-wide-adder critical path.
         fsm.act("MAC",
-            NextValue(acc_i, acc_i + ci*cc),
-            NextValue(acc_q, acc_q + cq*cc),
+            NextValue(prod_i, ci*cc),
+            NextValue(prod_q, cq*cc),
+            If(t != 0,
+                NextValue(acc_i, acc_i + prod_i),
+                NextValue(acc_q, acc_q + prod_q),
+            ),
             NextValue(radr, radr - 1),
             NextValue(t, t + 1),
-            If(t == (n_taps - 1), NextState("EMIT")),
+            If(t == (n_taps - 1), NextState("MAC_DRAIN")),
+        )
+        fsm.act("MAC_DRAIN",
+            NextValue(acc_i, acc_i + prod_i),
+            NextValue(acc_q, acc_q + prod_q),
+            NextState("EMIT"),
         )
         out_i, _ = scaled(acc_i, shift, data_width)
         out_q, _ = scaled(acc_q, shift, data_width)
