@@ -33,12 +33,13 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 ## Register Map
 
-### `core_config` (read-only, 24 bits)
+### `core_config` (read-only, 25 bits)
 
 | Bits | Field | Reset | Description |
 |---|---|---|---|
 | `[15:0]` | `rate` | `0` | Interpolation factor R. |
 | `[23:16]` | `stages` | `0` | CIC stages N. |
+| `[24]` | `staged` | `0` | One when the registered-stage architecture is selected. |
 
 ## FPGA Resources
 

@@ -62,7 +62,8 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_closed_targets_are_pnr_sentinels(self):
         data = budgets.load()
         self.assertEqual(modules.TARGET_CLOSED,
-            ["dpd", "ddc", "channelizer", "ldpc_decoder"])
+            ["dpd", "ddc", "channelizer", "ldpc_decoder",
+             "cic_decimator", "cic_interpolator"])
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, modules.PNR_SUBSET)
             entry = data[name]["ecp5"]

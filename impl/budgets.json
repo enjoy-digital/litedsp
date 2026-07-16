@@ -104,35 +104,40 @@
     "ecp5": {
       "bram": 0,
       "dsp": 0,
-      "ff": 484,
-      "fmax_mhz": 80.0,
-      "fmax_min": 68.0,
+      "ff": 665,
+      "fmax_mhz": 364.4,
+      "fmax_min": 309.8,
       "fmax_target": 100.0,
-      "lut": 566
+      "lut": 520
     },
     "xilinx": {
       "bram": 0,
       "dsp": 0,
-      "ff": 484,
-      "fmax_min": 82.6,
-      "lut": 776
+      "ff": 667,
+      "fmax_mhz": 297.3,
+      "fmax_min": 252.7,
+      "fmax_target": 100.0,
+      "lut": 508
     }
   },
   "cic_interpolator": {
     "ecp5": {
       "bram": 0,
       "dsp": 0,
-      "ff": 438,
-      "fmax_mhz": 69.7,
-      "fmax_min": 59.2,
+      "ff": 615,
+      "fmax_mhz": 243.5,
+      "fmax_min": 207.0,
       "fmax_target": 100.0,
-      "lut": 550
+      "lut": 596
     },
     "xilinx": {
       "bram": 0,
       "dsp": 0,
-      "ff": 438,
-      "lut": 676
+      "ff": 615,
+      "fmax_mhz": 238.0,
+      "fmax_min": 202.3,
+      "fmax_target": 100.0,
+      "lut": 486
     }
   },
   "cic_parallel_x4": {

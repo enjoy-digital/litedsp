@@ -126,11 +126,13 @@ def resampler_farm():
     return d, {d.coeff_data, d.coeff_we, d.coeff_rst} | _eps(d.source, *d.sinks), 10.0
 
 def cic_decimator():
-    d = LiteDSPCICDecimator(data_width=16, decimation=8, n_stages=4, with_csr=False)
+    d = LiteDSPCICDecimator(data_width=16, decimation=8, n_stages=4,
+        with_csr=False, staged=True)
     return d, _eps(d.sink, d.source), 10.0
 
 def cic_interpolator():
-    d = LiteDSPCICInterpolator(data_width=16, interpolation=8, n_stages=4, with_csr=False)
+    d = LiteDSPCICInterpolator(data_width=16, interpolation=8, n_stages=4,
+        with_csr=False, staged=True)
     return d, _eps(d.sink, d.source), 10.0
 
 def halfband():
@@ -424,12 +426,13 @@ REGISTRY = {
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
-              "iir_biquad", "fft", "cordic_vec", "dpd", "ddc", "channelizer",
-              "ldpc_decoder", "mixer_parallel_x2", "farrow", "window"]
+              "cic_interpolator", "iir_biquad", "fft", "cordic_vec", "dpd", "ddc",
+              "channelizer", "ldpc_decoder", "mixer_parallel_x2", "farrow", "window"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
-TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder"]
+TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
+                 "cic_decimator", "cic_interpolator"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

@@ -14,7 +14,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 |---|---:|---|---|
 | Viterbi hard / soft | 47.4 / 46.5 MHz | ACS metric update followed by the global-min tree and normalization | traceback RAM plus less-frequent normalization |
 | AGC | 49.6 MHz | gain multiply, output magnitude, error and gain integration in one accepted-sample step | one-sample-delayed adaptation loop |
-| CIC decimator / interpolator | 80.0 / 69.7 MHz | cascaded integrator/comb arithmetic must update coherent state | registered stage cascade with explicit sample-phase alignment |
+| CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x4 | 55.6 MHz | four-lane prefix recurrence expands each serial integrator update | lane-prefix pipeline or fewer lanes per clock |
 | SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz | butterfly result feeds the SDF delay or in-place RAM schedule | folded/interleaved butterfly options |
 
@@ -83,6 +83,14 @@ resulting group delay, and align the decimation strobe/output phase to the exist
 sequence. Hogenauer wrap-around widths and gain normalization do not change. For x4, first test a
 two-level prefix pipeline; if routing remains dominant, expose a two-lane option instead of
 forcing four samples per clock.
+
+The serial staged option is now implemented as an elastic pipeline.  Each accepted sample carries
+its decimation phase through one-adder integrator stages; marked samples then traverse one-
+subtractor comb stages.  The interpolator uses the reverse ordering around an explicit zero-stuff
+phase generator.  For the N=4 implementation configuration this raises ECP5 timing from
+80.0/69.7 MHz to 364.4/243.5 MHz (decimator/interpolator), changes latency from 1 to 8 clocks, and
+keeps one-sample-per-clock peak throughput.  The compatibility architecture remains the default;
+the implementation and co-simulation registries select `staged=True`.
 
 Trade-offs:
 
