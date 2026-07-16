@@ -152,6 +152,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
         t    = Signal(max=T + 1)   # Tap index within the branch.
         k    = Signal(max=M)       # Output channel (DFT bin) index.
         pd   = Signal(max=M)       # DFT input (branch) index.
+        tw_addr = Signal(max=M)    # Folded DFT twiddle index (recurrent k*p mod M).
         radr = Signal(max=depth)   # History read pointer (walks back from newest, stride M).
         acc_i,  acc_q  = Signal((acc_w, True)),  Signal((acc_w, True))    # Branch accumulators.
         dacc_i, dacc_q = Signal((dacc_w, True)), Signal((dacc_w, True))   # DFT accumulators.
@@ -178,8 +179,8 @@ class LiteDSPPFBChannelizer(LiteXModule):
             uiw.dat_w.eq(acc_i), uqw.dat_w.eq(acc_q),
             uir.adr.eq(pd), uqr.adr.eq(pd),
             ur.eq(uir.dat_r), uj.eq(uqr.dat_r),
-            cos_rp.adr.eq((k*pd) & (M - 1)),  # Twiddle index k*p mod M (M is a power of two).
-            sin_rp.adr.eq((k*pd) & (M - 1)),
+            cos_rp.adr.eq(((k*pd) & (M - 1)) if architecture == "classic" else tw_addr),
+            sin_rp.adr.eq(((k*pd) & (M - 1)) if architecture == "classic" else tw_addr),
             tc.eq(cos_rp.dat_r), ts.eq(sin_rp.dat_r),
         ]
 
@@ -242,6 +243,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
             NextValue(radr, base - 1 - p),       # Branch p+1, tap 0 = base - (p + 1).
             If(p == (M - 1),
                 NextValue(k, 0), NextValue(pd, 0),
+                NextValue(tw_addr, 0),
                 NextValue(dacc_i, 0), NextValue(dacc_q, 0),
                 NextState("DFT" if architecture == "classic" else "DFT_MUL"),
             ).Else(
@@ -267,6 +269,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
                 NextValue(dacc_i, dacc_i + dft_prod_rr - dft_prod_ii),
                 NextValue(dacc_q, dacc_q + dft_prod_ri + dft_prod_ir),
                 NextValue(pd, pd + 1),
+                NextValue(tw_addr, (tw_addr + k) & (M - 1)),
                 If(pd == (M - 1),
                     NextState("EMIT"),
                 ).Else(
@@ -287,6 +290,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
                 ).Else(
                     NextValue(k, k + 1),
                     NextValue(pd, 0),
+                    NextValue(tw_addr, 0),
                     NextValue(dacc_i, 0), NextValue(dacc_q, 0),
                     NextState("DFT" if architecture == "classic" else "DFT_MUL"),
                 )
