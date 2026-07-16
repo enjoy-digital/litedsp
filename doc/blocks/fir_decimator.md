@@ -51,8 +51,8 @@ Write the next FIR coefficient (auto-incrementing tap index).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 503 | 104 | 0 | 2 | 90.3 | — |
-| xilinx | 239 | 78 | 0 | 2 | 121.8 | — |
+| ecp5 | 541 | 168 | 0 | 2 | 108.7 | — |
+| xilinx | 283 | 105 | 0 | 2 | 121.8 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

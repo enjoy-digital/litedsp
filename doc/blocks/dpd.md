@@ -96,8 +96,8 @@ Bypass block (passthrough).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1565 | 481 | 0 | 12 | 82.7 | 100.0 |
-| xilinx | 666 | 187 | 0 | 14 | — | — |
+| ecp5 | 1559 | 634 | 0 | 12 | 92.9 | 100.0 |
+| xilinx | 701 | 180 | 0 | 14 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

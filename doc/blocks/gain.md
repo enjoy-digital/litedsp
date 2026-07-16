@@ -53,7 +53,7 @@ Gain mantissa (signed Q2.(N-2), 1.0 = 2**(N-2)).
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
 | ecp5 | 493 | 33 | 0 | 2 | 581.0 | — |
-| xilinx | 21 | 33 | 0 | 8 | — | — |
+| xilinx | 202 | 33 | 0 | 8 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

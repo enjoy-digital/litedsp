@@ -59,6 +59,10 @@ class TestImplementationBudgets(unittest.TestCase):
                 self.assertEqual(budgets.check_target("ecp5", "example", result),
                     ["fmax 90.0 < target 100.0 MHz"])
 
+    def test_retimed_targets_are_pnr_sentinels(self):
+        for name in ("dpd", "ddc", "channelizer", "ldpc_decoder"):
+            self.assertIn(name, modules.PNR_SUBSET)
+
 @unittest.skipUnless(ecp5.have_yosys(), "yosys not installed")
 class TestImplementationECP5(unittest.TestCase):
     def synth(self, name):
