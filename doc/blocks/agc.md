@@ -48,7 +48,7 @@ Current gain (Q?.frac).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 642 | 57 | 0 | 8 | 42.2 | — |
+| ecp5 | 642 | 57 | 0 | 8 | 42.2 | 100.0 |
 | xilinx | 179 | 57 | 0 | 4 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

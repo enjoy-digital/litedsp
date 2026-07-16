@@ -6,6 +6,7 @@
       "ff": 57,
       "fmax_mhz": 49.6,
       "fmax_min": 42.2,
+      "fmax_target": 100.0,
       "lut": 642
     },
     "xilinx": {
@@ -103,6 +104,7 @@
       "ff": 484,
       "fmax_mhz": 80.0,
       "fmax_min": 68.0,
+      "fmax_target": 100.0,
       "lut": 566
     },
     "xilinx": {
@@ -120,6 +122,7 @@
       "ff": 438,
       "fmax_mhz": 69.7,
       "fmax_min": 59.2,
+      "fmax_target": 100.0,
       "lut": 550
     },
     "xilinx": {
@@ -136,6 +139,7 @@
       "ff": 482,
       "fmax_mhz": 55.6,
       "fmax_min": 47.3,
+      "fmax_target": 100.0,
       "lut": 1393
     },
     "xilinx": {
@@ -378,6 +382,7 @@
       "ff": 360,
       "fmax_mhz": 58.7,
       "fmax_min": 49.9,
+      "fmax_target": 100.0,
       "lut": 4387
     },
     "xilinx": {
@@ -395,6 +400,7 @@
       "ff": 91,
       "fmax_mhz": 73.6,
       "fmax_min": 62.6,
+      "fmax_target": 100.0,
       "lut": 995
     },
     "xilinx": {
@@ -411,6 +417,7 @@
       "ff": 994,
       "fmax_mhz": 56.9,
       "fmax_min": 48.4,
+      "fmax_target": 100.0,
       "lut": 9163
     },
     "xilinx": {
@@ -1145,6 +1152,7 @@
       "ff": 3945,
       "fmax_mhz": 47.4,
       "fmax_min": 40.3,
+      "fmax_target": 100.0,
       "lut": 9004
     },
     "xilinx": {
@@ -1161,6 +1169,7 @@
       "ff": 3945,
       "fmax_mhz": 46.5,
       "fmax_min": 39.5,
+      "fmax_target": 100.0,
       "lut": 9553
     },
     "xilinx": {

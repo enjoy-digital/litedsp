@@ -59,7 +59,8 @@ budgeted CI is pinned in the workflows.
   numerical recurrence is preserved. The remaining sub-100 MHz configurations are primarily
   recurrence- or unrolling-limited (Viterbi ACS, CIC/AGC feedback, SDF FFT feedback, and the
   multi-lane CIC); their next step is an explicit throughput/area architecture decision rather
-  than an unsafe register insertion.
+  than an unsafe register insertion. The reviewed options, trade-offs and acceptance criteria
+  are tracked in [`timing_architecture.md`](timing_architecture.md).
 
 ## Current results
 
