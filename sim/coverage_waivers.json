@@ -1,3 +1,4 @@
 {
-  "ldpc_decoder": "The fixed 802.11n topology duplicates selector arms for every edge and layer; clean, noisy, max-iteration, clear, and failure vectors exercise the decoder outcomes without reaching every structurally repeated arm."
+  "ldpc_decoder": "The fixed 802.11n topology duplicates selector arms for every edge and layer; clean, noisy, max-iteration, clear, and failure vectors exercise the decoder outcomes without reaching every structurally repeated arm.",
+  "pfb_channelizer_fft": "Migen expands the DIF address and natural-order bit-reversal maps into exhaustive combinational case arms. Every stage and channel is checked numerically in framed co-simulation, but Verilator does not attribute line hits to all constant decode assignments."
 }
