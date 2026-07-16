@@ -13,6 +13,7 @@
     python3 impl/run.py --device ecp5   --flow pnr                  # + nextpnr P&R (fmax), all
     python3 impl/run.py --device ecp5   --flow pnr  --subset        # + nextpnr P&R, fast subset
     python3 impl/run.py --device ecp5   --flow synth --update-budgets   # seed/refresh baseline
+    python3 impl/run.py --device xilinx --flow synth --missing-budgets --update-budgets
 """
 
 import os
@@ -44,8 +45,11 @@ def main():
     parser = argparse.ArgumentParser(description="LiteDSP FPGA implementation flows (synth/P&R + budget gate).")
     parser.add_argument("--device",         default="ecp5",              choices=["ecp5", "xilinx"], help="Target device/toolchain.")
     parser.add_argument("--flow",           default="synth",             choices=["synth", "pnr"],   help="Implementation flow.")
-    parser.add_argument("--module",         default=None,                help="Single module name (default: all).")
-    parser.add_argument("--subset",         action="store_true",         help="Only the P&R subset.")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--module",         default=None,        help="Single module name (default: all).")
+    selection.add_argument("--subset",         action="store_true", help="Only the P&R subset.")
+    selection.add_argument("--missing-budgets", action="store_true",
+        help="Only modules without a baseline for the selected device.")
     parser.add_argument("--build",          default="/tmp/litedsp_impl", help="Build directory.")
     parser.add_argument("--update-budgets", action="store_true",         help="Rewrite the budget baseline from this run.")
     parser.add_argument("--no-gate",        action="store_true",         help="Don't fail on budget violations (portability/compile-clean check only).")
@@ -56,10 +60,16 @@ def main():
         names = [args.module]
     elif args.subset:
         names = list(PNR_SUBSET)
+    elif args.missing_budgets:
+        names = budgets.missing(args.device, REGISTRY)
     else:
         names = list(REGISTRY)
-        if args.flow == "pnr":                            # Port count exceeds device pins.
-            names = [n for n in names if n not in SYNTH_ONLY]
+    if args.flow == "pnr":                                # Port count exceeds device pins.
+        names = [n for n in names if n not in SYNTH_ONLY]
+
+    if not names:
+        print(f"[ok] no missing budgets for {args.device}")
+        return 0
 
     tool_ok = {"ecp5": ecp5.have_yosys(), "xilinx": xilinx.have_vivado()}[args.device]
     if not tool_ok:
@@ -88,8 +98,8 @@ def main():
         with open(args.report, "w") as f:
             f.write(report.markdown({args.device: results}))
 
-    failed = bool(errors) or (any(violations.values()) and not args.no_gate)
-    return 1 if (failed and not args.update_budgets) else 0
+    failed = bool(errors) or (any(violations.values()) and not args.no_gate and not args.update_budgets)
+    return 1 if failed else 0
 
 if __name__ == "__main__":
     sys.exit(main())

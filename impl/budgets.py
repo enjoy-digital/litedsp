@@ -23,6 +23,11 @@ def save(data):
     with open(PATH, "w") as f:
         json.dump(data, f, indent=2, sort_keys=True)
 
+def missing(device, names):
+    """Return registry names that have no baseline for ``device`` yet."""
+    data = load()
+    return [name for name in names if device not in data.get(name, {})]
+
 def update(device, results):
     """Record measured ``results`` (name -> resource dict) as the new baseline for ``device``."""
     data = load()
