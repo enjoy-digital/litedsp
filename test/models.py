@@ -109,7 +109,7 @@ def clipper_model(i, q, threshold, data_width=16):
 # CFR (Peak Cancellation) ---------------------------------------------------------------------------
 
 def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
-    recip_frac=15, pipeline=0):
+    recip_frac=15, pipeline=0, correction_pipeline=False):
     """Reference for litedsp.level.cfr.LiteDSPCFR (bit-exact). Returns (i, q, peaks, missed).
 
     Per accepted sample: estimate the magnitude (alpha-max-beta-min), detect a peak on the
@@ -118,7 +118,7 @@ def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
     ``a = g * x_pk`` with ``g = (|x_pk| - T)/|x_pk|`` computed divider-free (leading-zero
     normalization + 64-entry midpoint reciprocal LUT, Q0.15, round-half-up, clamped), and
     ``a * pulse[k]`` (round + saturate at each step) is subtracted from the stream delayed
-    by ``len(pulse)//2 + 2 + pipeline`` samples so the pulse center lands on the peak. Peaks detected
+    by ``len(pulse)//2 + 2 + pipeline + correction_pipeline`` samples so the pulse center lands on the peak. Peaks detected
     while the engine is busy pass uncorrected (``missed``). All state advances on accepted
     samples only, so the sequence is handshake-invariant (holds under backpressure).
 
@@ -127,7 +127,7 @@ def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
     """
     W    = data_width
     L    = len(pulse)
-    D    = (L - 1)//2 + 2 + pipeline
+    D    = (L - 1)//2 + 2 + pipeline + int(correction_pipeline)
     lut  = [int(round((1 << recip_frac)/(1 + (k + 0.5)/(1 << index_bits))))
             for k in range(1 << index_bits)]
     gmax = (1 << (W - 1)) - 1
@@ -136,6 +136,7 @@ def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
     out_q = np.zeros(len(i), np.int64)
     busy, k, a_i, a_q = False, 0, 0, 0
     pending = None                    # (accepted samples remaining, a_i, a_q).
+    corr_i_d = corr_q_d = 0
     p_i = p_q = 0                  # Peak candidate (previous sample).
     m1  = m2  = 0                  # Magnitude estimate one/two samples ago.
     peaks = missed = 0
@@ -146,8 +147,13 @@ def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
         # Correction of the delayed sample (engine state as set by previous samples).
         di = int(i[n - D]) if n >= D else 0
         dq = int(q[n - D]) if n >= D else 0
-        ci = int(np_rounded(a_i*pulse[k], W - 1)) if busy else 0
-        cq = int(np_rounded(a_q*pulse[k], W - 1)) if busy else 0
+        ci_now = int(np_rounded(a_i*pulse[k], W - 1)) if busy else 0
+        cq_now = int(np_rounded(a_q*pulse[k], W - 1)) if busy else 0
+        if correction_pipeline:
+            ci, cq = corr_i_d, corr_q_d
+            corr_i_d, corr_q_d = ci_now, cq_now
+        else:
+            ci, cq = ci_now, cq_now
         out_i[n] = np_saturated(di - ci, W)
         out_q[n] = np_saturated(dq - cq, W)
         # Engine index update + detection (fire tests the pre-update busy, like the RTL).

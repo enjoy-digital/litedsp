@@ -78,8 +78,8 @@ class LiteDSPCFR(LiteXModule):
     pulse_span/2 + 2`` samples (delay line + 1-sample local-max lookahead) so the pulse
     center aligns with the peak. ``architecture="pipelined"`` registers normalization,
     reciprocal multiplication, and amplitude multiplication while retaining one accepted
-    sample per clock; it adds three samples to the matched delay and reserves the single
-    pulse engine while a coefficient is in flight.
+    sample per clock; a registered pulse correction brings the total matched-delay cost to
+    four samples; the single pulse engine is reserved while a coefficient is in flight.
 
     Parameters
     ----------
@@ -110,7 +110,7 @@ class LiteDSPCFR(LiteXModule):
         self.pulse_span = pulse_span
         self.architecture = architecture
         self.latency    = 1                    # Cycle latency (see also self.delay).
-        self.delay      = pulse_span//2 + 2 + (3 if architecture == "pipelined" else 0)
+        self.delay      = pulse_span//2 + 2 + (4 if architecture == "pipelined" else 0)
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.threshold    = Signal(data_width, reset=threshold)  # Peak threshold (~|x|).
@@ -285,10 +285,17 @@ class LiteDSPCFR(LiteXModule):
                 corr_q.eq(rounded(pc_q, W - 1)),
             ),
         ]
+        if architecture == "pipelined":
+            corr_i_r = Signal((W + 1, True))
+            corr_q_r = Signal((W + 1, True))
+            self.sync += If(xfer, corr_i_r.eq(corr_i), corr_q_r.eq(corr_q))
+            correction_i, correction_q = corr_i_r, corr_q_r
+        else:
+            correction_i, correction_q = corr_i, corr_q
         valid = Signal()
         self.sync += If(adv,
-            self.source.i.eq(saturated(dly_i[-1] - corr_i, W)),
-            self.source.q.eq(saturated(dly_q[-1] - corr_q, W)),
+            self.source.i.eq(saturated(dly_i[-1] - correction_i, W)),
+            self.source.q.eq(saturated(dly_q[-1] - correction_q, W)),
             valid.eq(self.sink.valid),
         )
         self.comb += self.source.valid.eq(valid)

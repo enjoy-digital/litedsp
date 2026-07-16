@@ -31,8 +31,8 @@ latency is 1; the classic datapath additionally delays the signal by ``self.dela
 pulse_span/2 + 2`` samples (delay line + 1-sample local-max lookahead) so the pulse
 center aligns with the peak. ``architecture="pipelined"`` registers normalization,
 reciprocal multiplication, and amplitude multiplication while retaining one accepted
-sample per clock; it adds three samples to the matched delay and reserves the single
-pulse engine while a coefficient is in flight.
+sample per clock; a registered pulse correction brings the total matched-delay cost to
+four samples; the single pulse engine is reserved while a coefficient is in flight.
 
 ## Parameters
 

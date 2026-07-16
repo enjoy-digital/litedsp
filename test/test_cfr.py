@@ -102,12 +102,12 @@ class TestCFR(unittest.TestCase):
         gi, gq, counts = self.run_cfr(xi, xq, thr, architecture="pipelined",
             throttle=0.3, ready_rate=0.65)
         ri, rq, peaks, missed = cfr_model(xi, xq, thr, cfr_pulse(16, cutoff=0.2),
-            pipeline=3)
+            pipeline=3, correction_pipeline=True)
         np.testing.assert_array_equal(gi, ri)
         np.testing.assert_array_equal(gq, rq)
         self.assertEqual((counts["peaks"], counts["missed"]), (peaks, missed))
         self.assertEqual(LiteDSPCFR(architecture="pipelined", with_csr=False).delay,
-            16//2 + 2 + 3)
+            16//2 + 2 + 4)
 
     def test_invalid_architecture(self):
         with self.assertRaises(ValueError):
