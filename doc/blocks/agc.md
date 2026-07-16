@@ -24,6 +24,7 @@ Estimates the input magnitude (alpha-max-beta-min), integrates the error into a 
 | `gain_max` | — | none | Upper clamp of the gain integrator, in 2**-gain_frac units. Defaults to the full gain register range (2**(data_width + gain_frac) - 1); lower it to bound the maximum gain. |
 | `beta_shift` | `2` | int | Beta exponent of the alpha-max-beta-min magnitude estimate (|x| ~ max + min >> beta_shift). 2 is the usual multiplier-free compromise (~4% peak error). |
 | `with_irq` | `False` | bool | Add a LiteX EventManager interrupt on the block's trigger event. |
+| `delayed_feedback` | `False` | bool | When true, apply each magnitude observation on the following accepted sample.  This inserts one sample of control-loop delay without making the trajectory depend on stalls. |
 
 ## Ports
 
@@ -44,12 +45,18 @@ Target output magnitude.
 
 Current gain (Q?.frac).
 
+### `config` (read-only, 2 bits)
+
+| Bits | Field | Reset | Description |
+|---|---|---|---|
+| `[1:0]` | `feedback_delay` | `0` | Accepted-sample delay in the gain feedback path. |
+
 ## FPGA Resources
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 642 | 57 | 0 | 8 | 42.2 | 100.0 |
-| xilinx | 179 | 57 | 0 | 4 | — | — |
+| ecp5 | 349 | 75 | 0 | 4 | 90.4 | 100.0 |
+| xilinx | 197 | 75 | 0 | 2 | 87.8 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

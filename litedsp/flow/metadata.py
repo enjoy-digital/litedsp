@@ -99,6 +99,7 @@ PARAM_GLOSSARY = {
     "n_stages":      "Number of CIC integrator/comb stages (N in the literature).",
     "diff_delay":    "CIC comb differential delay (M in the literature).",
     "staged":        "Select the elastic registered-stage CIC architecture (higher latency, one sample per clock).",
+    "delayed_feedback": "Apply AGC magnitude feedback on the following accepted sample.",
     "frac_bits":     "Fractional bits of the coefficient/control fixed-point format.",
     "frac":          "Fractional bits of the control fixed-point format.",
     "phase_bits":    "Phase accumulator width in bits.",

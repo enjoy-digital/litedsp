@@ -13,7 +13,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Family/configuration | Current ECP5 | Recurrence that limits timing | First implementation to evaluate |
 |---|---:|---|---|
 | Viterbi hard / soft | 47.4 / 46.5 MHz | ACS metric update followed by the global-min tree and normalization | traceback RAM plus less-frequent normalization |
-| AGC | 49.6 MHz | gain multiply, output magnitude, error and gain integration in one accepted-sample step | one-sample-delayed adaptation loop |
+| AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x4 | 55.6 MHz | four-lane prefix recurrence expands each serial integrator update | lane-prefix pipeline or fewer lanes per clock |
 | SDF / iterative / parallel-x2 FFT | 58.7 / 73.6 / 56.9 MHz | butterfly result feeds the SDF delay or in-place RAM schedule | folded/interleaved butterfly options |
@@ -52,11 +52,17 @@ The current loop applies `gain[n]`, derives `|y[n]|`, and commits `gain[n+1]` on
 accepted transfer. The multiply/rescale, magnitude approximation, error calculation and clamp
 therefore form one feedback path.
 
-The preferred option registers the applied output and updates gain from that registered
-magnitude one cycle later. Sample throughput stays at one per clock and datapath latency grows
-from one to two cycles, but the control loop gains one unit delay. This must be a parameterized
-architecture because it changes the exact gain trajectory even though the steady-state target
-is unchanged.
+The preferred option updates gain from the already-registered output magnitude on the following
+accepted sample. Sample throughput and datapath latency stay at one per clock and one clock,
+respectively, but the control loop gains one unit delay. This must be a parameterized architecture
+because it changes the exact gain trajectory even though the steady-state target is unchanged.
+
+The option is now implemented as `delayed_feedback=True`.  A pending observation register keeps
+the sample-domain trajectory invariant when an output drains during an input gap.  The registry
+configuration reaches 106.3 MHz on ECP5 and 103.3 MHz on Artix-7, compared with 49.6 MHz for the
+classic ECP5 loop; ECP5 resources change from 642 LUT / 57 FF / 8 DSP to 349 LUT / 75 FF / 4 DSP.
+Characterization settles in 31 samples with 0.733% residual error and no measured overshoot for
+the reviewed stimulus.
 
 Trade-offs:
 

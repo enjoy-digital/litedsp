@@ -89,10 +89,12 @@ class LiteDSPAGC(LiteXModule):
         # Magnitude Measurement.
         # ----------------------
         # Measure the *output* magnitude (alpha-max-beta-min) to close the loop.
+        measure_i = self.source.i if delayed_feedback else out_i
+        measure_q = self.source.q if delayed_feedback else out_q
         ai, aq = Signal(data_width + 1), Signal(data_width + 1)
         self.comb += [
-            ai.eq(Mux(out_i[-1], -out_i, out_i)),  # |I|.
-            aq.eq(Mux(out_q[-1], -out_q, out_q)),  # |Q|.
+            ai.eq(Mux(measure_i[-1], -measure_i, measure_i)),  # |I|.
+            aq.eq(Mux(measure_q[-1], -measure_q, measure_q)),  # |Q|.
         ]
         mag = Signal(data_width + 1)
         # max + min/2**beta_shift ~ sqrt(I**2 + Q**2) (no multiplier/sqrt needed).
@@ -102,7 +104,8 @@ class LiteDSPAGC(LiteXModule):
         # --------------------------------------
         feedback_mag   = Signal(data_width + 1)
         feedback_valid = Signal()
-        loop_mag = feedback_mag if delayed_feedback else mag
+        feedback_available = Signal()
+        loop_mag = Mux(feedback_valid, feedback_mag, mag) if delayed_feedback else mag
         error    = Signal((data_width + 2, True))
         step     = Signal((data_width + 2, True))
         gain_nxt = Signal((gain_width + 2, True))  # Extra bits to detect clamp under/overflow.
@@ -110,6 +113,7 @@ class LiteDSPAGC(LiteXModule):
             error.eq(self.target - loop_mag),
             step.eq(error >> self.mu),   # Loop gain 2**-mu (arithmetic shift keeps sign).
             gain_nxt.eq(self.gain + step),
+            feedback_available.eq(feedback_valid | self.source.valid),
         ]
         gain_update = [
             If(gain_nxt < 0, self.gain.eq(0)
@@ -118,13 +122,20 @@ class LiteDSPAGC(LiteXModule):
             self.railed.eq((gain_nxt < 0) | (gain_nxt > gain_max)),
         ]
         # Gain integrates only on accepted samples, so both architectures pause with the stream.
-        # The delayed option keeps one pending observation and applies it before replacing it.
+        # The delayed option normally observes the registered output as it is replaced.  If the
+        # consumer drains that output during an input gap, retain its magnitude until the next
+        # accepted sample so wall-clock stalls cannot change the sample-domain trajectory.
         if delayed_feedback:
-            self.sync += If(xfer,
-                If(feedback_valid, *gain_update),
-                feedback_mag.eq(mag),
-                feedback_valid.eq(1),
-            )
+            self.sync += [
+                If(xfer,
+                    If(feedback_available, *gain_update),
+                    If(feedback_valid, feedback_valid.eq(0)),
+                ),
+                If(self.source.valid & self.source.ready & ~xfer,
+                    feedback_mag.eq(mag),
+                    feedback_valid.eq(1),
+                ),
+            ]
         else:
             self.sync += If(xfer, *gain_update)
 

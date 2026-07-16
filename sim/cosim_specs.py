@@ -240,10 +240,11 @@ def spec_squelch():
 def spec_agc():
     from litedsp.level.agc import LiteDSPAGC
     n, target = 300, 8000
-    dut = LiteDSPAGC(data_width=16, with_csr=False)                # gain_frac/mu/beta = model defaults.
+    dut = LiteDSPAGC(data_width=16, with_csr=False, delayed_feedback=True)
     dut.target.reset = target
     cols = _rand_cols(2, n)
-    return dut, cols, n - 4, lambda c: list(models.agc_model(c[0], c[1], target))
+    return dut, cols, n - 4, lambda c: list(models.agc_model(
+        c[0], c[1], target, delayed_feedback=True))
 
 def spec_envelope():
     from litedsp.level.peak import LiteDSPEnvelopeDetector

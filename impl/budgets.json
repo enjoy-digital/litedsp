@@ -2,18 +2,21 @@
   "agc": {
     "ecp5": {
       "bram": 0,
-      "dsp": 8,
-      "ff": 57,
-      "fmax_mhz": 49.6,
-      "fmax_min": 42.2,
+      "dsp": 4,
+      "ff": 75,
+      "fmax_mhz": 106.3,
+      "fmax_min": 90.4,
       "fmax_target": 100.0,
-      "lut": 642
+      "lut": 349
     },
     "xilinx": {
       "bram": 0,
-      "dsp": 4,
-      "ff": 57,
-      "lut": 179
+      "dsp": 2,
+      "ff": 75,
+      "fmax_mhz": 103.3,
+      "fmax_min": 87.8,
+      "fmax_target": 100.0,
+      "lut": 197
     }
   },
   "block_deinterleaver": {

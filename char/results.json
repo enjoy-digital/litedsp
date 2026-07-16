@@ -1,7 +1,8 @@
 {
   "agc": {
-    "settling_samples": 34.0,
-    "steady_state_error_pct": 0.725
+    "overshoot_pct": 0.0,
+    "settling_samples": 31.0,
+    "steady_state_error_pct": 0.733
   },
   "cfr": {
     "evm_below_threshold_pct": 1.619,

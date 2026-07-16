@@ -166,7 +166,7 @@ def power():
     return d, {d.window_log2, d.power, d.update} | _eps(d.sink, d.source), 10.0
 
 def agc():
-    d = LiteDSPAGC(data_width=16, with_csr=False)
+    d = LiteDSPAGC(data_width=16, with_csr=False, delayed_feedback=True)
     return d, {d.target} | _eps(d.sink, d.source), 10.0
 
 def dpd():
@@ -426,13 +426,13 @@ REGISTRY = {
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
-              "cic_interpolator", "iir_biquad", "fft", "cordic_vec", "dpd", "ddc",
+              "cic_interpolator", "iir_biquad", "fft", "cordic_vec", "agc", "dpd", "ddc",
               "channelizer", "ldpc_decoder", "mixer_parallel_x2", "farrow", "window"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
-                 "cic_decimator", "cic_interpolator"]
+                 "cic_decimator", "cic_interpolator", "agc"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

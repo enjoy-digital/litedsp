@@ -1,12 +1,16 @@
 {
   "agc": {
+    "overshoot_pct": {
+      "direction": "max",
+      "value": 0.0
+    },
     "settling_samples": {
       "direction": "max",
-      "value": 34.0
+      "value": 31.0
     },
     "steady_state_error_pct": {
       "direction": "max",
-      "value": 0.725
+      "value": 0.733
     }
   },
   "cfr": {

@@ -176,13 +176,14 @@ def spec_agc():
     t    = np.arange(n)
     i    = np.round(amp*np.cos(2*np.pi*f*t)).astype(np.int64)
     q    = np.round(amp*np.sin(2*np.pi*f*t)).astype(np.int64)
-    o_i, o_q = agc_model(i, q, target)
+    o_i, o_q = agc_model(i, q, target, delayed_feedback=True)
     mag  = magnitude_model(o_i, o_q).astype(float)
     mag  = np.convolve(mag, np.ones(32)/32, mode="valid")  # ~2.3 tone periods.
     tail = mag[len(mag)//2:]
     return {
         "settling_samples"       : float(metrics.settling_time_samples(mag, target, tol=0.05)),
         "steady_state_error_pct" : abs(tail.mean() - target)/target*100,
+        "overshoot_pct"          : max(0.0, (mag.max() - target)/target*100),
     }
 
 # Clipper --------------------------------------------------------------------------------------------
@@ -289,7 +290,8 @@ DIRECTIONS = {
     "mixer"   : {"image_rejection_db": "min"},
     "fir"     : {"passband_ripple_db": "max", "stopband_atten_db": "min"},
     "cic"     : {f"droop_err_r{R}_n{N}_db": "max" for R in CIC_RATES for N in CIC_STAGES},
-    "agc"        : {"settling_samples": "max", "steady_state_error_pct": "max"},
+    "agc"        : {"settling_samples": "max", "steady_state_error_pct": "max",
+                    "overshoot_pct": "max"},
     "clipper"    : {"imd3_dbc": "min"},
     "cfr"        : {"papr_reduction_db": "min", "evm_below_threshold_pct": "max"},
     "dc_blocker" : {"dc_rejection_db": "min"},
@@ -311,9 +313,10 @@ DESCRIPTIONS = {
                 "the quantized taps (impulse -> FFT); passband f<=0.15, stopband f>=0.25.",
     "cic"     : "CIC decimator, `diff_delay=1`, 16-bit. Max |measured - theoretical| droop over "
                 "the output passband (f_out 0.05..0.25) per (decimation R, n_stages N).",
-    "agc"     : "AGC, `mu=8`, `gain_frac=8`. Constant-envelope tone at 25% of target: samples to "
-                "settle within +-5% of target, and residual level error (alpha-max-beta-min "
-                "magnitude, boxcar-smoothed).",
+    "agc"     : "AGC, `mu=8`, `gain_frac=8`, one-accepted-sample delayed feedback. Constant-"
+                "envelope tone at 25% of target: samples to settle within +-5% of target, "
+                "residual level error, and overshoot (alpha-max-beta-min magnitude, boxcar-"
+                "smoothed).",
     "clipper" : "Clipper at 50% clip depth (threshold = half the two-tone peak). Two tones at "
                 "f=0.101/0.117: 3rd-order intermodulation distortion of the clipped output.",
     "cfr"     : "CFR peak cancellation, `pulse_span=16`, pulse cutoff 0.2, 16-bit. OFDM-like "
