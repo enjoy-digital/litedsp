@@ -32,7 +32,11 @@ def _tcl(verilog, top, clock_ns, impl, part=PART):
         f"create_clock -name sys_clk -period {clock_ns} [get_ports sys_clk]",
     ]
     if impl:
-        lines += ["opt_design", "place_design", "route_design"]
+        lines += [
+            "opt_design", "place_design", "route_design",
+            "report_timing_summary -file timing_summary.rpt",
+            "report_timing -delay_type max -max_paths 10 -file timing_paths.rpt",
+        ]
     lines += [
         "report_utilization -file util.rpt",
         'puts "WNS: [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -setup] 0]]"',

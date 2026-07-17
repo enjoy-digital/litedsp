@@ -41,6 +41,10 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertIn("-part xc7a200tsbg484-3", artix7)
         self.assertIn("-part xcau20p-ffvb676-2-e", artix_au)
         self.assertNotEqual(artix7, artix_au)
+        routed = xilinx._tcl("dut.v", "dut", 10.0, True,
+            part=xilinx.PARTS["xilinx_au"])
+        self.assertIn("report_timing_summary -file timing_summary.rpt", routed)
+        self.assertIn("-max_paths 10 -file timing_paths.rpt", routed)
 
     def test_complete_ddc_ip_is_an_implementation_sentinel(self):
         self.assertIn("ddc_ip", modules.REGISTRY)

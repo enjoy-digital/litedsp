@@ -30,6 +30,9 @@ python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the 
 
 `impl/run.py` builds each configuration (`impl/modules.py` registry → generated Verilog), parses
 LUT/FF/BRAM/DSP usage plus P&R timing, and fails on implementation errors or budget violations.
+Each Vivado P&R directory retains `timing_summary.rpt` and the ten worst paths in
+`timing_paths.rpt` so a missed target can be traced to an architectural path rather than treated
+as unexplained seed noise.
 The `ddc_ip` configuration is a complete generated integration sentinel: NCO/mixer/FIR/decimator
 datapath, AXI-Stream ingress/egress, AXI-Lite-to-CSR bridge, and all block CSR banks are synthesized
 and routed together rather than testing only isolated DSP blocks.
