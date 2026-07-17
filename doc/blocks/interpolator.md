@@ -21,6 +21,7 @@ interpolating FIR with a windowed-sinc low-pass (gain ``L`` to offset zero-stuff
 | `n_taps` | — | none | Number of FIR taps. |
 | `cutoff` | `0.4` | float | Anti-image low-pass cutoff, normalized to the input (low) sample rate (0..0.5); used by ``method="fir"`` only (the CIC response is fixed by its structure). |
 | `n_stages` | `4` | int | Number of CIC integrator/comb stages (N in the literature). |
+| `fir_architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
 
 ## Ports
 

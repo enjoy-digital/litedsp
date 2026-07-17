@@ -19,7 +19,7 @@
 |---|---|---|---|---|
 | [Mixer (complex)](mixer.md) | `LiteDSPMixer` | 2 | 4 | Complex mixer with runtime up/down mode and bypass. |
 | [DDC](ddc.md) | `LiteDSPDDC` | 1 | 6 | Digital down-converter: NCO + complex mixer (down) + decimator. |
-| [DUC](duc.md) | `LiteDSPDUC` | 1 | 7 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
+| [DUC](duc.md) | `LiteDSPDUC` | 1 | 6 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
 | [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 34 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
 | [PFB channelizer](pfb_channelizer.md) | `LiteDSPPFBChannelizer` | 60 | 11 | Critically-sampled uniform DFT filter bank (polyphase FIR + direct M-point DFT). |
 

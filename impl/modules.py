@@ -257,7 +257,8 @@ def ddc():
     return d, {d.nco.phase_inc} | _eps(d.sink, d.source), 10.0
 
 def duc():
-    d = LiteDSPDUC(data_width=16, interpolation=8, method="fir", with_csr=False)
+    d = LiteDSPDUC(data_width=16, interpolation=8, method="fir", with_csr=False,
+        fir_architecture="pipelined")
     return d, {d.nco.phase_inc} | _eps(d.sink, d.source), 10.0
 
 def channelizer():
@@ -512,7 +513,7 @@ REGISTRY = {
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
-              "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
+              "duc", "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
@@ -521,7 +522,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
-TARGET_CLOSED = ["dpd", "ddc", "channelizer", "ldpc_decoder",
+TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "ldpc_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",

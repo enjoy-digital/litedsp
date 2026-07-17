@@ -115,14 +115,14 @@ ENTRIES = [
     # mixing ---------------------------------------------------------------------------------------
     ("mixer",              LiteDSPMixer,                 {},                                     "mixing",     "Mixer (complex)",       None),
     ("ddc",                LiteDSPDDC,                   {"decimation": 8},                      "mixing",     "DDC",                   _METHOD),
-    ("duc",                LiteDSPDUC,                   {"interpolation": 8},                   "mixing",     "DUC",                   _METHOD),
+    ("duc",                LiteDSPDUC,                   {"interpolation": 8},                   "mixing",     "DUC",                   {"method": ["cic", "fir"], "fir_architecture": ["classic", "pipelined"]}),
     ("channelizer",        LiteDSPChannelizer,           {"n_channels": 4, "decimation": 4},     "mixing",     "Channelizer",           _METHOD),
     ("pfb_channelizer",    LiteDSPPFBChannelizer,        {"n_channels": 4, "taps_per_channel": 8}, "mixing",   "PFB channelizer",       {"architecture": ["classic", "folded", "fft"]}),
     # filter ---------------------------------------------------------------------------------------
     ("fir_real",           LiteDSPFIRFilter,             {"n_taps": 32},                         "filter",     "FIR (real)",            {"architecture": ["classic", "pipelined"]}),
     ("fir_complex",        LiteDSPFIRFilterComplex,      {"n_taps": 32},                         "filter",     "FIR (complex)",         {"architecture": ["classic", "pipelined"]}),
     ("fir_decimator",      LiteDSPFIRDecimator,          {"n_taps": 32, "decimation": 8},                 "filter",     "FIR decimator",         None),
-    ("fir_interpolator",   LiteDSPFIRInterpolator,       {"n_taps": 32, "interpolation": 8},                 "filter",     "FIR interpolator",      None),
+    ("fir_interpolator",   LiteDSPFIRInterpolator,       {"n_taps": 32, "interpolation": 8},                 "filter",     "FIR interpolator",      {"architecture": ["classic", "pipelined"]}),
     ("cic_decimator",      LiteDSPCICDecimator,          {"decimation": 8, "n_stages": 3},                       "filter",     "CIC decimator",         None),
     ("cic_interpolator",   LiteDSPCICInterpolator,       {"interpolation": 8, "n_stages": 3},                       "filter",     "CIC interpolator",      None),
     ("halfband_dec",       LiteDSPHalfbandDecimator,     {},                                     "filter",     "Halfband decimator",    None),
@@ -141,7 +141,7 @@ ENTRIES = [
     ("arb_resampler",      LiteDSPArbResampler,          {},                                     "filter",     "Arbitrary resampler",   None),
     # rate -----------------------------------------------------------------------------------------
     ("decimator",          LiteDSPDecimator,             {"decimation": 8},                          "rate",       "Decimator",             _METHOD),
-    ("interpolator",       LiteDSPInterpolator,          {"interpolation": 8},                          "rate",       "Interpolator",          _METHOD),
+    ("interpolator",       LiteDSPInterpolator,          {"interpolation": 8},                          "rate",       "Interpolator",          {"method": ["cic", "fir"], "fir_architecture": ["classic", "pipelined"]}),
     ("downsampler",        LiteDSPDownsampler,           {},                                     "rate",       "Downsampler",           None),
     ("upsampler",          LiteDSPUpsampler,             {},                                     "rate",       "Upsampler",             None),
     ("resampler_farm",     LiteDSPResamplerFarm,         {"n_channels": 4, "n_taps": 32, "decimation": 8}, "rate", "Resampler farm",      None),

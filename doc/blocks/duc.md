@@ -19,6 +19,7 @@ Tuning word is the NCO ``phase_inc`` CSR. Canonical TX chain.
 | `interpolation` | `8` | int | Integer interpolation factor. |
 | `method` | `"cic"` | str | Core implementation selector. Choices: `cic`, `fir`. |
 | `phase_bits` | `32` | int | Phase accumulator width in bits. |
+| `fir_architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
 
 ## Ports
 
@@ -47,7 +48,7 @@ Phase increment (sets output frequency).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 705 | 302 | 2 | 7 | 62.3 | — |
-| xilinx | 386 | 100 | 1 | 6 | — | — |
+| ecp5 | 763 | 374 | 2 | 6 | 91.0 | 100.0 |
+| xilinx | 381 | 142 | 1 | 6 | 102.4 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

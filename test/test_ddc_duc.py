@@ -39,19 +39,21 @@ class TestDecimator(unittest.TestCase):
 class TestInterpolator(unittest.TestCase):
     def test_image_reject(self):
         # Interpolate a baseband tone; spectral images near fs/factor must be suppressed.
-        factor, n = 4, 200
-        dut = LiteDSPInterpolator(data_width=16, interpolation=factor, method="fir", with_csr=False)
-        x   = tone(n, 0.05, amp=10000)
-        samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
-        cap = run_stream(dut, samples, n*factor, ["i", "q"], ["i", "q"],
-            sink_throttle=0.0, source_ready_rate=1.0)
-        y    = column(cap, "i", 16) + 1j*column(cap, "q", 16)
-        y    = y[16*factor:]                          # Skip fill.
-        spec = np.abs(np.fft.fft(y*np.hanning(len(y))))**2
-        f    = np.fft.fftfreq(len(y))
-        want = spec[np.argmin(np.abs(f - 0.05/factor))]
-        image = spec[np.argmin(np.abs(f - (1.0/factor - 0.05/factor)))]
-        self.assertGreater(want, 50*image)
+        for architecture in ("classic", "pipelined"):
+            factor, n = 4, 200
+            dut = LiteDSPInterpolator(data_width=16, interpolation=factor, method="fir",
+                with_csr=False, fir_architecture=architecture)
+            x   = tone(n, 0.05, amp=10000)
+            samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
+            cap = run_stream(dut, samples, n*factor, ["i", "q"], ["i", "q"],
+                sink_throttle=0.0, source_ready_rate=1.0)
+            y    = column(cap, "i", 16) + 1j*column(cap, "q", 16)
+            y    = y[16*factor:]                      # Skip fill.
+            spec = np.abs(np.fft.fft(y*np.hanning(len(y))))**2
+            f    = np.fft.fftfreq(len(y))
+            want = spec[np.argmin(np.abs(f - 0.05/factor))]
+            image = spec[np.argmin(np.abs(f - (1.0/factor - 0.05/factor)))]
+            self.assertGreater(want, 50*image, f"architecture={architecture}")
 
 class TestDDC(unittest.TestCase):
     def test_tune_to_baseband(self):
@@ -71,20 +73,23 @@ class TestDDC(unittest.TestCase):
 
 class TestDUC(unittest.TestCase):
     def test_upconvert(self):
-        interp, n = 4, 300
-        f_out = 0.10
-        dut = LiteDSPDUC(data_width=16, interpolation=interp, method="fir", with_csr=False)
-        dut.nco.phase_inc.reset = int(round(f_out*(1 << 32))) & 0xffffffff
-        x = np.full(n, 9000 + 0j)                      # Baseband DC.
-        samples = [{"i": int(v.real), "q": int(v.imag)} for v in x]
-        cap = run_stream(dut, samples, n*interp - 10, ["i", "q"], ["i", "q"],
-            sink_throttle=0.0, source_ready_rate=1.0)
-        y = column(cap, "i", 16) + 1j*column(cap, "q", 16)
-        y = y[64:]                                     # Skip fill.
-        spec = np.abs(np.fft.fft(y*np.hanning(len(y))))**2
-        f    = np.fft.fftfreq(len(y))
-        peak = np.argmax(spec)
-        self.assertAlmostEqual(f[peak], f_out, delta=0.01)
+        for architecture in ("classic", "pipelined"):
+            interp, n = 4, 300
+            f_out = 0.10
+            dut = LiteDSPDUC(data_width=16, interpolation=interp, method="fir", with_csr=False,
+                fir_architecture=architecture)
+            dut.nco.phase_inc.reset = int(round(f_out*(1 << 32))) & 0xffffffff
+            x = np.full(n, 9000 + 0j)                  # Baseband DC.
+            samples = [{"i": int(v.real), "q": int(v.imag)} for v in x]
+            cap = run_stream(dut, samples, n*interp - 10, ["i", "q"], ["i", "q"],
+                sink_throttle=0.0, source_ready_rate=1.0)
+            y = column(cap, "i", 16) + 1j*column(cap, "q", 16)
+            y = y[64:]                                 # Skip fill.
+            spec = np.abs(np.fft.fft(y*np.hanning(len(y))))**2
+            f    = np.fft.fftfreq(len(y))
+            peak = np.argmax(spec)
+            self.assertAlmostEqual(f[peak], f_out, delta=0.01,
+                msg=f"architecture={architecture}")
 
 if __name__ == "__main__":
     unittest.main()

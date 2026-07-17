@@ -23,7 +23,8 @@ class LiteDSPDUC(LiteXModule):
     Interpolates a baseband I/Q stream up to the high rate and shifts it to the NCO frequency.
     Tuning word is the NCO ``phase_inc`` CSR. Canonical TX chain.
     """
-    def __init__(self, data_width=16, interpolation=8, method="cic", phase_bits=32, with_csr=True):
+    def __init__(self, data_width=16, interpolation=8, method="cic", phase_bits=32,
+        with_csr=True, fir_architecture="classic"):
         self.data_width    = data_width
         self.interpolation = interpolation
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Baseband I/Q input.
@@ -34,7 +35,7 @@ class LiteDSPDUC(LiteXModule):
         # Submodules.
         # -----------
         self.interp = LiteDSPInterpolator(data_width=data_width, interpolation=interpolation, method=method,
-            with_csr=with_csr)
+            with_csr=with_csr, fir_architecture=fir_architecture)
         self.nco    = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer  = LiteDSPMixer(data_width=data_width, with_csr=False)  # Mode hardwired below.
         self.latency = self.interp.latency

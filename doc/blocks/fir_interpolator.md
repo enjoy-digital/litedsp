@@ -11,6 +11,11 @@ Interpolate-by-L complex FIR with a single time-shared MAC per I/Q (polyphase).
 For each input it emits L outputs, output ``p`` computed from polyphase sub-filter
 ``c[p::L]`` over the recent inputs (``y[nL+p] = sum_k c[p+kL]·x[n-k]``), round + saturate.
 
+``architecture="classic"`` performs the multiply and accumulator update in one clock.
+``architecture="pipelined"`` registers the product and drains the final product in one
+additional clock per output, shortening the memory/multiply/accumulate critical path while
+retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -20,6 +25,7 @@ For each input it emits L outputs, output ``p`` computed from polyphase sub-filt
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
+| `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
 
 ## Ports
 

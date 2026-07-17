@@ -186,10 +186,18 @@ class LiteDSPFIRInterpolator(LiteXModule):
 
     For each input it emits L outputs, output ``p`` computed from polyphase sub-filter
     ``c[p::L]`` over the recent inputs (``y[nL+p] = sum_k c[p+kL]·x[n-k]``), round + saturate.
+
+    ``architecture="classic"`` performs the multiply and accumulator update in one clock.
+    ``architecture="pipelined"`` registers the product and drains the final product in one
+    additional clock per output, shortening the memory/multiply/accumulate critical path while
+    retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
     """
-    def __init__(self, n_taps=32, interpolation=8, data_width=16, coefficients=None, shift=None, with_csr=True):
+    def __init__(self, n_taps=32, interpolation=8, data_width=16, coefficients=None, shift=None,
+        with_csr=True, architecture="classic"):
         L = interpolation  # Literature name.
         check(n_taps >= 1 and L >= 1, "expected n_taps >= 1 and interpolation >= 1")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         if shift is None:
             shift = data_width - 1
         if coefficients is None:
@@ -199,8 +207,10 @@ class LiteDSPFIRInterpolator(LiteXModule):
         self.interpolation = L
         sub         = (n_taps + L - 1)//L          # Taps per polyphase sub-filter.
         self.sub    = sub
-        self.cycles_per_output = sub + 1
-        self.latency = n_taps
+        self.architecture = architecture
+        pipeline = int(architecture == "pipelined")
+        self.cycles_per_output = sub + 1 + pipeline
+        self.latency = n_taps + pipeline
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -233,6 +243,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
         wptr  = Signal(max=depth)                     # Sample write pointer.
         phase = Signal(max=L) if L > 1 else Signal()  # Polyphase index p (output within the group of L).
         k     = Signal(max=sub + 1)                   # Tap index within the sub-filter.
+        coeff_adr = Signal(max=L*sub) if L*sub > 1 else Signal()
         radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
         ci = Signal((data_width, True))               # Signed views of the I/Q/coeff read data.
@@ -242,7 +253,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
             wip.adr.eq(wptr), wqp.adr.eq(wptr),
             wip.dat_w.eq(self.sink.i), wqp.dat_w.eq(self.sink.q),
             rip.adr.eq(radr), rqp.adr.eq(radr),
-            crp.adr.eq(phase*sub + k),
+            crp.adr.eq(coeff_adr),
             ci.eq(rip.dat_r), cq.eq(rqp.dat_r), cc.eq(crp.dat_r),
         ]
 
@@ -260,19 +271,47 @@ class LiteDSPFIRInterpolator(LiteXModule):
                 NextValue(wptr, wptr + 1),
                 NextValue(phase, 0),
                 NextValue(k, 0),
+                NextValue(coeff_adr, 0),
                 NextValue(acc_i, 0), NextValue(acc_q, 0),
                 NextValue(radr, wptr),     # Newest sample.
                 NextState("MAC"),
             )
         )
-        # MAC: one sub-filter tap per cycle (sub taps per output sample).
-        fsm.act("MAC",
-            NextValue(acc_i, acc_i + ci*cc),
-            NextValue(acc_q, acc_q + cq*cc),
-            NextValue(radr, radr - 1),
-            NextValue(k, k + 1),
-            If(k == (sub - 1), NextState("EMIT")),
-        )
+        # MAC: one sub-filter tap per cycle (sub taps per output sample). The explicit
+        # pipelined option separates the memory/multiplier path from the accumulator recurrence;
+        # its final registered product is consumed in one drain cycle.
+        if architecture == "classic":
+            fsm.act("MAC",
+                NextValue(acc_i, acc_i + ci*cc),
+                NextValue(acc_q, acc_q + cq*cc),
+                NextValue(radr, radr - 1),
+                NextValue(k, k + 1),
+                NextValue(coeff_adr, coeff_adr + 1),
+                If(k == (sub - 1), NextState("EMIT")),
+            )
+        else:
+            prod_i = Signal((2*data_width, True))
+            prod_q = Signal((2*data_width, True))
+            prod_valid = Signal()
+            fsm.act("MAC",
+                NextValue(prod_i, ci*cc),
+                NextValue(prod_q, cq*cc),
+                If(prod_valid,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(prod_valid, 1),
+                NextValue(radr, radr - 1),
+                NextValue(k, k + 1),
+                NextValue(coeff_adr, coeff_adr + 1),
+                If(k == (sub - 1), NextState("MAC_DRAIN")),
+            )
+            fsm.act("MAC_DRAIN",
+                NextValue(acc_i, acc_i + prod_i),
+                NextValue(acc_q, acc_q + prod_q),
+                NextValue(prod_valid, 0),
+                NextState("EMIT"),
+            )
         # EMIT: present output p; loop back through MAC for the next phase, re-scanning the window.
         fsm.act("EMIT",
             self.source.valid.eq(1),

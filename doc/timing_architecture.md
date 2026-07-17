@@ -16,6 +16,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
+| DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 77.7/67.8 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native feedback pipeline landed but remains open |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -59,6 +60,23 @@ Trade-offs:
 Acceptance requires hard and soft bit identity, tie behavior, punctured-zero LLR handling, and
 the existing BER/waterfall bounds. The option publishes traceback and output-cycle counts; its
 stream handshake makes the required input gap explicit while traceback is active.
+
+## DUC FIR interpolator
+
+The FIR-based DUC uses two serial MACs, one per I/Q component, for each polyphase output. In the
+classic schedule an asynchronous coefficient lookup, multiplier, and accumulator update share a
+clock. The pipelined option replaces the phase/tap address expression with a sequential
+coefficient pointer, registers each product, and consumes the final product in a drain clock.
+
+For the implementation configuration (L=8, 65 taps), `cycles_per_output` rises from 11 to 12 and
+nominal FIR latency from 65 to 66 clocks; the numerical output and output rate remain unchanged.
+ECP5 moves from 74.3 MHz, 643 LUT / 302 FF / 7 DSP to 107.1 MHz, 763 LUT / 374 FF / 6 DSP.
+Artix-7 reaches 120.5 MHz with 381 LUT / 142 FF / 1 BRAM / 6 DSP post-route, and Artix
+UltraScale+ reaches 255.2 MHz with 373 LUT / 142 FF / 1 BRAM / 6 DSP. The classic architecture
+remains the API default; the implementation registry selects the pipelined option.
+
+Acceptance covers odd and even branch lengths, exact fixed-point output, randomized input/output
+stalls, the DUC image-rejection/upconversion test, and an independent Verilator co-simulation.
 
 ## AGC
 

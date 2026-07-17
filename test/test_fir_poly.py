@@ -34,20 +34,27 @@ class TestFIRDecimator(unittest.TestCase):
 
 class TestFIRInterpolator(unittest.TestCase):
     def test_bit_exact(self):
-        for n_taps, L in [(16, 4), (24, 8), (9, 3)]:
-            coeffs = firwin_lowpass(n_taps, 0.4/L, gain=L)  # gain L to offset zero-stuff loss.
-            prng   = random.Random(n_taps + 1)
-            x_i    = [prng.randint(-8000, 8000) for _ in range(40)]
-            x_q    = [prng.randint(-8000, 8000) for _ in range(40)]
-            dut    = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=L, data_width=16, coefficients=coeffs, with_csr=False)
-            n_out  = len(x_i)*L
-            samples = [{"i": x_i[k], "q": x_q[k]} for k in range(len(x_i))]
-            cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
-                sink_throttle=0.2, source_ready_rate=0.6)
-            ri = fir_interpolator_model(x_i, coeffs, L)[:n_out]
-            rq = fir_interpolator_model(x_q, coeffs, L)[:n_out]
-            self.assertTrue(np.array_equal(column(cap, "i", 16), ri), f"I n={n_taps} L={L}")
-            self.assertTrue(np.array_equal(column(cap, "q", 16), rq), f"Q n={n_taps} L={L}")
+        for architecture in ("classic", "pipelined"):
+            for n_taps, L in [(16, 4), (24, 8), (9, 3)]:
+                coeffs = firwin_lowpass(n_taps, 0.4/L, gain=L)  # gain L to offset zero-stuff loss.
+                prng   = random.Random(n_taps + 1)
+                x_i    = [prng.randint(-8000, 8000) for _ in range(40)]
+                x_q    = [prng.randint(-8000, 8000) for _ in range(40)]
+                dut    = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=L, data_width=16,
+                    coefficients=coeffs, with_csr=False, architecture=architecture)
+                pipeline = int(architecture == "pipelined")
+                self.assertEqual(dut.cycles_per_output, (n_taps + L - 1)//L + 1 + pipeline)
+                self.assertEqual(dut.latency, n_taps + pipeline)
+                n_out  = len(x_i)*L
+                samples = [{"i": x_i[k], "q": x_q[k]} for k in range(len(x_i))]
+                cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
+                    sink_throttle=0.2, source_ready_rate=0.6)
+                ri = fir_interpolator_model(x_i, coeffs, L)[:n_out]
+                rq = fir_interpolator_model(x_q, coeffs, L)[:n_out]
+                self.assertTrue(np.array_equal(column(cap, "i", 16), ri),
+                    f"I n={n_taps} L={L} architecture={architecture}")
+                self.assertTrue(np.array_equal(column(cap, "q", 16), rq),
+                    f"Q n={n_taps} L={L} architecture={architecture}")
 
 if __name__ == "__main__":
     unittest.main()
