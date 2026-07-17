@@ -58,7 +58,11 @@ budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed su
 already achieved its objective; CI reruns those blocks with strict target gating while targets
 for architecture work in progress remain advisory. `.github/workflows/impl-xilinx.yml` provides
 equivalent strict Artix-7 and Artix UltraScale+ jobs on a self-hosted runner labelled `vivado`;
-both also route the complete generated `ddc_ip` integration sentinel.
+both also sweep the native x2 FFT across three timing strategies. The complete generated `ddc_ip`
+integration sentinel is already in the strict target set, so it is not routed a second time.
+Implementation jobs retain synthesis logs, route logs, and detailed timing reports as artifacts,
+including on failure; the nightly ECP5 job additionally repeats the closest closed targets across
+three nextpnr routes.
 When a new device profile is first characterized, it inherits the module's reviewed engineering
 target from an existing profile; its measured resource baseline and 85% timing floor remain fully
 device-specific.

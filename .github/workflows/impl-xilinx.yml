@@ -10,6 +10,8 @@ jobs:
   artix7:
     runs-on: [self-hosted, linux, vivado]
     timeout-minutes: 180
+    env:
+      LITEDSP_IMPL_BUILD: ${{ runner.temp }}/litedsp_impl
     steps:
       - uses: actions/checkout@v4
 
@@ -28,17 +30,31 @@ jobs:
         run: vivado -version
 
       - name: Synthesize all blocks for Artix-7
-        run: python3 impl/run.py --device xilinx --flow synth
+        run: python3 impl/run.py --device xilinx --flow synth --build "$LITEDSP_IMPL_BUILD"
 
       - name: Enforce closed Artix-7 timing targets
-        run: python3 impl/run.py --device xilinx --flow pnr --target-closed --target-gate
+        run: python3 impl/run.py --device xilinx --flow pnr --target-closed --target-gate --build "$LITEDSP_IMPL_BUILD"
 
-      - name: Route complete generated DDC IP on Artix-7
-        run: python3 impl/run.py --device xilinx --flow pnr --module ddc_ip
+      - name: Sweep near-target native FFT routing on Artix-7
+        run: python3 impl/run.py --device xilinx --flow pnr --module fft_parallel_native_x2 --strategies all --build "$LITEDSP_IMPL_BUILD"
+
+      - name: Upload Artix-7 timing reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vivado-artix7-timing
+          path: |
+            ${{ env.LITEDSP_IMPL_BUILD }}/xilinx/**/*_vivado.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/xilinx/**/timing_summary.rpt
+            ${{ env.LITEDSP_IMPL_BUILD }}/xilinx/**/timing_paths.rpt
+          if-no-files-found: warn
+          retention-days: 14
 
   artix-usplus:
     runs-on: [self-hosted, linux, vivado]
     timeout-minutes: 180
+    env:
+      LITEDSP_IMPL_BUILD: ${{ runner.temp }}/litedsp_impl
     steps:
       - uses: actions/checkout@v4
 
@@ -57,10 +73,22 @@ jobs:
         run: vivado -version
 
       - name: Synthesize all blocks for Artix UltraScale+
-        run: python3 impl/run.py --device xilinx_au --flow synth
+        run: python3 impl/run.py --device xilinx_au --flow synth --build "$LITEDSP_IMPL_BUILD"
 
       - name: Enforce closed Artix UltraScale+ timing targets
-        run: python3 impl/run.py --device xilinx_au --flow pnr --target-closed --target-gate
+        run: python3 impl/run.py --device xilinx_au --flow pnr --target-closed --target-gate --build "$LITEDSP_IMPL_BUILD"
 
-      - name: Route complete generated DDC IP on Artix UltraScale+
-        run: python3 impl/run.py --device xilinx_au --flow pnr --module ddc_ip
+      - name: Sweep native FFT routing on Artix UltraScale+
+        run: python3 impl/run.py --device xilinx_au --flow pnr --module fft_parallel_native_x2 --strategies all --build "$LITEDSP_IMPL_BUILD"
+
+      - name: Upload Artix UltraScale+ timing reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vivado-artix-usplus-timing
+          path: |
+            ${{ env.LITEDSP_IMPL_BUILD }}/xilinx_au/**/*_vivado.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/xilinx_au/**/timing_summary.rpt
+            ${{ env.LITEDSP_IMPL_BUILD }}/xilinx_au/**/timing_paths.rpt
+          if-no-files-found: warn
+          retention-days: 14

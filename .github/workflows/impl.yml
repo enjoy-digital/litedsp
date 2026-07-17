@@ -36,6 +36,8 @@ jobs:
   ecp5-pnr:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      LITEDSP_IMPL_BUILD: ${{ runner.temp }}/litedsp_impl
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +59,19 @@ jobs:
           pip install git+https://github.com/enjoy-digital/litex.git
 
       - name: Place & route the P&R subset (resource + fmax budgets)
-        run: python3 impl/run.py --device ecp5 --flow pnr --subset
+        run: python3 impl/run.py --device ecp5 --flow pnr --subset --build "$LITEDSP_IMPL_BUILD"
 
       - name: Enforce closed 100 MHz timing targets
-        run: python3 impl/run.py --device ecp5 --flow pnr --target-closed --target-gate
+        run: python3 impl/run.py --device ecp5 --flow pnr --target-closed --target-gate --build "$LITEDSP_IMPL_BUILD"
+
+      - name: Upload ECP5 implementation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecp5-pnr-reports
+          path: |
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_synth.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_pnr*.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*.cfg
+          if-no-files-found: warn
+          retention-days: 14
