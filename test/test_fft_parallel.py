@@ -21,7 +21,11 @@ import numpy as np
 from migen import run_simulation, passive
 
 from litedsp.analysis.fft          import LiteDSPFFT
-from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
+from litedsp.analysis.fft_parallel import (
+    LiteDSPParallelFFT,
+    _LiteDSPFFTVectorStage,
+    _LiteDSPFFTVectorPipelinedStage,
+)
 
 from test.common import run_stream, column, to_signed
 from test.models import fft_fixed_model, parallel_fft_model
@@ -129,14 +133,32 @@ class TestParallelFFTBitExact(unittest.TestCase):
             LiteDSPParallelFFT(N=64, implementation="unknown", with_csr=False)
         with self.assertRaises(ValueError):
             LiteDSPParallelFFT(N=64, n_samples=8, implementation="native", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPParallelFFT(N=64, feedback_pipeline=True, with_csr=False)
 
 
 class TestNativeParallelFFT(unittest.TestCase):
     """Architecture matrix for the native P-wide SDF cascade."""
 
-    def run_native(self, xi, xq, N, n_samples, n_frames, throttle=0.0, ready=1.0):
+    def test_pipelined_rank_matches_classic_rank(self):
+        rng = np.random.RandomState(20260717)
+        for N, stage, n_samples in [(16, 0, 2), (16, 1, 2), (32, 1, 4)]:
+            with self.subTest(N=N, stage=stage, n_samples=n_samples):
+                values_i = rng.randint(-25000, 25000, 4*N)
+                values_q = rng.randint(-25000, 25000, 4*N)
+                beats = [{"i": pack_lanes(values_i[k:k + n_samples]),
+                          "q": pack_lanes(values_q[k:k + n_samples])}
+                         for k in range(0, len(values_i), n_samples)]
+                classic = _LiteDSPFFTVectorStage(N, stage, n_samples)
+                piped   = _LiteDSPFFTVectorPipelinedStage(N, stage, n_samples)
+                ref = run_stream(classic, beats, len(beats), ["i", "q"], ["i", "q"])
+                got = run_stream(piped,   beats, len(beats), ["i", "q"], ["i", "q"])
+                self.assertEqual(got, ref)
+
+    def run_native(self, xi, xq, N, n_samples, n_frames, throttle=0.0, ready=1.0,
+        feedback_pipeline=False):
         dut = LiteDSPParallelFFT(N=N, n_samples=n_samples, implementation="native",
-            with_csr=False)
+            feedback_pipeline=feedback_pipeline, with_csr=False)
         beats = [{"i": pack_lanes(xi[k:k + n_samples]),
                   "q": pack_lanes(xq[k:k + n_samples])}
                  for k in range(0, len(xi), n_samples)]
@@ -144,12 +166,13 @@ class TestNativeParallelFFT(unittest.TestCase):
             ["i", "q", "first", "last"], sink_throttle=throttle,
             source_ready_rate=ready)
 
-    def check_native(self, N, n_samples, throttle=0.0, ready=1.0):
+    def check_native(self, N, n_samples, throttle=0.0, ready=1.0, feedback_pipeline=False):
         nfr = 4
         rng  = np.random.RandomState(100*N + n_samples)
         xi   = rng.randint(-25000, 25000, nfr*N)
         xq   = rng.randint(-25000, 25000, nfr*N)
-        _, cap = self.run_native(xi, xq, N, n_samples, nfr - 1, throttle, ready)
+        _, cap = self.run_native(xi, xq, N, n_samples, nfr - 1, throttle, ready,
+            feedback_pipeline=feedback_pipeline)
         gi, gq = flatten(cap, "i", n_samples), flatten(cap, "q", n_samples)
         for f in range(nfr - 1):
             ri, rq = fft_fixed_model(xi[f*N:(f + 1)*N], xq[f*N:(f + 1)*N])
@@ -169,58 +192,74 @@ class TestNativeParallelFFT(unittest.TestCase):
                 with self.subTest(n_samples=n_samples, N=N):
                     self.check_native(N, n_samples)
 
+    # verify-tier: model — registered multiplier ranks and their same-address forwarding retain
+    # the native engine's exact per-rank rounding and full P-wide rate.
+    def test_feedback_pipeline_bit_identical(self):
+        for n_samples in [2, 4]:
+            for N in [16, 64, 256]:
+                with self.subTest(n_samples=n_samples, N=N):
+                    self.check_native(N, n_samples, feedback_pipeline=True)
+
     # verify-tier: model — vector feedback and the lane realigner advance only on transfers.
     def test_backpressure_architecture_matrix(self):
         for n_samples in [2, 4]:
-            with self.subTest(n_samples=n_samples):
-                self.check_native(64, n_samples, throttle=0.3, ready=0.55)
+            for feedback_pipeline in [False, True]:
+                with self.subTest(n_samples=n_samples, feedback_pipeline=feedback_pipeline):
+                    self.check_native(64, n_samples, throttle=0.3, ready=0.55,
+                        feedback_pipeline=feedback_pipeline)
 
     # verify-tier: model — P samples are accepted/emitted every free-flow clock and the
     # first-frame latency contract is cycle-exact for P=2 and P=4.
     def test_sustained_native_rate_and_latency(self):
         for n_samples in [2, 4]:
             for N in [16, 64]:
-                with self.subTest(n_samples=n_samples, N=N):
-                    dut = LiteDSPParallelFFT(N=N, n_samples=n_samples,
-                        implementation="native", with_csr=False)
-                    values = np.arange(3*N)
-                    beats  = [pack_lanes(values[k:k + n_samples])
-                              for k in range(0, len(values), n_samples)]
-                    stats = {"first_in": None, "out_cycles": []}
+                for feedback_pipeline in [False, True]:
+                    with self.subTest(n_samples=n_samples, N=N,
+                        feedback_pipeline=feedback_pipeline):
+                        self.check_native_rate(N, n_samples, feedback_pipeline)
 
-                    @passive
-                    def driver():
-                        cycle, index = 0, 0
-                        yield dut.sink.valid.eq(1)
-                        yield dut.sink.i.eq(beats[0])
-                        yield dut.sink.q.eq(0)
-                        while True:
-                            yield
-                            cycle += 1
-                            if (yield dut.sink.valid) and (yield dut.sink.ready):
-                                if stats["first_in"] is None:
-                                    stats["first_in"] = cycle
-                                index += 1
-                                if index < len(beats):
-                                    yield dut.sink.i.eq(beats[index])
-                                else:
-                                    yield dut.sink.valid.eq(0)
+    def check_native_rate(self, N, n_samples, feedback_pipeline):
+        dut = LiteDSPParallelFFT(N=N, n_samples=n_samples,
+            implementation="native", feedback_pipeline=feedback_pipeline,
+            with_csr=False)
+        values = np.arange(3*N)
+        beats  = [pack_lanes(values[k:k + n_samples])
+                  for k in range(0, len(values), n_samples)]
+        stats = {"first_in": None, "out_cycles": []}
 
-                    def capture():
-                        cycle = 0
-                        yield dut.source.ready.eq(1)
-                        while len(stats["out_cycles"]) < N//n_samples:
-                            yield
-                            cycle += 1
-                            if (yield dut.source.valid):
-                                stats["out_cycles"].append(cycle)
+        @passive
+        def driver():
+            cycle, index = 0, 0
+            yield dut.sink.valid.eq(1)
+            yield dut.sink.i.eq(beats[0])
+            yield dut.sink.q.eq(0)
+            while True:
+                yield
+                cycle += 1
+                if (yield dut.sink.valid) and (yield dut.sink.ready):
+                    if stats["first_in"] is None:
+                        stats["first_in"] = cycle
+                    index += 1
+                    if index < len(beats):
+                        yield dut.sink.i.eq(beats[index])
+                    else:
+                        yield dut.sink.valid.eq(0)
 
-                    run_simulation(dut, [driver(), capture()])
-                    self.assertEqual(stats["out_cycles"][0] - stats["first_in"], dut.latency)
-                    np.testing.assert_array_equal(np.diff(stats["out_cycles"]),
-                        np.ones(N//n_samples - 1, dtype=int))
-                    self.assertEqual(dut.peak_samples_per_cycle, n_samples)
-                    self.assertEqual(dut.average_samples_per_cycle, n_samples)
+        def capture():
+            cycle = 0
+            yield dut.source.ready.eq(1)
+            while len(stats["out_cycles"]) < N//n_samples:
+                yield
+                cycle += 1
+                if (yield dut.source.valid):
+                    stats["out_cycles"].append(cycle)
+
+        run_simulation(dut, [driver(), capture()])
+        self.assertEqual(stats["out_cycles"][0] - stats["first_in"], dut.latency)
+        np.testing.assert_array_equal(np.diff(stats["out_cycles"]),
+            np.ones(N//n_samples - 1, dtype=int))
+        self.assertEqual(dut.peak_samples_per_cycle, n_samples)
+        self.assertEqual(dut.average_samples_per_cycle, n_samples)
 
 # Throughput / Latency -----------------------------------------------------------------------------
 

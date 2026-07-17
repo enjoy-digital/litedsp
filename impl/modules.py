@@ -448,12 +448,12 @@ def fft_parallel_x2_folded():
 
 def fft_parallel_native_x2():
     d = LiteDSPParallelFFT(N=256, n_samples=2, data_width=16, implementation="native",
-        with_csr=False)
+        feedback_pipeline=True, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def fft_parallel_native_x4():
     d = LiteDSPParallelFFT(N=256, n_samples=4, data_width=16, implementation="native",
-        with_csr=False)
+        feedback_pipeline=True, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
 def ddc_ip():

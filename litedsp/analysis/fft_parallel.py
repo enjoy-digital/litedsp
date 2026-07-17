@@ -213,9 +213,190 @@ class _LiteDSPFFTVectorStage(LiteXModule):
         self.sync += If(adv, self.source.valid.eq(self.sink.valid))
 
 
+class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
+    """Two-cycle vector SDF stage with a hazard-bypassed feedback write.
+
+    This variant is used only when the packed feedback memory has at least two addresses
+    (``D > P``). It captures the butterfly difference before the DSPs, registers all four real
+    twiddle products, then completes the complex add/round/write on the following edge. A read
+    that meets the finishing write to the same packed address is forwarded explicitly. The stage
+    therefore retains a one-beat initiation interval and the exact serial rounding boundaries.
+    Shorter late ranks keep the original within-beat recurrence network.
+    """
+    def __init__(self, N, stage, n_samples=2, data_width=16, twiddle_width=16):
+        D     = N >> (stage + 1)
+        dbits = D.bit_length() - 1
+        pbits = n_samples.bit_length() - 1
+        check(D > n_samples, "pipelined vector stage requires D > n_samples")
+        depth = D//n_samples
+        self.D       = D
+        self.latency = 2
+        self.sink    = stream.Endpoint(iq_layout(data_width, n_samples))
+        self.source  = stream.Endpoint(iq_layout(data_width, n_samples))
+
+        # # #
+
+        adv    = Signal()
+        xfer   = Signal()
+        valid0 = Signal()
+        valid1 = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            self.sink.ready.eq(adv),
+            xfer.eq(self.sink.valid & adv),
+        ]
+
+        counter = Signal(dbits + 1)
+        c       = counter[dbits]
+        addr    = counter[pbits:dbits]
+        self.sync += If(xfer, counter.eq(counter + n_samples))
+
+        in_lanes  = iq_lanes(self.sink,   data_width, n_samples)
+        out_lanes = iq_lanes(self.source, data_width, n_samples)
+
+        # Capture and product-stage state.
+        work_addr0 = Signal(max=depth)
+        work_addr1 = Signal(max=depth)
+        c0, c1     = Signal(), Signal()
+        xr0 = [Signal((data_width, True)) for _ in range(n_samples)]
+        xq0 = [Signal((data_width, True)) for _ in range(n_samples)]
+        fr0 = [Signal((data_width, True)) for _ in range(n_samples)]
+        fq0 = [Signal((data_width, True)) for _ in range(n_samples)]
+        sum_i0  = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        sum_q0  = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        diff_i0 = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        diff_q0 = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        tr0 = [Signal((twiddle_width, True)) for _ in range(n_samples)]
+        ti0 = [Signal((twiddle_width, True)) for _ in range(n_samples)]
+
+        xr1 = [Signal((data_width, True)) for _ in range(n_samples)]
+        xq1 = [Signal((data_width, True)) for _ in range(n_samples)]
+        fr1 = [Signal((data_width, True)) for _ in range(n_samples)]
+        fq1 = [Signal((data_width, True)) for _ in range(n_samples)]
+        sum_i1 = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        sum_q1 = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        term_width = data_width + twiddle_width + 1
+        prod_rr1 = [Signal((term_width, True)) for _ in range(n_samples)]
+        prod_ii1 = [Signal((term_width, True)) for _ in range(n_samples)]
+        prod_ri1 = [Signal((term_width, True)) for _ in range(n_samples)]
+        prod_ir1 = [Signal((term_width, True)) for _ in range(n_samples)]
+
+        # Finish arithmetic is combinational from registered products. It feeds both the
+        # memory write and the same-address forwarding mux used by a simultaneous capture.
+        store_word_i = Signal(n_samples*data_width)
+        store_word_q = Signal(n_samples*data_width)
+        finish_i, finish_q = [], []
+        for k in range(n_samples):
+            prod_i = Signal((term_width + 1, True))
+            prod_q = Signal((term_width + 1, True))
+            self.comb += [
+                prod_i.eq(prod_rr1[k] - prod_ii1[k]),
+                prod_q.eq(prod_ri1[k] + prod_ir1[k]),
+            ]
+            diff_i, _ = scaled(prod_i, twiddle_width, data_width)
+            diff_q, _ = scaled(prod_q, twiddle_width, data_width)
+            sum_i, _  = scaled(sum_i1[k], 1, data_width)
+            sum_q, _  = scaled(sum_q1[k], 1, data_width)
+            store_i = Mux(c1, diff_i, xr1[k])
+            store_q = Mux(c1, diff_q, xq1[k])
+            self.comb += [
+                store_word_i[k*data_width:(k + 1)*data_width].eq(store_i),
+                store_word_q[k*data_width:(k + 1)*data_width].eq(store_q),
+            ]
+            finish_i.append(Mux(c1, sum_i, fr1[k]))
+            finish_q.append(Mux(c1, sum_q, fq1[k]))
+        self.comb += [
+            self.source.valid.eq(valid1),
+            *[out_lanes[k][0].eq(finish_i[k]) for k in range(n_samples)],
+            *[out_lanes[k][1].eq(finish_q[k]) for k in range(n_samples)],
+        ]
+
+        # Packed feedback RAM with finish-to-capture forwarding at the recurrence boundary.
+        mem_i = Memory(n_samples*data_width, depth)
+        mem_q = Memory(n_samples*data_width, depth)
+        wp_i, wp_q = mem_i.get_port(write_capable=True), mem_q.get_port(write_capable=True)
+        rp_i, rp_q = mem_i.get_port(async_read=True),    mem_q.get_port(async_read=True)
+        self.specials += mem_i, mem_q, wp_i, wp_q, rp_i, rp_q
+        feedback_i = Signal(n_samples*data_width)
+        feedback_q = Signal(n_samples*data_width)
+        bypass = Signal()
+        self.comb += [
+            rp_i.adr.eq(addr), rp_q.adr.eq(addr),
+            wp_i.adr.eq(work_addr1), wp_q.adr.eq(work_addr1),
+            wp_i.dat_w.eq(store_word_i), wp_q.dat_w.eq(store_word_q),
+            wp_i.we.eq(adv & valid1), wp_q.we.eq(adv & valid1),
+            bypass.eq(valid1 & (addr == work_addr1)),
+            feedback_i.eq(Mux(bypass, store_word_i, rp_i.dat_r)),
+            feedback_q.eq(Mux(bypass, store_word_q, rp_q.dat_r)),
+        ]
+
+        # P banked asynchronous ROM reads terminate at capture registers, so counter/address
+        # decode is outside the DSP path.
+        cos_init = _twiddle_rom(D, math.cos, twiddle_width)
+        sin_init = _twiddle_rom(D, math.sin, twiddle_width)
+        twiddle_reads = []
+        for k in range(n_samples):
+            cos_rom = Memory(twiddle_width, depth, init=cos_init[k::n_samples])
+            sin_rom = Memory(twiddle_width, depth, init=sin_init[k::n_samples])
+            cos_rp  = cos_rom.get_port(async_read=True)
+            sin_rp  = sin_rom.get_port(async_read=True)
+            self.specials += cos_rom, sin_rom, cos_rp, sin_rp
+            self.comb += [cos_rp.adr.eq(addr), sin_rp.adr.eq(addr)]
+            twiddle_reads.append((cos_rp.dat_r, sin_rp.dat_r))
+
+        # Packed lane slices are raw unsigned bits; reinterpret them through signed Signals
+        # before forming the widened butterfly sums/differences.
+        capture_xr = [Signal((data_width, True)) for _ in range(n_samples)]
+        capture_xq = [Signal((data_width, True)) for _ in range(n_samples)]
+        capture_fr = [Signal((data_width, True)) for _ in range(n_samples)]
+        capture_fq = [Signal((data_width, True)) for _ in range(n_samples)]
+        self.comb += [
+            *[capture_xr[k].eq(in_lanes[k][0]) for k in range(n_samples)],
+            *[capture_xq[k].eq(in_lanes[k][1]) for k in range(n_samples)],
+            *[capture_fr[k].eq(feedback_i[k*data_width:(k + 1)*data_width])
+              for k in range(n_samples)],
+            *[capture_fq[k].eq(feedback_q[k*data_width:(k + 1)*data_width])
+              for k in range(n_samples)],
+        ]
+
+        self.sync += If(adv,
+            valid0.eq(self.sink.valid),
+            valid1.eq(valid0),
+            If(self.sink.valid,
+                work_addr0.eq(addr),
+                c0.eq(c),
+                *[xr0[k].eq(capture_xr[k]) for k in range(n_samples)],
+                *[xq0[k].eq(capture_xq[k]) for k in range(n_samples)],
+                *[fr0[k].eq(capture_fr[k]) for k in range(n_samples)],
+                *[fq0[k].eq(capture_fq[k]) for k in range(n_samples)],
+                *[sum_i0[k].eq(capture_fr[k] + capture_xr[k]) for k in range(n_samples)],
+                *[sum_q0[k].eq(capture_fq[k] + capture_xq[k]) for k in range(n_samples)],
+                *[diff_i0[k].eq(capture_fr[k] - capture_xr[k]) for k in range(n_samples)],
+                *[diff_q0[k].eq(capture_fq[k] - capture_xq[k]) for k in range(n_samples)],
+                *[tr0[k].eq(twiddle_reads[k][0]) for k in range(n_samples)],
+                *[ti0[k].eq(twiddle_reads[k][1]) for k in range(n_samples)],
+            ),
+            If(valid0,
+                work_addr1.eq(work_addr0),
+                c1.eq(c0),
+                *[xr1[k].eq(xr0[k]) for k in range(n_samples)],
+                *[xq1[k].eq(xq0[k]) for k in range(n_samples)],
+                *[fr1[k].eq(fr0[k]) for k in range(n_samples)],
+                *[fq1[k].eq(fq0[k]) for k in range(n_samples)],
+                *[sum_i1[k].eq(sum_i0[k]) for k in range(n_samples)],
+                *[sum_q1[k].eq(sum_q0[k]) for k in range(n_samples)],
+                *[prod_rr1[k].eq(diff_i0[k]*tr0[k]) for k in range(n_samples)],
+                *[prod_ii1[k].eq(diff_q0[k]*ti0[k]) for k in range(n_samples)],
+                *[prod_ri1[k].eq(diff_i0[k]*ti0[k]) for k in range(n_samples)],
+                *[prod_ir1[k].eq(diff_q0[k]*tr0[k]) for k in range(n_samples)],
+            ),
+        )
+
+
 class LiteDSPNativeParallelFFT(LiteXModule):
     """Native vector-SDF FFT with a sustained P=2 or P=4 samples/clock."""
-    def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16, with_csr=True):
+    def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
+        feedback_pipeline=False, with_csr=True):
         check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
         check(n_samples in (2, 4), "native n_samples must be 2 or 4.")
         check(N >= 2*n_samples, "N must be at least twice n_samples.")
@@ -224,6 +405,7 @@ class LiteDSPNativeParallelFFT(LiteXModule):
         self.data_width = data_width
         self.core_architecture         = "native"
         self.implementation            = "native"
+        self.feedback_pipeline         = feedback_pipeline
         self.peak_samples_per_cycle    = n_samples
         self.average_samples_per_cycle = n_samples
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
@@ -233,7 +415,10 @@ class LiteDSPNativeParallelFFT(LiteXModule):
 
         stages = []
         for stage in range(log2_int(N)):
-            s = _LiteDSPFFTVectorStage(N, stage, n_samples, data_width, twiddle_width)
+            D = N >> (stage + 1)
+            cls = _LiteDSPFFTVectorPipelinedStage \
+                if feedback_pipeline and D > n_samples else _LiteDSPFFTVectorStage
+            s = cls(N, stage, n_samples, data_width, twiddle_width)
             setattr(self.submodules, f"stage{stage}", s)
             stages.append(s)
         self.comb += self.sink.connect(stages[0].sink)
@@ -286,7 +471,7 @@ class LiteDSPNativeParallelFFT(LiteXModule):
             ),
         ]
 
-        self.latency = log2_int(N) + N//n_samples + 1
+        self.latency = sum(stage.latency for stage in stages) + N//n_samples + 1
         if with_csr:
             self.add_csr()
 
@@ -338,8 +523,11 @@ class LiteDSPParallelFFT(LiteXModule):
     ``implementation="native"`` instead advances a single SDF feedback line by P consecutive
     samples per clock. It supports P=2 and P=4, sustains P samples/cycle, eliminates the split
     implementation's branch FIFOs/serializers/duplicated cores, and remains bit-identical to
-    the serial FFT on the flattened lane stream. Both implementations currently use the
-    serial FFT's ``scaling="scaled"`` arithmetic (1/2 per stage, 1/N overall).
+    the serial FFT on the flattened lane stream. ``feedback_pipeline=True`` registers the
+    butterfly difference and real twiddle products in ranks with at least two packed feedback
+    addresses; a same-address forwarding path preserves the recurrence while retaining one beat
+    per clock. Both implementations use the serial FFT's ``scaling="scaled"`` arithmetic
+    (1/2 per stage, 1/N overall).
 
     Parameters
     ----------
@@ -354,26 +542,32 @@ class LiteDSPParallelFFT(LiteXModule):
         registered timing-oriented split path with one-sample/cycle average throughput.
     implementation : str
         ``"split"`` (compatibility default) or the scalable ``"native"`` vector-SDF engine.
+    feedback_pipeline : bool
+        Pipeline the native feedback multiplier with same-address forwarding. Adds one clock to
+        each eligible rank without reducing the P-sample-per-clock initiation rate.
     """
     def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
-        core_architecture="classic", implementation="split", with_csr=True):
+        core_architecture="classic", implementation="split", feedback_pipeline=False,
+        with_csr=True):
         check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
         check(implementation in ("split", "native"),
             "implementation must be 'split' or 'native'.")
         if implementation == "native":
             self.native = LiteDSPNativeParallelFFT(N, n_samples, data_width, twiddle_width,
-                with_csr=with_csr)
+                feedback_pipeline=feedback_pipeline, with_csr=with_csr)
             self.N          = self.native.N
             self.n_samples  = self.native.n_samples
             self.data_width = self.native.data_width
             self.core_architecture         = self.native.core_architecture
             self.implementation            = implementation
+            self.feedback_pipeline         = self.native.feedback_pipeline
             self.peak_samples_per_cycle    = self.native.peak_samples_per_cycle
             self.average_samples_per_cycle = self.native.average_samples_per_cycle
             self.latency = self.native.latency
             self.sink    = self.native.sink
             self.source  = self.native.source
             return
+        check(not feedback_pipeline, "feedback_pipeline is supported only by native FFTs.")
         check(n_samples == 2, "split n_samples must be 2; use implementation='native' for P=4.")
         check(core_architecture in ("classic", "folded"),
             "core_architecture must be 'classic' or 'folded'.")

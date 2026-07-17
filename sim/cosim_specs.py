@@ -544,7 +544,8 @@ def spec_psd():
     return dut, cols + [mode, clear], 4*N, lambda c: [[power]*(4*N)], \
         False, False, (dut.mode, dut.clear)
 
-def _spec_parallel_fft(n_samples=2, implementation="split", core_architecture="classic"):
+def _spec_parallel_fft(n_samples=2, implementation="split", core_architecture="classic",
+    feedback_pipeline=False):
     from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
     N, n_frames = 16, 4
     rng = np.random.RandomState(73 + n_samples)
@@ -570,7 +571,7 @@ def _spec_parallel_fft(n_samples=2, implementation="split", core_architecture="c
     out_first = [int(k % beats == 0) for k in range(n_out)]
     out_last  = [int(k % beats == beats - 1) for k in range(n_out)]
     dut = LiteDSPParallelFFT(N=N, n_samples=n_samples, implementation=implementation,
-        core_architecture=core_architecture, with_csr=False)
+        core_architecture=core_architecture, feedback_pipeline=feedback_pipeline, with_csr=False)
     return dut, [in_i, in_q, first, last], n_out, \
         lambda c: [ref_i, ref_q, out_first, out_last], True, True
 
@@ -581,10 +582,10 @@ def spec_parallel_fft_folded():
     return _spec_parallel_fft(core_architecture="folded")
 
 def spec_parallel_fft_native_x2():
-    return _spec_parallel_fft(2, implementation="native")
+    return _spec_parallel_fft(2, implementation="native", feedback_pipeline=True)
 
 def spec_parallel_fft_native_x4():
-    return _spec_parallel_fft(4, implementation="native")
+    return _spec_parallel_fft(4, implementation="native", feedback_pipeline=True)
 
 def spec_welch():
     from litedsp.analysis.welch import LiteDSPWelchPSD
