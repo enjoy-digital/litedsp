@@ -35,8 +35,10 @@ def aggregate_pnr_runs(runs, failures):
         details = "; ".join(f"seed {seed}: {error}" for seed, error in failures)
         raise RuntimeError("no P&R run completed" + (f" ({details})" if details else ""))
     ordered = sorted(runs, key=lambda item: item[1]["fmax_mhz"])
-    median_fmax = statistics.median(item[1]["fmax_mhz"] for item in ordered)
+    median_fmax = round(statistics.median(item[1]["fmax_mhz"] for item in ordered), 3)
     selected = min(ordered, key=lambda item: abs(item[1]["fmax_mhz"] - median_fmax))
+    result = dict(selected[1])
+    result["fmax_mhz"] = median_fmax
     stats = {
         "completed": len(ordered),
         "failed": len(failures),
@@ -47,7 +49,7 @@ def aggregate_pnr_runs(runs, failures):
                  for seed, result in ordered],
         "failures": [{"seed": seed, "error": error} for seed, error in failures],
     }
-    return selected[1], stats
+    return result, stats
 
 def build_many(names, builder, jobs=1):
     """Run independent implementation builds concurrently and return ordered results/errors."""

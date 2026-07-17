@@ -76,6 +76,15 @@ class TestImplementationBudgets(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "no P&R run completed"):
             impl_run.aggregate_pnr_runs([], [(0, "timeout")])
 
+    def test_route_statistics_record_the_even_run_median(self):
+        selected, stats = impl_run.aggregate_pnr_runs([
+            (0, {"fmax_mhz": 73.8, "lut": 10}),
+            (1, {"fmax_mhz": 81.6, "lut": 10}),
+        ], [(2, "timeout")])
+        self.assertEqual(selected["fmax_mhz"], 77.7)
+        self.assertEqual(selected["lut"], 10)
+        self.assertEqual(stats["median_mhz"], 77.7)
+
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")
