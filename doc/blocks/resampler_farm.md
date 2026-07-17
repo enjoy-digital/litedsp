@@ -28,13 +28,17 @@ channel backpressures the farm). The output is a single channel-tagged decimated
         demux.sel.eq(farm.source.channel),
     ]
 
-**Resources** (ECP5, Yosys synth, defaults: 4 channels x 32 taps, R=8, 16-bit): the farm
-is 888 LUT / 106 FF / 2 DSP vs 1880 LUT / 416 FF / 8 DSP for 4 separate
-``LiteDSPFIRDecimator`` instances — 2.1x fewer LUTs, 3.9x fewer FFs and 4x fewer DSPs
-(one engine instead of four), with the per-channel cost reduced to the history-RAM
-segment. Throughput is shared: one output costs ``n_taps`` MAC cycles, so the aggregate
-input rate is bounded by ``f_clk * R/(R + n_taps + 2)`` samples/s across all channels
-(``self.cycles_per_output``).
+**Resources** (ECP5, implementation configuration: 4 channels x 32 taps, R=8, 16-bit,
+pipelined): 550 LUT / 189 FF / 2 BRAM / 2 DSP. Sharing retains one complex MAC engine
+instead of the 8 DSPs required by four separate two-DSP decimators; the per-channel cost is
+primarily history depth. Throughput is shared: one output costs ``n_taps`` MAC issue cycles,
+so the aggregate input rate is bounded by ``f_clk * R/self.cycles_per_output`` samples/s
+across all channels.
+
+``architecture="classic"`` performs the RAM lookup, multiply, and accumulator update in one
+clock. ``architecture="pipelined"`` registers the RAM operands and then the product, draining
+both stages in two additional clocks per output. This preserves the shared two-multiplier
+engine and bit-exact output sequence while separating all three timing paths.
 
 ## Parameters
 
@@ -46,6 +50,7 @@ input rate is bounded by ``f_clk * R/(R + n_taps + 2)`` samples/s across all cha
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
+| `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
 
 ## Ports
 
@@ -81,8 +86,8 @@ Write the next FIR coefficient (auto-incrementing tap index, shared by all chann
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 920 | 106 | 0 | 2 | 73.4 | — |
-| xilinx | 450 | 80 | 0 | 2 | — | — |
+| ecp5 | 550 | 189 | 2 | 2 | 129.9 | 100.0 |
+| xilinx | 558 | 109 | 0 | 2 | 155.1 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

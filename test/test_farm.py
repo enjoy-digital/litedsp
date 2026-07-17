@@ -53,24 +53,30 @@ class TestResamplerFarm(unittest.TestCase):
     def test_bit_exact_per_channel(self):
         # verify-tier: model — every channel bit-exact vs its own fir_decimator_model
         # (farm_model) under randomized per-sink stalls and output backpressure.
-        for n_channels, n_taps, R in [(4, 16, 4), (2, 32, 8), (3, 8, 2)]:
-            with self.subTest(n_channels=n_channels, n_taps=n_taps, decimation=R):
-                prng   = random.Random(n_channels*100 + n_taps)
-                coeffs = [prng.randint(-(1 << 13), (1 << 13)) for _ in range(n_taps)]
-                n      = 32*R
-                xs     = [([prng.randint(-30000, 30000) for _ in range(n)],
-                           [prng.randint(-30000, 30000) for _ in range(n)])
-                          for _ in range(n_channels)]
-                dut = LiteDSPResamplerFarm(n_channels=n_channels, n_taps=n_taps, decimation=R,
-                    data_width=16, coefficients=coeffs, with_csr=False)
-                cap = _run_farm(dut,
-                    [[{"i": i[j], "q": q[j]} for j in range(n)] for (i, q) in xs],
-                    n_channels*(n//R))
-                ref = farm_model(xs, coeffs, R)
-                for k, (got_i, got_q) in enumerate(_split(cap, n_channels)):
-                    self.assertEqual(len(got_i), n//R, f"ch{k}: wrong output count")
-                    self.assertTrue(np.array_equal(got_i, ref[k][0]), f"ch{k}: I diverges")
-                    self.assertTrue(np.array_equal(got_q, ref[k][1]), f"ch{k}: Q diverges")
+        for architecture in ("classic", "pipelined"):
+            for n_channels, n_taps, R in [(4, 16, 4), (2, 32, 8), (3, 8, 2)]:
+                with self.subTest(architecture=architecture, n_channels=n_channels,
+                    n_taps=n_taps, decimation=R):
+                    prng   = random.Random(n_channels*100 + n_taps)
+                    coeffs = [prng.randint(-(1 << 13), (1 << 13)) for _ in range(n_taps)]
+                    n      = 32*R
+                    xs     = [([prng.randint(-30000, 30000) for _ in range(n)],
+                               [prng.randint(-30000, 30000) for _ in range(n)])
+                              for _ in range(n_channels)]
+                    dut = LiteDSPResamplerFarm(n_channels=n_channels, n_taps=n_taps, decimation=R,
+                        data_width=16, coefficients=coeffs, with_csr=False,
+                        architecture=architecture)
+                    pipeline = 2*int(architecture == "pipelined")
+                    self.assertEqual(dut.cycles_per_output, R + n_taps + 2 + pipeline)
+                    self.assertEqual(dut.latency, n_taps + pipeline)
+                    cap = _run_farm(dut,
+                        [[{"i": i[j], "q": q[j]} for j in range(n)] for (i, q) in xs],
+                        n_channels*(n//R))
+                    ref = farm_model(xs, coeffs, R)
+                    for k, (got_i, got_q) in enumerate(_split(cap, n_channels)):
+                        self.assertEqual(len(got_i), n//R, f"ch{k}: wrong output count")
+                        self.assertTrue(np.array_equal(got_i, ref[k][0]), f"ch{k}: I diverges")
+                        self.assertTrue(np.array_equal(got_q, ref[k][1]), f"ch{k}: Q diverges")
 
     def test_channel_isolation(self):
         # verify-tier: model — an impulse on channel 0 must appear only in channel 0's output
@@ -82,7 +88,7 @@ class TestResamplerFarm(unittest.TestCase):
         xs     = [([32767] + [0]*(n - 1) if k == 0 else [0]*n, [0]*n)
                   for k in range(n_channels)]
         dut = LiteDSPResamplerFarm(n_channels=n_channels, n_taps=n_taps, decimation=R,
-            data_width=16, coefficients=coeffs, with_csr=False)
+            data_width=16, coefficients=coeffs, with_csr=False, architecture="pipelined")
         cap = _run_farm(dut, [[{"i": i[j], "q": q[j]} for j in range(n)] for (i, q) in xs],
             n_channels*(n//R))
         ref = farm_model(xs, coeffs, R)
@@ -104,7 +110,8 @@ class TestResamplerFarm(unittest.TestCase):
         class Dut(LiteXModule):
             def __init__(self):
                 self.farm  = farm  = LiteDSPResamplerFarm(n_channels=n_channels, n_taps=n_taps,
-                    decimation=R, data_width=16, coefficients=coeffs, with_csr=False)
+                    decimation=R, data_width=16, coefficients=coeffs, with_csr=False,
+                    architecture="pipelined")
                 self.demux = demux = LiteDSPChannelDemux(n=n_channels, data_width=16,
                     with_csr=False)
                 self.comb += [
@@ -139,6 +146,8 @@ class TestResamplerFarm(unittest.TestCase):
         self.assertEqual(len(spec.sources), 1)
         self.assertEqual(spec.port("source").layout, "iq")
         self.assertEqual(spec.latency, 32)                         # n_taps (default kwargs).
+        architecture = next(p for p in spec.params if p.name == "architecture")
+        self.assertEqual(architecture.choices, ["classic", "pipelined"])
         self.assertEqual(VSPEC["resampler_farm"]["model"], "farm_model")
         self.assertIn("resampler_farm", IMPL_REGISTRY)
 

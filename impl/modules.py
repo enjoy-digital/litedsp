@@ -126,7 +126,8 @@ def fir_interpolator():
     return d, _eps(d.sink, d.source), 10.0
 
 def resampler_farm():
-    d = LiteDSPResamplerFarm(n_channels=4, n_taps=32, decimation=8, data_width=16, with_csr=False)
+    d = LiteDSPResamplerFarm(n_channels=4, n_taps=32, decimation=8, data_width=16,
+        with_csr=False, architecture="pipelined")
     return d, {d.coeff_data, d.coeff_we, d.coeff_rst} | _eps(d.source, *d.sinks), 10.0
 
 def cic_decimator():
@@ -513,7 +514,7 @@ REGISTRY = {
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
-              "duc", "channelizer", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
+              "duc", "channelizer", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
@@ -522,7 +523,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
-TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "ldpc_decoder",
+TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "resampler_farm", "ldpc_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",

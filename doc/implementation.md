@@ -92,6 +92,10 @@ device-specific.
   pointer and registered product separate asynchronous coefficient selection and multiplication
   from accumulator feedback. The L=8/65-tap configuration rises from 74.3 to 107.1 MHz on ECP5;
   `cycles_per_output` rises from 11 to 12 and the classic API mode remains available.
+- **Registering the resampler-farm RAM boundary improves both timing and mapping.** Operand and
+  product registers split the banked history lookup, multiply, and accumulator feedback. The
+  ECP5 implementation rises from 86.3 to a 152.8 MHz three-route median and maps its histories
+  into two BRAMs, at the cost of two drain clocks per decimated output.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
@@ -122,8 +126,8 @@ avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing
 datasheets present the same data from `impl/budgets.json`.
 
 The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
-configurations pass out-of-context synthesis and all 36 representative configurations pass
-place-and-route. The 21 reviewed timing architectures close their 100 MHz targets on this
+configurations pass out-of-context synthesis and all 37 representative configurations pass
+place-and-route. The 22 reviewed timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part
 of the strict 100 MHz target set. Relative to the classic reduction, ECP5 moves from 6461 LUT /

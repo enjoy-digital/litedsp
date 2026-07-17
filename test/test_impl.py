@@ -172,7 +172,7 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_closed_targets_are_pnr_sentinels(self):
         data = budgets.load()
         self.assertEqual(modules.TARGET_CLOSED,
-            ["dpd", "ddc", "duc", "channelizer", "ldpc_decoder",
+            ["dpd", "ddc", "duc", "channelizer", "resampler_farm", "ldpc_decoder",
              "cic_decimator", "cic_interpolator", "agc", "fft_iter",
              "viterbi_decoder", "viterbi_decoder_soft",
              "cic_parallel_x2", "cic_parallel_x4",

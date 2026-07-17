@@ -144,7 +144,7 @@ ENTRIES = [
     ("interpolator",       LiteDSPInterpolator,          {"interpolation": 8},                          "rate",       "Interpolator",          {"method": ["cic", "fir"], "fir_architecture": ["classic", "pipelined"]}),
     ("downsampler",        LiteDSPDownsampler,           {},                                     "rate",       "Downsampler",           None),
     ("upsampler",          LiteDSPUpsampler,             {},                                     "rate",       "Upsampler",             None),
-    ("resampler_farm",     LiteDSPResamplerFarm,         {"n_channels": 4, "n_taps": 32, "decimation": 8}, "rate", "Resampler farm",      None),
+    ("resampler_farm",     LiteDSPResamplerFarm,         {"n_channels": 4, "n_taps": 32, "decimation": 8}, "rate", "Resampler farm",      {"architecture": ["classic", "pipelined"]}),
     # level ----------------------------------------------------------------------------------------
     ("gain",               LiteDSPGain,                  {},                                     "level",      "Gain",                  None),
     ("power",              LiteDSPPower,                 {},                                     "level",      "Power meter",           None),

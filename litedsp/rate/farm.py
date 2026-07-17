@@ -50,13 +50,17 @@ class LiteDSPResamplerFarm(LiteXModule):
             demux.sel.eq(farm.source.channel),
         ]
 
-    **Resources** (ECP5, Yosys synth, defaults: 4 channels x 32 taps, R=8, 16-bit): the farm
-    is 888 LUT / 106 FF / 2 DSP vs 1880 LUT / 416 FF / 8 DSP for 4 separate
-    ``LiteDSPFIRDecimator`` instances — 2.1x fewer LUTs, 3.9x fewer FFs and 4x fewer DSPs
-    (one engine instead of four), with the per-channel cost reduced to the history-RAM
-    segment. Throughput is shared: one output costs ``n_taps`` MAC cycles, so the aggregate
-    input rate is bounded by ``f_clk * R/(R + n_taps + 2)`` samples/s across all channels
-    (``self.cycles_per_output``).
+    **Resources** (ECP5, implementation configuration: 4 channels x 32 taps, R=8, 16-bit,
+    pipelined): 550 LUT / 189 FF / 2 BRAM / 2 DSP. Sharing retains one complex MAC engine
+    instead of the 8 DSPs required by four separate two-DSP decimators; the per-channel cost is
+    primarily history depth. Throughput is shared: one output costs ``n_taps`` MAC issue cycles,
+    so the aggregate input rate is bounded by ``f_clk * R/self.cycles_per_output`` samples/s
+    across all channels.
+
+    ``architecture="classic"`` performs the RAM lookup, multiply, and accumulator update in one
+    clock. ``architecture="pipelined"`` registers the RAM operands and then the product, draining
+    both stages in two additional clocks per output. This preserves the shared two-multiplier
+    engine and bit-exact output sequence while separating all three timing paths.
 
     Parameters
     ----------
@@ -65,10 +69,12 @@ class LiteDSPResamplerFarm(LiteXModule):
         MAC engine, coefficient ROM and FSM are shared.
     """
     def __init__(self, n_channels=4, n_taps=32, decimation=8, data_width=16, coefficients=None,
-        shift=None, with_csr=True):
+        shift=None, with_csr=True, architecture="classic"):
         R = decimation  # Literature name.
         check(n_channels >= 1, "expected n_channels >= 1")
         check(n_taps >= 1 and R >= 1, "expected n_taps >= 1 and decimation >= 1")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         if shift is None:
             shift = data_width - 1
         if coefficients is None:
@@ -78,8 +84,10 @@ class LiteDSPResamplerFarm(LiteXModule):
         self.n_taps     = n_taps
         self.decimation = R
         self.data_width = data_width
-        self.cycles_per_output = R + n_taps + 2   # Aggregate MAC-bound (see class doc).
-        self.latency = n_taps
+        self.architecture = architecture
+        pipeline = 2*int(architecture == "pipelined")
+        self.cycles_per_output = R + n_taps + 2 + pipeline  # Aggregate MAC-bound (see class doc).
+        self.latency = n_taps + pipeline
         cw = max(1, bits_for(n_channels - 1))     # Channel index / tag width.
         self.sinks  = [stream.Endpoint(iq_layout(data_width)) for _ in range(n_channels)]
         self.source = stream.Endpoint(iq_layout(data_width) + [("channel", cw)])
@@ -173,14 +181,59 @@ class LiteDSPResamplerFarm(LiteXModule):
                 )
             )
         )
-        # MAC: one tap per cycle; radr walks channel ch's history backwards while t addresses c[t].
-        fsm.act("MAC",
-            NextValue(acc_i, acc_i + ci*cc),
-            NextValue(acc_q, acc_q + cq*cc),
-            NextValue(radr, radr - 1),
-            NextValue(t, t + 1),
-            If(t == (n_taps - 1), NextState("EMIT")),
-        )
+        # MAC: one tap per cycle; the explicit pipeline registers the distributed-RAM operands,
+        # then the product, and consumes both trailing stages in two drain clocks.
+        if architecture == "classic":
+            fsm.act("MAC",
+                NextValue(acc_i, acc_i + ci*cc),
+                NextValue(acc_q, acc_q + cq*cc),
+                NextValue(radr, radr - 1),
+                NextValue(t, t + 1),
+                If(t == (n_taps - 1), NextState("EMIT")),
+            )
+        else:
+            operand_i = Signal((data_width, True))
+            operand_q = Signal((data_width, True))
+            operand_c = Signal((data_width, True))
+            operand_valid = Signal()
+            prod_i = Signal((2*data_width, True))
+            prod_q = Signal((2*data_width, True))
+            prod_valid = Signal()
+            fsm.act("MAC",
+                NextValue(operand_i, ci),
+                NextValue(operand_q, cq),
+                NextValue(operand_c, cc),
+                NextValue(operand_valid, 1),
+                NextValue(prod_i, operand_i*operand_c),
+                NextValue(prod_q, operand_q*operand_c),
+                NextValue(prod_valid, operand_valid),
+                If(prod_valid,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(radr, radr - 1),
+                NextValue(t, t + 1),
+                If(t == (n_taps - 1), NextState("MAC_DRAIN_PRODUCT")),
+            )
+            fsm.act("MAC_DRAIN_PRODUCT",
+                NextValue(prod_i, operand_i*operand_c),
+                NextValue(prod_q, operand_q*operand_c),
+                NextValue(prod_valid, operand_valid),
+                If(prod_valid,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(operand_valid, 0),
+                NextState("MAC_DRAIN_ACC"),
+            )
+            fsm.act("MAC_DRAIN_ACC",
+                If(prod_valid,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(prod_valid, 0),
+                NextState("EMIT"),
+            )
         out_i, _ = scaled(acc_i, shift, data_width)
         out_q, _ = scaled(acc_q, shift, data_width)
         # EMIT: present the channel-tagged result; the farm stays stalled until it is accepted.

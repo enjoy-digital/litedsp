@@ -17,6 +17,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
 | DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
+| Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 77.7/67.8 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native feedback pipeline landed but remains open |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -77,6 +78,25 @@ remains the API default; the implementation registry selects the pipelined optio
 
 Acceptance covers odd and even branch lengths, exact fixed-point output, randomized input/output
 stalls, the DUC image-rejection/upconversion test, and an independent Verilator co-simulation.
+
+## Resampler farm
+
+The farm time-shares one complex serial MAC across four rate-locked channels. Its classic path
+reads the channel-major sample history from distributed RAM, multiplies by the selected tap, and
+updates the accumulator in one clock. The pipelined option registers the RAM operands and the
+product, then drains those two stages after the last tap. This makes the implementation schedule
+`R + n_taps + 4` rather than `R + n_taps + 2` clocks per output; it does not change channel order,
+decimation, or arithmetic.
+
+At four channels, R=8, and 32 taps, three ECP5 routes reach 151.6/152.8/157.5 MHz. Registering the
+read boundary also enables two ECP5 BRAMs for the banked histories: post-route resources move
+from 920 LUT / 106 FF / 0 BRAM / 2 DSP to 550 / 189 / 2 / 2. Artix-7 reaches 182.5 MHz with
+558 LUT / 109 FF / 2 DSP and Artix UltraScale+ reaches 347.6 MHz with 535 / 109 / 2. The classic
+architecture remains the API default; the implementation registry selects the pipelined option.
+
+Acceptance covers two, three, and four channels, multiple tap/rate combinations, exact per-channel
+models under independent input stalls and output backpressure, channel isolation, and composition
+with `LiteDSPChannelDemux`.
 
 ## AGC
 
