@@ -489,7 +489,7 @@ def spec_correlator():
         lambda c: list(models.fir_complex_model(c[0], c[1], coeffs)), \
         False, False, (dut.fir.reset, dut.fir.bypass)
 
-def spec_frame_sync():
+def _spec_frame_sync(architecture="classic"):
     from litedsp.comm.frame_sync import LiteDSPFrameSync
     sequence, n, frame_len = [1, 1, 1, -1, -1, 1, -1], 256, 16
     rng = np.random.RandomState(3)
@@ -500,7 +500,7 @@ def spec_frame_sync():
         xq[pos:pos + len(sequence)] = 0
     threshold = int(0.8*(1 << 14))
     dut = LiteDSPFrameSync(sequence, data_width=16, frame_len=frame_len,
-        peak_window=4, with_csr=False)
+        peak_window=4, with_csr=False, architecture=architecture)
     dut.threshold.reset = threshold
     dut.offset.reset = 3
     fir_reset = [int(k == 196) for k in range(n)]
@@ -510,6 +510,12 @@ def spec_frame_sync():
     return dut, cols, n_out, lambda c: list(models.frame_sync_model(
         c[0], c[1], sequence, threshold, frame_len=frame_len, offset=3)[:4]), \
         False, True, (dut.fir_r.reset, dut.clear_count)
+
+def spec_frame_sync():
+    return _spec_frame_sync()
+
+def spec_frame_sync_pipelined():
+    return _spec_frame_sync(architecture="pipelined")
 
 # Correction ---------------------------------------------------------------------------------------
 
@@ -688,6 +694,7 @@ SPECS = {
     "ldpc_decoder":      spec_ldpc_decoder,
     "correlator":       spec_correlator,
     "frame_sync":       spec_frame_sync,
+    "frame_sync_pipelined": spec_frame_sync_pipelined,
     "dc_offset":        spec_dc_offset,
     "magnitude":        spec_magnitude,
     "window":           spec_window,
@@ -723,6 +730,7 @@ def check_coverage():
     variants = {
         "fir_complex_pipelined":     "fir_complex",
         "fir_interpolator_pipelined": "fir_interpolator",
+        "frame_sync_pipelined":       "frame_sync",
         "viterbi_decoder_soft":      "viterbi_decoder",
         "parallel_fft_folded":       "parallel_fft",
         "parallel_fft_native_x2":    "parallel_fft",

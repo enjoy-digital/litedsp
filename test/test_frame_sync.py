@@ -33,9 +33,9 @@ def _watch_detections(dut, stats):
 
 class TestFrameSync(unittest.TestCase):
     def run_frame_sync(self, sequence, xi, xq, threshold=None, frame_len=None, offset=0,
-        peak_window=4, **kwargs):
+        peak_window=4, architecture="classic", **kwargs):
         dut = LiteDSPFrameSync(sequence, data_width=16, frame_len=frame_len,
-            peak_window=peak_window, with_csr=False)
+            peak_window=peak_window, with_csr=False, architecture=architecture)
         if threshold is not None:
             dut.threshold.reset = threshold
         if offset:
@@ -123,13 +123,31 @@ class TestFrameSync(unittest.TestCase):
         xq  = rng.randint(-1500, 1500, 160)
         xi[60:67] = [4000*c for c in BARKER7]
         xq[60:67] = 0
-        free    = self.run_frame_sync(BARKER7, xi, xq, frame_len=8,
-            sink_throttle=0.0, source_ready_rate=1.0)
-        stalled = self.run_frame_sync(BARKER7, xi, xq, frame_len=8,
-            sink_throttle=0.4, source_ready_rate=0.5)
-        for field in ("i", "q", "first", "last"):
-            np.testing.assert_array_equal(free[field], stalled[field], f"{field} not handshake-invariant")
-        self.assertEqual(free["stats"]["pulses"], stalled["stats"]["pulses"])
+        for architecture in ("classic", "pipelined"):
+            free = self.run_frame_sync(BARKER7, xi, xq, frame_len=8,
+                architecture=architecture, sink_throttle=0.0, source_ready_rate=1.0)
+            stalled = self.run_frame_sync(BARKER7, xi, xq, frame_len=8,
+                architecture=architecture, sink_throttle=0.4, source_ready_rate=0.5)
+            classic_latency = LiteDSPFrameSync(BARKER7, with_csr=False).latency
+            architecture_latency = LiteDSPFrameSync(BARKER7, with_csr=False,
+                architecture=architecture).latency
+            self.assertEqual(free["n_out"] + architecture_latency - classic_latency,
+                len(xi) - classic_latency - 4)
+            for field in ("i", "q", "first", "last"):
+                np.testing.assert_array_equal(free[field], stalled[field],
+                    f"{field} not handshake-invariant ({architecture})")
+            self.assertEqual(free["stats"]["pulses"], stalled["stats"]["pulses"])
+
+    def test_pipelined_architecture_matches_model(self):
+        rng = np.random.RandomState(17)
+        xi  = rng.randint(-1200, 1200, 192)
+        xq  = rng.randint(-1200, 1200, 192)
+        xi[70:77] = [3500*c for c in BARKER7]
+        xq[70:77] = 0
+        threshold = int(0.8*(1 << 14))
+        got = self.run_frame_sync(BARKER7, xi, xq, threshold=threshold, frame_len=12,
+            architecture="pipelined", sink_throttle=0.25, source_ready_rate=0.65)
+        self.assert_matches_model(got, xi, xq, BARKER7, threshold, frame_len=12)
 
     # verify-tier: model — threshold boundary: with an isolated preamble, the exact edge
     # threshold (floor(|corr|^2 * 2^frac / (N * energy))) detects (>= is inclusive) and one

@@ -77,6 +77,13 @@ class LiteDSPFrameSync(LiteXModule):
     bubbles), so sample positions and pipeline slots coincide: peak-picking look-ahead and
     the ``first``/``last`` alignment are exact under any valid/ready pattern.
 
+    ``architecture="classic"`` computes input power and ``threshold * (N * window_energy)``
+    directly at their consumer registers and uses the matched filter's combinational reduction.
+    ``architecture="pipelined"`` registers every matched-filter reduction level, then registers
+    input power/correlation and splits normalized threshold formation across two stages. It adds
+    ``ceil(log2(N)) + 2`` samples of latency without changing initiation rate, arithmetic, peak
+    selection, or tags.
+
     Parameters
     ----------
     sequence : list
@@ -91,14 +98,16 @@ class LiteDSPFrameSync(LiteXModule):
         samples after (and including) the ``first`` sample. ``None`` tags ``first`` only.
     peak_window : int
         Local-maximum search window after a threshold crossing, in samples. Also sets the
-        output look-ahead delay (``latency = correlator latency + peak_window + 2``).
+        output look-ahead delay (classic ``latency = correlator latency + peak_window + 2``).
     """
     def __init__(self, sequence, data_width=16, threshold_frac=14, frame_len=None,
-        peak_window=4, with_csr=True, with_irq=False):
+        peak_window=4, with_csr=True, with_irq=False, architecture="classic"):
         check(len(sequence) >= 2,                   "expected len(sequence) >= 2")
         check(threshold_frac >= 1,                  "expected threshold_frac >= 1")
         check(frame_len is None or frame_len >= 1,  "expected frame_len >= 1 (or None)")
         check(peak_window >= 1,                     "expected peak_window >= 1")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         coeffs_r, coeffs_i = frame_sync_taps(sequence, data_width)
         n_seq       = len(sequence)
         complex_seq = any(coeffs_i)
@@ -108,6 +117,7 @@ class LiteDSPFrameSync(LiteXModule):
         self.threshold_frac = threshold_frac
         self.frame_len      = frame_len
         self.peak_window    = peak_window
+        self.architecture   = architecture
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.threshold   = Signal(2 + threshold_frac, reset=1 << (threshold_frac - 1))  # Q2.f, 0.5.
@@ -129,14 +139,16 @@ class LiteDSPFrameSync(LiteXModule):
         # Complex FIR(s) with the conjugated time-reversed sequence as taps (LiteDSPCorrelator
         # conventions): fir_r applies Re(taps) to I/Q; for a complex sequence fir_i applies
         # Im(taps) and the two recombine at the join below (corr = x (*) conj(reversed(seq))).
+        fir_architecture = "pipelined" if architecture == "pipelined" else "classic"
         self.fir_r = LiteDSPFIRFilterComplex(n_taps=n_seq, data_width=data_width,
-            coefficients=coeffs_r, with_csr=False)
+            coefficients=coeffs_r, with_csr=False, architecture=fir_architecture)
         firs = [self.fir_r]
         if complex_seq:
             self.fir_i = LiteDSPFIRFilterComplex(n_taps=n_seq, data_width=data_width,
-                coefficients=coeffs_i, with_csr=False)
+                coefficients=coeffs_i, with_csr=False, architecture=fir_architecture)
             firs.append(self.fir_i)
-        self.latency = self.fir_r.latency + peak_window + 2
+        pipeline = 2*int(architecture == "pipelined")
+        self.latency = self.fir_r.latency + peak_window + 2 + pipeline
 
         # Raw-Sample Delay FIFO.
         # ----------------------
@@ -198,48 +210,87 @@ class LiteDSPFrameSync(LiteXModule):
         p_hist   = [Signal(pw_width) for _ in range(n_seq)]
         acc      = Signal(en_width)
         acc_next = Signal(en_width)
-        self.comb += [
-            p.eq(fifo.source.i*fifo.source.i + fifo.source.q*fifo.source.q),
-            acc_next.eq(acc + p - p_hist[-1]),
-        ]
-        self.sync += If(step,
-            acc.eq(acc_next),
-            p_hist[0].eq(p),
-            [p_hist[t].eq(p_hist[t-1]) for t in range(1, n_seq)],
-        )
+        self.comb += p.eq(fifo.source.i*fifo.source.i + fifo.source.q*fifo.source.q)
 
-        # Stage 1: |corr|**2 + aligned window energy.
-        # -------------------------------------------
+        # Stage 1: |corr|**2 + aligned window energy. The pipelined architecture first
+        # registers input power and correlation, splitting the FIFO-read/square/sum path from
+        # the moving-energy recurrence. Its valid/raw alignment advances by the same stage.
+        # -------------------------------------------------------------------------------
         mag2_1 = Signal(pw_width)  # |corr[k]|**2.
         en_1   = Signal(en_width)  # Energy of x[k-N+1..k].
-        self.sync += If(step,
-            mag2_1.eq(corr_i*corr_i + corr_q*corr_q),
-            en_1.eq(acc_next),
-        )
+        if architecture == "classic":
+            self.comb += acc_next.eq(acc + p - p_hist[-1])
+            self.sync += If(step,
+                acc.eq(acc_next),
+                p_hist[0].eq(p),
+                [p_hist[t].eq(p_hist[t-1]) for t in range(1, n_seq)],
+                mag2_1.eq(corr_i*corr_i + corr_q*corr_q),
+                en_1.eq(acc_next),
+            )
+        else:
+            power_0 = Signal(pw_width)
+            corr_i_0 = Signal((data_width, True))
+            corr_q_0 = Signal((data_width, True))
+            self.comb += acc_next.eq(acc + power_0 - p_hist[-1])
+            self.sync += If(step,
+                power_0.eq(p),
+                corr_i_0.eq(corr_i),
+                corr_q_0.eq(corr_q),
+                acc.eq(acc_next),
+                p_hist[0].eq(power_0),
+                [p_hist[t].eq(p_hist[t-1]) for t in range(1, n_seq)],
+                mag2_1.eq(corr_i_0*corr_i_0 + corr_q_0*corr_q_0),
+                en_1.eq(acc_next),
+            )
 
-        # Stage 2: normalized threshold (registered product) + compare.
-        # --------------------------------------------------------------
+        # Normalized threshold pipeline + compare.
+        # ----------------------------------------
         # detect when |corr|**2 * 2**threshold_frac >= threshold * (N * window_energy).
         # Left side: pw_width + threshold_frac bits; right side: (2 + threshold_frac) +
         # en_width + ceil(log2(N)) bits. Exact unsigned compare, no rounding. A zero-energy
         # window (dead line) never detects: 0 >= 0 must not count as a crossing.
+        rhs_width = 2 + threshold_frac + en_width + nb
         mag2_2 = Signal(pw_width)
-        rhs_2  = Signal(2 + threshold_frac + en_width + nb)
         nz_2   = Signal()
         exceed = Signal()
-        self.sync += If(step,
-            mag2_2.eq(mag2_1),
-            rhs_2.eq(self.threshold * (en_1 * n_seq)),
-            nz_2.eq(en_1 != 0),
-        )
-        self.comb += exceed.eq(nz_2 & ((mag2_2 << threshold_frac) >= rhs_2))
+        if architecture == "classic":
+            rhs_2 = Signal(rhs_width)
+            self.sync += If(step,
+                mag2_2.eq(mag2_1),
+                rhs_2.eq(self.threshold * (en_1 * n_seq)),
+                nz_2.eq(en_1 != 0),
+            )
+            metric = mag2_2
+            rhs    = rhs_2
+            nz     = nz_2
+            fsm_plane = 1
+        else:
+            en_scaled_2 = Signal(en_width + nb)
+            threshold_2 = Signal(2 + threshold_frac)
+            mag2_3 = Signal(pw_width)
+            rhs_3  = Signal(rhs_width)
+            nz_3   = Signal()
+            self.sync += If(step,
+                mag2_2.eq(mag2_1),
+                en_scaled_2.eq(en_1 * n_seq),
+                threshold_2.eq(self.threshold),
+                nz_2.eq(en_1 != 0),
+                mag2_3.eq(mag2_2),
+                rhs_3.eq(threshold_2 * en_scaled_2),
+                nz_3.eq(nz_2),
+            )
+            metric = mag2_3
+            rhs    = rhs_3
+            nz     = nz_3
+            fsm_plane = 3
+        self.comb += exceed.eq(nz & ((metric << threshold_frac) >= rhs))
 
         # Delay-Matched Raw Stream + Valid Pipe.
         # --------------------------------------
-        # Planes: [0] pairs with stage 1, [1] with stage 2 (the FSM plane), [2..W] are the
+        # Planes: [0] pairs with stage 1, [fsm_plane] with the compare/FSM, and the remainder the
         # peak-window look-ahead: the output register trails the FSM by W-1 samples so
         # `first` can land right after the peak even when the peak is the crossing sample.
-        depth = W + 1
+        depth = W + 1 + pipeline
         raw_i = [Signal((data_width, True)) for _ in range(depth)]
         raw_q = [Signal((data_width, True)) for _ in range(depth)]
         vpipe = Signal(depth)
@@ -261,10 +312,10 @@ class LiteDSPFrameSync(LiteXModule):
         a_cnt = Signal(max=W + 257)      # Steps until the `first` tag (peak+1+offset).
         f_cnt = Signal(max=frame_len + 1) if (frame_len is not None and frame_len > 1) else None
 
-        step_fsm  = Signal()             # FSM plane (stage 2) holds a real sample and advances.
+        step_fsm  = Signal()             # Compare/FSM plane holds a real sample and advances.
         first_now = Signal()             # Tag `first` on the sample entering the output register.
         last_now  = Signal()             # Tag `last` on the sample entering the output register.
-        self.comb += step_fsm.eq(step & vpipe[1])
+        self.comb += step_fsm.eq(step & vpipe[fsm_plane])
 
         # Crossing decision: at the end of the search window the peak position is known.
         if W == 1:
@@ -272,7 +323,7 @@ class LiteDSPFrameSync(LiteXModule):
             trigger = [a_cnt.eq(1 + self.offset), state.eq(S_ALIGN)]
         else:
             self.comb += self.detected.eq(step_fsm & (state == S_SEARCH) & (s_cnt == W - 1))
-            trigger = [best.eq(mag2_2), b_off.eq(0), s_cnt.eq(1), state.eq(S_SEARCH)]
+            trigger = [best.eq(metric), b_off.eq(0), s_cnt.eq(1), state.eq(S_SEARCH)]
         self.comb += first_now.eq(step_fsm & (state == S_ALIGN) & (a_cnt == 1))
         if frame_len is None:
             align_end = [state.eq(S_IDLE)]
@@ -288,13 +339,13 @@ class LiteDSPFrameSync(LiteXModule):
         )
         if W > 1:
             fsm = fsm.Elif(state == S_SEARCH,
-                If(mag2_2 > best,
-                    best.eq(mag2_2),
+                If(metric > best,
+                    best.eq(metric),
                     b_off.eq(s_cnt),
                 ),
                 s_cnt.eq(s_cnt + 1),
                 If(s_cnt == W - 1,  # Window complete: peak+1+offset is b_off+1+offset ahead.
-                    a_cnt.eq(Mux(mag2_2 > best, s_cnt, b_off) + 1 + self.offset),
+                    a_cnt.eq(Mux(metric > best, s_cnt, b_off) + 1 + self.offset),
                     state.eq(S_ALIGN),
                 ),
             )

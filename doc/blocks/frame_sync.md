@@ -40,6 +40,13 @@ The whole detection pipeline advances only when a sample is consumed (never on i
 bubbles), so sample positions and pipeline slots coincide: peak-picking look-ahead and
 the ``first``/``last`` alignment are exact under any valid/ready pattern.
 
+``architecture="classic"`` computes input power and ``threshold * (N * window_energy)``
+directly at their consumer registers and uses the matched filter's combinational reduction.
+``architecture="pipelined"`` registers every matched-filter reduction level, then registers
+input power/correlation and splits normalized threshold formation across two stages. It adds
+``ceil(log2(N)) + 2`` samples of latency without changing initiation rate, arithmetic, peak
+selection, or tags.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -48,8 +55,9 @@ the ``first``/``last`` alignment are exact under any valid/ready pattern.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `threshold_frac` | `14` | int | Fractional bits of the unsigned Q2.(threshold_frac) detection threshold (1.0 = ``2**threshold_frac`` = perfect correlation power; reset 0.5). |
 | `frame_len` | — | none | Frame length in samples; when given, ``source.last`` is asserted ``frame_len`` samples after (and including) the ``first`` sample. ``None`` tags ``first`` only. |
-| `peak_window` | `4` | int | Local-maximum search window after a threshold crossing, in samples. Also sets the output look-ahead delay (``latency = correlator latency + peak_window + 2``). |
+| `peak_window` | `4` | int | Local-maximum search window after a threshold crossing, in samples. Also sets the output look-ahead delay (classic ``latency = correlator latency + peak_window + 2``). |
 | `with_irq` | `False` | bool | Add a LiteX EventManager interrupt on the block's trigger event. |
+| `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
 
 ## Ports
 
@@ -84,8 +92,8 @@ Detections since reset/clear.
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1519 | 1364 | 0 | 23 | 67.9 | — |
-| xilinx | 422 | 494 | 0 | 20 | — | — |
+| ecp5 | 990 | 2034 | 0 | 23 | 112.4 | 100.0 |
+| xilinx | 376 | 572 | 0 | 26 | 125.4 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

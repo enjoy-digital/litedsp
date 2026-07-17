@@ -169,7 +169,7 @@ ENTRIES = [
     ("soft_demapper",      LiteDSPSoftDemapper,          {},                                     "comm",       "Soft demapper (LLR)",   None),
     ("symbol_mapper",      LiteDSPSymbolMapper,          {},                                     "comm",       "Symbol mapper",         None),
     ("correlator",         LiteDSPCorrelator,            {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Correlator",            None),
-    ("frame_sync",         LiteDSPFrameSync,             {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Frame sync (preamble)", None),
+    ("frame_sync",         LiteDSPFrameSync,             {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Frame sync (preamble)", {"architecture": ["classic", "pipelined"]}),
     ("timing_recovery",    LiteDSPTimingRecovery,        {},                                     "comm",       "Timing recovery (M&M)", None),
     ("carrier_loop",       LiteDSPCarrierLoop,           {},                                     "comm",       "Carrier loop (PLL)",    None),
     ("phase_detect",       LiteDSPPhaseDetect,           {},                                     "comm",       "Phase detector",        None),

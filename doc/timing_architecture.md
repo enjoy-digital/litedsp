@@ -18,6 +18,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
 | DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
 | Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
+| Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 77.7/67.8 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native feedback pipeline landed but remains open |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -97,6 +98,26 @@ architecture remains the API default; the implementation registry selects the pi
 Acceptance covers two, three, and four channels, multiple tap/rate combinations, exact per-channel
 models under independent input stalls and output backpressure, channel isolation, and composition
 with `LiteDSPChannelDemux`.
+
+## Frame synchronizer
+
+The normalized detector contains three independent feed-forward timing paths: the matched-filter
+sum, raw I/Q power into the moving-energy recurrence, and `threshold * (N * energy)`. The
+pipelined option registers every balanced FIR reduction level, registers raw power and aligned
+correlation before updating energy, and splits the normalized threshold into `N * energy` then
+threshold-product stages. All registers share the sample-qualified advance, so arbitrary bubbles
+and backpressure cannot move a peak or frame marker.
+
+For Barker-7, the option adds five samples of latency (`ceil(log2(7)) + 2`) while retaining one
+accepted sample per clock. Three ECP5 routes reach 130.6/132.2/132.7 MHz with 990 LUT / 2034 FF /
+23 DSP, versus 79.9 MHz and 1519 / 1364 / 23 for classic. Artix-7 reaches 147.5 MHz with
+376 LUT / 572 FF / 26 DSP; Artix UltraScale+ reaches 287.9 MHz with 371 / 572 / 26. The three
+additional Xilinx DSPs per I/Q matched filter are the published cost of preventing Vivado from
+flattening the runtime-coefficient reduction into a DSP48 cascade. Classic remains the API default.
+
+Acceptance covers exact threshold-edge behavior, gain invariance, complex and real preambles,
+peak-window/offset alignment, first/last framing, IRQ/count behavior, randomized backpressure,
+and independent Verilator co-simulation of the pipelined option.
 
 ## AGC
 
