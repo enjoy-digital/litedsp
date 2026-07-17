@@ -32,6 +32,18 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertIn("-part xcau20p-ffvb676-2-e", artix_au)
         self.assertNotEqual(artix7, artix_au)
 
+    def test_complete_ddc_ip_is_an_implementation_sentinel(self):
+        self.assertIn("ddc_ip", modules.REGISTRY)
+        self.assertIn("ddc_ip", modules.PNR_SUBSET)
+        dut, ios, clock_ns = modules.REGISTRY["ddc_ip"]()
+        names = {signal.name_override for signal in ios if signal.name_override}
+        self.assertEqual(clock_ns, 10.0)
+        self.assertIn("s_axil_awvalid", names)
+        self.assertIn("rx_in", dut.chain.inputs)
+        self.assertIn("bb_out", dut.chain.outputs)
+        self.assertIn(dut.chain.inputs["rx_in"].payload.i, ios)
+        self.assertIn(dut.chain.outputs["bb_out"].payload.q, ios)
+
     def test_route_statistics_select_median_run(self):
         runs = [
             (0, {"fmax_mhz": 91.0, "lut": 10}),

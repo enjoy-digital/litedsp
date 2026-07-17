@@ -10,6 +10,8 @@ Each factory returns ``(dut, ios, clock_ns)``: the module, the set of port signa
 top-level IOs (sink/source + controls), and the target clock period for fmax constraints.
 """
 
+import os
+
 import numpy as np
 
 from litedsp.generation.nco          import LiteDSPNCO
@@ -71,6 +73,8 @@ from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer, P
 from litedsp.comm.viterbi         import LiteDSPViterbiDecoder
 from litedsp.comm.rs              import LiteDSPRSEncoder, LiteDSPRSDecoder
 from litedsp.comm.ldpc            import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
+from litedsp.flow.ipcore          import LiteDSPFlowIPCore
+from litedsp.gen                  import parse_config
 
 # Helpers ------------------------------------------------------------------------------------------
 
@@ -452,6 +456,15 @@ def fft_parallel_native_x4():
         with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def ddc_ip():
+    """Complete generated DDC IP: AXI-Stream datapath plus AXI-Lite CSR bridge."""
+    config = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "examples", "ddc_core.yml")
+    nl, core_config = parse_config(config)
+    core_config.pop("name", None)
+    d = LiteDSPFlowIPCore(nl, **core_config)
+    return d, d.io_signals(), nl.clock_ns
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -469,6 +482,7 @@ REGISTRY = {
     "fft_interleaved_x2": fft_interleaved_x2, "fft_iter": fft_iter, "psd": psd,
     "goertzel": goertzel, "goertzel_folded": goertzel_folded,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
+    "ddc_ip": ddc_ip,
     "pfb_channelizer": pfb_channelizer, "pfb_channelizer_folded": pfb_channelizer_folded,
     "pfb_channelizer_fft": pfb_channelizer_fft,
     "lms_equalizer": lms_equalizer, "lms_equalizer_pipelined": lms_equalizer_pipelined,
@@ -503,7 +517,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
               "pfb_channelizer_fft", "fft_parallel_native_x2", "fft_parallel_native_x4",
-              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery"]
+              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "ddc_ip"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.

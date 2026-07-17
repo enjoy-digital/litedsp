@@ -29,6 +29,9 @@ python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the 
 
 `impl/run.py` builds each configuration (`impl/modules.py` registry → generated Verilog), parses
 LUT/FF/BRAM/DSP usage plus P&R timing, and fails on implementation errors or budget violations.
+The `ddc_ip` configuration is a complete generated integration sentinel: NCO/mixer/FIR/decimator
+datapath, AXI-Stream ingress/egress, AXI-Lite-to-CSR bridge, and all block CSR banks are synthesized
+and routed together rather than testing only isolated DSP blocks.
 Resource results may exceed their checked-in baseline by 15%; independent `synth` and `pnr`
 resource dictionaries prevent pre-optimization synthesis utilization from overwriting post-route
 utilization. The fmax floor is set to 85% of the baseline P&R result. Both the raw measurement
