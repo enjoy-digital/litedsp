@@ -11,7 +11,7 @@ jobs:
     runs-on: [self-hosted, linux, vivado]
     timeout-minutes: 180
     env:
-      LITEDSP_IMPL_BUILD: ${{ runner.temp }}/litedsp_impl
+      LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_artix7
     steps:
       - uses: actions/checkout@v4
 
@@ -54,7 +54,7 @@ jobs:
     runs-on: [self-hosted, linux, vivado]
     timeout-minutes: 180
     env:
-      LITEDSP_IMPL_BUILD: ${{ runner.temp }}/litedsp_impl
+      LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_artix_usplus
     steps:
       - uses: actions/checkout@v4
 

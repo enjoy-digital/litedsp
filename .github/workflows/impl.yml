@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      LITEDSP_IMPL_BUILD: ${{ runner.temp }}/litedsp_impl
+      LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5
     steps:
       - uses: actions/checkout@v4
 
