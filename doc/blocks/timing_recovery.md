@@ -51,5 +51,6 @@ Samples/symbol estimate (Q.frac).
 |---|---|---|---|---|---|---|
 | ecp5 | 1000 | 412 | 0 | 16 | 93.6 | 100.0 |
 | xilinx | 627 | 259 | 0 | 8 | 103.7 | 100.0 |
+| xilinx_au | 647 | 247 | 0 | 8 | 202.1 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

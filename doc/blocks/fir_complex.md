@@ -168,6 +168,7 @@ Bypass filter (passthrough).
 |---|---|---|---|---|---|---|
 | ecp5 | 209 | 106 | 0 | 2 | 180.0 | — |
 | xilinx | 105 | 38 | 0 | 8 | 117.7 | — |
+| xilinx_au | 84 | 38 | 0 | 8 | 217.3 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

@@ -70,6 +70,7 @@ Clear the sticky flag and the cumulative counters (write to clear).
 |---|---|---|---|---|---|---|
 | ecp5 | 3780 | 1466 | 1 | 0 | 105.7 | 100.0 |
 | xilinx | 1632 | 1466 | 0 | 0 | 121.9 | 100.0 |
+| xilinx_au | 1650 | 1474 | 0 | 0 | 229.5 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

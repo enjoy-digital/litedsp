@@ -81,6 +81,7 @@ Estimates since reset/clear.
 |---|---|---|---|---|---|---|
 | ecp5 | 4805 | 1764 | 0 | 4 | 115.0 | — |
 | xilinx | 1527 | 1650 | 0 | 5 | — | — |
+| xilinx_au | 1523 | 1650 | 0 | 5 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

@@ -34,5 +34,6 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 |---|---|---|---|---|---|---|
 | ecp5 | 1720 | 790 | 0 | 4 | 107.4 | — |
 | xilinx | 264 | 398 | 0 | 5 | — | — |
+| xilinx_au | 248 | 398 | 0 | 4 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

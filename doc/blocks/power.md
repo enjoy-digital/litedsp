@@ -44,6 +44,7 @@ Latest block-averaged power (I**2 + Q**2).
 |---|---|---|---|---|---|---|
 | ecp5 | 959 | 106 | 0 | 2 | 138.8 | — |
 | xilinx | 189 | 106 | 0 | 2 | — | — |
+| xilinx_au | 189 | 106 | 0 | 2 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

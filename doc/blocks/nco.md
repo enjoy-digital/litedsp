@@ -45,6 +45,7 @@ Phase increment (sets output frequency).
 |---|---|---|---|---|---|---|
 | ecp5 | 43 | 43 | 2 | 0 | 237.2 | — |
 | xilinx | 65 | 33 | 1 | 0 | 264.8 | — |
+| xilinx_au | 65 | 33 | 1 | 0 | 583.0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

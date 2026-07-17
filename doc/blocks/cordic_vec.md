@@ -47,6 +47,7 @@ CORDIC pipeline latency (cycles).
 |---|---|---|---|---|---|---|
 | ecp5 | 1839 | 849 | 0 | 1 | 169.6 | — |
 | xilinx | 742 | 827 | 0 | 1 | 186.4 | — |
+| xilinx_au | 702 | 824 | 0 | 1 | 391.0 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

@@ -78,6 +78,7 @@ Write the next bin's 2-bit preamble reference (bit 0 = I sign, bit 1 = Q sign, 1
 |---|---|---|---|---|---|---|
 | ecp5 | 547 | 128 | 0 | 6 | 95.1 | — |
 | xilinx | 310 | 68 | 0 | 6 | — | — |
+| xilinx_au | 284 | 68 | 0 | 6 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

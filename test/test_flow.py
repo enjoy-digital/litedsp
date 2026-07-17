@@ -18,7 +18,7 @@ from litedsp.filter.dc_blocker import LiteDSPDCBlocker
 from litedsp.level.gain        import LiteDSPGain
 from litedsp.stream.split      import LiteDSPSplit
 from litedsp.stream.combine    import LiteDSPCombine
-from litedsp.flow              import registry, netlist as nlmod
+from litedsp.flow              import registry, docgen, netlist as nlmod
 from litedsp.flow.builder      import LiteDSPFlowChain
 from litedsp.flow.generate     import generate
 
@@ -48,6 +48,14 @@ class TestRegistry(unittest.TestCase):
         cats = registry.by_category()
         for expected in ("generation", "filter", "stream", "analysis"):
             self.assertIn(expected, cats)
+
+    def test_datasheet_lists_all_reference_devices(self):
+        spec = registry.registry()["gain"]
+        devices = {device: {"lut": 1, "ff": 2, "bram": 0, "dsp": 0}
+            for device in ("ecp5", "xilinx", "xilinx_au")}
+        page = docgen.block_page(spec, {"gain": devices})
+        for device in devices:
+            self.assertIn(f"| {device} |", page)
 
 
 class TestAssemblyMatchesManual(unittest.TestCase):

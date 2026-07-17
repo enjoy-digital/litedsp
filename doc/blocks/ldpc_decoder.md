@@ -70,6 +70,7 @@ Clear the failure counter (write to clear).
 |---|---|---|---|---|---|---|
 | ecp5 | 693 | 198 | 2 | 0 | 88.1 | 100.0 |
 | xilinx | 355 | 178 | 1 | 0 | 105.8 | 100.0 |
+| xilinx_au | 467 | 188 | 0 | 0 | 191.7 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

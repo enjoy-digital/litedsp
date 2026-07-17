@@ -98,6 +98,7 @@ Bypass block (passthrough).
 |---|---|---|---|---|---|---|
 | ecp5 | 1559 | 634 | 0 | 12 | 92.9 | 100.0 |
 | xilinx | 679 | 180 | 0 | 14 | 88.7 | 100.0 |
+| xilinx_au | 614 | 180 | 0 | 14 | 181.0 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

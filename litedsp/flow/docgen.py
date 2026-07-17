@@ -137,7 +137,7 @@ def block_page(spec, budgets):
     if b:
         out.append("| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |")
         out.append("|---|---|---|---|---|---|---|")
-        for dev in ("ecp5", "xilinx"):
+        for dev in ("ecp5", "xilinx", "xilinx_au"):
             d = b.get(dev)
             if not d:
                 continue

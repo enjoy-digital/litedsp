@@ -142,7 +142,7 @@ datasheets present the same data from `impl/budgets.json`.
 
 The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
 configurations pass out-of-context synthesis and all 39 representative configurations pass
-place-and-route. The 24 reviewed timing architectures close their 100 MHz targets on this
+place-and-route. The 25 reviewed timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part
 of the strict 100 MHz target set. Relative to the classic reduction, ECP5 moves from 6461 LUT /

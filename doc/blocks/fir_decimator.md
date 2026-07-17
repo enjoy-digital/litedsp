@@ -53,6 +53,7 @@ Write the next FIR coefficient (auto-incrementing tap index).
 |---|---|---|---|---|---|---|
 | ecp5 | 541 | 168 | 0 | 2 | 108.7 | — |
 | xilinx | 283 | 105 | 0 | 2 | 121.8 | — |
+| xilinx_au | 257 | 105 | 0 | 2 | 305.1 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 
