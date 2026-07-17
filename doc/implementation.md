@@ -26,6 +26,7 @@ python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # 
 python3 impl/run.py --device xilinx --flow pnr  --target-closed --target-gate # strict Artix targets
 python3 impl/run.py --device xilinx_au --flow pnr --target-closed --target-gate # strict AU+ targets
 python3 impl/run.py --device ecp5 --flow pnr --module fft_interleaved_x2 --repeat 3 --pnr-timeout 1800
+python3 impl/run.py --device xilinx --flow pnr --module fft_parallel_native_x2 --strategies all
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
 
@@ -44,9 +45,11 @@ utilization. The fmax floor is set to 85% of the baseline P&R result. Both the r
 P&R-preferred compatibility summary continues to feed generated docs and GUI badges. An optional `fmax_target` is a separate
 engineering objective: misses are reported but only fail a run when `--target-gate` is selected.
 For route-sensitive investigations, `--seeds` or `--repeat` synthesizes once and runs bounded
-nextpnr variants, retaining per-seed logs and reporting worst/median/best fmax. Budget updates
-use the median completed route. `--pnr-timeout` bounds each nextpnr/Vivado invocation so a
-capacity-cliff design cannot stall a nightly job indefinitely.
+nextpnr variants. On Xilinx, `--strategies all` synthesizes once and independently runs Vivado's
+default, Explore, and high-net-delay/HigherDelayCost timing algorithms. Both retain per-run timing
+reports and report worst/median/best fmax; budget updates use the median completed route.
+`--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
+nightly job indefinitely.
 Independent modules can be built with `--jobs N`; results are collected in registry order and a
 single process updates the budget file after every worker completes. The default remains one job
 so CI runners with a single Vivado license are unchanged.

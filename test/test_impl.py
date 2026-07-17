@@ -45,6 +45,13 @@ class TestImplementationBudgets(unittest.TestCase):
             part=xilinx.PARTS["xilinx_au"])
         self.assertIn("report_timing_summary -file timing_summary.rpt", routed)
         self.assertIn("-max_paths 10 -file timing_paths.rpt", routed)
+        checkpointed = xilinx._tcl("dut.v", "dut", 10.0, False,
+            part=xilinx.PARTS["xilinx"], checkpoint="dut_synth.dcp")
+        self.assertIn("write_checkpoint -force {dut_synth.dcp}", checkpointed)
+        explored = xilinx._pnr_tcl("/tmp/dut_synth.dcp", 10.0, "explore")
+        self.assertIn("open_checkpoint {/tmp/dut_synth.dcp}", explored)
+        self.assertIn("place_design -directive Explore", explored)
+        self.assertIn("route_design -directive Explore", explored)
 
     def test_complete_ddc_ip_is_an_implementation_sentinel(self):
         self.assertIn("ddc_ip", modules.REGISTRY)
@@ -84,6 +91,20 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertEqual(selected["fmax_mhz"], 77.7)
         self.assertEqual(selected["lut"], 10)
         self.assertEqual(stats["median_mhz"], 77.7)
+
+    def test_route_statistics_label_vivado_strategies(self):
+        _, stats = impl_run.aggregate_pnr_runs([
+            ("default", {"fmax_mhz": 96.0}),
+            ("explore", {"fmax_mhz": 101.0}),
+        ], [("timing", "timeout")], run_kind="strategy")
+        self.assertEqual(stats["run_kind"], "strategy")
+        self.assertEqual(stats["runs"], [
+            {"strategy": "default", "fmax_mhz": 96.0},
+            {"strategy": "explore", "fmax_mhz": 101.0},
+        ])
+        self.assertEqual(stats["failures"], [
+            {"strategy": "timing", "error": "timeout"},
+        ])
 
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:

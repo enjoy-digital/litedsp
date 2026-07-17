@@ -270,6 +270,11 @@ backpressure still sustains the full lane rate:
 | P=2 | 143 clocks | 8224 / 5014 / 52 / 77.7 MHz | 3057 / 2873 / 52 / 97.7 MHz | 2950 / 2807 / 52 / 149.3 MHz |
 | P=4 | 78 clocks | 13859 / 8433 / 94 / 67.8 MHz | 5357 / 4916 / 94 / 78.1 MHz | 5204 / 4821 / 95 / 144.5 MHz |
 
+A dedicated three-strategy Vivado sweep of P=2 reaches 97.8/97.8/98.0 MHz
+worst/median/best on Artix-7 and 146.2/149.3/149.3 MHz on Artix UltraScale+. The narrow Artix-7
+spread confirms that its remaining 100 MHz gap is architectural rather than route luck; the
+UltraScale+ result has comfortable margin across all three timing-driven algorithms.
+
 The compatibility architecture remains available with `feedback_pipeline=False`. Compared with
 that architecture, P=2 improves from 63.0 to 77.7 MHz on ECP5 and from 82.4 to 97.7 MHz on
 Artix-7, at the cost of six clocks, 30% more ECP5 LUTs, and roughly five times its ECP5 FFs. P=4

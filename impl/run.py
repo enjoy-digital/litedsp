@@ -29,10 +29,10 @@ sys.path.insert(0, ROOT)
 from impl.modules import REGISTRY, PNR_SUBSET, TARGET_CLOSED, SYNTH_ONLY
 from impl import wrap, ecp5, xilinx, report, budgets
 
-def aggregate_pnr_runs(runs, failures):
+def aggregate_pnr_runs(runs, failures, run_kind="seed"):
     """Select the median completed route and attach best/median/worst statistics."""
     if not runs:
-        details = "; ".join(f"seed {seed}: {error}" for seed, error in failures)
+        details = "; ".join(f"{run_kind} {run_id}: {error}" for run_id, error in failures)
         raise RuntimeError("no P&R run completed" + (f" ({details})" if details else ""))
     ordered = sorted(runs, key=lambda item: item[1]["fmax_mhz"])
     median_fmax = round(statistics.median(item[1]["fmax_mhz"] for item in ordered), 3)
@@ -40,14 +40,15 @@ def aggregate_pnr_runs(runs, failures):
     result = dict(selected[1])
     result["fmax_mhz"] = median_fmax
     stats = {
+        "run_kind": run_kind,
         "completed": len(ordered),
         "failed": len(failures),
         "best_mhz": ordered[-1][1]["fmax_mhz"],
         "median_mhz": median_fmax,
         "worst_mhz": ordered[0][1]["fmax_mhz"],
-        "runs": [{"seed": seed, "fmax_mhz": result["fmax_mhz"]}
-                 for seed, result in ordered],
-        "failures": [{"seed": seed, "error": error} for seed, error in failures],
+        "runs": [{run_kind: run_id, "fmax_mhz": result["fmax_mhz"]}
+                 for run_id, result in ordered],
+        "failures": [{run_kind: run_id, "error": error} for run_id, error in failures],
     }
     return result, stats
 
@@ -70,7 +71,7 @@ def build_many(names, builder, jobs=1):
             executor.shutdown(wait=True)
     return results, errors
 
-def build_one(device, flow, name, build_root, seeds=None, pnr_timeout=1800):
+def build_one(device, flow, name, build_root, seeds=None, strategies=None, pnr_timeout=1800):
     dut, ios, clock_ns = REGISTRY[name]()
     bd = os.path.join(build_root, device, name)
     verilog = wrap.gen(name, dut, ios, bd)
@@ -90,8 +91,27 @@ def build_one(device, flow, name, build_root, seeds=None, pnr_timeout=1800):
                     failures.append((seed, str(e)))
             res["pnr"], res["pnr_stats"] = aggregate_pnr_runs(runs, failures)
     elif device in xilinx.PARTS:
-        res = xilinx.synth(verilog, name, bd, impl=(flow == "pnr"), clock_ns=clock_ns,
-            timeout=pnr_timeout, part=xilinx.PARTS[device])
+        if flow == "pnr" and strategies:
+            checkpoint = os.path.join(bd, name + "_synth.dcp")
+            res = xilinx.synth(verilog, name, bd, clock_ns=clock_ns, timeout=pnr_timeout,
+                part=xilinx.PARTS[device], checkpoint=checkpoint)
+            runs, failures = [], []
+            for strategy in strategies:
+                try:
+                    route = xilinx.pnr(checkpoint, name,
+                        os.path.join(bd, "strategy_" + strategy), clock_ns=clock_ns,
+                        strategy=strategy, timeout=pnr_timeout)
+                    runs.append((strategy, route))
+                except (xilinx.PNRTimeout, RuntimeError) as e:
+                    failures.append((strategy, str(e)))
+            res["pnr"], res["pnr_stats"] = aggregate_pnr_runs(
+                runs, failures, run_kind="strategy")
+            for metric in ("lut", "ff", "bram", "dsp"):
+                if metric in res["pnr"]:
+                    res[metric] = res["pnr"][metric]
+        else:
+            res = xilinx.synth(verilog, name, bd, impl=(flow == "pnr"), clock_ns=clock_ns,
+                timeout=pnr_timeout, part=xilinx.PARTS[device])
     else:
         raise ValueError(f"unsupported implementation device: {device}")
     return res
@@ -118,6 +138,8 @@ def main():
         help="Comma-separated nextpnr seeds; synthesize once and report best/median/worst.")
     routes.add_argument("--repeat", type=int, default=None,
         help="Run nextpnr with seeds 0..N-1; synthesize once and report route statistics.")
+    routes.add_argument("--strategies", default=None,
+        help="Comma-separated Vivado P&R strategies (default,explore,timing), or 'all'.")
     parser.add_argument("--pnr-timeout", type=int, default=1800,
         help="Per-route timeout in seconds (default: 1800; 0 disables the timeout).")
     parser.add_argument("--jobs", type=int, default=1,
@@ -137,8 +159,21 @@ def main():
         seeds = list(range(args.repeat))
     else:
         seeds = None
+    if args.strategies is not None:
+        if args.strategies.strip().lower() == "all":
+            strategies = list(xilinx.DEFAULT_STRATEGIES)
+        else:
+            strategies = [strategy.strip().lower() for strategy in args.strategies.split(",")
+                if strategy.strip()]
+        invalid = [strategy for strategy in strategies if strategy not in xilinx.STRATEGIES]
+        if not strategies or invalid:
+            parser.error("--strategies must select from: " + ", ".join(xilinx.STRATEGIES))
+    else:
+        strategies = None
     if seeds is not None and (args.device != "ecp5" or args.flow != "pnr"):
         parser.error("--seeds/--repeat are supported only for ECP5 P&R")
+    if strategies is not None and (args.device not in xilinx.PARTS or args.flow != "pnr"):
+        parser.error("--strategies is supported only for Xilinx P&R")
     pnr_timeout = None if args.pnr_timeout == 0 else args.pnr_timeout
     if args.jobs < 1:
         parser.error("--jobs must be >= 1")
@@ -166,7 +201,7 @@ def main():
         return 0
 
     builder = lambda name: build_one(args.device, args.flow, name, args.build,
-        seeds=seeds, pnr_timeout=pnr_timeout)
+        seeds=seeds, strategies=strategies, pnr_timeout=pnr_timeout)
     results, errors = build_many(names, builder, jobs=args.jobs)
     violations, target_misses = {}, {}
     if not args.update_budgets:
@@ -181,6 +216,9 @@ def main():
             print(f"  {name}: routes {stats['completed']} completed/{stats['failed']} failed; "
                   f"worst/median/best {stats['worst_mhz']:.1f}/"
                   f"{stats['median_mhz']:.1f}/{stats['best_mhz']:.1f} MHz")
+            for failure in stats["failures"]:
+                print(f"    {stats['run_kind']} {failure[stats['run_kind']]} failed: "
+                      f"{failure['error']}")
     if errors:
         print("\n--- errors ---")
         for n, e in errors.items():
