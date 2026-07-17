@@ -186,7 +186,7 @@ ENTRIES = [
     ("block_interleaver",  LiteDSPBlockInterleaver,      {},                                     "comm",       "Block interleaver",     None),
     ("block_deinterleaver", LiteDSPBlockDeinterleaver,   {},                                     "comm",       "Block deinterleaver",   None),
     ("rs_encoder",         LiteDSPRSEncoder,             {},                                     "comm",       "RS encoder (255,k)",    None),
-    ("rs_decoder",         LiteDSPRSDecoder,             {},                                     "comm",       "RS decoder (255,k)",    None),
+    ("rs_decoder",         LiteDSPRSDecoder,             {},                                     "comm",       "RS decoder (255,k)",    {"architecture": ["classic", "pipelined"]}),
     ("ldpc_encoder",       LiteDSPLDPCEncoder,           {},                                     "comm",       "LDPC encoder (802.11n)", None),
     ("ldpc_decoder",       LiteDSPLDPCDecoder,           {},                                     "comm",       "LDPC decoder (802.11n)", None),
     ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),

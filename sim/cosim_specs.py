@@ -417,20 +417,26 @@ def spec_rs_encoder():
     return dut, [data, first, last], n, lambda c: [
         models.rs_encode_model(c[0], n=n, k=k), out_first, out_last], True, True
 
-def spec_rs_decoder():
+def _spec_rs_decoder(architecture="classic"):
     from litedsp.comm.rs import LiteDSPRSDecoder
     n, k = 255, 251
     msg = _rand_cols(1, k, lo=0, hi=255, seed=43)[0]
     rx  = models.rs_encode_model(msg, n=n, k=k)
     rx[17]  ^= 0x53
     rx[211] ^= 0xa6
-    dut   = LiteDSPRSDecoder(n=n, k=k, with_csr=False)
+    dut   = LiteDSPRSDecoder(n=n, k=k, with_csr=False, architecture=architecture)
     first = [1] + [0]*(n - 1)
     last  = [0]*(n - 1) + [1]
     out_first = [1] + [0]*(k - 1)
     out_last  = [0]*(k - 1) + [1]
     return dut, [rx, first, last], k, lambda c: [
         models.rs_decode_model(c[0], n=n, k=k)[0], out_first, out_last], True, True
+
+def spec_rs_decoder():
+    return _spec_rs_decoder()
+
+def spec_rs_decoder_pipelined():
+    return _spec_rs_decoder(architecture="pipelined")
 
 def spec_ldpc_encoder():
     from litedsp.comm.ldpc import LiteDSPLDPCEncoder, LDPC_K, LDPC_N
@@ -690,6 +696,7 @@ SPECS = {
     "block_deinterleaver": spec_block_deinterleaver,
     "rs_encoder":        spec_rs_encoder,
     "rs_decoder":        spec_rs_decoder,
+    "rs_decoder_pipelined": spec_rs_decoder_pipelined,
     "ldpc_encoder":      spec_ldpc_encoder,
     "ldpc_decoder":      spec_ldpc_decoder,
     "correlator":       spec_correlator,
@@ -731,6 +738,7 @@ def check_coverage():
         "fir_complex_pipelined":     "fir_complex",
         "fir_interpolator_pipelined": "fir_interpolator",
         "frame_sync_pipelined":       "frame_sync",
+        "rs_decoder_pipelined":       "rs_decoder",
         "viterbi_decoder_soft":      "viterbi_decoder",
         "parallel_fft_folded":       "parallel_fft",
         "parallel_fft_native_x2":    "parallel_fft",

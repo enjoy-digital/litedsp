@@ -36,9 +36,6 @@ Block boundaries are counted from reset — sink ``first``/``last`` markers are 
 each output block is framed with ``first``/``last``.
 """
 
-from functools import reduce
-from operator  import xor
-
 from migen import *
 
 from litex.gen import *
@@ -52,6 +49,16 @@ from litedsp.common import check
 
 GF_POLY = 0x11D  # x^8 + x^4 + x^3 + x^2 + 1, primitive, alpha = 2 (conventional basis; see module doc).
 FCR     = 0      # First consecutive root: g(x) roots at alpha^0 .. alpha^(2t-1).
+
+def _xor_tree(terms):
+    """Balanced XOR reduction (cycle-neutral, logarithmic logic depth)."""
+    level = list(terms)
+    if not level:
+        return 0
+    while len(level) > 1:
+        level = [level[i] ^ level[i + 1] if i + 1 < len(level) else level[i]
+                 for i in range(0, len(level), 2)]
+    return level[0]
 
 def _gf_mul_int(a, b, poly=GF_POLY):
     """GF(2^8) product of two integers (Python-side: ROM init / constant folding)."""
@@ -97,7 +104,7 @@ def _gf_mul_const(comb, x, c):
     cols = [_gf_mul_int(1 << j, c) for j in range(8)]  # Column j of the GF-linear map x -> c*x.
     for i in range(8):
         taps = [x[j] for j in range(8) if (cols[j] >> i) & 1]
-        comb += y[i].eq(reduce(xor, taps) if taps else 0)
+        comb += y[i].eq(_xor_tree(taps))
     return y
 
 def _gf_mul(comb, a, b):
@@ -113,7 +120,7 @@ def _gf_mul(comb, a, b):
         comb += term.eq(Mux(b[i], t, C(0, 8)))
         terms.append(term)
     y = Signal(8)
-    comb += y.eq(reduce(xor, terms))
+    comb += y.eq(_xor_tree(terms))
     return y
 
 def _rs_check(n, k):
@@ -236,16 +243,27 @@ class LiteDSPRSDecoder(LiteXModule):
     k : int
         Message length in symbols; t = (n - k)/2 symbol errors per block are correctable
         (n - k even, t in 1..16; default RS(255, 223), t = 16).
+    architecture : str
+        ``"classic"`` evaluates and advances one Chien position per clock. ``"pipelined"``
+        registers operands for the Berlekamp-Massey discrepancy and update multipliers before
+        their recurrences, and Lambda's odd/even evaluation plus Omega before the inverse/Forney
+        product. It adds discrepancy/update/inversion and Omega drain clocks plus three clocks per
+        Chien position, while preserving the correction algorithm and all output/status behavior.
     """
-    def __init__(self, n=255, k=223, with_csr=True):
+    def __init__(self, n=255, k=223, with_csr=True, architecture="classic"):
         t = _rs_check(n, k)
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         self.n = n
         self.k = k
         self.t = t
+        self.architecture = architecture
         self.latency = None  # Variable (framed block decode; see cycles_per_block).
         # Worst-case decode cycles per block (receive + check + BM + Omega + Chien init/scan +
         # apply + drain), excluding handshake stalls.
-        self.cycles_per_block = n + 2 + 2*t*(2*t + 3) + t*(t + 1)//2 + 1 + n + 2*t + 2*k + 2
+        pipeline_cycles = (3*n + 7*t)*int(architecture == "pipelined")
+        self.cycles_per_block = (n + 2 + 2*t*(2*t + 3) + t*(t + 1)//2 + 1 + n +
+            pipeline_cycles + 2*t + 2*k + 2)
         self.sink   = stream.Endpoint([("data", 8)])
         self.source = stream.Endpoint([("data", 8)])
         self.corrected           = Signal(max=t + 1)  # Symbols corrected in the last block.
@@ -274,11 +292,15 @@ class LiteDSPRSDecoder(LiteXModule):
 
         inv_in  = Signal(8)  # Inverse operand (BM: b, Chien/Forney: odd Lambda sum).
         inv_x   = Signal(8)  # Multiplicand of the shared (x * inv_in^-1) product.
+        inv_in_reg = Signal(8)
+        inv_x_reg  = Signal(8)
+        inv_operand = inv_in_reg if architecture == "pipelined" else inv_in
+        mul_operand = inv_x_reg  if architecture == "pipelined" else inv_x
         self.comb += [
-            log_rp.adr.eq(inv_in),
+            log_rp.adr.eq(inv_operand),
             exp_rp.adr.eq(255 - log_rp.dat_r),
         ]
-        inv_mul = _gf_mul(self.comb, inv_x, exp_rp.dat_r)  # x * inv_in^-1.
+        inv_mul = _gf_mul(self.comb, mul_operand, exp_rp.dat_r)  # x * inv_in^-1.
 
         # Syndromes.
         # ----------
@@ -307,8 +329,15 @@ class LiteDSPRSDecoder(LiteXModule):
         m     = Signal(max=2*t + 2, reset=1)    # Shift since the last B update.
         b_reg = Signal(8, reset=1)              # Discrepancy at the last B update.
         d     = Signal(8)                       # Discrepancy accumulator.
+        disc_a = Signal(8)                      # Registered operands in the pipelined BM schedule.
+        disc_b = Signal(8)
+        disc_valid = Signal()
         coef  = Signal(8)                       # d/b for the update sweep.
         swap  = Signal()                        # 2L <= r at this update: B takes the old lambda.
+        upd_b_reg = Signal(8)
+        upd_lam_reg = Signal(8)
+        upd_idx = Signal(max=t + 1)
+        upd_valid = Signal()
 
         # Discrepancy term lambda[j]*S[r-j] (gated to 0 when j > r).
         s_idx = Signal(max=n_par)
@@ -319,18 +348,26 @@ class LiteDSPRSDecoder(LiteXModule):
             lam_j.eq(lam[j]),
         ]
         disc_term = _gf_mul(self.comb, lam_j, s_rj)
+        disc_registered_term = _gf_mul(self.comb, disc_a, disc_b)
 
         # Update term coef*B[j-m] (gated to 0 when j < m).
         b_idx = Signal(max=t + 1)
         b_sel = Signal(8)
         self.comb += If(j >= m, b_idx.eq(j - m), b_sel.eq(bpol[b_idx]))
         upd_term = _gf_mul(self.comb, coef, b_sel)
+        upd_registered_term = _gf_mul(self.comb, coef, upd_b_reg)
+        bm_write_idx = upd_idx if architecture == "pipelined" else j
+        bm_write_lam = upd_lam_reg if architecture == "pipelined" else lam_j
+        bm_write_term = upd_registered_term if architecture == "pipelined" else upd_term
 
         # Omega (error evaluator).
         # ------------------------
         # Omega = S(x)*lambda(x) mod x^2t, degree <= t-1: one S[l]*lambda[j-l] term per cycle.
         omg   = Array(Signal(8) for _ in range(t))
         acc   = Signal(8)
+        omg_a = Signal(8)
+        omg_b = Signal(8)
+        omg_valid = Signal()
         jl    = Signal(max=t + 1)
         s_l   = Signal(8)
         lam_jl = Signal(8)
@@ -340,6 +377,10 @@ class LiteDSPRSDecoder(LiteXModule):
             lam_jl.eq(lam[jl]),
         ]
         omg_term = _gf_mul(self.comb, s_l, lam_jl)
+        omg_registered_term = _gf_mul(self.comb, omg_a, omg_b)
+        omg_write_value = Signal(8)
+        self.comb += omg_write_value.eq(acc ^ (
+            omg_registered_term if architecture == "pipelined" else omg_term))
 
         # Chien / Forney.
         # ---------------
@@ -351,14 +392,17 @@ class LiteDSPRSDecoder(LiteXModule):
         o = Array(Signal(8) for _ in range(t))
         q_next = [_gf_mul_const(self.comb, q[i], exp[(255 - i) % 255]) for i in range(t + 1)]
         o_next = [_gf_mul_const(self.comb, o[i], exp[(255 - i) % 255]) for i in range(t)]
+        even_terms = [q[i] for i in range(0, t + 1, 2)]
+        odd_terms  = [q[i] for i in range(1, t + 1, 2)]
+        omega_terms = [o[i] for i in range(t)]
         even    = Signal(8)
         odd     = Signal(8)
         om_val  = Signal(8)
         lam_val = Signal(8)
         self.comb += [
-            even.eq(reduce(xor, [q[i] for i in range(0, t + 1, 2)])),
-            odd.eq(reduce(xor, [q[i] for i in range(1, t + 1, 2)])),
-            om_val.eq(reduce(xor, [o[i] for i in range(t)])),
+            even.eq(_xor_tree(even_terms)),
+            odd.eq(_xor_tree(odd_terms)),
+            om_val.eq(_xor_tree(omega_terms)),
             lam_val.eq(even ^ odd),
         ]
         pos      = Signal(max=n)                       # Chien position i (X = alpha^i).
@@ -367,6 +411,25 @@ class LiteDSPRSDecoder(LiteXModule):
         anomaly  = Signal()                            # Zero odd part at a root: force uncorrectable.
         root_idx = Array(Signal(8) for _ in range(t))  # Buffer index of each located error.
         root_mag = Array(Signal(8) for _ in range(t))  # Forney magnitude of each located error.
+        chien_odd = Signal(8)
+        chien_om  = Signal(8)
+        chien_lam = Signal(8)
+        chien_mag = Signal(8)
+        chien_even_lo = Signal(8)
+        chien_even_hi = Signal(8)
+        chien_odd_lo  = Signal(8)
+        chien_odd_hi  = Signal(8)
+        chien_om_lo   = Signal(8)
+        chien_om_hi   = Signal(8)
+
+        def _halves(terms):
+            split = (len(terms) + 1)//2
+            return _xor_tree(terms[:split]), _xor_tree(terms[split:])
+
+        even_lo, even_hi = _halves(even_terms)
+        odd_lo,  odd_hi  = _halves(odd_terms)
+        om_lo,   om_hi   = _halves(omega_terms)
+        root_write_mag = chien_mag if architecture == "pipelined" else inv_mul
 
         # Register-file writes with a computed index (FSM-enabled, expanded to per-index write
         # enables: keeps the generated Verilog free of blocking sequential assignments).
@@ -374,14 +437,14 @@ class LiteDSPRSDecoder(LiteXModule):
         omg_we  = Signal()  # OMEGA coefficient store.
         root_we = Signal()  # CHIEN root record.
         self.sync += [
-            *[If(bm_upd & (j == i),
-                lam[i].eq(lam_j ^ upd_term),
-                If(swap, bpol[i].eq(lam_j)),
+            *[If(bm_upd & (bm_write_idx == i),
+                lam[i].eq(bm_write_lam ^ bm_write_term),
+                If(swap, bpol[i].eq(bm_write_lam)),
               ) for i in range(t + 1)],
-            *[If(omg_we & (j == i), omg[i].eq(acc ^ omg_term)) for i in range(t)],
+            *[If(omg_we & (j == i), omg[i].eq(omg_write_value)) for i in range(t)],
             *[If(root_we & (roots == i),
                 root_idx[i].eq((n - 1) - pos),
-                root_mag[i].eq(inv_mul),
+                root_mag[i].eq(root_write_mag),
               ) for i in range(t)],
         ]
 
@@ -440,27 +503,77 @@ class LiteDSPRSDecoder(LiteXModule):
             )
         )
         bm_last = (r_i == (n_par - 1))
-        fsm.act("BM_DISC",  # d = sum_{j=0}^{min(r,t)} lambda[j]*S[r-j], one term per cycle.
-            NextValue(d, d ^ disc_term),
-            If(j == t, NextState("BM_CALC")).Else(NextValue(j, j + 1)),
-        )
-        fsm.act("BM_CALC",  # coef = d/b (log/antilog ROMs); zero discrepancy skips the update.
-            inv_in.eq(b_reg),
-            inv_x.eq(d),
-            NextValue(coef, inv_mul),
-            NextValue(swap, (2*L) <= r_i),
-            If(d == 0,
-                NextValue(m, m + 1),
-                NextValue(j, 0),
-                If(bm_last, NextState("BM_DONE")).Else(NextValue(r_i, r_i + 1), NextState("BM_DISC")),
-            ).Else(
-                NextValue(j, t),
-                NextState("BM_UPDATE"),
+        if architecture == "classic":
+            fsm.act("BM_DISC",  # d = sum lambda[j]*S[r-j], one term per cycle.
+                NextValue(d, d ^ disc_term),
+                If(j == t, NextState("BM_CALC")).Else(NextValue(j, j + 1)),
             )
-        )
-        fsm.act("BM_UPDATE",  # Descending sweep: lambda[j] ^= coef*B[j-m]; swap copies old lambda into B.
-            bm_upd.eq(1),
-            If(j == 0,
+        else:
+            fsm.act("BM_DISC",  # Capture one term's operands; accumulate the preceding term.
+                NextValue(disc_a, lam_j),
+                NextValue(disc_b, s_rj),
+                NextValue(disc_valid, 1),
+                If(disc_valid, NextValue(d, d ^ disc_registered_term)),
+                If(j == t, NextState("BM_DISC_DRAIN")).Else(NextValue(j, j + 1)),
+            )
+            fsm.act("BM_DISC_DRAIN",
+                If(disc_valid, NextValue(d, d ^ disc_registered_term)),
+                NextValue(disc_valid, 0),
+                NextState("BM_CALC"),
+            )
+        def bm_calc_body():
+            return [
+                NextValue(coef, inv_mul),
+                NextValue(swap, (2*L) <= r_i),
+                If(d == 0,
+                    NextValue(m, m + 1),
+                    NextValue(j, 0),
+                    If(bm_last, NextState("BM_DONE")).Else(
+                        NextValue(r_i, r_i + 1), NextState("BM_DISC")),
+                ).Else(
+                    NextValue(j, t),
+                    NextState("BM_UPDATE"),
+                ),
+            ]
+
+        if architecture == "classic":
+            fsm.act("BM_CALC",  # coef = d/b; zero discrepancy skips the update.
+                inv_in.eq(b_reg),
+                inv_x.eq(d),
+                *bm_calc_body(),
+            )
+        else:
+            fsm.act("BM_CALC",
+                NextValue(inv_in_reg, b_reg),
+                NextValue(inv_x_reg, d),
+                NextState("BM_CALC_COMMIT"),
+            )
+            fsm.act("BM_CALC_COMMIT", *bm_calc_body())
+        if architecture == "classic":
+            fsm.act("BM_UPDATE",  # Descending lambda[j] ^= coef*B[j-m] sweep.
+                bm_upd.eq(1),
+                If(j == 0,
+                    NextValue(d, 0),
+                    If(swap,
+                        NextValue(b_reg, d),
+                        NextValue(L, r_i + 1 - L),
+                        NextValue(m, 1),
+                    ).Else(NextValue(m, m + 1)),
+                    If(bm_last, NextState("BM_DONE")).Else(NextValue(r_i, r_i + 1), NextState("BM_DISC")),
+                ).Else(NextValue(j, j - 1)),
+            )
+        else:
+            fsm.act("BM_UPDATE",  # Capture current operands; commit the preceding coefficient.
+                NextValue(upd_b_reg, b_sel),
+                NextValue(upd_lam_reg, lam_j),
+                NextValue(upd_idx, j),
+                NextValue(upd_valid, 1),
+                If(upd_valid, bm_upd.eq(1)),
+                If(j == 0, NextState("BM_UPDATE_DRAIN")).Else(NextValue(j, j - 1)),
+            )
+            fsm.act("BM_UPDATE_DRAIN",
+                If(upd_valid, bm_upd.eq(1)),
+                NextValue(upd_valid, 0),
                 NextValue(d, 0),
                 If(swap,
                     NextValue(b_reg, d),
@@ -468,44 +581,100 @@ class LiteDSPRSDecoder(LiteXModule):
                     NextValue(m, 1),
                 ).Else(NextValue(m, m + 1)),
                 If(bm_last, NextState("BM_DONE")).Else(NextValue(r_i, r_i + 1), NextState("BM_DISC")),
-            ).Else(NextValue(j, j - 1)),
-        )
+            )
         fsm.act("BM_DONE",  # Locator degree beyond t: uncorrectable, skip Chien.
             NextValue(j, 0), NextValue(l_i, 0), NextValue(acc, 0),
             If(L > t, NextState("UNCORR")).Else(NextState("OMEGA")),
         )
-        fsm.act("OMEGA",  # Omega[j] = sum_{l=0}^{j} S[l]*lambda[j-l], one term per cycle.
-            If(l_i == j,
+        if architecture == "classic":
+            fsm.act("OMEGA",  # Omega[j] = sum S[l]*lambda[j-l], one term per cycle.
+                If(l_i == j,
+                    omg_we.eq(1),
+                    NextValue(acc, 0),
+                    NextValue(l_i, 0),
+                    If(j == (t - 1), NextState("CHIEN_INIT")).Else(NextValue(j, j + 1)),
+                ).Else(
+                    NextValue(acc, acc ^ omg_term),
+                    NextValue(l_i, l_i + 1),
+                )
+            )
+        else:
+            fsm.act("OMEGA",  # Capture one term's operands; accumulate the preceding term.
+                NextValue(omg_a, s_l),
+                NextValue(omg_b, lam_jl),
+                NextValue(omg_valid, 1),
+                If(omg_valid, NextValue(acc, acc ^ omg_registered_term)),
+                If(l_i == j, NextState("OMEGA_DRAIN")).Else(NextValue(l_i, l_i + 1)),
+            )
+            fsm.act("OMEGA_DRAIN",
                 omg_we.eq(1),
                 NextValue(acc, 0),
                 NextValue(l_i, 0),
-                If(j == (t - 1), NextState("CHIEN_INIT")).Else(NextValue(j, j + 1)),
-            ).Else(
-                NextValue(acc, acc ^ omg_term),
-                NextValue(l_i, l_i + 1),
+                NextValue(omg_valid, 0),
+                If(j == (t - 1), NextState("CHIEN_INIT")).Else(NextValue(j, j + 1), NextState("OMEGA")),
             )
-        )
         fsm.act("CHIEN_INIT",  # Load the term registers for position i = 0 (X = alpha^0).
             *[NextValue(q[i], lam[i]) for i in range(t + 1)],
             *[NextValue(o[i], omg[i]) for i in range(t)],
             NextValue(pos, 0),
-            NextState("CHIEN"),
+            NextState("CHIEN" if architecture == "classic" else "CHIEN_EVAL"),
         )
-        fsm.act("CHIEN",  # One position per cycle: evaluate, record roots + Forney magnitudes.
-            inv_in.eq(odd),
-            inv_x.eq(om_val),
-            If(lam_val == 0,
-                If(odd == 0,
-                    NextValue(anomaly, 1),          # Degenerate (repeated root): uncorrectable.
-                ).Elif(roots != t,
-                    root_we.eq(1),
-                    NextValue(roots, roots + 1),
+        if architecture == "classic":
+            fsm.act("CHIEN",  # One position per cycle: evaluate, record roots + Forney magnitudes.
+                inv_in.eq(odd),
+                inv_x.eq(om_val),
+                If(lam_val == 0,
+                    If(odd == 0,
+                        NextValue(anomaly, 1),          # Degenerate (repeated root): uncorrectable.
+                    ).Elif(roots != t,
+                        root_we.eq(1),
+                        NextValue(roots, roots + 1),
+                    ),
                 ),
-            ),
-            *[NextValue(q[i], q_next[i]) for i in range(t + 1)],
-            *[NextValue(o[i], o_next[i]) for i in range(t)],
-            If(pos == (n - 1), NextState("CHIEN_DONE")).Else(NextValue(pos, pos + 1)),
-        )
+                *[NextValue(q[i], q_next[i]) for i in range(t + 1)],
+                *[NextValue(o[i], o_next[i]) for i in range(t)],
+                If(pos == (n - 1), NextState("CHIEN_DONE")).Else(NextValue(pos, pos + 1)),
+            )
+        else:
+            fsm.act("CHIEN_EVAL",  # Register half reductions; advance term registers.
+                NextValue(chien_even_lo, even_lo),
+                NextValue(chien_even_hi, even_hi),
+                NextValue(chien_odd_lo,  odd_lo),
+                NextValue(chien_odd_hi,  odd_hi),
+                NextValue(chien_om_lo,   om_lo),
+                NextValue(chien_om_hi,   om_hi),
+                *[NextValue(q[i], q_next[i]) for i in range(t + 1)],
+                *[NextValue(o[i], o_next[i]) for i in range(t)],
+                NextState("CHIEN_REDUCE"),
+            )
+            fsm.act("CHIEN_REDUCE",
+                NextValue(chien_odd, chien_odd_lo ^ chien_odd_hi),
+                NextValue(chien_om,  chien_om_lo ^ chien_om_hi),
+                NextValue(chien_lam, chien_even_lo ^ chien_even_hi ^ chien_odd_lo ^ chien_odd_hi),
+                NextValue(inv_in_reg, chien_odd_lo ^ chien_odd_hi),
+                NextValue(inv_x_reg, chien_om_lo ^ chien_om_hi),
+                NextState("CHIEN_FORNEY"),
+            )
+            fsm.act("CHIEN_FORNEY",
+                NextValue(chien_mag, inv_mul),
+                NextState("CHIEN_COMMIT"),
+            )
+            fsm.act("CHIEN_COMMIT",  # Inverse/Forney product from registered evaluation.
+                If(chien_lam == 0,
+                    If(chien_odd == 0,
+                        NextValue(anomaly, 1),
+                    ).Elif(roots != t,
+                        root_we.eq(1),
+                        NextValue(roots, roots + 1),
+                    ),
+                ),
+                If(pos == (n - 1),
+                    NextState("CHIEN_DONE"),
+                ).Else(
+                    NextValue(pos, pos + 1),
+                    NextState("CHIEN_EVAL"),
+                ),
+            )
         fsm.act("CHIEN_DONE",  # Root count must match the locator degree exactly.
             If((roots == L) & ~anomaly,
                 NextState("APPLY_READ"),

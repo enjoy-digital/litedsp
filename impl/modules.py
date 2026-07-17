@@ -350,7 +350,7 @@ def rs_encoder():
     return d, _eps(d.sink, d.source), 10.0
 
 def rs_decoder():
-    d = LiteDSPRSDecoder(with_csr=False)                     # RS(255,223), t=16.
+    d = LiteDSPRSDecoder(with_csr=False, architecture="pipelined")  # RS(255,223), t=16.
     return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count,
                d.clear} | _eps(d.sink, d.source), 12.0
 
@@ -516,6 +516,7 @@ REGISTRY = {
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
               "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
+              "rs_decoder",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
@@ -525,6 +526,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder",
+                 "rs_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",

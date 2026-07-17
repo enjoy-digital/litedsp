@@ -19,6 +19,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
 | Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
+| RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 77.7/67.8 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native feedback pipeline landed but remains open |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -118,6 +119,24 @@ flattening the runtime-coefficient reduction into a DSP48 cascade. Classic remai
 Acceptance covers exact threshold-edge behavior, gain invariance, complex and real preambles,
 peak-window/offset alignment, first/last framing, IRQ/count behavior, randomized backpressure,
 and independent Verilator co-simulation of the pipelined option.
+
+## Reed-Solomon decoder
+
+The serial RS decoder originally combined GF multiplication, polynomial selection, reductions,
+and the shared inverse/Forney path within individual Berlekamp-Massey, Omega, and Chien clocks.
+The pipelined schedule registers each multiplier's operands, drains serial recurrences explicitly,
+splits the Chien reductions, and registers the inverse operands and final magnitude. It does not
+change the conventional-basis GF(256) algorithm, correction result, framing, or status counters.
+
+For RS(255,223), the published worst-case block schedule rises from 2249 to 3126 clocks (+877,
+39.0%). Three ECP5 routes reach 122.4/124.3/126.7 MHz with 3780 LUT / 1466 FF / 1 BRAM, versus
+86.5 MHz with 3740 / 1321 / 1 for classic. Artix-7 reaches 143.5 MHz with 1632 LUT / 1466 FF;
+Artix UltraScale+ reaches 270.1 MHz with 1650 LUT / 1474 FF. All three use zero DSPs. The classic
+architecture remains the API default; the implementation registry selects the pipelined schedule.
+
+Acceptance covers clean, correctable, and uncorrectable blocks at t=1, t=2, and the full t=16;
+byte-exact model agreement, status/counter behavior, framing under backpressure, and an independent
+Verilator co-simulation of the pipelined option.
 
 ## AGC
 

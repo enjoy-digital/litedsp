@@ -24,6 +24,7 @@ from reset (sink ``first``/``last`` ignored); output blocks are framed with ``fi
 |---|---|---|---|
 | `n` | `255` | int | Codeword length in symbols (bytes); fixed at 255, the native RS length over GF(2^8). |
 | `k` | `223` | int | Message length in symbols; t = (n - k)/2 symbol errors per block are correctable (n - k even, t in 1..16; default RS(255, 223), t = 16). |
+| `architecture` | `"classic"` | str | ``"classic"`` evaluates and advances one Chien position per clock. ``"pipelined"`` registers operands for the Berlekamp-Massey discrepancy and update multipliers before their recurrences, and Lambda's odd/even evaluation plus Omega before the inverse/Forney product. It adds discrepancy/update/inversion and Omega drain clocks plus three clocks per Chien position, while preserving the correction algorithm and all output/status behavior. Choices: `classic`, `pipelined`. |
 
 ## Ports
 
@@ -67,8 +68,8 @@ Clear the sticky flag and the cumulative counters (write to clear).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 3740 | 1321 | 1 | 0 | 73.5 | — |
-| xilinx | 1757 | 1330 | 0 | 0 | — | — |
+| ecp5 | 3780 | 1466 | 1 | 0 | 105.7 | 100.0 |
+| xilinx | 1632 | 1466 | 0 | 0 | 121.9 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

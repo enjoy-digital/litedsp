@@ -53,9 +53,9 @@ class TestRS(unittest.TestCase):
         prng = random.Random(seed)
         return [prng.randrange(256) for _ in range(k)]
 
-    def _decode_blocks(self, codewords, n, k):
+    def _decode_blocks(self, codewords, n, k, architecture="classic"):
         """Run codewords through one RTL decoder; return (bytes, per-block status tuples)."""
-        dut = LiteDSPRSDecoder(n=n, k=k, with_csr=False)
+        dut = LiteDSPRSDecoder(n=n, k=k, with_csr=False, architecture=architecture)
         cap, status = [], []
         run_simulation(dut, [
             stream_driver(dut.sink, [{"data": b} for cw in codewords for b in cw], ("data",),
@@ -216,8 +216,8 @@ class TestRS(unittest.TestCase):
 
     # verify-tier: model — flagship RS(255,223) decoder RTL: one block with t = 16 random
     # errors (all corrected) then one with t + 1 = 17 (flagged, message passed through raw),
-    # byte-exact vs the model including status. The heavyweight RTL run of this suite
-    # (~2.3 kcycles decode per block, see cycles_per_block).
+    # byte-exact vs the model including status. This runs the implementation-selected pipeline
+    # at its maximum correction depth (see cycles_per_block).
     def test_rtl_decoder_t16_full(self):
         n, k, t = 255, 223, 16
         prng = random.Random(7)
@@ -228,7 +228,7 @@ class TestRS(unittest.TestCase):
         expected, exp_status = self._expected_blocks([c_t, c_t1], n, k)
         self.assertEqual(exp_status, [(t, 0, 0, t), (0, 1, 1, t)])  # Vector choice: flags.
         self.assertEqual(expected, msg + c_t1[:k])
-        got, status = self._decode_blocks([c_t, c_t1], n, k)
+        got, status = self._decode_blocks([c_t, c_t1], n, k, architecture="pipelined")
         self.assertEqual(got, expected)
         self.assertEqual(status, exp_status)
 
@@ -244,6 +244,19 @@ class TestRS(unittest.TestCase):
         got, status = self._decode_blocks([rx], n, k)
         self.assertEqual(got, expected)
         self.assertEqual(status, exp_status)
+
+    def test_rtl_decoder_pipelined_t2(self):
+        n, k = 255, 251
+        msg  = self._random_message(k, seed=71)
+        rx   = _corrupt(rs_encode_model(msg, n, k), (13, 219), seed=71)
+        expected, exp_status = self._expected_blocks([rx], n, k)
+        got, status = self._decode_blocks([rx], n, k, architecture="pipelined")
+        self.assertEqual(got, expected)
+        self.assertEqual(status, exp_status)
+        classic = LiteDSPRSDecoder(n=n, k=k, with_csr=False)
+        pipelined = LiteDSPRSDecoder(n=n, k=k, with_csr=False, architecture="pipelined")
+        t = (n - k)//2
+        self.assertEqual(pipelined.cycles_per_block, classic.cycles_per_block + 3*n + 7*t)
 
     # verify-tier: model — RTL encoder -> RTL decoder chain (t = 2): framing interoperates and
     # the message round-trips exactly with clean status.

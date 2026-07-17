@@ -100,6 +100,10 @@ device-specific.
   and normalized-threshold products raises ECP5 timing, but Artix-7 remains limited by a flattened
   DSP48 FIR cascade. Registering all matched-filter reduction levels as part of the same explicit
   option yields a 132.2 MHz ECP5 median and 147.5 MHz Artix-7 result at five samples of latency.
+- **Serial FEC still needs scheduled arithmetic boundaries.** Registering GF multiplier operands,
+  splitting Chien reductions, and staging the shared inverse/Forney result raises the RS(255,223)
+  decoder from 86.5 MHz to a 124.3 MHz ECP5 three-route median. Worst-case decoding grows from
+  2249 to 3126 clocks; the correction algorithm and output/status behavior remain bit-exact.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
@@ -130,8 +134,8 @@ avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing
 datasheets present the same data from `impl/budgets.json`.
 
 The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
-configurations pass out-of-context synthesis and all 38 representative configurations pass
-place-and-route. The 23 reviewed timing architectures close their 100 MHz targets on this
+configurations pass out-of-context synthesis and all 39 representative configurations pass
+place-and-route. The 24 reviewed timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part
 of the strict 100 MHz target set. Relative to the classic reduction, ECP5 moves from 6461 LUT /

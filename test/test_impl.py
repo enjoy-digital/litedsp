@@ -173,6 +173,7 @@ class TestImplementationBudgets(unittest.TestCase):
         data = budgets.load()
         self.assertEqual(modules.TARGET_CLOSED,
             ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder",
+             "rs_decoder",
              "cic_decimator", "cic_interpolator", "agc", "fft_iter",
              "viterbi_decoder", "viterbi_decoder_soft",
              "cic_parallel_x2", "cic_parallel_x4",
