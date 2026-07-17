@@ -106,6 +106,17 @@ class TestImplementationBudgets(unittest.TestCase):
             {"strategy": "timing", "error": "timeout"},
         ])
 
+    def test_closed_target_gate_leaves_open_objectives_advisory(self):
+        misses = {
+            "fft_parallel_native_x2": ["open objective"],
+            "ddc": [],
+        }
+        self.assertFalse(impl_run.targets_fail_gate(misses, gate_closed=True))
+        misses["ddc"] = ["closed objective"]
+        self.assertTrue(impl_run.targets_fail_gate(misses, gate_closed=True))
+        self.assertTrue(impl_run.targets_fail_gate(
+            {"fft_parallel_native_x2": ["open objective"]}, gate_all=True))
+
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")

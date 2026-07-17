@@ -71,6 +71,11 @@ def build_many(names, builder, jobs=1):
             executor.shutdown(wait=True)
     return results, errors
 
+def targets_fail_gate(target_misses, gate_all=False, gate_closed=False):
+    """Return whether advisory target misses selected by the requested policy are fatal."""
+    return ((gate_all and any(target_misses.values())) or
+            (gate_closed and any(target_misses.get(name) for name in TARGET_CLOSED)))
+
 def build_one(device, flow, name, build_root, seeds=None, strategies=None, pnr_timeout=1800):
     dut, ios, clock_ns = REGISTRY[name]()
     bd = os.path.join(build_root, device, name)
@@ -132,6 +137,8 @@ def main():
     parser.add_argument("--update-budgets", action="store_true",         help="Rewrite the budget baseline from this run.")
     parser.add_argument("--no-gate",        action="store_true",         help="Don't fail on budget violations (portability/compile-clean check only).")
     parser.add_argument("--target-gate",    action="store_true",         help="Also fail when P&R misses an explicit fmax_target.")
+    parser.add_argument("--closed-target-gate", action="store_true",
+        help="Fail target misses only for TARGET_CLOSED (useful with --subset).")
     parser.add_argument("--report",         default=None,                help="Write a Markdown table to this path.")
     routes = parser.add_mutually_exclusive_group()
     routes.add_argument("--seeds", default=None,
@@ -230,7 +237,8 @@ def main():
         with open(args.report, "w") as f:
             f.write(report.markdown({args.device: results}))
 
-    gated = any(violations.values()) or (args.target_gate and any(target_misses.values()))
+    gated = any(violations.values()) or targets_fail_gate(target_misses,
+        gate_all=args.target_gate, gate_closed=args.closed_target_gate)
     failed = bool(errors) or (gated and not args.no_gate and not args.update_budgets)
     return 1 if failed else 0
 

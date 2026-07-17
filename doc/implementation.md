@@ -21,6 +21,7 @@ python3 impl/run.py --device xilinx --flow synth --subset        # Vivado OOC sy
 python3 impl/run.py --device xilinx_au --flow synth              # Artix UltraScale+ OOC synth
 python3 impl/run.py --device xilinx_au --flow synth --jobs 2     # two licensed Vivado workers
 python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R -> fmax
+python3 impl/run.py --device ecp5   --flow pnr  --subset --closed-target-gate # one-pass CI gate
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
 python3 impl/run.py --device xilinx --flow pnr  --target-closed --target-gate # strict Artix targets
@@ -44,6 +45,8 @@ utilization. The fmax floor is set to 85% of the baseline P&R result. Both the r
 (`fmax_mhz`) and its regression floor (`fmax_min`) are retained in `impl/budgets.json`. A flat
 P&R-preferred compatibility summary continues to feed generated docs and GUI badges. An optional `fmax_target` is a separate
 engineering objective: misses are reported but only fail a run when `--target-gate` is selected.
+`--closed-target-gate` applies that strict policy only to `TARGET_CLOSED`, allowing one P&R subset
+run to keep objectives under development advisory without rerouting the reviewed blocks.
 For route-sensitive investigations, `--seeds` or `--repeat` synthesizes once and runs bounded
 nextpnr variants. On Xilinx, `--strategies all` synthesizes once and independently runs Vivado's
 default, Explore, and high-net-delay/HigherDelayCost timing algorithms. Both retain per-run timing
@@ -55,7 +58,7 @@ single process updates the budget file after every worker completes. The default
 so CI runners with a single Vivado license are unchanged.
 Refreshing measured budgets preserves these manually reviewed targets. The CAD suite used by
 budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed subset that has
-already achieved its objective; CI reruns those blocks with strict target gating while targets
+already achieved its objective; CI gates those blocks strictly while targets
 for architecture work in progress remain advisory. `.github/workflows/impl-xilinx.yml` provides
 equivalent strict Artix-7 and Artix UltraScale+ jobs on a self-hosted runner labelled `vivado`;
 both also sweep the native x2 FFT across three timing strategies. The complete generated `ddc_ip`
