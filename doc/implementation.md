@@ -53,7 +53,8 @@ Refreshing measured budgets preserves these manually reviewed targets. The CAD s
 budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed subset that has
 already achieved its objective; CI reruns those blocks with strict target gating while targets
 for architecture work in progress remain advisory. `.github/workflows/impl-xilinx.yml` provides
-the equivalent strict Artix-7 gate on a self-hosted runner labelled `vivado`.
+equivalent strict Artix-7 and Artix UltraScale+ jobs on a self-hosted runner labelled `vivado`;
+both also route the complete generated `ddc_ip` integration sentinel.
 When a new device profile is first characterized, it inherits the module's reviewed engineering
 target from an existing profile; its measured resource baseline and 85% timing floor remain fully
 device-specific.
