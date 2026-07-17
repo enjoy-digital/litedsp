@@ -16,7 +16,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 106.3 MHz delayed | gain multiply, output magnitude, error and gain integration in one accepted-sample step | delayed option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
-| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 63.0/61.2 native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native parallel remains open |
+| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 77.7/67.8 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native feedback pipeline landed but remains open |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
 ## Viterbi decoder
@@ -181,19 +181,25 @@ constraint; it is therefore excluded from the nightly P&R subset and carries no 
 
 The native vector-SDF implementation advances one shared feedback line by P consecutive samples
 per clock and removes the split architecture's branch FIFOs, serializers and duplicated cores.
-It keeps every serial fixed-point rounding boundary and sustains its full lane rate under
-backpressure:
+Its `feedback_pipeline=True` option captures signed butterfly differences, registers the four
+real twiddle products, and completes feedback on the following edge. A packed same-address RAM
+bypass supplies the newest value when a shallow feedback line is revisited before the registered
+write becomes visible. Every serial fixed-point rounding boundary is retained and randomized
+backpressure still sustains the full lane rate:
 
-| Native FFT (N=256) | Latency | ECP5 LUT/FF/DSP/Fmax | Artix-7 LUT/FF/DSP/Fmax |
-|---|---:|---:|---:|
-| P=2 | 137 clocks | 6344 / 990 / 52 / 63.0 MHz | 3167 / 941 / 52 / 82.4 MHz |
-| P=4 | 73 clocks | 10780 / 1784 / 94 / 61.2 MHz | 5637 / 1842 / 94 / 75.1 MHz |
+| Native FFT (N=256, pipelined) | Latency | ECP5 LUT/FF/DSP/Fmax | Artix-7 LUT/FF/DSP/Fmax | Artix UltraScale+ LUT/FF/DSP/Fmax |
+|---|---:|---:|---:|---:|
+| P=2 | 143 clocks | 8224 / 5014 / 52 / 77.7 MHz | 3057 / 2873 / 52 / 97.7 MHz | 2950 / 2807 / 52 / 149.3 MHz |
+| P=4 | 78 clocks | 13859 / 8433 / 94 / 67.8 MHz | 5357 / 4916 / 94 / 78.1 MHz | 5204 / 4821 / 95 / 144.5 MHz |
 
-For comparison, split P=2 uses 9163 LUT / 994 FF / 56 DSP at 56.9 MHz on ECP5 and 4346 LUT /
-999 FF / 56 DSP at 81.0 MHz on Artix-7. Native P=2 therefore saves 31% of the ECP5 LUTs and four
-DSPs while modestly improving timing; P=4 adds true four-sample throughput for 1.7x the native
-P=2 ECP5 LUT cost. Neither native width is target-closed: registering its feedback multiplier
-requires a hazard-bypassed recurrence pipeline, not a latency-only edit.
+The compatibility architecture remains available with `feedback_pipeline=False`. Compared with
+that architecture, P=2 improves from 63.0 to 77.7 MHz on ECP5 and from 82.4 to 97.7 MHz on
+Artix-7, at the cost of six clocks, 30% more ECP5 LUTs, and roughly five times its ECP5 FFs. P=4
+improves from 61.2 to 67.8 MHz on ECP5 and from 75.1 to 78.1 MHz on Artix-7, at the cost of five
+clocks, 29% more ECP5 LUTs, and roughly 4.7 times its ECP5 FFs. Both still accept P samples every
+clock. Neither width joins `TARGET_CLOSED`: the change is useful on P=2 and comfortably exceeds
+100 MHz on Artix UltraScale+, but the ECP5 and Artix-7 results do not justify declaring the
+cross-family objective met.
 
 The iterative option is now implemented as `registered_butterfly=True`: the read phase registers
 the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and
@@ -230,7 +236,7 @@ randomized stalls, Verilator co-simulation, and both FPGA implementation targets
 ## Landing policy
 
 Each family is a separate change series: architecture parameter and model first, focused tests
-second, then ECP5 and Artix-7 implementation results. A new option may become the default only
+second, then ECP5, Artix-7, and Artix UltraScale+ implementation results. A new option may become the default only
 when its stream contract and numerical behavior are documented and downstream composites have
 been re-verified. Raw measurements refresh `fmax_mhz`/`fmax_min`; the 100 MHz target remains
 manually reviewed and is checked explicitly with `impl/run.py --target-gate`.

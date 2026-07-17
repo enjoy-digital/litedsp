@@ -47,8 +47,11 @@ of two and an average rate of one sample/cycle.
 ``implementation="native"`` instead advances a single SDF feedback line by P consecutive
 samples per clock. It supports P=2 and P=4, sustains P samples/cycle, eliminates the split
 implementation's branch FIFOs/serializers/duplicated cores, and remains bit-identical to
-the serial FFT on the flattened lane stream. Both implementations currently use the
-serial FFT's ``scaling="scaled"`` arithmetic (1/2 per stage, 1/N overall).
+the serial FFT on the flattened lane stream. ``feedback_pipeline=True`` registers the
+butterfly difference and real twiddle products in ranks with at least two packed feedback
+addresses; a same-address forwarding path preserves the recurrence while retaining one beat
+per clock. Both implementations use the serial FFT's ``scaling="scaled"`` arithmetic
+(1/2 per stage, 1/N overall).
 
 ## Parameters
 
@@ -60,6 +63,7 @@ serial FFT's ``scaling="scaled"`` arithmetic (1/2 per stage, 1/N overall).
 | `twiddle_width` | `16` | int | Twiddle-factor width in bits (signed Q1.(W-1)), as in the serial FFT. |
 | `core_architecture` | `"classic"` | str | ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a registered timing-oriented split path with one-sample/cycle average throughput. Choices: `classic`, `folded`. |
 | `implementation` | `"split"` | str | ``"split"`` (compatibility default) or the scalable ``"native"`` vector-SDF engine. Choices: `split`, `native`. |
+| `feedback_pipeline` | `False` | bool | Pipeline the native feedback multiplier with same-address forwarding. Adds one clock to each eligible rank without reducing the P-sample-per-clock initiation rate. |
 
 ## Ports
 
