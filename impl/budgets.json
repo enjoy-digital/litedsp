@@ -1107,67 +1107,70 @@
     "ecp5": {
       "bram": 2,
       "dsp": 70,
-      "ff": 4338,
-      "fmax_mhz": 64.4,
-      "fmax_min": 54.8,
-      "lut": 6461,
+      "ff": 6866,
+      "fmax_mhz": 107.6,
+      "fmax_min": 91.4,
+      "fmax_target": 100.0,
+      "lut": 4800,
       "pnr": {
         "bram": 2,
         "dsp": 70,
-        "ff": 4338,
-        "fmax_mhz": 64.4,
-        "fmax_min": 54.8,
-        "lut": 6461
+        "ff": 6866,
+        "fmax_mhz": 107.6,
+        "fmax_min": 91.4,
+        "lut": 4800
       },
       "synth": {
         "bram": 2,
         "dsp": 70,
-        "ff": 4338,
-        "lut": 6461
+        "ff": 6866,
+        "lut": 4800
       }
     },
     "xilinx": {
       "bram": 1,
-      "dsp": 70,
-      "ff": 1986,
-      "fmax_mhz": 22.4,
-      "fmax_min": 19.0,
-      "lut": 649,
+      "dsp": 100,
+      "ff": 1802,
+      "fmax_mhz": 121.2,
+      "fmax_min": 103.0,
+      "fmax_target": 100.0,
+      "lut": 1009,
       "pnr": {
         "bram": 1,
-        "dsp": 70,
-        "ff": 1986,
-        "fmax_mhz": 22.4,
-        "fmax_min": 19.0,
-        "lut": 649
+        "dsp": 100,
+        "ff": 1802,
+        "fmax_mhz": 121.2,
+        "fmax_min": 103.0,
+        "lut": 1009
       },
       "synth": {
         "bram": 1,
-        "dsp": 70,
-        "ff": 1986,
-        "lut": 686
+        "dsp": 100,
+        "ff": 1802,
+        "lut": 1124
       }
     },
     "xilinx_au": {
       "bram": 1,
-      "dsp": 70,
-      "ff": 1986,
-      "fmax_mhz": 42.2,
-      "fmax_min": 35.9,
-      "lut": 630,
+      "dsp": 100,
+      "ff": 1802,
+      "fmax_mhz": 274.7,
+      "fmax_min": 233.5,
+      "fmax_target": 100.0,
+      "lut": 974,
       "pnr": {
         "bram": 1,
-        "dsp": 70,
-        "ff": 1986,
-        "fmax_mhz": 42.2,
-        "fmax_min": 35.9,
-        "lut": 630
+        "dsp": 100,
+        "ff": 1802,
+        "fmax_mhz": 274.7,
+        "fmax_min": 233.5,
+        "lut": 974
       },
       "synth": {
         "bram": 1,
-        "dsp": 70,
-        "ff": 1986,
-        "lut": 668
+        "dsp": 100,
+        "ff": 1802,
+        "lut": 1115
       }
     }
   },

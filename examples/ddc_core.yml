@@ -27,7 +27,7 @@ flow:
     - {id: lo,   type: nco,         params: {}}
     - {id: dly,  type: delay,       params: {depth: 1}}
     - {id: mix,  type: mixer,       params: {}}
-    - {id: lpf,  type: fir_complex, params: {n_taps: 33}}
+    - {id: lpf,  type: fir_complex, params: {n_taps: 33, architecture: pipelined}}
     - {id: deci, type: downsampler, params: {}}
   connections:
     - {from: rx_in,       to: dly.sink}

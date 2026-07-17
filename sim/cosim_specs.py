@@ -95,6 +95,16 @@ def spec_fir_complex():
     cols = _rand_cols(2, n)
     return dut, cols, n - 8, lambda c: list(models.fir_complex_model(c[0], c[1], coeffs))
 
+def spec_fir_complex_pipelined():
+    from litedsp.filter.fir    import LiteDSPFIRFilterComplex
+    from litedsp.filter.design import firwin_lowpass
+    n, n_taps = 200, 33
+    coeffs = firwin_lowpass(n_taps, 0.2)
+    dut = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs,
+        with_csr=False, architecture="pipelined")
+    cols = _rand_cols(2, n)
+    return dut, cols, n - 12, lambda c: list(models.fir_complex_model(c[0], c[1], coeffs))
+
 def spec_fir_decimator():
     from litedsp.filter.fir_poly import LiteDSPFIRDecimator
     from litedsp.filter.design   import firwin_lowpass
@@ -632,6 +642,7 @@ SPECS = {
     "mixer":            spec_mixer,
     "fir_real":         spec_fir_real,
     "fir_complex":      spec_fir_complex,
+    "fir_complex_pipelined": spec_fir_complex_pipelined,
     "fir_decimator":    spec_fir_decimator,
     "fir_interpolator": spec_fir_interpolator,
     "cic_decimator":    spec_cic_decimator,
@@ -698,6 +709,7 @@ def check_coverage():
     """SPECS must cover exactly the ``cosim=True`` blocks of ``test/registry.py`` VSPEC."""
     from test.registry import VSPEC
     variants = {
+        "fir_complex_pipelined":     "fir_complex",
         "viterbi_decoder_soft":      "viterbi_decoder",
         "parallel_fft_folded":       "parallel_fft",
         "parallel_fft_native_x2":    "parallel_fft",

@@ -83,6 +83,11 @@ device-specific.
   (latency 3 to 7 cycles). Registering the window multiplier outputs before rescaling raised that
   block from 89.9 to 117.6 MHz (latency 1 to 2 cycles). Both remain one sample per clock and
   bit-exact under backpressure.
+- **Runtime-programmable FIR reductions must be structurally pipelined.** Vivado flattened the
+  complete DDC IP's 33-tap expression into a 32-DSP cascade with 68 logic levels. The explicit
+  `architecture="pipelined"` FIR registers all six balanced reduction levels and uses a common
+  elastic enable, preserving bit-exact one-sample-per-clock operation under backpressure. FIR
+  latency rises from 3 to 9 clocks; the generated IP now closes 100 MHz on all reference parts.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
@@ -116,9 +121,11 @@ The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: 
 configurations pass out-of-context synthesis and all 35 representative configurations pass
 place-and-route. The 20 reviewed timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
-are 64.4 MHz on ECP5, 22.4 MHz on Artix-7, and 42.2 MHz on Artix UltraScale+. Those values are
-integration regression measurements, not a false 100 MHz system-IP claim: its critical path is
-retained for a separate runtime-programmable FIR architecture pass.
+are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part
+of the strict 100 MHz target set. Relative to the classic reduction, ECP5 moves from 6461 LUT /
+4338 FF / 70 DSP to 4800 / 6866 / 70; Artix-7 moves from 649 LUT / 1986 FF / 70 DSP to 1009 /
+1802 / 100. The additional state and Xilinx DSP48 adders are the published cost of eliminating
+the long combinational cascade while retaining runtime coefficient control and full throughput.
 
 The fmax value is a **gate floor**, not the raw measured maximum. Implementation runs print their
 current raw result; updating a P&R budget records 85% of that result as margin for seed/tool noise.

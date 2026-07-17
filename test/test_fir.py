@@ -23,8 +23,10 @@ def design_lowpass(n_taps, cutoff=0.25, data_width=16):
     return [int(round(c*scale)) for c in h]
 
 class TestFIR(unittest.TestCase):
-    def run_real_fir(self, coeffs, x, n_taps, data_width=16, symmetric=False):
-        dut = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric)
+    def run_real_fir(self, coeffs, x, n_taps, data_width=16, symmetric=False,
+        architecture="classic"):
+        dut = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric,
+            architecture=architecture)
         for t in range(n_taps):
             dut.coeffs[t].reset = coeffs[t]  # Signed; do not mask (would corrupt negatives).
         samples  = [{"data": int(v)} for v in x]
@@ -51,21 +53,40 @@ class TestFIR(unittest.TestCase):
             ref    = fir_model(x, coeffs)[:len(got)]
             self.assertTrue(np.array_equal(got, ref), f"symmetric mismatch n_taps={n_taps}")
 
+    def test_pipelined_tree_bit_exact(self):
+        # Odd/even and direct/folded trees exercise every registered reduction shape. The
+        # initiation rate remains one sample per clock; only the declared latency changes.
+        for n_taps, symmetric in [(32, False), (33, False), (32, True), (33, True)]:
+            coeffs = design_lowpass(n_taps)
+            prng   = random.Random(30 + n_taps + symmetric)
+            x      = [prng.randint(-30000, 30000) for _ in range(192)]
+            got    = self.run_real_fir(coeffs, x, n_taps, symmetric=symmetric,
+                architecture="pipelined")
+            ref    = fir_model(x, coeffs)[:len(got)]
+            self.assertTrue(np.array_equal(got, ref),
+                f"pipelined mismatch n_taps={n_taps} symmetric={symmetric}")
+            n_products = (n_taps + 1)//2 if symmetric else n_taps
+            dut = LiteDSPFIRFilter(n_taps=n_taps, symmetric=symmetric,
+                architecture="pipelined")
+            self.assertEqual(dut.latency, 3 + (n_products - 1).bit_length())
+
     def test_complex_bit_exact(self):
         n_taps = 17
         coeffs = design_lowpass(n_taps)
-        dut    = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs, with_csr=False)
-        prng   = random.Random(3)
-        x_i    = [prng.randint(-30000, 30000) for _ in range(200)]
-        x_q    = [prng.randint(-30000, 30000) for _ in range(200)]
-        samples = [{"i": x_i[k], "q": x_q[k]} for k in range(200)]
-        captured = run_stream(dut, samples, 200, ["i", "q"], ["i", "q"],
-            sink_throttle=0.2, source_ready_rate=0.7)
-        gi = column(captured, "i", 16)
-        gq = column(captured, "q", 16)
-        ri, rq = fir_complex_model(x_i, x_q, coeffs)
-        self.assertTrue(np.array_equal(gi, ri[:len(gi)]))
-        self.assertTrue(np.array_equal(gq, rq[:len(gq)]))
+        for architecture in ("classic", "pipelined"):
+            dut = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16,
+                coefficients=coeffs, with_csr=False, architecture=architecture)
+            prng   = random.Random(3)
+            x_i    = [prng.randint(-30000, 30000) for _ in range(200)]
+            x_q    = [prng.randint(-30000, 30000) for _ in range(200)]
+            samples = [{"i": x_i[k], "q": x_q[k]} for k in range(200)]
+            captured = run_stream(dut, samples, 200, ["i", "q"], ["i", "q"],
+                sink_throttle=0.2, source_ready_rate=0.7)
+            gi = column(captured, "i", 16)
+            gq = column(captured, "q", 16)
+            ri, rq = fir_complex_model(x_i, x_q, coeffs)
+            self.assertTrue(np.array_equal(gi, ri[:len(gi)]), architecture)
+            self.assertTrue(np.array_equal(gq, rq[:len(gq)]), architecture)
 
     def test_lowpass_response(self):
         # In-band tone passes, out-of-band tone is strongly attenuated.

@@ -60,7 +60,7 @@ class LiteDSPFIRCoefficients(LiteXModule):
 class LiteDSPFIRFilter(LiteXModule):
     """Pipelined single-rate real FIR filter with stream I/O and round+saturate output.
 
-    Computes ``y[k] = sum_t coeffs[t] * x[k-t]`` with a fixed 3-cycle latency. With
+    Computes ``y[k] = sum_t coeffs[t] * x[k-t]``. With
     ``symmetric=True`` the (linear-phase) filter folds tap pairs to halve the multiplier
     count; the caller must provide symmetric coefficients.
 
@@ -73,14 +73,21 @@ class LiteDSPFIRFilter(LiteXModule):
     symmetric : bool
         Fold mirrored tap pairs before the multiply, halving the multiplier count (DSP blocks)
         for linear-phase filters. The provided coefficients must actually be symmetric.
+    architecture : str
+        ``"classic"`` uses a combinational balanced reduction after the product registers and
+        has three clocks of latency. ``"pipelined"`` registers every adder-tree level, retaining
+        one-sample-per-clock throughput while adding ``ceil(log2(n_products))`` clocks.
     """
-    def __init__(self, n_taps=32, data_width=16, symmetric=False, shift=None):
+    def __init__(self, n_taps=32, data_width=16, symmetric=False, shift=None,
+        architecture="classic"):
         check(n_taps > 0, "expected n_taps > 0")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         if shift is None:
             shift = data_width - 1
         self.n_taps     = n_taps
         self.data_width = data_width
-        self.latency    = 3
+        self.architecture = architecture
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint(real_layout(data_width))
         self.coeffs = Array([Signal((data_width, True)) for _ in range(n_taps)])
@@ -121,11 +128,32 @@ class LiteDSPFIRFilter(LiteXModule):
                 tap = regs[t]
             self.sync += If(adv, prods[t].eq(tap * self.coeffs[t]))
 
-        # Adder tree (combinational) + rescale (round + saturate), registered on drain.
-        # -----------------------------------------------------------------------------
+        # Adder tree + rescale (round + saturate), registered on drain.
+        # ----------------------------------------------------------------
         acc_bits = prod_bits + int(math.ceil(math.log2(n_prod))) + 1
-        acc      = Signal((acc_bits, True))
-        self.comb += acc.eq(_adder_tree(list(prods)))
+        if architecture == "classic":
+            acc = Signal((acc_bits, True))
+            self.comb += acc.eq(_adder_tree(list(prods)))
+            tree_levels = 0
+        else:
+            # Materialize the balanced tree one registered level at a time. Keeping every
+            # intermediate at the final accumulator width preserves the classic full-precision
+            # arithmetic while preventing Vivado from flattening a runtime-coefficient FIR into
+            # one long DSP48 cascade.
+            tree = list(prods)
+            tree_levels = 0
+            while len(tree) > 1:
+                next_tree = [Signal((acc_bits, True)) for _ in range((len(tree) + 1)//2)]
+                assignments = []
+                for i, node in enumerate(next_tree):
+                    lo = 2*i
+                    assignments.append(node.eq(tree[lo] + tree[lo + 1]
+                        if lo + 1 < len(tree) else tree[lo]))
+                self.sync += If(adv, *assignments)
+                tree = next_tree
+                tree_levels += 1
+            acc = tree[0]
+        self.latency = 3 + tree_levels
         result, _ = scaled(acc, shift, data_width)
         out = Signal((data_width, True))
         self.sync += If(adv, out.eq(result))
@@ -152,9 +180,12 @@ class LiteDSPFIRFilterComplex(LiteXModule):
     symmetric : bool
         Fold mirrored tap pairs in both the I and Q FIRs, halving the multiplier count (DSP
         blocks) for linear-phase filters; the coefficients must actually be symmetric.
+    architecture : str
+        ``"classic"`` uses the three-clock combinational-reduction filters. ``"pipelined"``
+        registers every adder-tree level while retaining one complex sample per clock.
     """
     def __init__(self, n_taps=32, data_width=16, symmetric=False, coefficients=None,
-        shift=None, with_csr=True):
+        shift=None, with_csr=True, architecture="classic"):
         check(n_taps > 0, "expected n_taps > 0")
         self.n_taps     = n_taps
         self.data_width = data_width
@@ -166,8 +197,10 @@ class LiteDSPFIRFilterComplex(LiteXModule):
 
         self.coeffs = LiteDSPFIRCoefficients(n_taps=n_taps, data_width=data_width,
             coefficients=coefficients, with_csr=with_csr)
-        self.fir_i  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric, shift=shift)
-        self.fir_q  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, symmetric=symmetric, shift=shift)
+        self.fir_i  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width,
+            symmetric=symmetric, shift=shift, architecture=architecture)
+        self.fir_q  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width,
+            symmetric=symmetric, shift=shift, architecture=architecture)
         self.latency = self.fir_i.latency
 
         self.comb += [

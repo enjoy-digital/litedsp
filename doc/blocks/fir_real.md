@@ -8,7 +8,7 @@ latency: 3 samples · CSR: no · bypass: yes
 
 Pipelined single-rate real FIR filter with stream I/O and round+saturate output.
 
-Computes ``y[k] = sum_t coeffs[t] * x[k-t]`` with a fixed 3-cycle latency. With
+Computes ``y[k] = sum_t coeffs[t] * x[k-t]``. With
 ``symmetric=True`` the (linear-phase) filter folds tap pairs to halve the multiplier
 count; the caller must provide symmetric coefficients.
 
@@ -24,6 +24,7 @@ arithmetic stages and the valid pipeline drain on every accepted output beat.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `symmetric` | `False` | bool | Fold mirrored tap pairs before the multiply, halving the multiplier count (DSP blocks) for linear-phase filters. The provided coefficients must actually be symmetric. |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
+| `architecture` | `"classic"` | str | ``"classic"`` uses a combinational balanced reduction after the product registers and has three clocks of latency. ``"pipelined"`` registers every adder-tree level, retaining one-sample-per-clock throughput while adding ``ceil(log2(n_products))`` clocks. Choices: `classic`, `pipelined`. |
 
 ## Ports
 

@@ -178,7 +178,7 @@ class TestImplementationBudgets(unittest.TestCase):
              "cic_parallel_x2", "cic_parallel_x4",
              "fft_folded", "fft_interleaved_x2", "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft",
-             "timing_recovery", "cfr_pipelined"])
+             "timing_recovery", "cfr_pipelined", "ddc_ip"])
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, modules.PNR_SUBSET)
             for device in ("ecp5", "xilinx", "xilinx_au"):
