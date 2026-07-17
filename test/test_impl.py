@@ -100,6 +100,21 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertEqual(entry["fmax_target"], 150.0)
         self.assertEqual(entry["fmax_min"], 104.9)
 
+    def test_new_device_inherits_the_reviewed_target_not_the_regression_floor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "budgets.json")
+            with open(path, "w") as f:
+                json.dump({"example": {"ecp5": {
+                    "fmax_target": 100.0, "fmax_min": 85.0,
+                }}}, f)
+            with mock.patch.object(budgets, "PATH", path):
+                budgets.update("xilinx_au", {"example": {
+                    "pnr": {"fmax_mhz": 140.0},
+                }}, flow="pnr")
+                entry = budgets.load()["example"]["xilinx_au"]
+        self.assertEqual(entry["fmax_target"], 100.0)
+        self.assertEqual(entry["fmax_min"], 119.0)
+
     def test_target_check_is_separate_from_regression_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")

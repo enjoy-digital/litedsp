@@ -83,7 +83,13 @@ def update(device, results, flow="synth"):
         raise ValueError(f"unsupported implementation flow: {flow}")
     data = load()
     for name, res in results.items():
-        entry = data.setdefault(name, {}).setdefault(device, {})
+        devices = data.setdefault(name, {})
+        entry   = devices.setdefault(device, {})
+        if "fmax_target" not in entry:
+            sibling_targets = {d["fmax_target"] for key, d in devices.items()
+                if key != device and "fmax_target" in d}
+            if len(sibling_targets) == 1:
+                entry["fmax_target"] = sibling_targets.pop()
         scoped = entry.setdefault(flow, {})
         for m in METRICS:
             if m in res:
