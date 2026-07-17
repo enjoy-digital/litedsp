@@ -11,15 +11,24 @@ import re
 import shutil
 import subprocess
 
-PART = "xc7a200tsbg484-3"
+# Keep each reference part behind a stable implementation/budget key. Resource counts and timing
+# floors are part/package/speed-grade specific, so changing a profile must never silently reuse a
+# different device's checked-in baseline.
+PARTS = {
+    "xilinx":    "xc7a200tsbg484-3",
+    "xilinx_au": "xcau20p-ffvb676-2-e",
+}
+
+# Backward-compatible spelling for callers that imported the original single-part constant.
+PART = PARTS["xilinx"]
 
 def have_vivado():
     return shutil.which("vivado") is not None
 
-def _tcl(verilog, top, clock_ns, impl):
+def _tcl(verilog, top, clock_ns, impl, part=PART):
     lines = [
         f"read_verilog {os.path.basename(verilog)}",
-        f"synth_design -mode out_of_context -part {PART} -top {top}",
+        f"synth_design -mode out_of_context -part {part} -top {top}",
         f"create_clock -name sys_clk -period {clock_ns} [get_ports sys_clk]",
     ]
     if impl:
@@ -47,11 +56,11 @@ def _parse_util(path):
         "bram": row("Block RAM Tile"),
     }
 
-def synth(verilog, top, build_dir, impl=False, clock_ns=10.0, timeout=1800):
+def synth(verilog, top, build_dir, impl=False, clock_ns=10.0, timeout=1800, part=PART):
     """Run Vivado OOC synth (and impl if ``impl``); return a resource dict (+ pnr fmax if impl)."""
     tcl = os.path.join(build_dir, top + "_vivado.tcl")
     with open(tcl, "w") as f:
-        f.write(_tcl(verilog, top, clock_ns, impl))
+        f.write(_tcl(verilog, top, clock_ns, impl, part=part))
     log = os.path.join(build_dir, top + "_vivado.log")
     with open(log, "w") as f:
         subprocess.run(["vivado", "-mode", "batch", "-source", os.path.basename(tcl),

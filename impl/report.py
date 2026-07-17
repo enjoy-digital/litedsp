@@ -48,7 +48,11 @@ def markdown(all_results):
 
 # Budgets -> doc/resources.md ----------------------------------------------------------------------
 
-_DEVICE_LABELS = {"ecp5": "ECP5 (Yosys/nextpnr)", "xilinx": "Artix-7 (Vivado)"}
+_DEVICE_LABELS = {
+    "ecp5":      "ECP5 (Yosys/nextpnr)",
+    "xilinx":    "Artix-7 (Vivado)",
+    "xilinx_au": "Artix UltraScale+ (Vivado)",
+}
 
 def budgets_markdown(budgets):
     """Render the checked-in per-block budgets as a Markdown resource table."""

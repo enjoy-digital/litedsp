@@ -16,11 +16,22 @@ import tempfile
 import unittest
 from unittest import mock
 
-from impl import budgets, ecp5, wrap, modules
+from impl import budgets, ecp5, xilinx, wrap, modules
 from impl import run as impl_run
 
 
 class TestImplementationBudgets(unittest.TestCase):
+    def test_xilinx_profiles_use_distinct_reference_parts(self):
+        self.assertEqual(xilinx.PARTS["xilinx"], "xc7a200tsbg484-3")
+        self.assertEqual(xilinx.PARTS["xilinx_au"], "xcau20p-ffvb676-2-e")
+        artix7 = xilinx._tcl("dut.v", "dut", 10.0, False,
+            part=xilinx.PARTS["xilinx"])
+        artix_au = xilinx._tcl("dut.v", "dut", 10.0, False,
+            part=xilinx.PARTS["xilinx_au"])
+        self.assertIn("-part xc7a200tsbg484-3", artix7)
+        self.assertIn("-part xcau20p-ffvb676-2-e", artix_au)
+        self.assertNotEqual(artix7, artix_au)
+
     def test_route_statistics_select_median_run(self):
         runs = [
             (0, {"fmax_mhz": 91.0, "lut": 10}),

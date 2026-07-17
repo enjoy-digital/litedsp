@@ -11,12 +11,14 @@ run through place-and-route and are gated on fmax.
 |---|---|---|---|
 | Lattice **ECP5** | OSS CAD Suite `2025-06-25` (Yosys 0.54+23, nextpnr 0.8-35) | Yosys `synth_ecp5` (OOC) + nextpnr-ecp5 + Trellis | `LFE5UM5G-85F` / CABGA381 |
 | **Xilinx** 7-series | Vivado 2025.2 | Vivado out-of-context synth + implementation | `xc7a200tsbg484-3` |
+| **Xilinx Artix UltraScale+** | Vivado 2025.2 | Vivado out-of-context synth + implementation | `xcau20p-ffvb676-2-e` |
 
 ## Running
 
 ```
 python3 impl/run.py --device ecp5   --flow synth                 # all blocks, Yosys (fast)
 python3 impl/run.py --device xilinx --flow synth --subset        # Vivado OOC synth (subset)
+python3 impl/run.py --device xilinx_au --flow synth              # Artix UltraScale+ OOC synth
 python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R -> fmax
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets

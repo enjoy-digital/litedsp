@@ -77,7 +77,7 @@ from for client-specific requirements.
 gigasample RX front-end), bit-identical to their serial counterparts. The parallel variants
 live next to their serial versions (`generation/nco_parallel.py`, ...).
 
-Per-block FPGA resource/fmax numbers (ECP5 + Artix-7): see `doc/resources.md`.
+Per-block FPGA resource/fmax numbers (ECP5 + Artix-7 + Artix UltraScale+): see `doc/resources.md`.
 
 [> Tooling
 ----------
@@ -91,7 +91,7 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7): see `doc/resources.md`.
 | Examples (`examples/`) | Assembled chains: DDC/DUC, spectrum analyzer, FM receiver, QPSK RX, wideband RX, PRBS loopback BER, AXI IP preview; YAML configs for the generator | `python3 examples/fm_receiver.py` |
 | Tests (`test/`)    | Golden-model harness: NumPy reference models, bit-exact/SNR checks under randomized backpressure | `python3 -m unittest discover -s test` |
 | Sim (`sim/`)       | Verilator (real HDL) co-simulation vs the NumPy models + full-registry lint sweep | `python3 sim/run_blocks.py` |
-| Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
+| Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7/Artix UltraScale+) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
 | Formal (`formal/`) | SymbiYosys proof of the stream fabric: no sample loss/duplication under arbitrary backpressure, stability while stalled | `python3 formal/run_formal.py` |
 | Char (`char/`)     | Quality characterization: SFDR/ENOB, ripple/attenuation, CIC droop error, image rejection, IMD3, settling — measured on the golden models, gated on quality budgets | `python3 char/run_char.py` |
 | Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |

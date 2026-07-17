@@ -66,14 +66,17 @@ def build_one(device, flow, name, build_root, seeds=None, pnr_timeout=1800):
                 except (ecp5.PNRTimeout, RuntimeError) as e:
                     failures.append((seed, str(e)))
             res["pnr"], res["pnr_stats"] = aggregate_pnr_runs(runs, failures)
-    else:
+    elif device in xilinx.PARTS:
         res = xilinx.synth(verilog, name, bd, impl=(flow == "pnr"), clock_ns=clock_ns,
-            timeout=pnr_timeout)
+            timeout=pnr_timeout, part=xilinx.PARTS[device])
+    else:
+        raise ValueError(f"unsupported implementation device: {device}")
     return res
 
 def main():
     parser = argparse.ArgumentParser(description="LiteDSP FPGA implementation flows (synth/P&R + budget gate).")
-    parser.add_argument("--device",         default="ecp5",              choices=["ecp5", "xilinx"], help="Target device/toolchain.")
+    parser.add_argument("--device",         default="ecp5",
+        choices=["ecp5", *xilinx.PARTS], help="Target device/toolchain/profile.")
     parser.add_argument("--flow",           default="synth",             choices=["synth", "pnr"],   help="Implementation flow.")
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--module",         default=None,        help="Single module name (default: all).")
@@ -130,7 +133,7 @@ def main():
         print(f"[ok] no missing budgets for {args.device}")
         return 0
 
-    tool_ok = {"ecp5": ecp5.have_yosys(), "xilinx": xilinx.have_vivado()}[args.device]
+    tool_ok = ecp5.have_yosys() if args.device == "ecp5" else xilinx.have_vivado()
     if not tool_ok:
         print(f"[skip] toolchain for {args.device} not installed")
         return 0
