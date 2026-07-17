@@ -24,6 +24,7 @@ python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
 python3 impl/run.py --device xilinx --flow pnr  --target-closed --target-gate # strict Artix targets
+python3 impl/run.py --device xilinx_au --flow pnr --target-closed --target-gate # strict AU+ targets
 python3 impl/run.py --device ecp5 --flow pnr --module fft_interleaved_x2 --repeat 3 --pnr-timeout 1800
 python3 impl/run.py --device ecp5   --flow synth --update-budgets # refresh the baseline
 ```
@@ -88,14 +89,16 @@ device-specific.
   serial/parallel CIC, AGC, and iterative-FFT configurations at 100 MHz while preserving their
   original compatibility modes. The folded streaming SDF FFT now also closes at half-rate, and
   its two-context interleaved composition closes at one aggregate sample per clock. Native P-wide
-  FFTs remain sub-100 MHz and require a hazard-bypassed recurrence pipeline rather than unsafe
-  register insertion. The reviewed options, trade-offs and acceptance criteria are tracked in
+  FFTs now use an explicit hazard-bypassed recurrence pipeline: this materially improves P=2
+  timing while preserving full lane rate, but does not close 100 MHz on ECP5 or Artix-7. The
+  reviewed options, trade-offs and acceptance criteria are tracked in
   [`timing_architecture.md`](timing_architecture.md).
-- **Vector SDF improves parallel FFT area, not its recurrence timing by itself.** A shared P-wide
-  feedback memory makes native P=2 31% smaller in ECP5 LUTs than the split P=2 implementation
-  and enables sustained P=4 operation. Both widths remain near 60 MHz because the same
-  feedback multiplier still lies between state updates; their 100 MHz objectives remain
-  distinct from their regression floors.
+- **Vector SDF needs an explicit recurrence pipeline.** A shared P-wide feedback memory enables
+  sustained P=2/P=4 operation. Registering its lane differences and four real twiddle products,
+  then bypassing same-address feedback hazards, raises P=2 from 63.0 to a 77.7 MHz ECP5 median
+  and from 82.4 to 97.7 MHz on Artix-7. The cost is 143 rather than 137 clocks of frame latency
+  and additional pipeline state; P=4 similarly moves from 61.2 to 67.8 MHz on ECP5. Their
+  100 MHz objectives remain distinct from their regression floors.
 - **The scalable PFB needs both algorithmic and timing architecture changes.** Replacing the
   M² direct DFT with a time-multiplexed radix-2 transform makes M>=16 practical, but its first
   memory-read/multiply schedule reached only 74.6 MHz. Registering read/difference, multiply,
@@ -108,6 +111,14 @@ The generated [`resources.md`](resources.md) table is the single source of curre
 timing budgets. Each device cell carries its own LUT/FF/BRAM/DSP counts and fmax regression floor,
 avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing. Per-block
 datasheets present the same data from `impl/budgets.json`.
+
+The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
+configurations pass out-of-context synthesis and all 35 representative configurations pass
+place-and-route. The 20 reviewed timing architectures close their 100 MHz targets on this
+profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
+are 64.4 MHz on ECP5, 22.4 MHz on Artix-7, and 42.2 MHz on Artix UltraScale+. Those values are
+integration regression measurements, not a false 100 MHz system-IP claim: its critical path is
+retained for a separate runtime-programmable FIR architecture pass.
 
 The fmax value is a **gate floor**, not the raw measured maximum. Implementation runs print their
 current raw result; updating a P&R budget records 85% of that result as margin for seed/tool noise.

@@ -181,8 +181,12 @@ class TestImplementationBudgets(unittest.TestCase):
              "timing_recovery", "cfr_pipelined"])
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, modules.PNR_SUBSET)
-            entry = data[name]["ecp5"]
-            self.assertGreaterEqual(entry["pnr"]["fmax_mhz"], entry["fmax_target"])
+            for device in ("ecp5", "xilinx", "xilinx_au"):
+                with self.subTest(name=name, device=device):
+                    entry = data[name][device]
+                    self.assertIn("fmax_target", entry)
+                    self.assertGreaterEqual(entry["pnr"]["fmax_mhz"],
+                        entry["fmax_target"])
 
 @unittest.skipUnless(ecp5.have_yosys(), "yosys not installed")
 class TestImplementationECP5(unittest.TestCase):
