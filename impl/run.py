@@ -21,6 +21,8 @@ import sys
 import argparse
 import statistics
 
+from concurrent.futures import ThreadPoolExecutor
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
@@ -46,6 +48,25 @@ def aggregate_pnr_runs(runs, failures):
         "failures": [{"seed": seed, "error": error} for seed, error in failures],
     }
     return selected[1], stats
+
+def build_many(names, builder, jobs=1):
+    """Run independent implementation builds concurrently and return ordered results/errors."""
+    results, errors = {}, {}
+    if jobs == 1:
+        futures = [(name, None) for name in names]
+    else:
+        executor = ThreadPoolExecutor(max_workers=jobs)
+        futures = [(name, executor.submit(builder, name)) for name in names]
+    try:
+        for name, future in futures:
+            try:
+                results[name] = builder(name) if future is None else future.result()
+            except Exception as e:
+                errors[name] = f"{type(e).__name__}: {e}"
+    finally:
+        if jobs != 1:
+            executor.shutdown(wait=True)
+    return results, errors
 
 def build_one(device, flow, name, build_root, seeds=None, pnr_timeout=1800):
     dut, ios, clock_ns = REGISTRY[name]()
@@ -97,6 +118,8 @@ def main():
         help="Run nextpnr with seeds 0..N-1; synthesize once and report route statistics.")
     parser.add_argument("--pnr-timeout", type=int, default=1800,
         help="Per-route timeout in seconds (default: 1800; 0 disables the timeout).")
+    parser.add_argument("--jobs", type=int, default=1,
+        help="Independent module builds to run concurrently (default: 1).")
     args = parser.parse_args()
 
     if args.seeds is not None:
@@ -115,6 +138,8 @@ def main():
     if seeds is not None and (args.device != "ecp5" or args.flow != "pnr"):
         parser.error("--seeds/--repeat are supported only for ECP5 P&R")
     pnr_timeout = None if args.pnr_timeout == 0 else args.pnr_timeout
+    if args.jobs < 1:
+        parser.error("--jobs must be >= 1")
 
     if args.module:
         names = [args.module]
@@ -138,17 +163,14 @@ def main():
         print(f"[skip] toolchain for {args.device} not installed")
         return 0
 
-    results, violations, target_misses, errors = {}, {}, {}, {}
-    for name in names:
-        try:
-            res = build_one(args.device, args.flow, name, args.build,
-                seeds=seeds, pnr_timeout=pnr_timeout)
-            results[name] = res
-            if not args.update_budgets:
-                violations[name] = budgets.check(args.device, name, res, flow=args.flow)
-                target_misses[name] = budgets.check_target(args.device, name, res)
-        except Exception as e:
-            errors[name] = f"{type(e).__name__}: {e}"
+    builder = lambda name: build_one(args.device, args.flow, name, args.build,
+        seeds=seeds, pnr_timeout=pnr_timeout)
+    results, errors = build_many(names, builder, jobs=args.jobs)
+    violations, target_misses = {}, {}
+    if not args.update_budgets:
+        for name, res in results.items():
+            violations[name] = budgets.check(args.device, name, res, flow=args.flow)
+            target_misses[name] = budgets.check_target(args.device, name, res)
 
     report.console(args.device, results, violations, target_misses)
     for name, res in results.items():

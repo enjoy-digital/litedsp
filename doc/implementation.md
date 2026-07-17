@@ -19,6 +19,7 @@ run through place-and-route and are gated on fmax.
 python3 impl/run.py --device ecp5   --flow synth                 # all blocks, Yosys (fast)
 python3 impl/run.py --device xilinx --flow synth --subset        # Vivado OOC synth (subset)
 python3 impl/run.py --device xilinx_au --flow synth              # Artix UltraScale+ OOC synth
+python3 impl/run.py --device xilinx_au --flow synth --jobs 2     # two licensed Vivado workers
 python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R -> fmax
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
@@ -42,6 +43,9 @@ For route-sensitive investigations, `--seeds` or `--repeat` synthesizes once and
 nextpnr variants, retaining per-seed logs and reporting worst/median/best fmax. Budget updates
 use the median completed route. `--pnr-timeout` bounds each nextpnr/Vivado invocation so a
 capacity-cliff design cannot stall a nightly job indefinitely.
+Independent modules can be built with `--jobs N`; results are collected in registry order and a
+single process updates the budget file after every worker completes. The default remains one job
+so CI runners with a single Vivado license are unchanged.
 Refreshing measured budgets preserves these manually reviewed targets. The CAD suite used by
 budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed subset that has
 already achieved its objective; CI reruns those blocks with strict target gating while targets

@@ -21,6 +21,16 @@ from impl import run as impl_run
 
 
 class TestImplementationBudgets(unittest.TestCase):
+    def test_parallel_builds_preserve_order_and_collect_errors(self):
+        def builder(name):
+            if name == "bad":
+                raise RuntimeError("expected")
+            return {"name": name}
+        results, errors = impl_run.build_many(["first", "bad", "last"], builder, jobs=2)
+        self.assertEqual(list(results), ["first", "last"])
+        self.assertEqual(results["last"], {"name": "last"})
+        self.assertEqual(errors, {"bad": "RuntimeError: expected"})
+
     def test_xilinx_profiles_use_distinct_reference_parts(self):
         self.assertEqual(xilinx.PARTS["xilinx"], "xc7a200tsbg484-3")
         self.assertEqual(xilinx.PARTS["xilinx_au"], "xcau20p-ffvb676-2-e")
