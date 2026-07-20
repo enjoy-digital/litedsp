@@ -19,10 +19,10 @@ coverage measures exercised lines, not data match.
     python3 sim/run_coverage.py nco gain       # A selection.
     python3 sim/run_coverage.py --min 90       # Gate: exit 1 if a non-waived block is < 90%.
 
-Waivers: ``sim/coverage_waivers.json`` maps block name -> reason string for documented
-exclusions from the ``--min`` gate (e.g. reset-only paths unreachable under the cosim
-stimulus). Waived blocks are still measured and shown in the table (marked ``waived``),
-they just never fail the gate. Keep the file pure JSON; document the *why* in the reason.
+Waivers: ``sim/coverage_waivers.json`` maps a block to a reason and named semantic unit checks
+for documented exclusions from the ``--min`` gate. The runner validates that each named check
+exists, so generated-line exclusions stay anchored to executable outcome coverage. Waived
+blocks are still measured and shown in the table; they just never fail the line gate.
 
 Results land in ``coverage.json`` (per-block pct + covered/total points + overall;
 ``--output`` overrides the path, default: repo root).
@@ -34,6 +34,7 @@ import json
 import shutil
 import argparse
 import subprocess
+import importlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -43,6 +44,28 @@ from sim.run_blocks  import run_block
 from sim.cosim_specs import SPECS, check_coverage
 
 WAIVERS_PATH = os.path.join(ROOT, "sim", "coverage_waivers.json")
+
+def load_waivers(path=WAIVERS_PATH):
+    """Load structured line-coverage waivers and resolve every semantic check."""
+    with open(path) as f:
+        waivers = json.load(f)
+    for name, waiver in waivers.items():
+        if not isinstance(waiver, dict) or not waiver.get("reason"):
+            raise ValueError(f"{name}: waiver requires a non-empty reason")
+        checks = waiver.get("semantic_checks")
+        if not isinstance(checks, list) or not checks:
+            raise ValueError(f"{name}: waiver requires semantic_checks")
+        for check in checks:
+            try:
+                module_name, object_path = check.split(":", 1)
+                obj = importlib.import_module(module_name)
+                for part in object_path.split("."):
+                    obj = getattr(obj, part)
+            except (ValueError, ImportError, AttributeError) as e:
+                raise ValueError(f"{name}: unresolved semantic check {check!r}") from e
+            if not callable(obj):
+                raise ValueError(f"{name}: semantic check {check!r} is not callable")
+    return waivers
 
 # Aggregation --------------------------------------------------------------------------------------
 
@@ -93,7 +116,8 @@ def console(results, waivers, min_pct):
     for name, (covered, total) in results.items():
         pct = 100.0*covered/total if total else 0.0
         if name in waivers:
-            status = f"waived ({waivers[name]})"
+            waiver = waivers[name]
+            status = f"waived ({len(waiver['semantic_checks'])} semantic checks: {waiver['reason']})"
         elif total == 0:
             status = "NO DATA"
         elif min_pct is not None and pct < min_pct:
@@ -122,8 +146,7 @@ def main(argv=None):
     for name in args.blocks:
         if name not in SPECS:
             parser.error(f"unknown block '{name}' (see run_blocks.py --list)")
-    with open(WAIVERS_PATH) as f:
-        waivers = json.load(f)
+    waivers = load_waivers()
 
     names   = args.blocks or list(SPECS)
     results = {name: cover_block(name, args.build_dir) for name in names}

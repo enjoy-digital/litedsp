@@ -1,4 +1,27 @@
 {
-  "ldpc_decoder": "The fixed 802.11n topology duplicates selector arms for every edge and layer; clean, noisy, max-iteration, clear, and failure vectors exercise the decoder outcomes without reaching every structurally repeated arm.",
-  "pfb_channelizer_fft": "Migen expands the DIF address and natural-order bit-reversal maps into exhaustive combinational case arms. Every stage and channel is checked numerically in framed co-simulation, but Verilator does not attribute line hits to all constant decode assignments."
+  "equalizer": {
+    "reason": "The four-entry delayed-update queue expands into mutually exclusive count/collision arms; all modes, freeze, legal collision behavior, and convergence are checked semantically and in bit-exact co-simulation.",
+    "semantic_checks": [
+      "test.test_equalizer:TestLMSEqualizer.test_pipelined_update_modes_bit_exact",
+      "test.test_equalizer:TestLMSEqualizer.test_pipelined_dd_queue_collision",
+      "test.test_equalizer:TestLMSEqualizer.test_pipelined_update_trained_convergence",
+      "test.test_equalizer:TestLMSEqualizer.test_cma_blind_convergence"
+    ]
+  },
+  "ldpc_decoder": {
+    "reason": "The fixed 802.11n topology duplicates selector arms for every edge and layer; outcome coverage is more meaningful than hitting every structurally repeated arm.",
+    "semantic_checks": [
+      "test.test_ldpc:TestLDPC.test_rtl_decoder_clean_early_termination",
+      "test.test_ldpc:TestLDPC.test_rtl_decoder_noisy_matches_model",
+      "test.test_ldpc:TestLDPC.test_rtl_decoder_failure_flag",
+      "test.test_ldpc:TestLDPC.test_model_correction",
+      "test.test_ldpc:TestLDPC.test_model_waterfall"
+    ]
+  },
+  "pfb_channelizer_fft": {
+    "reason": "Migen expands DIF addressing and natural-order bit reversal into exhaustive constant case arms that do not map cleanly to source-line coverage.",
+    "semantic_checks": [
+      "test.test_pfb_channelizer:TestPFBChannelizerBitExact.test_fft_architecture_bit_exact"
+    ]
+  }
 }
