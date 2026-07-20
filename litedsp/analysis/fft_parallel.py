@@ -393,6 +393,111 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
         )
 
 
+class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
+    """Vector SDF stage for ``D == P`` with the difference registered across phases.
+
+    This rank alternates a store beat and a butterfly beat.  The butterfly difference is not
+    needed until the following store beat, so register it before the twiddle multipliers and
+    complete that product in a second result register.  This separates subtract, DSP, and
+    rounding paths while retaining one accepted beat per clock.  The feedback registers only
+    need to hold the samples captured on store beats; the explicit result pipeline adds one
+    clock of rank latency.
+    """
+    def __init__(self, N, stage, n_samples=2, data_width=16, twiddle_width=16):
+        D = N >> (stage + 1)
+        check(D == n_samples, "commutated vector stage requires D == n_samples")
+        self.D       = D
+        self.latency = 2
+        self.sink    = stream.Endpoint(iq_layout(data_width, n_samples))
+        self.source  = stream.Endpoint(iq_layout(data_width, n_samples))
+
+        # # #
+
+        adv  = Signal()
+        xfer = Signal()
+        phase = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            self.sink.ready.eq(adv),
+            xfer.eq(self.sink.valid & adv),
+        ]
+        self.sync += If(xfer, phase.eq(~phase))
+
+        in_lanes  = iq_lanes(self.sink,   data_width, n_samples)
+        out_lanes = iq_lanes(self.source, data_width, n_samples)
+        state_i = [Signal((data_width, True)) for _ in range(n_samples)]
+        state_q = [Signal((data_width, True)) for _ in range(n_samples)]
+        diff_i  = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        diff_q  = [Signal((data_width + 1, True)) for _ in range(n_samples)]
+        mid_valid   = Signal()
+        mid_product = Signal()
+        mid_sum_i   = [Signal((data_width, True)) for _ in range(n_samples)]
+        mid_sum_q   = [Signal((data_width, True)) for _ in range(n_samples)]
+        prod_width  = data_width + twiddle_width + 2
+        mid_prod_i  = [Signal((prod_width, True)) for _ in range(n_samples)]
+        mid_prod_q  = [Signal((prod_width, True)) for _ in range(n_samples)]
+
+        cos_init = _twiddle_rom(D, math.cos, twiddle_width)
+        sin_init = _twiddle_rom(D, math.sin, twiddle_width)
+        sign = 1 << (twiddle_width - 1)
+        for k in range(n_samples):
+            xr = Signal((data_width, True))
+            xq = Signal((data_width, True))
+            self.comb += [xr.eq(in_lanes[k][0]), xq.eq(in_lanes[k][1])]
+
+            sum_i_full = Signal((data_width + 1, True))
+            sum_q_full = Signal((data_width + 1, True))
+            self.comb += [
+                sum_i_full.eq(state_i[k] + xr),
+                sum_q_full.eq(state_q[k] + xq),
+            ]
+            sum_i, _ = scaled(sum_i_full, 1, data_width)
+            sum_q, _ = scaled(sum_q_full, 1, data_width)
+
+            tr_v = cos_init[k] - (1 << twiddle_width) if cos_init[k] & sign else cos_init[k]
+            ti_v = sin_init[k] - (1 << twiddle_width) if sin_init[k] & sign else sin_init[k]
+            tr = Constant(tr_v, (twiddle_width, True))
+            ti = Constant(ti_v, (twiddle_width, True))
+            prod_i = Signal((prod_width, True))
+            prod_q = Signal((prod_width, True))
+            self.comb += [
+                prod_i.eq(diff_i[k]*tr - diff_q[k]*ti),
+                prod_q.eq(diff_i[k]*ti + diff_q[k]*tr),
+            ]
+            product_i, _ = scaled(mid_prod_i[k], twiddle_width, data_width)
+            product_q, _ = scaled(mid_prod_q[k], twiddle_width, data_width)
+
+            self.sync += [
+                If(xfer & ~phase,
+                    state_i[k].eq(xr),
+                    state_q[k].eq(xq),
+                ),
+                If(xfer & phase,
+                    diff_i[k].eq(state_i[k] - xr),
+                    diff_q[k].eq(state_q[k] - xq),
+                ),
+                If(adv & xfer,
+                    If(phase,
+                        mid_sum_i[k].eq(sum_i),
+                        mid_sum_q[k].eq(sum_q),
+                    ).Else(
+                        mid_prod_i[k].eq(prod_i),
+                        mid_prod_q[k].eq(prod_q),
+                    ),
+                ),
+                If(adv,
+                    out_lanes[k][0].eq(Mux(mid_product, product_i, mid_sum_i[k])),
+                    out_lanes[k][1].eq(Mux(mid_product, product_q, mid_sum_q[k])),
+                ),
+            ]
+
+        self.sync += If(adv,
+            self.source.valid.eq(mid_valid),
+            mid_valid.eq(self.sink.valid),
+            If(xfer, mid_product.eq(~phase)),
+        )
+
+
 class LiteDSPNativeParallelFFT(LiteXModule):
     """Native vector-SDF FFT with a sustained P=2 or P=4 samples/clock."""
     def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
@@ -416,8 +521,12 @@ class LiteDSPNativeParallelFFT(LiteXModule):
         stages = []
         for stage in range(log2_int(N)):
             D = N >> (stage + 1)
-            cls = _LiteDSPFFTVectorPipelinedStage \
-                if feedback_pipeline and D > n_samples else _LiteDSPFFTVectorStage
+            if feedback_pipeline and D > n_samples:
+                cls = _LiteDSPFFTVectorPipelinedStage
+            elif feedback_pipeline and D == n_samples:
+                cls = _LiteDSPFFTVectorCommutatedStage
+            else:
+                cls = _LiteDSPFFTVectorStage
             s = cls(N, stage, n_samples, data_width, twiddle_width)
             setattr(self.submodules, f"stage{stage}", s)
             stages.append(s)
