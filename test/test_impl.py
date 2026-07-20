@@ -13,6 +13,8 @@ just guards portability/compile-cleanliness in the normal test run. Skipped with
 import os
 import json
 import tempfile
+import threading
+import time
 import unittest
 from unittest import mock
 
@@ -30,6 +32,37 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertEqual(list(results), ["first", "last"])
         self.assertEqual(results["last"], {"name": "last"})
         self.assertEqual(errors, {"bad": "RuntimeError: expected"})
+
+    def test_parallel_verilog_generation_keeps_each_worker_directory(self):
+        observed = {}
+        state_lock = threading.Lock()
+        active = 0
+        peak_active = 0
+
+        def fake_to_verilog(dut, ios, name, build_dir):
+            nonlocal active, peak_active
+            with state_lock:
+                active += 1
+                peak_active = max(peak_active, active)
+            time.sleep(0.02)
+            observed[name] = os.getcwd()
+            with state_lock:
+                active -= 1
+
+        with tempfile.TemporaryDirectory() as tmp:
+            def builder(name):
+                path = os.path.join(tmp, name)
+                wrap.gen(name, None, set(), path)
+                return path
+            with mock.patch.object(wrap, "to_verilog", side_effect=fake_to_verilog):
+                results, errors = impl_run.build_many(["first", "second"], builder, jobs=2)
+            self.assertEqual(errors, {})
+            self.assertEqual(set(results), {"first", "second"})
+            self.assertEqual(observed, {
+                "first": os.path.join(tmp, "first"),
+                "second": os.path.join(tmp, "second"),
+            })
+            self.assertEqual(peak_active, 1)
 
     def test_xilinx_profiles_use_distinct_reference_parts(self):
         self.assertEqual(xilinx.PARTS["xilinx"], "xc7a200tsbg484-3")
