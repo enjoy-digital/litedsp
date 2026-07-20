@@ -229,7 +229,7 @@ class TestImplementationBudgets(unittest.TestCase):
              "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
              "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft",
-             "timing_recovery", "cfr_pipelined", "ddc_ip"])
+             "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip"])
         gated = set(modules.PNR_SUBSET) | set(modules.PNR_STABILITY)
         for name in modules.TARGET_CLOSED:
             self.assertIn(name, gated)

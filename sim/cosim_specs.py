@@ -184,6 +184,16 @@ def spec_moving_average():
     return dut, cols, n - 4, lambda c: [models.moving_average_model(np.array(c[0]), length_log2),
                                         models.moving_average_model(np.array(c[1]), length_log2)]
 
+def spec_equalizer():
+    from litedsp.filter.equalizer import LiteDSPLMSEqualizer
+    n, n_taps, mu_shift = 240, 7, 12
+    dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, mu_shift=mu_shift,
+        architecture="pipelined", update_pipeline=True, with_csr=False)
+    cols = _rand_cols(4, n, lo=-8000, hi=8000, seed=71)
+    return dut, cols, n - 8, lambda c: list(models.equalizer_model(
+        c[0], c[1], c[2], c[3], n_taps=n_taps, data_width=16, mu_shift=mu_shift,
+        adaptation_delay=5))
+
 def spec_pfb_channelizer():
     from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
     from litedsp.filter.design import firwin_lowpass
@@ -681,6 +691,7 @@ SPECS = {
     "iir_biquad":       spec_iir_biquad,
     "dc_blocker":       spec_dc_blocker,
     "moving_average":   spec_moving_average,
+    "equalizer":        spec_equalizer,
     "pfb_channelizer":  spec_pfb_channelizer,
     "pfb_channelizer_fft": spec_pfb_channelizer_fft,
     "downsampler":      spec_downsampler,

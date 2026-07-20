@@ -285,7 +285,8 @@ def lms_equalizer():
     return d, {d.train} | _eps(d.sink, d.source), 12.0
 
 def lms_equalizer_pipelined():
-    d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, architecture="pipelined", with_csr=False)
+    d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, architecture="pipelined",
+        update_pipeline=True, with_csr=False)
     # A small implementation margin keeps the reviewed 100 MHz target out of route noise.
     return d, {d.train} | _eps(d.sink, d.source), 9.8
 
@@ -542,7 +543,7 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
                  "goertzel_folded", "iir_biquad_folded",
                  "pfb_channelizer_folded", "pfb_channelizer_fft",
-                 "timing_recovery", "cfr_pipelined", "ddc_ip"]
+                 "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

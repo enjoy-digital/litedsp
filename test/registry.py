@@ -57,7 +57,7 @@ VSPEC = {
     "dc_blocker":         _v("dc_blocker_model",       cosim=True),
     "moving_average":     _v("moving_average_model",   cosim=True),
     "farrow":             _v(),
-    "equalizer":          _v("equalizer_model"),
+    "equalizer":          _v("equalizer_model", cosim=True),
     "notch":              _v(),
     "comb_filter":        _v(),
     "allpass":            _v(),

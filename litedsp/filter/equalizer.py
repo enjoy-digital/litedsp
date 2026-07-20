@@ -51,8 +51,9 @@ class LiteDSPLMSEqualizer(LiteXModule):
     Adaptation is *delayed LMS* (the standard hardware form). ``architecture="classic"``
     applies the previous sample's registered error/window. ``"pipelined"`` registers the FIR
     products, sum, modulus square, and selected error separately and applies it after four
-    accepted samples. Both retain one-sample-per-clock filter throughput; the latter adds two
-    output cycles and trades adaptation-loop delay and registers for shorter FIR/CMA cones.
+    accepted samples. ``update_pipeline=True`` adds a fifth accepted-sample delay by registering
+    the completed tap increments before the weight recurrence. All choices retain
+    one-sample-per-clock filter throughput; the pipelined architecture adds two output cycles.
 
     Parameters
     ----------
@@ -76,17 +77,25 @@ class LiteDSPLMSEqualizer(LiteXModule):
     architecture : str
         ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a four-sample
         adaptation delay with unchanged filter throughput and two additional output cycles.
+    update_pipeline : bool
+        Register the pipelined architecture's completed tap increments before applying them.
+        This makes the adaptation delay five accepted samples and cuts the multiplier/add tree
+        away from the weight-feedback edge. It is an explicit control-loop trade-off and does
+        not change filter-output latency or peak throughput.
     """
     def __init__(self, n_taps=5, data_width=16, wfrac=14, wint=4, mu_shift=20, cma_egain=0,
-        architecture="classic", with_csr=True):
+        architecture="classic", update_pipeline=False, with_csr=True):
         check(n_taps >= 1, "expected n_taps >= 1")
         check(0 <= cma_egain <= data_width - 1, "expected 0 <= cma_egain <= data_width - 1")
         check(architecture in ("classic", "pipelined"),
             "architecture must be 'classic' or 'pipelined'.")
+        check(not update_pipeline or architecture == "pipelined",
+            "update_pipeline requires architecture='pipelined'.")
         self.n_taps   = n_taps
         self.mu_shift = mu_shift                         # LMS step size: mu = 2**-mu_shift.
         self.architecture     = architecture
-        self.adaptation_delay = 1 if architecture == "classic" else 4
+        self.update_pipeline  = update_pipeline
+        self.adaptation_delay = 1 if architecture == "classic" else (5 if update_pipeline else 4)
         # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude
         # (saturated below); keeping ww = wint + wfrac <= 18 makes each weight*sample a single
         # 18x18 DSP. Stable equalizers have O(1) weights, so a few integer bits suffice.
@@ -371,11 +380,42 @@ class LiteDSPLMSEqualizer(LiteXModule):
             })
             update_ei, update_eq = update_ei[0], update_eq[0]
             update_xr, update_xi = update_xr[0], update_xi[0]
-        for k in range(n_taps):
-            self.sync += If(update_step & self.train,
-                wr[k].eq(saturated(wr[k] + ((update_ei*update_xr[k] + update_eq*update_xi[k]) >> mu_shift), ww)),
-                wi[k].eq(saturated(wi[k] + ((update_eq*update_xr[k] - update_ei*update_xi[k]) >> mu_shift), ww)),
+        if update_pipeline:
+            # Register the already-shifted increments at their bounded dynamic width. Each
+            # pre-shift sum has at most 2*data_width+2 signed bits, so the arithmetic right
+            # shift removes ``mu_shift`` significant bits (leaving at least a sign pair).
+            # This boundary removes both update multipliers and their add/subtract tree from
+            # the weight recurrence while keeping one update per accepted sample.
+            step_width = max(2, 2*data_width + 2 - mu_shift)
+            step_valid = Signal()
+            step_wr = [Signal((step_width, True)) for _ in range(n_taps)]
+            step_wi = [Signal((step_width, True)) for _ in range(n_taps)]
+            step_wr_full = [Signal((2*data_width + 2, True)) for _ in range(n_taps)]
+            step_wi_full = [Signal((2*data_width + 2, True)) for _ in range(n_taps)]
+            self.comb += [step_wr_full[k].eq(
+                update_ei*update_xr[k] + update_eq*update_xi[k]) for k in range(n_taps)]
+            self.comb += [step_wi_full[k].eq(
+                update_eq*update_xr[k] - update_ei*update_xi[k]) for k in range(n_taps)]
+            self.sync += If(xfer,
+                step_valid.eq(update_step),
+                If(update_step,
+                    *[step_wr[k].eq(saturated(
+                        step_wr_full[k] >> mu_shift, step_width)) for k in range(n_taps)],
+                    *[step_wi[k].eq(saturated(
+                        step_wi_full[k] >> mu_shift, step_width)) for k in range(n_taps)],
+                ),
             )
+            for k in range(n_taps):
+                self.sync += If(xfer & step_valid & self.train,
+                    wr[k].eq(saturated(wr[k] + step_wr[k], ww)),
+                    wi[k].eq(saturated(wi[k] + step_wi[k], ww)),
+                )
+        else:
+            for k in range(n_taps):
+                self.sync += If(update_step & self.train,
+                    wr[k].eq(saturated(wr[k] + ((update_ei*update_xr[k] + update_eq*update_xi[k]) >> mu_shift), ww)),
+                    wi[k].eq(saturated(wi[k] + ((update_eq*update_xr[k] - update_ei*update_xi[k]) >> mu_shift), ww)),
+                )
 
         # Output.
         # -------

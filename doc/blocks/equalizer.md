@@ -34,8 +34,9 @@ initialized to 1.0.
 Adaptation is *delayed LMS* (the standard hardware form). ``architecture="classic"``
 applies the previous sample's registered error/window. ``"pipelined"`` registers the FIR
 products, sum, modulus square, and selected error separately and applies it after four
-accepted samples. Both retain one-sample-per-clock filter throughput; the latter adds two
-output cycles and trades adaptation-loop delay and registers for shorter FIR/CMA cones.
+accepted samples. ``update_pipeline=True`` adds a fifth accepted-sample delay by registering
+the completed tap increments before the weight recurrence. All choices retain
+one-sample-per-clock filter throughput; the pipelined architecture adds two output cycles.
 
 ## Parameters
 
@@ -48,6 +49,7 @@ output cycles and trades adaptation-loop delay and registers for shorter FIR/CMA
 | `mu_shift` | `20` | int | LMS step-size exponent, mu = 2**-mu_shift (update uses a bare right shift). Larger = slower but more stable convergence with lower steady-state misadjustment. |
 | `cma_egain` | `0` | int | Log2 gain applied to the CMA error before its saturation, e = sat(y * dm * 2**cma_egain) with dm the modulus error R2 - mag(y)^2; other modes are unaffected. The CMA gradient scales as signal power times amplitude, so at operating levels well below full scale it is much smaller than the trained/DD error (~30x at 0.2 of full scale): set cma_egain so both land at a comparable magnitude and a single mu_shift serves blind acquisition and decision-directed tracking (each unit doubles the effective CMA step). 0 keeps the exact derived Q-format. |
 | `architecture` | `"classic"` | str | ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a four-sample adaptation delay with unchanged filter throughput and two additional output cycles. Choices: `classic`, `pipelined`. |
+| `update_pipeline` | `False` | bool | Register the pipelined architecture's completed tap increments before applying them. This makes the adaptation delay five accepted samples and cuts the multiplier/add tree away from the weight-feedback edge. It is an explicit control-loop trade-off and does not change filter-output latency or peak throughput. |
 
 ## Ports
 

@@ -480,8 +480,8 @@ def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14,
     gateware's frac-(W-1-cma_egain) rescale/round/saturate, 2 = DD nearest-QPSK at ``dd_level``), then
     apply a prior sample's error on its window snapshot (delayed LMS), gated by
     ``train``. ``mode`` and ``train`` accept scalars or per-sample sequences (runtime
-    switching). ``adaptation_delay`` selects the one-sample classic or four-sample pipelined
-    update distance. Returns (i, q) output arrays.
+    switching). ``adaptation_delay`` selects the one-sample classic, four-sample pipelined, or
+    five-sample update-pipelined distance. Returns (i, q) output arrays.
     """
     W  = data_width
     F  = W - 1                                          # Sample fractional bits (Q1.F).

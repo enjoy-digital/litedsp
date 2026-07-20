@@ -111,10 +111,11 @@ class TestLMSEqualizer(unittest.TestCase):
     # pre-mu error saturation is exercised) within the short run.
     def _run_bit_exact(self, samples, model_kwargs, controls, n_taps=5, mu_shift=12,
         cma_egain=0, extra=None, architecture="classic", adaptation_delay=1,
-        stream_kwargs=None):
+        update_pipeline=False, stream_kwargs=None):
         N   = len(samples)
         dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, wfrac=14, mu_shift=mu_shift,
-            cma_egain=cma_egain, architecture=architecture, with_csr=False)
+            cma_egain=cma_egain, architecture=architecture, update_pipeline=update_pipeline,
+            with_csr=False)
         gens = [_set_controls(dut, controls)] + (extra or [])
         cap  = run_stream(dut, samples, N, ["i", "q", "d_i", "d_q"], ["i", "q"],
             extra=gens, **(stream_kwargs or {}))
@@ -172,6 +173,45 @@ class TestLMSEqualizer(unittest.TestCase):
         self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
             {"mode": MODE_DD, "dd_level": 7000}, **common)
 
+    def test_pipelined_update_modes_bit_exact(self):
+        N = 240
+        sym, i, q = _qpsk_channel(N, seed=22)
+        d = np.concatenate([np.zeros(2, complex), sym])[:N]
+        common = {"n_taps": 7, "architecture": "pipelined", "update_pipeline": True,
+                  "adaptation_delay": 5,
+                  "stream_kwargs": {"sink_seed": 2, "source_seed": 3}}
+        dut = LiteDSPLMSEqualizer(architecture="pipelined", update_pipeline=True,
+            with_csr=False)
+        self.assertEqual(dut.latency, 3)
+        self.assertEqual(dut.adaptation_delay, 5)
+        self._run_bit_exact(_sink_samples(i, q, np.round(d.real).astype(int),
+            np.round(d.imag).astype(int)), {"mode": MODE_TRAINED}, {}, **common)
+        r2 = _r2(7000)
+        self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_CMA, "cma_r2": r2},
+            {"mode": MODE_CMA, "cma_r2": r2}, mu_shift=16, cma_egain=6, **common)
+        self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
+            {"mode": MODE_DD, "dd_level": 7000}, **common)
+
+    def test_pipelined_update_trained_convergence(self):
+        # The extra recurrence boundary changes the adaptation trajectory, so pin its quality
+        # independently of the short RTL/model identity vectors above.
+        n_taps, delay, amp, N = 7, 3, 7000, 6000
+        rng = np.random.RandomState(23)
+        sym = ((2*rng.randint(0, 2, N) - 1) + 1j*(2*rng.randint(0, 2, N) - 1))*amp
+        h   = np.array([1.0, 0.45, -0.25, 0.1])
+        x   = np.convolve(sym, h)[:N]
+        d   = np.concatenate([np.zeros(delay, complex), sym])[:N]
+        y_i, y_q = equalizer_model(np.round(x.real).astype(int), np.round(x.imag).astype(int),
+            np.round(d.real).astype(int), np.round(d.imag).astype(int), n_taps=n_taps,
+            mu_shift=20, adaptation_delay=5)
+        y = y_i + 1j*y_q
+        tail = slice(N - 1000, N)
+        dec = np.sign(y[tail].real) + 1j*np.sign(y[tail].imag)
+        ref = np.sign(d[tail].real) + 1j*np.sign(d[tail].imag)
+        self.assertLess(np.mean(dec != ref), 0.02)
+        self.assertLess(np.mean(np.abs(y[tail] - d[tail])**2),
+            np.mean(np.abs(x[N-1000:] - d[N-1000:])**2)/16)
+
     def test_pipelined_dd_queue_collision(self):
         # This fixed valid/ready pattern fills two pending-error slots, then consumes and pushes
         # on the same edge. It guards the conflict-free queue move independently of the rotating
@@ -185,6 +225,8 @@ class TestLMSEqualizer(unittest.TestCase):
     def test_invalid_architecture(self):
         with self.assertRaises(ValueError):
             LiteDSPLMSEqualizer(architecture="invalid", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPLMSEqualizer(update_pipeline=True, with_csr=False)
 
     # verify-tier: bound — blind CMA on a 2-tap ISI channel, no training data at all: the
     # constant-modulus dispersion (|y|^2 - R2)^2 must fall and the eye must open. Measured at

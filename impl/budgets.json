@@ -3183,70 +3183,70 @@
     "ecp5": {
       "bram": 0,
       "dsp": 56,
-      "ff": 2666,
-      "fmax_mhz": 99.8,
-      "fmax_min": 84.8,
+      "ff": 2863,
+      "fmax_mhz": 116.8,
+      "fmax_min": 99.3,
       "fmax_target": 100.0,
-      "lut": 3711,
+      "lut": 3894,
       "pnr": {
         "bram": 0,
         "dsp": 56,
-        "ff": 2666,
-        "fmax_mhz": 99.8,
-        "fmax_min": 84.8,
-        "lut": 3711
+        "ff": 2863,
+        "fmax_mhz": 116.8,
+        "fmax_min": 99.3,
+        "lut": 3894
       },
       "synth": {
         "bram": 0,
         "dsp": 56,
-        "ff": 2666,
-        "lut": 3671
+        "ff": 2863,
+        "lut": 3894
       }
     },
     "xilinx": {
       "bram": 0,
       "dsp": 59,
-      "ff": 1642,
-      "fmax_mhz": 105.7,
-      "fmax_min": 89.9,
+      "ff": 1993,
+      "fmax_mhz": 116.7,
+      "fmax_min": 99.2,
       "fmax_target": 100.0,
-      "lut": 1280,
+      "lut": 1353,
       "pnr": {
         "bram": 0,
         "dsp": 59,
-        "ff": 1642,
-        "fmax_mhz": 105.7,
-        "fmax_min": 89.9,
-        "lut": 1280
+        "ff": 1993,
+        "fmax_mhz": 116.7,
+        "fmax_min": 99.2,
+        "lut": 1353
       },
       "synth": {
         "bram": 0,
         "dsp": 59,
-        "ff": 1642,
-        "lut": 1285
+        "ff": 1993,
+        "lut": 1498
       }
     },
     "xilinx_au": {
       "bram": 0,
       "dsp": 59,
-      "ff": 1642,
-      "fmax_mhz": 201.7,
-      "fmax_min": 171.4,
+      "ff": 1993,
+      "fmax_mhz": 205.6,
+      "fmax_min": 174.8,
       "fmax_target": 100.0,
-      "lut": 1281,
+      "lut": 1351,
       "pnr": {
         "bram": 0,
         "dsp": 59,
-        "ff": 1642,
-        "fmax_mhz": 201.7,
-        "fmax_min": 171.4,
-        "lut": 1281
+        "ff": 1993,
+        "fmax_mhz": 205.6,
+        "fmax_min": 174.8,
+        "lut": 1351
       },
       "synth": {
         "bram": 0,
         "dsp": 59,
-        "ff": 1642,
-        "lut": 1288
+        "ff": 1993,
+        "lut": 1377
       }
     }
   },
