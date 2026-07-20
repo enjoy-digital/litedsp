@@ -20,7 +20,10 @@ from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer
 from litedsp.comm.phase_detect    import LiteDSPPhaseDetect
 from litedsp.comm.pll             import LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas
 from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer
-from litedsp.comm.rs              import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.rs              import (
+    LiteDSPRSEncoder, LiteDSPRSDecoder,
+    LiteDSPCCSDSRSEncoder, LiteDSPCCSDSRSDecoder,
+)
 from litedsp.comm.slicer          import LiteDSPSlicer
 from litedsp.comm.soft_demap      import LiteDSPSoftDemapper
 from litedsp.comm.timing_recovery import LiteDSPTimingRecovery

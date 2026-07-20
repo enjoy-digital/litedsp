@@ -462,6 +462,43 @@ def spec_rs_decoder():
 def spec_rs_decoder_pipelined():
     return _spec_rs_decoder(architecture="pipelined")
 
+def spec_ccsds_rs_encoder():
+    from litedsp.comm.rs import LiteDSPCCSDSRSEncoder
+    n, k = 255, 223
+    dut = LiteDSPCCSDSRSEncoder(with_csr=False)
+    data = _rand_cols(1, k, lo=0, hi=255, seed=47)[0]
+    first = [1] + [0]*(k - 1)
+    last = [0]*(k - 1) + [1]
+    out_first = [1] + [0]*(n - 1)
+    out_last = [0]*(n - 1) + [1]
+    return dut, [data, first, last], n, lambda c: [
+        models.ccsds_rs_encode_model(c[0]), out_first, out_last], True, True
+
+def spec_ccsds_rs_decoder():
+    from litedsp.comm.rs import LiteDSPCCSDSRSDecoder
+    n, k = 255, 223
+    messages = [_rand_cols(1, k, lo=0, hi=255, seed=seed)[0]
+                for seed in (49, 50, 51, 52)]
+    blocks = [models.ccsds_rs_encode_model(message) for message in messages]
+    blocks[1][17] ^= 0x53
+    blocks[1][211] ^= 0xa6
+    rng = np.random.default_rng(72)
+    for position in rng.choice(n, 16, replace=False):
+        blocks[2][int(position)] ^= int(rng.integers(1, 256))
+    rng = np.random.default_rng(73)
+    for position in rng.choice(n, 17, replace=False):
+        blocks[3][int(position)] ^= int(rng.integers(1, 256))
+    expected = [byte for block in blocks for byte in models.ccsds_rs_decode_model(block)[0]]
+    received = [byte for block in blocks for byte in block]
+    dut = LiteDSPCCSDSRSDecoder(with_csr=False, architecture="pipelined")
+    first = [int(i % n == 0) for i in range(4*n)]
+    last = [int(i % n == n - 1) for i in range(4*n)]
+    clear = [int(i == 3*n) for i in range(4*n)]
+    out_first = [int(i % k == 0) for i in range(4*k)]
+    out_last = [int(i % k == k - 1) for i in range(4*k)]
+    return dut, [received, first, last, clear], 4*k, lambda c: [
+        expected, out_first, out_last], True, True, (dut.clear,)
+
 def spec_ldpc_encoder():
     from litedsp.comm.ldpc import LiteDSPLDPCEncoder, LDPC_K, LDPC_N
     dut  = LiteDSPLDPCEncoder(with_csr=False)
@@ -722,6 +759,8 @@ SPECS = {
     "rs_encoder":        spec_rs_encoder,
     "rs_decoder":        spec_rs_decoder,
     "rs_decoder_pipelined": spec_rs_decoder_pipelined,
+    "ccsds_rs_encoder": spec_ccsds_rs_encoder,
+    "ccsds_rs_decoder": spec_ccsds_rs_decoder,
     "ldpc_encoder":      spec_ldpc_encoder,
     "ldpc_decoder":      spec_ldpc_decoder,
     "correlator":       spec_correlator,

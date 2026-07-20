@@ -71,7 +71,10 @@ from litedsp.comm.coding           import LiteDSPScrambler, LiteDSPDescrambler, 
 from litedsp.comm.interleaver      import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.viterbi          import LiteDSPViterbiDecoder
 from litedsp.comm.puncture         import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
-from litedsp.comm.rs               import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.rs               import (
+    LiteDSPRSEncoder, LiteDSPRSDecoder,
+    LiteDSPCCSDSRSEncoder, LiteDSPCCSDSRSDecoder,
+)
 from litedsp.comm.ldpc             import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
 from litedsp.comm.ofdm             import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.comm.ofdm_eq          import LiteDSPOFDMEqualizer
@@ -187,6 +190,8 @@ ENTRIES = [
     ("block_deinterleaver", LiteDSPBlockDeinterleaver,   {},                                     "comm",       "Block deinterleaver",   None),
     ("rs_encoder",         LiteDSPRSEncoder,             {},                                     "comm",       "RS encoder (255,k)",    None),
     ("rs_decoder",         LiteDSPRSDecoder,             {},                                     "comm",       "RS decoder (255,k)",    {"architecture": ["classic", "pipelined"]}),
+    ("ccsds_rs_encoder",   LiteDSPCCSDSRSEncoder,        {},                                     "comm",       "CCSDS RS encoder",      None),
+    ("ccsds_rs_decoder",   LiteDSPCCSDSRSDecoder,        {},                                     "comm",       "CCSDS RS decoder",      {"architecture": ["classic", "pipelined"]}),
     ("ldpc_encoder",       LiteDSPLDPCEncoder,           {},                                     "comm",       "LDPC encoder (802.11n)", None),
     ("ldpc_decoder",       LiteDSPLDPCDecoder,           {},                                     "comm",       "LDPC decoder (802.11n)", None),
     ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),

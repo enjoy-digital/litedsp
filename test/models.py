@@ -830,9 +830,7 @@ def depuncture_model(llrs, pattern, n=2, llr_bits=4, phase=0):
 
 # Reed-Solomon (GF(2^8)) ----------------------------------------------------------------------------
 #
-# Conventional-basis RS over GF(2^8) with field polynomial 0x11D (alpha = 2) and generator
-# roots alpha^0 .. alpha^(2t-1) (fcr = 0) — the litedsp.comm.rs conventions (CCSDS 131.0-B uses
-# 0x187 with dual-basis symbols; a basis-conversion wrapper is a documented follow-up there).
+# Conventional-basis RS over GF(2^8), plus the CCSDS 131.0-B-5 dual-basis profile.
 
 RS_GF_POLY = 0x11D
 
@@ -862,20 +860,20 @@ def gf_tables(poly=RS_GF_POLY):
     exp[255] = 1
     return exp, log
 
-def rs_generator(n_parity, fcr=0):
-    """RS generator polynomial g(x) = prod (x - alpha^(fcr+i)), ascending coefficients (monic)."""
-    exp, _ = gf_tables()
+def rs_generator(n_parity, fcr=0, prim=1, poly=RS_GF_POLY):
+    """RS generator polynomial with roots alpha**((fcr+i)*prim), ascending coefficients."""
+    exp, _ = gf_tables(poly)
     g = [1]
     for i in range(n_parity):
-        root = exp[(fcr + i) % 255]
+        root = exp[((fcr + i)*prim) % 255]
         ng = [0]*(len(g) + 1)
         for j, c in enumerate(g):
-            ng[j]     ^= gf_mul(c, root)
+            ng[j]     ^= gf_mul(c, root, poly)
             ng[j + 1] ^= c
         g = ng
     return g
 
-def rs_encode_model(message, n=255, k=223):
+def rs_encode_model(message, n=255, k=223, poly=RS_GF_POLY, fcr=0, prim=1):
     """Reference for litedsp.comm.rs.LiteDSPRSEncoder: k message bytes -> n-byte codeword.
 
     Systematic LFSR division by g(x); the 2t parity bytes follow the message, highest-degree
@@ -883,14 +881,15 @@ def rs_encode_model(message, n=255, k=223):
     """
     assert len(message) == k
     n_par = n - k
-    g = rs_generator(n_par)
+    g = rs_generator(n_par, fcr=fcr, prim=prim, poly=poly)
     p = [0]*n_par                       # p[i] = coefficient of x^i of the running remainder.
     for byte in message:
         fb = int(byte) ^ p[-1]
-        p  = [gf_mul(fb, g[0])] + [p[i - 1] ^ gf_mul(fb, g[i]) for i in range(1, n_par)]
+        p  = [gf_mul(fb, g[0], poly)] + [
+            p[i - 1] ^ gf_mul(fb, g[i], poly) for i in range(1, n_par)]
     return [int(byte) for byte in message] + p[::-1]
 
-def rs_decode_model(codeword, n=255, k=223):
+def rs_decode_model(codeword, n=255, k=223, poly=RS_GF_POLY, fcr=0, prim=1):
     """Reference for litedsp.comm.rs.LiteDSPRSDecoder; returns ``(message, corrected, uncorrectable)``.
 
     Full hard-decision decode (syndromes, Berlekamp-Massey, Chien, Forney), mirroring the
@@ -899,16 +898,17 @@ def rs_decode_model(codeword, n=255, k=223):
     bit-for-bit. An uncorrectable block returns the received message bytes unmodified with
     ``corrected = 0``.
     """
-    exp, log = gf_tables()
+    exp, log = gf_tables(poly)
     n_par = n - k
     t     = n_par//2
     rx    = [int(byte) for byte in codeword]
     assert len(rx) == n
 
-    # Syndromes S_i = r(alpha^i) (Horner; arrival order = highest-degree coefficient first).
+    # Syndromes S_i = r(alpha**((fcr+i)*prim)).
     synd = [0]*n_par
     for byte in rx:
-        synd = [gf_mul(synd[i], exp[i]) ^ byte for i in range(n_par)]
+        synd = [gf_mul(synd[i], exp[((fcr + i)*prim) % 255], poly) ^ byte
+                for i in range(n_par)]
     if not any(synd):
         return rx[:k], 0, False
 
@@ -919,15 +919,15 @@ def rs_decode_model(codeword, n=255, k=223):
     for r in range(n_par):
         d = 0
         for j in range(min(r, t) + 1):
-            d ^= gf_mul(lam[j], synd[r - j])
+            d ^= gf_mul(lam[j], synd[r - j], poly)
         if d == 0:
             m += 1
             continue
-        coef = gf_mul(d, exp[255 - log[b]])          # d/b via the log/antilog tables.
+        coef = gf_mul(d, exp[255 - log[b]], poly)    # d/b via the log/antilog tables.
         swap = 2*L <= r
         old  = list(lam)
         for j in range(t + 1):
-            lam[j] ^= gf_mul(coef, B[j - m]) if j >= m else 0
+            lam[j] ^= gf_mul(coef, B[j - m], poly) if j >= m else 0
         if swap:
             B, L, b, m = old, r + 1 - L, d, 1
         else:
@@ -939,12 +939,14 @@ def rs_decode_model(codeword, n=255, k=223):
     omg = [0]*t
     for j in range(t):
         for l in range(j + 1):
-            omg[j] ^= gf_mul(synd[l], lam[j - l])
+            omg[j] ^= gf_mul(synd[l], lam[j - l], poly)
 
-    # Chien scan over all n positions (X = alpha^i <-> coefficient of x^i, buffer index
-    # n-1-i) with Forney magnitudes Omega(X^-1)/odd(lambda(X^-1)) (the fcr = 0 form).
+    # Scan coefficient position i at x = alpha**(-prim*i). The Forney numerator carries
+    # x**fcr, which is unity for the default code and restores the CCSDS fcr weighting.
     q = list(lam)
     o = list(omg)
+    x_fcr = 1
+    x_fcr_step = exp[(-prim*fcr) % 255]
     roots, anomaly = [], False
     for i in range(n):
         odd  = 0
@@ -961,15 +963,53 @@ def rs_decode_model(codeword, n=255, k=223):
                 om_val = 0
                 for j in range(t):
                     om_val ^= o[j]
-                roots.append((n - 1 - i, gf_mul(om_val, exp[255 - log[odd]])))
-        q = [gf_mul(q[j], exp[(255 - j) % 255]) for j in range(t + 1)]
-        o = [gf_mul(o[j], exp[(255 - j) % 255]) for j in range(t)]
+                numerator = gf_mul(om_val, x_fcr, poly)
+                roots.append((n - 1 - i,
+                    gf_mul(numerator, exp[255 - log[odd]], poly)))
+        q = [gf_mul(q[j], exp[(-prim*j) % 255], poly) for j in range(t + 1)]
+        o = [gf_mul(o[j], exp[(-prim*j) % 255], poly) for j in range(t)]
+        x_fcr = gf_mul(x_fcr, x_fcr_step, poly)
 
     if anomaly or len(roots) != L:
         return rx[:k], 0, True
     for idx, mag in roots:
         rx[idx] ^= mag
     return rx[:k], len(roots), False
+
+CCSDS_GF_POLY = 0x187
+CCSDS_FCR     = 112
+CCSDS_PRIM    = 11
+
+def ccsds_basis_tables():
+    """Conventional-alpha <-> CCSDS Berlekamp dual-basis symbol maps (Annex F)."""
+    tal = (0x8d, 0xef, 0xec, 0x86, 0xfa, 0x99, 0xaf, 0x7b)
+    to_dual = [0]*256
+    to_conventional = [0]*256
+    for value in range(256):
+        mapped = 0
+        for out_bit in range(8):
+            for in_bit in range(8):
+                if value & (1 << in_bit):
+                    mapped ^= tal[7 - in_bit] & (1 << out_bit)
+        to_dual[value] = mapped
+        to_conventional[mapped] = value
+    return to_dual, to_conventional
+
+CCSDS_TO_DUAL, CCSDS_TO_CONVENTIONAL = ccsds_basis_tables()
+
+def ccsds_rs_encode_model(message):
+    """CCSDS RS(255,223): dual-basis message bytes to a dual-basis systematic codeword."""
+    conventional = [CCSDS_TO_CONVENTIONAL[int(byte)] for byte in message]
+    codeword = rs_encode_model(conventional, poly=CCSDS_GF_POLY,
+        fcr=CCSDS_FCR, prim=CCSDS_PRIM)
+    return [CCSDS_TO_DUAL[byte] for byte in codeword]
+
+def ccsds_rs_decode_model(codeword):
+    """Decode a CCSDS dual-basis RS(255,223) codeword."""
+    conventional = [CCSDS_TO_CONVENTIONAL[int(byte)] for byte in codeword]
+    message, corrected, uncorrectable = rs_decode_model(conventional, poly=CCSDS_GF_POLY,
+        fcr=CCSDS_FCR, prim=CCSDS_PRIM)
+    return [CCSDS_TO_DUAL[byte] for byte in message], corrected, uncorrectable
 
 # Differential Encoder / Decoder -------------------------------------------------------------------
 

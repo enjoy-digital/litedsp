@@ -21,15 +21,30 @@ from migen import run_simulation, passive
 
 from litex.gen import LiteXModule
 
-from litedsp.comm.rs import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.rs import (
+    LiteDSPRSEncoder, LiteDSPRSDecoder,
+    LiteDSPCCSDSRSEncoder, LiteDSPCCSDSRSDecoder,
+)
 
 from test.common import stream_driver, stream_capture
-from test.models import gf_mul, gf_tables, rs_generator, rs_encode_model, rs_decode_model
+from test.models import (
+    gf_mul, gf_tables, rs_generator, rs_encode_model, rs_decode_model,
+    CCSDS_TO_DUAL, CCSDS_TO_CONVENTIONAL,
+    ccsds_rs_encode_model, ccsds_rs_decode_model,
+)
 
 # Known-answer parity for the ramp message 0, 1, ..., 222 through RS(255, 223) (0x11D, fcr = 0),
 # pinned once from the model: regression anchor for the field/generator conventions.
 KAT_PARITY = [65, 132, 17, 131, 177, 31, 219, 83, 116, 33, 147, 150, 150, 205, 167, 14,
               29, 181, 200, 102, 132, 175, 34, 37, 100, 184, 156, 198, 6, 159, 23, 46]
+
+# Independent libfec ``encode_rs_ccsds`` result for the dual-basis ramp message 0..222.
+CCSDS_KAT_PARITY = [
+    0x4f, 0xfb, 0x92, 0xdd, 0x55, 0x7e, 0xc6, 0x7f,
+    0x27, 0xfb, 0x89, 0x82, 0xcf, 0x58, 0xf8, 0xfd,
+    0x02, 0x8a, 0xd1, 0x17, 0xfc, 0xef, 0x6b, 0x27,
+    0x93, 0xd0, 0x41, 0x88, 0x26, 0x57, 0x86, 0x51,
+]
 
 def _corrupt(codeword, positions, seed):
     """Flip ``positions`` of ``codeword`` with random nonzero error magnitudes."""
@@ -109,6 +124,29 @@ class TestRS(unittest.TestCase):
     def test_encode_known_answer(self):
         cw = rs_encode_model([i & 0xFF for i in range(223)], 255, 223)
         self.assertEqual(cw[223:], KAT_PARITY)
+
+    # verify-tier: trace — CCSDS Annex-F basis maps and an independently generated libfec
+    # RS(255,223) codeword pin the standard's field/root/dual-basis conventions.
+    def test_ccsds_basis_and_known_answer(self):
+        samples = {0x00: 0x00, 0x01: 0x7b, 0x02: 0xaf, 0x03: 0xd4,
+                   0x55: 0x8b, 0xaa: 0x34, 0xff: 0xbf}
+        for conventional, dual in samples.items():
+            self.assertEqual(CCSDS_TO_DUAL[conventional], dual)
+            self.assertEqual(CCSDS_TO_CONVENTIONAL[dual], conventional)
+        for value in range(256):
+            self.assertEqual(CCSDS_TO_CONVENTIONAL[CCSDS_TO_DUAL[value]], value)
+        message = list(range(223))
+        codeword = ccsds_rs_encode_model(message)
+        self.assertEqual(codeword[:223], message)
+        self.assertEqual(codeword[223:], CCSDS_KAT_PARITY)
+
+    # verify-tier: model — the generalized decoder corrects CCSDS dual-basis symbols and
+    # reports the exact number of symbol errors.
+    def test_ccsds_model_correction(self):
+        message = self._random_message(223, seed=81)
+        codeword = ccsds_rs_encode_model(message)
+        received = _corrupt(codeword, (0, 57, 222, 254), seed=81)
+        self.assertEqual(ccsds_rs_decode_model(received), (message, 4, False))
 
     # verify-tier: model — exhaustive-ish t = 2 coverage: all strided single and double error
     # positions/magnitudes decode back to the message with the right corrected count.
@@ -192,6 +230,19 @@ class TestRS(unittest.TestCase):
         ])
         self.assertEqual([c["data"] for c in cap], rs_encode_model(msg, 255, 223))
 
+    # verify-tier: trace — the dual-basis RTL encoder reproduces the independent libfec KAT.
+    def test_rtl_ccsds_encoder_known_answer(self):
+        message = list(range(223))
+        dut = LiteDSPCCSDSRSEncoder(with_csr=False)
+        cap = []
+        run_simulation(dut, [
+            stream_driver(dut.sink, [{"data": b} for b in message], ("data",), throttle=0.1),
+            stream_capture(dut.source, cap, 255, ("data", "first", "last"), ready_rate=0.8),
+        ])
+        self.assertEqual([c["data"] for c in cap], message + CCSDS_KAT_PARITY)
+        self.assertEqual([c["first"] for c in cap], [1] + [0]*254)
+        self.assertEqual([c["last"] for c in cap], [0]*254 + [1])
+
     # verify-tier: model — decoder RTL over four back-to-back t = 2 blocks: clean, correctable
     # (2 errors), 3-error flagged uncorrectable, 3-error miscorrecting (bounded-distance), each
     # byte-exact vs the model including the per-block status/counters (state re-init coverage).
@@ -257,6 +308,38 @@ class TestRS(unittest.TestCase):
         pipelined = LiteDSPRSDecoder(n=n, k=k, with_csr=False, architecture="pipelined")
         t = (n - k)//2
         self.assertEqual(pipelined.cycles_per_block, classic.cycles_per_block + 3*n + 7*t)
+
+    # verify-tier: model — the pipelined CCSDS wrapper corrects dual-basis channel symbols
+    # byte-exactly and preserves the generic decoder status interface.
+    def test_rtl_ccsds_decoder(self):
+        message = self._random_message(223, seed=82)
+        received = _corrupt(ccsds_rs_encode_model(message), (7, 199), seed=82)
+        expected = ccsds_rs_decode_model(received)
+        self.assertEqual(expected, (message, 2, False))
+        dut = LiteDSPCCSDSRSDecoder(with_csr=False, architecture="pipelined")
+        cap, status = [], []
+        run_simulation(dut, [
+            stream_driver(dut.sink, [{"data": b} for b in received], ("data",), throttle=0.1),
+            stream_capture(dut.source, cap, 223, ("data",), ready_rate=0.8),
+            _status_monitor(dut, status),
+        ])
+        self.assertEqual([c["data"] for c in cap], message)
+        self.assertEqual(status, [(2, 0, 0, 2)])
+
+    # verify-tier: model — the compact Chien schedule also applies the nonzero-fcr Forney
+    # factor correctly (the implementation target above uses the pipelined schedule).
+    def test_rtl_ccsds_decoder_classic(self):
+        message = self._random_message(223, seed=83)
+        received = _corrupt(ccsds_rs_encode_model(message), (254,), seed=83)
+        dut = LiteDSPCCSDSRSDecoder(with_csr=False, architecture="classic")
+        cap, status = [], []
+        run_simulation(dut, [
+            stream_driver(dut.sink, [{"data": b} for b in received], ("data",)),
+            stream_capture(dut.source, cap, 223, ("data",)),
+            _status_monitor(dut, status),
+        ])
+        self.assertEqual([c["data"] for c in cap], message)
+        self.assertEqual(status, [(1, 0, 0, 1)])
 
     # verify-tier: model — RTL encoder -> RTL decoder chain (t = 2): framing interoperates and
     # the message round-trips exactly with clean status.

@@ -71,7 +71,10 @@ from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer
 from litedsp.comm.interleaver     import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
 from litedsp.comm.viterbi         import LiteDSPViterbiDecoder
-from litedsp.comm.rs              import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.rs              import (
+    LiteDSPRSEncoder, LiteDSPRSDecoder,
+    LiteDSPCCSDSRSEncoder, LiteDSPCCSDSRSDecoder,
+)
 from litedsp.comm.ldpc            import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -362,6 +365,15 @@ def rs_decoder():
     return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count,
                d.clear} | _eps(d.sink, d.source), 12.0
 
+def ccsds_rs_encoder():
+    d = LiteDSPCCSDSRSEncoder(with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def ccsds_rs_decoder():
+    d = LiteDSPCCSDSRSDecoder(with_csr=False, architecture="pipelined")
+    return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count,
+               d.clear} | _eps(d.sink, d.source), 12.0
+
 def ldpc_encoder():
     d = LiteDSPLDPCEncoder(with_csr=False)                   # 802.11n (648, 324), z=27.
     return d, _eps(d.sink, d.source), 10.0
@@ -505,6 +517,7 @@ REGISTRY = {
     "viterbi_decoder": viterbi_decoder, "viterbi_decoder_soft": viterbi_decoder_soft,
     "block_interleaver": block_interleaver, "block_deinterleaver": block_deinterleaver,
     "rs_encoder": rs_encoder, "rs_decoder": rs_decoder,
+    "ccsds_rs_encoder": ccsds_rs_encoder, "ccsds_rs_decoder": ccsds_rs_decoder,
     "ldpc_encoder": ldpc_encoder, "ldpc_decoder": ldpc_decoder,
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
@@ -525,7 +538,7 @@ REGISTRY = {
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "ddc",
               "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
-              "rs_decoder",
+              "rs_decoder", "ccsds_rs_decoder",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "fft_parallel_native_x2",
@@ -544,7 +557,7 @@ PNR_STABILITY = ["dpd"]
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
 TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder",
-                 "rs_decoder",
+                 "rs_decoder", "ccsds_rs_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",

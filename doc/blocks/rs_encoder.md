@@ -12,7 +12,8 @@ The k message bytes pass straight through (highest-degree coefficient first) whi
 2t-stage LFSR divides by g(x); the 2t parity bytes then drain highest-degree first.
 Message boundaries are counted from reset (sink ``first``/``last`` ignored); the output
 codeword is framed with ``first``/``last``. See the module docstring for the field and
-generator-polynomial conventions (0x11D, fcr = 0; conventional basis, not CCSDS dual-basis).
+generator-polynomial conventions. Symbols use the conventional polynomial basis; use
+``LiteDSPCCSDSRSEncoder`` for the standard CCSDS dual-basis stream representation.
 
 ## Parameters
 
@@ -20,6 +21,9 @@ generator-polynomial conventions (0x11D, fcr = 0; conventional basis, not CCSDS 
 |---|---|---|---|
 | `n` | `255` | int | Codeword length in symbols (bytes); fixed at 255, the native RS length over GF(2^8). |
 | `k` | `223` | int | Message length in symbols; n - k = 2t parity symbols are appended (n - k even, t = (n - k)/2 in 1..16; default RS(255, 223), t = 16). |
+| `field_poly` | `285` | int | Degree-8 primitive field polynomial (default 0x11D). |
+| `fcr` | `0` | int | First consecutive generator-root index (default 0). |
+| `prim` | `1` | int | Root exponent step, coprime with 255 (default 1). |
 
 ## Ports
 

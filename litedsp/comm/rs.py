@@ -6,16 +6,10 @@
 
 """Reed-Solomon RS(255, k) codec over GF(2^8): systematic encoder + full hard-decision decoder.
 
-Field: GF(2^8) built on the conventional primitive polynomial 0x11D (x^8 + x^4 + x^3 + x^2 + 1,
-generator alpha = 2) — the polynomial used by QR codes, DVB-T outer coding and most storage
-codes. The generator polynomial is g(x) = prod_{i=0}^{2t-1} (x - alpha^(fcr + i)) with fcr = 0
-(roots alpha^0 .. alpha^(2t-1)), the common textbook/reference convention.
-
-CCSDS note: CCSDS 131.0-B RS(255,223) specifies the field polynomial 0x187 with a *dual-basis*
-(Berlekamp) symbol representation. This implementation is the conventional-basis codec —
-byte-compatible with 0x11D/fcr=0 systems, not bit-compatible with a CCSDS channel without a
-basis-conversion stage. A dual-basis conversion wrapper (per-symbol 8x8 linear map at the
-encoder output / decoder input) is a documented follow-up.
+The generic classes default to GF(2^8) polynomial 0x11D, primitive-root step 1 and first
+consecutive root 0. ``LiteDSPCCSDSRSEncoder`` and ``LiteDSPCCSDSRSDecoder`` select the CCSDS
+131.0-B-5 RS(255,223) profile (0x187, fcr=112, prim=11) and apply the required Berlekamp
+dual-basis transforms at their stream boundaries.
 
 Architecture (correctness-first, serial):
 
@@ -36,6 +30,8 @@ Block boundaries are counted from reset — sink ``first``/``last`` markers are 
 each output block is framed with ``first``/``last``.
 """
 
+from math import gcd
+
 from migen import *
 
 from litex.gen import *
@@ -49,6 +45,11 @@ from litedsp.common import check
 
 GF_POLY = 0x11D  # x^8 + x^4 + x^3 + x^2 + 1, primitive, alpha = 2 (conventional basis; see module doc).
 FCR     = 0      # First consecutive root: g(x) roots at alpha^0 .. alpha^(2t-1).
+PRIM    = 1      # Consecutive-root exponent step.
+
+CCSDS_GF_POLY = 0x187
+CCSDS_FCR     = 112
+CCSDS_PRIM    = 11
 
 def _xor_tree(terms):
     """Balanced XOR reduction (cycle-neutral, logarithmic logic depth)."""
@@ -85,36 +86,36 @@ def _gf_tables(poly=GF_POLY):
     exp[255] = 1
     return exp, log
 
-def _rs_generator(n_parity, fcr=FCR):
-    """Generator polynomial g(x) = prod (x - alpha^(fcr+i)), ascending coefficients (monic)."""
-    exp, _ = _gf_tables()
+def _rs_generator(n_parity, fcr=FCR, prim=PRIM, poly=GF_POLY):
+    """Generator with roots ``alpha**((fcr+i)*prim)``, ascending coefficients (monic)."""
+    exp, _ = _gf_tables(poly)
     g = [1]
     for i in range(n_parity):
-        root = exp[(fcr + i) % 255]
+        root = exp[((fcr + i)*prim) % 255]
         ng = [0]*(len(g) + 1)
         for j, c in enumerate(g):
-            ng[j]     ^= _gf_mul_int(c, root)
+            ng[j]     ^= _gf_mul_int(c, root, poly)
             ng[j + 1] ^= c
         g = ng
     return g
 
-def _gf_mul_const(comb, x, c):
+def _gf_mul_const(comb, x, c, poly=GF_POLY):
     """``x * c`` for a constant ``c``: a pure XOR network (one parity row per output bit)."""
     y    = Signal(8)
-    cols = [_gf_mul_int(1 << j, c) for j in range(8)]  # Column j of the GF-linear map x -> c*x.
+    cols = [_gf_mul_int(1 << j, c, poly) for j in range(8)]
     for i in range(8):
         taps = [x[j] for j in range(8) if (cols[j] >> i) & 1]
         comb += y[i].eq(_xor_tree(taps))
     return y
 
-def _gf_mul(comb, a, b):
+def _gf_mul(comb, a, b, poly=GF_POLY):
     """``a * b``, both variable: shift-and-reduce partial products (8 xtime levels)."""
     t     = a
     terms = []
     for i in range(8):
         if i:
             nt = Signal(8)
-            comb += nt.eq(Cat(0, t[:7]) ^ Mux(t[7], C(GF_POLY & 0xFF, 8), C(0, 8)))  # t = t*x mod poly.
+            comb += nt.eq(Cat(0, t[:7]) ^ Mux(t[7], C(poly & 0xFF, 8), C(0, 8)))
             t = nt
         term = Signal(8)
         comb += term.eq(Mux(b[i], t, C(0, 8)))
@@ -132,6 +133,39 @@ def _rs_check(n, k):
     check(1 <= t <= 16, "expected t = (n - k)/2 in 1..16")
     return t
 
+def _field_check(poly, fcr, prim):
+    check(0x100 <= poly <= 0x1ff, "expected a degree-8 GF field polynomial")
+    check(0 <= fcr < 255, "expected fcr in 0..254")
+    check(1 <= prim < 255 and gcd(prim, 255) == 1,
+        "expected prim in 1..254 and coprime with 255")
+    exp, _ = _gf_tables(poly)
+    check(len(set(exp[:255])) == 255, "field polynomial is not primitive for alpha=2")
+
+def _ccsds_basis_tables():
+    """Conventional-alpha <-> CCSDS Berlekamp dual-basis symbol maps."""
+    tal = (0x8d, 0xef, 0xec, 0x86, 0xfa, 0x99, 0xaf, 0x7b)
+    to_dual = [0]*256
+    to_conventional = [0]*256
+    for value in range(256):
+        mapped = 0
+        for bit in range(8):
+            if value & (1 << bit):
+                mapped ^= tal[7 - bit]
+        to_dual[value] = mapped
+        to_conventional[mapped] = value
+    return to_dual, to_conventional
+
+CCSDS_TO_DUAL, CCSDS_TO_CONVENTIONAL = _ccsds_basis_tables()
+
+def _linear_map(comb, value, table):
+    """Synthesize an 8x8 GF(2) map represented by its 256-entry Python lookup table."""
+    result = Signal(8)
+    columns = [table[1 << bit] for bit in range(8)]
+    for out_bit in range(8):
+        taps = [value[in_bit] for in_bit in range(8) if (columns[in_bit] >> out_bit) & 1]
+        comb += result[out_bit].eq(_xor_tree(taps))
+    return result
+
 # RS Encoder -----------------------------------------------------------------------------------------
 
 @ResetInserter()
@@ -142,7 +176,8 @@ class LiteDSPRSEncoder(LiteXModule):
     2t-stage LFSR divides by g(x); the 2t parity bytes then drain highest-degree first.
     Message boundaries are counted from reset (sink ``first``/``last`` ignored); the output
     codeword is framed with ``first``/``last``. See the module docstring for the field and
-    generator-polynomial conventions (0x11D, fcr = 0; conventional basis, not CCSDS dual-basis).
+    generator-polynomial conventions. Symbols use the conventional polynomial basis; use
+    ``LiteDSPCCSDSRSEncoder`` for the standard CCSDS dual-basis stream representation.
 
     Parameters
     ----------
@@ -151,12 +186,22 @@ class LiteDSPRSEncoder(LiteXModule):
     k : int
         Message length in symbols; n - k = 2t parity symbols are appended (n - k even,
         t = (n - k)/2 in 1..16; default RS(255, 223), t = 16).
+    field_poly : int
+        Degree-8 primitive field polynomial (default 0x11D).
+    fcr : int
+        First consecutive generator-root index (default 0).
+    prim : int
+        Root exponent step, coprime with 255 (default 1).
     """
-    def __init__(self, n=255, k=223, with_csr=True):
+    def __init__(self, n=255, k=223, with_csr=True, field_poly=GF_POLY, fcr=FCR, prim=PRIM):
         t = _rs_check(n, k)
+        _field_check(field_poly, fcr, prim)
         self.n = n
         self.k = k
         self.t = t
+        self.field_poly = field_poly
+        self.fcr = fcr
+        self.prim = prim
         self.latency = None  # Variable rate (k bytes in -> n bytes out, framed).
         self.sink   = stream.Endpoint([("data", 8)])
         self.source = stream.Endpoint([("data", 8)])
@@ -164,7 +209,7 @@ class LiteDSPRSEncoder(LiteXModule):
         # # #
 
         n_par = n - k
-        g     = _rs_generator(n_par)  # Ascending coefficients; monic (g[n_par] = 1, implicit).
+        g     = _rs_generator(n_par, fcr=fcr, prim=prim, poly=field_poly)
 
         # Parity LFSR.
         # ------------
@@ -173,7 +218,7 @@ class LiteDSPRSEncoder(LiteXModule):
         p    = [Signal(8) for _ in range(n_par)]
         fb   = Signal(8)
         self.comb += fb.eq(self.sink.data ^ p[-1])
-        fb_g = [_gf_mul_const(self.comb, fb, g[i]) for i in range(n_par)]
+        fb_g = [_gf_mul_const(self.comb, fb, g[i], field_poly) for i in range(n_par)]
 
         # FSM.
         # ----
@@ -249,15 +294,22 @@ class LiteDSPRSDecoder(LiteXModule):
         their recurrences, and Lambda's odd/even evaluation plus Omega before the inverse/Forney
         product. It adds discrepancy/update/inversion and Omega drain clocks plus three clocks per
         Chien position, while preserving the correction algorithm and all output/status behavior.
+    field_poly, fcr, prim : int
+        Conventional-basis field polynomial, first consecutive root and root exponent step.
     """
-    def __init__(self, n=255, k=223, with_csr=True, architecture="classic"):
+    def __init__(self, n=255, k=223, with_csr=True, architecture="classic",
+        field_poly=GF_POLY, fcr=FCR, prim=PRIM):
         t = _rs_check(n, k)
+        _field_check(field_poly, fcr, prim)
         check(architecture in ("classic", "pipelined"),
             "architecture must be 'classic' or 'pipelined'.")
         self.n = n
         self.k = k
         self.t = t
         self.architecture = architecture
+        self.field_poly = field_poly
+        self.fcr = fcr
+        self.prim = prim
         self.latency = None  # Variable (framed block decode; see cycles_per_block).
         # Worst-case decode cycles per block (receive + check + BM + Omega + Chien init/scan +
         # apply + drain), excluding handshake stalls.
@@ -275,7 +327,7 @@ class LiteDSPRSDecoder(LiteXModule):
         # # #
 
         n_par    = n - k
-        exp, log = _gf_tables()
+        exp, log = _gf_tables(field_poly)
 
         # Memories.
         # ---------
@@ -300,7 +352,7 @@ class LiteDSPRSDecoder(LiteXModule):
             log_rp.adr.eq(inv_operand),
             exp_rp.adr.eq(255 - log_rp.dat_r),
         ]
-        inv_mul = _gf_mul(self.comb, mul_operand, exp_rp.dat_r)  # x * inv_in^-1.
+        inv_mul = _gf_mul(self.comb, mul_operand, exp_rp.dat_r, field_poly)
 
         # Syndromes.
         # ----------
@@ -309,7 +361,8 @@ class LiteDSPRSDecoder(LiteXModule):
         synd    = Array(Signal(8) for _ in range(n_par))
         s_next  = []
         for i in range(n_par):
-            prod = _gf_mul_const(self.comb, synd[i], exp[(FCR + i) % 255])
+            prod = _gf_mul_const(self.comb, synd[i],
+                exp[((fcr + i)*prim) % 255], field_poly)
             s    = Signal(8)
             self.comb += s.eq(prod ^ self.sink.data)
             s_next.append(s)
@@ -347,15 +400,15 @@ class LiteDSPRSDecoder(LiteXModule):
             If(j <= r_i, s_idx.eq(r_i - j), s_rj.eq(synd[s_idx])),
             lam_j.eq(lam[j]),
         ]
-        disc_term = _gf_mul(self.comb, lam_j, s_rj)
-        disc_registered_term = _gf_mul(self.comb, disc_a, disc_b)
+        disc_term = _gf_mul(self.comb, lam_j, s_rj, field_poly)
+        disc_registered_term = _gf_mul(self.comb, disc_a, disc_b, field_poly)
 
         # Update term coef*B[j-m] (gated to 0 when j < m).
         b_idx = Signal(max=t + 1)
         b_sel = Signal(8)
         self.comb += If(j >= m, b_idx.eq(j - m), b_sel.eq(bpol[b_idx]))
-        upd_term = _gf_mul(self.comb, coef, b_sel)
-        upd_registered_term = _gf_mul(self.comb, coef, upd_b_reg)
+        upd_term = _gf_mul(self.comb, coef, b_sel, field_poly)
+        upd_registered_term = _gf_mul(self.comb, coef, upd_b_reg, field_poly)
         bm_write_idx = upd_idx if architecture == "pipelined" else j
         bm_write_lam = upd_lam_reg if architecture == "pipelined" else lam_j
         bm_write_term = upd_registered_term if architecture == "pipelined" else upd_term
@@ -376,22 +429,25 @@ class LiteDSPRSDecoder(LiteXModule):
             s_l.eq(synd[l_i]),
             lam_jl.eq(lam[jl]),
         ]
-        omg_term = _gf_mul(self.comb, s_l, lam_jl)
-        omg_registered_term = _gf_mul(self.comb, omg_a, omg_b)
+        omg_term = _gf_mul(self.comb, s_l, lam_jl, field_poly)
+        omg_registered_term = _gf_mul(self.comb, omg_a, omg_b, field_poly)
         omg_write_value = Signal(8)
         self.comb += omg_write_value.eq(acc ^ (
             omg_registered_term if architecture == "pipelined" else omg_term))
 
         # Chien / Forney.
         # ---------------
-        # Term registers q[j] = lambda[j]*alpha^(-ij) and o[j] = Omega[j]*alpha^(-ij), stepped
-        # by constant alpha^(-j) multipliers; lambda(alpha^-i) = even ^ odd, and a zero marks an
+        # Term registers q[j] = lambda[j]*alpha^(-prim*i*j) and
+        # o[j] = Omega[j]*alpha^(-prim*i*j), stepped by constant alpha^(-prim*j)
+        # multipliers; lambda(alpha^(-prim*i)) = even ^ odd, and a zero marks an
         # error at codeword position i (buffer index n-1-i) with Forney magnitude
-        # Omega(alpha^-i) / odd (the fcr = 0 form: the X^(1-fcr) factor cancels).
+        # x^fcr*Omega(x)/odd, x = alpha^(-prim*i).
         q = Array(Signal(8) for _ in range(t + 1))
         o = Array(Signal(8) for _ in range(t))
-        q_next = [_gf_mul_const(self.comb, q[i], exp[(255 - i) % 255]) for i in range(t + 1)]
-        o_next = [_gf_mul_const(self.comb, o[i], exp[(255 - i) % 255]) for i in range(t)]
+        q_next = [_gf_mul_const(self.comb, q[i], exp[(-prim*i) % 255], field_poly)
+                  for i in range(t + 1)]
+        o_next = [_gf_mul_const(self.comb, o[i], exp[(-prim*i) % 255], field_poly)
+                  for i in range(t)]
         even_terms = [q[i] for i in range(0, t + 1, 2)]
         odd_terms  = [q[i] for i in range(1, t + 1, 2)]
         omega_terms = [o[i] for i in range(t)]
@@ -405,6 +461,10 @@ class LiteDSPRSDecoder(LiteXModule):
             om_val.eq(_xor_tree(omega_terms)),
             lam_val.eq(even ^ odd),
         ]
+        x_fcr      = Signal(8, reset=1)
+        x_fcr_next = _gf_mul_const(self.comb, x_fcr,
+            exp[(-prim*fcr) % 255], field_poly)
+        forney_num = _gf_mul(self.comb, om_val, x_fcr, field_poly) if fcr else om_val
         pos      = Signal(max=n)                       # Chien position i (X = alpha^i).
         roots    = Signal(max=t + 1)                   # Located errors this block.
         rr       = Signal(max=t + 1)                   # Apply index.
@@ -421,6 +481,7 @@ class LiteDSPRSDecoder(LiteXModule):
         chien_odd_hi  = Signal(8)
         chien_om_lo   = Signal(8)
         chien_om_hi   = Signal(8)
+        chien_scale   = Signal(8, reset=1)
 
         def _halves(terms):
             split = (len(terms) + 1)//2
@@ -429,6 +490,9 @@ class LiteDSPRSDecoder(LiteXModule):
         even_lo, even_hi = _halves(even_terms)
         odd_lo,  odd_hi  = _halves(odd_terms)
         om_lo,   om_hi   = _halves(omega_terms)
+        chien_om_sum = chien_om_lo ^ chien_om_hi
+        chien_num = _gf_mul(self.comb, chien_om_sum, chien_scale, field_poly) \
+            if fcr else chien_om_sum
         root_write_mag = chien_mag if architecture == "pipelined" else inv_mul
 
         # Register-file writes with a computed index (FSM-enabled, expanded to per-index write
@@ -617,12 +681,13 @@ class LiteDSPRSDecoder(LiteXModule):
             *[NextValue(q[i], lam[i]) for i in range(t + 1)],
             *[NextValue(o[i], omg[i]) for i in range(t)],
             NextValue(pos, 0),
+            NextValue(x_fcr, 1),
             NextState("CHIEN" if architecture == "classic" else "CHIEN_EVAL"),
         )
         if architecture == "classic":
             fsm.act("CHIEN",  # One position per cycle: evaluate, record roots + Forney magnitudes.
                 inv_in.eq(odd),
-                inv_x.eq(om_val),
+                inv_x.eq(forney_num),
                 If(lam_val == 0,
                     If(odd == 0,
                         NextValue(anomaly, 1),          # Degenerate (repeated root): uncorrectable.
@@ -633,6 +698,7 @@ class LiteDSPRSDecoder(LiteXModule):
                 ),
                 *[NextValue(q[i], q_next[i]) for i in range(t + 1)],
                 *[NextValue(o[i], o_next[i]) for i in range(t)],
+                NextValue(x_fcr, x_fcr_next),
                 If(pos == (n - 1), NextState("CHIEN_DONE")).Else(NextValue(pos, pos + 1)),
             )
         else:
@@ -643,8 +709,10 @@ class LiteDSPRSDecoder(LiteXModule):
                 NextValue(chien_odd_hi,  odd_hi),
                 NextValue(chien_om_lo,   om_lo),
                 NextValue(chien_om_hi,   om_hi),
+                NextValue(chien_scale,   x_fcr),
                 *[NextValue(q[i], q_next[i]) for i in range(t + 1)],
                 *[NextValue(o[i], o_next[i]) for i in range(t)],
+                NextValue(x_fcr, x_fcr_next),
                 NextState("CHIEN_REDUCE"),
             )
             fsm.act("CHIEN_REDUCE",
@@ -652,7 +720,7 @@ class LiteDSPRSDecoder(LiteXModule):
                 NextValue(chien_om,  chien_om_lo ^ chien_om_hi),
                 NextValue(chien_lam, chien_even_lo ^ chien_even_hi ^ chien_odd_lo ^ chien_odd_hi),
                 NextValue(inv_in_reg, chien_odd_lo ^ chien_odd_hi),
-                NextValue(inv_x_reg, chien_om_lo ^ chien_om_hi),
+                NextValue(inv_x_reg, chien_num),
                 NextState("CHIEN_FORNEY"),
             )
             fsm.act("CHIEN_FORNEY",
@@ -734,6 +802,123 @@ class LiteDSPRSDecoder(LiteXModule):
         self._corrected_total     = CSRStatus(32, description="Cumulative corrected symbols since clear.")
         self._uncorrectable_count = CSRStatus(16, description="Uncorrectable blocks since clear.")
         self._clear               = CSRStorage(1, description="Clear the sticky flag and the cumulative counters (write to clear).")
+        self.comb += [
+            self._config.fields.n.eq(self.n),
+            self._config.fields.k.eq(self.k),
+            self._config.fields.t.eq(self.t),
+            self._status.fields.corrected.eq(self.corrected),
+            self._status.fields.uncorrectable.eq(self.uncorrectable),
+            self._corrected_total.status.eq(self.corrected_total),
+            self._uncorrectable_count.status.eq(self.uncorrectable_count),
+            self.clear.eq(self._clear.re),
+        ]
+
+# CCSDS Dual-Basis Wrappers -------------------------------------------------------------------------
+
+@ResetInserter()
+class LiteDSPCCSDSRSEncoder(LiteXModule):
+    """CCSDS 131.0-B-5 RS(255,223) encoder with dual-basis stream symbols.
+
+    The stream-facing linear maps convert incoming dual-basis message symbols to the
+    conventional-alpha representation used by the generic encoder and convert its systematic
+    codeword back to dual basis. They add no cycles and preserve framing/backpressure exactly.
+    """
+    def __init__(self, with_csr=True):
+        self.n = 255
+        self.k = 223
+        self.t = 16
+        self.latency = None
+        self.sink   = stream.Endpoint([("data", 8)])
+        self.source = stream.Endpoint([("data", 8)])
+
+        # # #
+
+        self.encoder = encoder = LiteDSPRSEncoder(
+            n=self.n, k=self.k, field_poly=CCSDS_GF_POLY,
+            fcr=CCSDS_FCR, prim=CCSDS_PRIM, with_csr=False)
+        sink_data   = _linear_map(self.comb, self.sink.data, CCSDS_TO_CONVENTIONAL)
+        source_data = _linear_map(self.comb, encoder.source.data, CCSDS_TO_DUAL)
+        self.comb += [
+            self.sink.connect(encoder.sink, omit={"data"}),
+            encoder.sink.data.eq(sink_data),
+            encoder.source.connect(self.source, omit={"data"}),
+            self.source.data.eq(source_data),
+        ]
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._config = CSRStatus(fields=[
+            CSRField("n", size=9, description="Codeword length in symbols."),
+            CSRField("k", size=8, description="Message length in symbols."),
+            CSRField("t", size=5, description="Correctable symbols per codeword."),
+        ])
+        self.comb += [
+            self._config.fields.n.eq(self.n),
+            self._config.fields.k.eq(self.k),
+            self._config.fields.t.eq(self.t),
+        ]
+
+
+@ResetInserter()
+class LiteDSPCCSDSRSDecoder(LiteXModule):
+    """CCSDS 131.0-B-5 RS(255,223) decoder with dual-basis stream symbols.
+
+    Input/output basis conversion is combinational and cycle-neutral. ``architecture`` selects
+    the same classic or timing-oriented pipelined schedule as ``LiteDSPRSDecoder``.
+    """
+    def __init__(self, with_csr=True, architecture="pipelined"):
+        self.n = 255
+        self.k = 223
+        self.t = 16
+        self.architecture = architecture
+        self.latency = None
+        self.sink   = stream.Endpoint([("data", 8)])
+        self.source = stream.Endpoint([("data", 8)])
+
+        # # #
+
+        self.decoder = decoder = LiteDSPRSDecoder(
+            n=self.n, k=self.k, architecture=architecture,
+            field_poly=CCSDS_GF_POLY, fcr=CCSDS_FCR, prim=CCSDS_PRIM, with_csr=False)
+        self.cycles_per_block = decoder.cycles_per_block
+        self.corrected           = decoder.corrected
+        self.corrected_total     = decoder.corrected_total
+        self.uncorrectable       = decoder.uncorrectable
+        self.uncorrectable_count = decoder.uncorrectable_count
+        self.clear               = decoder.clear
+
+        sink_data   = _linear_map(self.comb, self.sink.data, CCSDS_TO_CONVENTIONAL)
+        source_data = _linear_map(self.comb, decoder.source.data, CCSDS_TO_DUAL)
+        self.comb += [
+            self.sink.connect(decoder.sink, omit={"data"}),
+            decoder.sink.data.eq(sink_data),
+            decoder.source.connect(self.source, omit={"data"}),
+            self.source.data.eq(source_data),
+        ]
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._config = CSRStatus(fields=[
+            CSRField("n", size=9, description="Codeword length in symbols."),
+            CSRField("k", size=8, description="Message length in symbols."),
+            CSRField("t", size=5, description="Correctable symbols per codeword."),
+        ])
+        self._status = CSRStatus(fields=[
+            CSRField("corrected", size=8,
+                description="Symbols corrected in the last decoded block."),
+            CSRField("uncorrectable", size=1,
+                description="Sticky: a block exceeded the correction capability since clear."),
+        ])
+        self._corrected_total = CSRStatus(32,
+            description="Cumulative corrected symbols since clear.")
+        self._uncorrectable_count = CSRStatus(16,
+            description="Uncorrectable blocks since clear.")
+        self._clear = CSRStorage(1,
+            description="Clear the sticky flag and cumulative counters (write to clear).")
         self.comb += [
             self._config.fields.n.eq(self.n),
             self._config.fields.k.eq(self.k),

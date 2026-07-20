@@ -166,6 +166,109 @@
       }
     }
   },
+  "ccsds_rs_decoder": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 1482,
+      "fmax_mhz": 121.1,
+      "fmax_min": 102.9,
+      "fmax_target": 100.0,
+      "lut": 3741,
+      "pnr": {
+        "bram": 1,
+        "dsp": 0,
+        "ff": 1482,
+        "fmax_mhz": 121.1,
+        "fmax_min": 102.9,
+        "lut": 3741
+      }
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 1482,
+      "fmax_mhz": 138.7,
+      "fmax_min": 117.9,
+      "fmax_target": 100.0,
+      "lut": 1756,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1482,
+        "fmax_mhz": 138.7,
+        "fmax_min": 117.9,
+        "lut": 1756
+      }
+    },
+    "xilinx_au": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 1490,
+      "fmax_mhz": 247.4,
+      "fmax_min": 210.3,
+      "fmax_target": 100.0,
+      "lut": 1801,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1490,
+        "fmax_mhz": 247.4,
+        "fmax_min": 210.3,
+        "lut": 1801
+      }
+    }
+  },
+  "ccsds_rs_encoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 265,
+      "fmax_mhz": 262.9,
+      "fmax_min": 223.4,
+      "lut": 573,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 265,
+        "fmax_mhz": 262.9,
+        "fmax_min": 223.4,
+        "lut": 573
+      }
+    },
+    "xilinx": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 267,
+      "fmax_mhz": 261.2,
+      "fmax_min": 222.0,
+      "lut": 255,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 267,
+        "fmax_mhz": 261.2,
+        "fmax_min": 222.0,
+        "lut": 255
+      }
+    },
+    "xilinx_au": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 267,
+      "fmax_mhz": 620.3,
+      "fmax_min": 527.3,
+      "lut": 254,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 267,
+        "fmax_mhz": 620.3,
+        "fmax_min": 527.3,
+        "lut": 254
+      }
+    }
+  },
   "cfo_estimator": {
     "ecp5": {
       "bram": 0,

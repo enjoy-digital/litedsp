@@ -25,6 +25,9 @@ from reset (sink ``first``/``last`` ignored); output blocks are framed with ``fi
 | `n` | `255` | int | Codeword length in symbols (bytes); fixed at 255, the native RS length over GF(2^8). |
 | `k` | `223` | int | Message length in symbols; t = (n - k)/2 symbol errors per block are correctable (n - k even, t in 1..16; default RS(255, 223), t = 16). |
 | `architecture` | `"classic"` | str | ``"classic"`` evaluates and advances one Chien position per clock. ``"pipelined"`` registers operands for the Berlekamp-Massey discrepancy and update multipliers before their recurrences, and Lambda's odd/even evaluation plus Omega before the inverse/Forney product. It adds discrepancy/update/inversion and Omega drain clocks plus three clocks per Chien position, while preserving the correction algorithm and all output/status behavior. Choices: `classic`, `pipelined`. |
+| `field_poly` | `285` | int |  |
+| `fcr` | `0` | int |  |
+| `prim` | `1` | int |  |
 
 ## Ports
 

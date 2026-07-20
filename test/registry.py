@@ -112,6 +112,8 @@ VSPEC = {
     "block_deinterleaver": _v("block_deinterleave_model", latency="variable", rate=(1, 1), cosim=True),
     "rs_encoder":         _v("rs_encode_model",  latency="variable", rate=None, cosim=True),  # k in -> n out (framed).
     "rs_decoder":         _v("rs_decode_model",  latency="variable", rate=None, cosim=True),  # n in -> k out (framed).
+    "ccsds_rs_encoder":   _v("ccsds_rs_encode_model", latency="variable", rate=None, cosim=True),
+    "ccsds_rs_decoder":   _v("ccsds_rs_decode_model", latency="variable", rate=None, cosim=True),
     "ldpc_encoder":       _v("ldpc_encode_model", latency="variable", rate=None, cosim=True),  # k bits in -> n bits out (framed).
     "ldpc_decoder":       _v("ldpc_decode_model", latency="variable", rate=None, cosim=True),  # n LLRs in -> k bits out (framed).
     "cp_insert":          _v(latency="variable", rate=None),

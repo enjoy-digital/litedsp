@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-114 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+116 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -111,6 +111,8 @@
 | [Block deinterleaver](block_deinterleaver.md) | `LiteDSPBlockDeinterleaver` | var | 0 | RX block deinterleaver: the exact inverse of :class:`LiteDSPBlockInterleaver`. |
 | [RS encoder (255,k)](rs_encoder.md) | `LiteDSPRSEncoder` | var | 0 | Systematic RS(255, k) encoder: k message bytes in, n = 255 codeword bytes out. |
 | [RS decoder (255,k)](rs_decoder.md) | `LiteDSPRSDecoder` | var | 0 | RS(255, k) decoder: n = 255 codeword bytes in, k corrected message bytes out. |
+| [CCSDS RS encoder](ccsds_rs_encoder.md) | `LiteDSPCCSDSRSEncoder` | var | 0 | CCSDS 131.0-B-5 RS(255,223) encoder with dual-basis stream symbols. |
+| [CCSDS RS decoder](ccsds_rs_decoder.md) | `LiteDSPCCSDSRSDecoder` | var | 0 | CCSDS 131.0-B-5 RS(255,223) decoder with dual-basis stream symbols. |
 | [LDPC encoder (802.11n)](ldpc_encoder.md) | `LiteDSPLDPCEncoder` | var | 0 | 802.11n rate-1/2 (648, 324) LDPC encoder: 324 message bits in, 648 codeword bits out. |
 | [LDPC decoder (802.11n)](ldpc_decoder.md) | `LiteDSPLDPCDecoder` | var | 0 | 802.11n rate-1/2 (648, 324) LDPC decoder: 648 LLRs in, 324 corrected bits out. |
 | [OFDM CP insert](cp_insert.md) | `LiteDSPCPInsert` | var | — | Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out. |
