@@ -514,7 +514,7 @@ REGISTRY = {
 
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
-              "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "agc", "dpd", "ddc",
+              "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "ddc",
               "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
               "rs_decoder",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
@@ -526,6 +526,10 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives each one an
 # independent runner and a longer per-route timeout so neither can starve the regular sentinels.
 PNR_STRESS = ["fft_parallel_native_x2", "fft_parallel_native_x4"]
+
+# Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
+# out of the single-route subset prevents one unlucky placement from reopening a closed target.
+PNR_STABILITY = ["agc", "dpd"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.

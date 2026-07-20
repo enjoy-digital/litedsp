@@ -35,8 +35,8 @@ jobs:
 
   ecp5-pnr:
     runs-on: ubuntu-latest
-    # The 37 bounded configurations take about 19 minutes on hosted runners. Capacity-cliff
-    # native FFT routes have independent nightly jobs and cannot starve this regular gate.
+    # The 35 single-route configurations take under 20 minutes on hosted runners. Marginal
+    # target-closed paths use the seed-median job; capacity-cliff FFTs use nightly stress jobs.
     timeout-minutes: 45
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5
@@ -68,6 +68,52 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ecp5-pnr-reports
+          path: |
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_synth.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_pnr*.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*.cfg
+          if-no-files-found: warn
+          retention-days: 14
+
+  ecp5-pnr-stability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [agc, dpd]
+    env:
+      LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5_${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OSS CAD Suite (Yosys + nextpnr-ecp5)
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: "2025-06-25"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+
+      - name: Route ${{ matrix.module }} across three seeds
+        run: |
+          python3 impl/run.py --device ecp5 --flow pnr --module "${{ matrix.module }}" \
+            --repeat 3 --target-gate --build "$LITEDSP_IMPL_BUILD"
+
+      - name: Upload ${{ matrix.module }} stability reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecp5-stability-${{ matrix.module }}-reports
           path: |
             ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_synth.log
             ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_pnr*.log

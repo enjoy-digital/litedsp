@@ -73,6 +73,13 @@ class TestImplementationBudgets(unittest.TestCase):
             self.assertNotIn(name, modules.PNR_SUBSET)
             self.assertNotIn(name, modules.TARGET_CLOSED)
 
+    def test_route_sensitive_closed_targets_use_the_stability_set(self):
+        self.assertEqual(modules.PNR_STABILITY, ["agc", "dpd"])
+        for name in modules.PNR_STABILITY:
+            self.assertIn(name, modules.REGISTRY)
+            self.assertNotIn(name, modules.PNR_SUBSET)
+            self.assertIn(name, modules.TARGET_CLOSED)
+
     def test_route_statistics_select_median_run(self):
         runs = [
             (0, {"fmax_mhz": 91.0, "lut": 10}),
@@ -220,8 +227,9 @@ class TestImplementationBudgets(unittest.TestCase):
              "fft_folded", "fft_interleaved_x2", "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft",
              "timing_recovery", "cfr_pipelined", "ddc_ip"])
+        gated = set(modules.PNR_SUBSET) | set(modules.PNR_STABILITY)
         for name in modules.TARGET_CLOSED:
-            self.assertIn(name, modules.PNR_SUBSET)
+            self.assertIn(name, gated)
             for device in ("ecp5", "xilinx", "xilinx_au"):
                 with self.subTest(name=name, device=device):
                     entry = data[name][device]

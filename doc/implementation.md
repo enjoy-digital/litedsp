@@ -22,6 +22,7 @@ python3 impl/run.py --device xilinx_au --flow synth              # Artix UltraSc
 python3 impl/run.py --device xilinx_au --flow synth --jobs 2     # two licensed Vivado workers
 python3 impl/run.py --device ecp5   --flow pnr  --subset         # + nextpnr P&R -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --stress --pnr-timeout 5400 # capacity-cliff routes
+python3 impl/run.py --device ecp5   --flow pnr  --stability --repeat 3 --target-gate # route medians
 python3 impl/run.py --device ecp5   --flow pnr  --subset --closed-target-gate # one-pass CI gate
 python3 impl/run.py --device xilinx --flow pnr  --subset         # + Vivado impl -> fmax
 python3 impl/run.py --device ecp5   --flow pnr  --target-closed --target-gate # strict targets
@@ -54,9 +55,12 @@ default, Explore, and high-net-delay/HigherDelayCost timing algorithms. Both ret
 reports and report worst/median/best fmax; budget updates use the median completed route.
 `--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
 nightly job indefinitely.
-The native x2/x4 FFT configurations are collected in `PNR_STRESS`, outside the bounded 37-block
+The native x2/x4 FFT configurations are collected in `PNR_STRESS`, outside the bounded 35-block
 push/PR subset. Nightly CI routes each stress configuration on an independent runner with a
 90-minute per-route timeout and retains a separate report artifact.
+The marginal target-closed AGC and DPD configurations are collected in `PNR_STABILITY`. Push/PR
+CI routes each across seeds 0, 1 and 2 on an independent runner and gates its median, avoiding
+single-placement noise while preserving the strict 100 MHz objective.
 Independent modules can be built with `--jobs N`; results are collected in registry order and a
 single process updates the budget file after every worker completes. The default remains one job
 so CI runners with a single Vivado license are unchanged.
@@ -152,8 +156,9 @@ avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing
 datasheets present the same data from `impl/budgets.json`.
 
 The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
-configurations pass out-of-context synthesis; 37 bounded representative configurations form the
-regular P&R subset, while two capacity-cliff native FFT configurations form the stress set. All 39 pass
+configurations pass out-of-context synthesis; 35 bounded representative configurations form the
+regular P&R subset, two route-sensitive configurations form the stability set, and two
+capacity-cliff native FFT configurations form the stress set. All 39 pass
 place-and-route. The 25 reviewed timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part

@@ -222,6 +222,11 @@ jobs:
       - name: P&R subset (budgets + closed timing targets)
         run: python3 impl/run.py --device ecp5 --flow pnr --subset --closed-target-gate --build "$LITEDSP_IMPL_BUILD"
 
+      - name: Three-route median for route-sensitive closed targets
+        run: |
+          python3 impl/run.py --device ecp5 --flow pnr --stability --repeat 3 \
+            --target-gate --build "$LITEDSP_IMPL_BUILD"
+
       - name: Three-route stability for closest closed targets
         run: |
           python3 impl/run.py --device ecp5 --flow pnr --module viterbi_decoder --repeat 3 --target-gate --build "$LITEDSP_IMPL_BUILD"
