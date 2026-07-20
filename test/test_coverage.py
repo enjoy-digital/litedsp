@@ -14,7 +14,9 @@ from sim.run_coverage import load_waivers
 class TestCoverageWaivers(unittest.TestCase):
     def test_semantic_checks_resolve(self):
         waivers = load_waivers()
-        self.assertEqual(set(waivers), {"equalizer", "ldpc_decoder", "pfb_channelizer_fft"})
+        self.assertEqual(set(waivers), {
+            "equalizer", "ldpc_decoder", "ldpc_decoder_z_parallel", "pfb_channelizer_fft",
+        })
         self.assertGreaterEqual(len(waivers["ldpc_decoder"]["semantic_checks"]), 5)
 
     def test_unresolved_check_is_rejected(self):
