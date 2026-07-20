@@ -16,8 +16,10 @@ class TestVerilatorCommand(unittest.TestCase):
         with mock.patch("sim.verilator.subprocess.check_call") as check_call:
             build("dut.v", "tb.cpp", "dut", "/tmp/litedsp_verilator_command")
         cmd = check_call.call_args.args[0]
-        for flag in ("-Wno-WIDTH", "-Wno-INITIALDLY", "-Wno-COMBDLY"):
+        for flag in ("-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-INITIALDLY",
+                     "-Wno-COMBDLY"):
             self.assertIn(flag, cmd)
+        self.assertNotIn("-Wno-WIDTH", cmd)
         for structural in ("-Wno-LATCH", "-Wno-UNOPTFLAT", "-Wno-MULTIDRIVEN"):
             self.assertNotIn(structural, cmd)
 

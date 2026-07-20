@@ -13,10 +13,12 @@ import subprocess
 # Migen's Verilog emitter is deliberately explicit about implicit extension/truncation and
 # emits non-blocking assignments in generated combinational/initial blocks. Those constructs
 # are already checked by the Python fixed-width tests and create thousands of diagnostics on
-# recent Verilator releases. Keep structural warnings (latches, combinational loops, multiple
-# drivers, undriven signals, etc.) enabled in both build and lint modes.
+# recent Verilator releases. Waive only the two generated size-conversion classes rather than
+# the umbrella WIDTH group, so other width diagnostics remain visible. Structural warnings
+# (latches, combinational loops, multiple drivers, undriven signals, etc.) also remain enabled.
 CODEGEN_WARNING_WAIVERS = [
-    "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-WIDTH", "-Wno-INITIALDLY",
+    "-Wno-DECLFILENAME", "-Wno-UNUSED", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC",
+    "-Wno-INITIALDLY",
     "-Wno-COMBDLY", "-Wno-CASEINCOMPLETE", "-Wno-VARHIDDEN",
 ]
 
