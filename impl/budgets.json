@@ -1525,7 +1525,6 @@
       "ff": 360,
       "fmax_mhz": 58.7,
       "fmax_min": 49.9,
-      "fmax_target": 100.0,
       "lut": 4387,
       "pnr": {
         "bram": 0,
@@ -1568,7 +1567,6 @@
       "ff": 367,
       "fmax_mhz": 143.4,
       "fmax_min": 121.9,
-      "fmax_target": 100.0,
       "lut": 1736,
       "pnr": {
         "bram": 0,
@@ -1948,7 +1946,6 @@
       "ff": 994,
       "fmax_mhz": 56.9,
       "fmax_min": 48.4,
-      "fmax_target": 100.0,
       "lut": 9163,
       "pnr": {
         "bram": 0,
@@ -1971,7 +1968,6 @@
       "ff": 999,
       "fmax_mhz": 81.0,
       "fmax_min": 68.9,
-      "fmax_target": 100.0,
       "lut": 4346,
       "pnr": {
         "bram": 0,
@@ -1994,7 +1990,6 @@
       "ff": 994,
       "fmax_mhz": 150.7,
       "fmax_min": 128.1,
-      "fmax_target": 100.0,
       "lut": 4052,
       "pnr": {
         "bram": 0,
@@ -2017,7 +2012,6 @@
       "bram": 0,
       "dsp": 56,
       "ff": 4386,
-      "fmax_target": 100.0,
       "lut": 9253,
       "synth": {
         "bram": 0,
@@ -2032,7 +2026,6 @@
       "ff": 3354,
       "fmax_mhz": 94.6,
       "fmax_min": 80.4,
-      "fmax_target": 100.0,
       "lut": 5312,
       "pnr": {
         "bram": 0,

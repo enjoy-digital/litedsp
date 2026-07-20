@@ -240,6 +240,13 @@ class TestImplementationBudgets(unittest.TestCase):
                     self.assertGreaterEqual(entry["pnr"]["fmax_mhz"],
                         entry["fmax_target"])
 
+    def test_compatibility_ffts_have_regression_floors_not_targets(self):
+        data = budgets.load()
+        for name in ("fft", "fft_parallel_x2", "fft_parallel_x2_folded"):
+            for device, entry in data[name].items():
+                with self.subTest(name=name, device=device):
+                    self.assertNotIn("fmax_target", entry)
+
 @unittest.skipUnless(ecp5.have_yosys(), "yosys not installed")
 class TestImplementationECP5(unittest.TestCase):
     def synth(self, name):

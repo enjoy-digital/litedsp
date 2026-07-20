@@ -59,6 +59,10 @@ The native x4 FFT configuration remains in `PNR_STRESS`, outside the bounded 37-
 subset. Nightly CI routes it on an independent runner with a 90-minute timeout and retains a
 separate report artifact. The ready-cut x2 configuration has robust margin and is back in the
 regular strict subset.
+The classic serial FFT and the older split/folded parallel FFT configurations are retained as
+compatibility and comparison points, so they carry measured regression floors but no 100 MHz
+engineering objective. The folded/interleaved serial variants and native vector FFTs are the
+reviewed timing-oriented architectures; only their targets participate in closure tracking.
 The marginal target-closed DPD configuration is collected in `PNR_STABILITY`. Push/PR CI routes
 it across seeds 0, 1 and 2 on an independent runner and gates its median, avoiding single-
 placement noise while preserving the strict 100 MHz objective. The two-sample pipelined AGC has
