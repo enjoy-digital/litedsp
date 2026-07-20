@@ -286,21 +286,26 @@ class LiteDSPLMSEqualizer(LiteXModule):
             )
 
             # Completed errors can arrive while the input has a bubble (the last FIR product
-            # is still draining). Keep them in a three-entry queue and consume exactly one per
-            # new FIR product. This makes the update-to-input distance independent of valid /
-            # ready stalls; three entries cover the product and sum stages draining without
-            # a simultaneous input.
-            update_count = Signal(2)
-            update_ei = [Signal((data_width + 1, True)) for _ in range(3)]
-            update_eq = [Signal((data_width + 1, True)) for _ in range(3)]
-            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(3)]
-            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(3)]
+            # is still draining). Keep them in a four-entry queue, but do not consume the head
+            # until four newer samples have been accepted. Merely consuming the head on the
+            # next input works at full rate but shortens the delayed-LMS distance when a bubble
+            # lets an error finish early. Four entries cover all warm-up errors if the input
+            # pauses immediately before the first update becomes due.
+            update_count = Signal(max=5)
+            accepted_count = Signal(max=5)
+            update_ei = [Signal((data_width + 1, True)) for _ in range(4)]
+            update_eq = [Signal((data_width + 1, True)) for _ in range(4)]
+            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(4)]
+            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(4)]
             error_ready = Signal()
             update_step = Signal()
             self.comb += [
                 error_ready.eq(adapt_step & v1),
-                update_step.eq(xfer & (update_count != 0)),
+                update_step.eq(xfer & (accepted_count == 4)),
             ]
+            self.sync += If(xfer & (accepted_count != 4),
+                accepted_count.eq(accepted_count + 1),
+            )
             push0 = [
                 update_ei[0].eq(ep_i), update_eq[0].eq(ep_q),
                 *[update_xr[0][k].eq(xr1[k]) for k in range(n_taps)],
@@ -316,6 +321,11 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 *[update_xr[2][k].eq(xr1[k]) for k in range(n_taps)],
                 *[update_xi[2][k].eq(xi1[k]) for k in range(n_taps)],
             ]
+            push3 = [
+                update_ei[3].eq(ep_i), update_eq[3].eq(ep_q),
+                *[update_xr[3][k].eq(xr1[k]) for k in range(n_taps)],
+                *[update_xi[3][k].eq(xi1[k]) for k in range(n_taps)],
+            ]
             shift_down = [
                 update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
                 *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
@@ -323,6 +333,9 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 update_ei[1].eq(update_ei[2]), update_eq[1].eq(update_eq[2]),
                 *[update_xr[1][k].eq(update_xr[2][k]) for k in range(n_taps)],
                 *[update_xi[1][k].eq(update_xi[2][k]) for k in range(n_taps)],
+                update_ei[2].eq(update_ei[3]), update_eq[2].eq(update_eq[3]),
+                *[update_xr[2][k].eq(update_xr[3][k]) for k in range(n_taps)],
+                *[update_xi[2][k].eq(update_xi[3][k]) for k in range(n_taps)],
             ]
             self.sync += Case(Cat(update_step, error_ready), {
                 0b01: [
@@ -332,12 +345,28 @@ class LiteDSPLMSEqualizer(LiteXModule):
                 0b10: [
                     If(update_count == 0, *push0, update_count.eq(1)).
                     Elif(update_count == 1, *push1, update_count.eq(2)).
-                    Elif(update_count == 2, *push2, update_count.eq(3)),
+                    Elif(update_count == 2, *push2, update_count.eq(3)).
+                    Elif(update_count == 3, *push3, update_count.eq(4)),
                 ],
                 0b11: [
                     If(update_count == 1, *push0).
-                    Elif(update_count == 2, *shift_down, *push1).
-                    Elif(update_count == 3, *shift_down, *push2),
+                    Elif(update_count == 2,
+                        update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
+                        *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
+                        *[update_xi[0][k].eq(update_xi[1][k]) for k in range(n_taps)],
+                        *push1,
+                    ).Elif(update_count == 3,
+                        update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
+                        *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
+                        *[update_xi[0][k].eq(update_xi[1][k]) for k in range(n_taps)],
+                        update_ei[1].eq(update_ei[2]), update_eq[1].eq(update_eq[2]),
+                        *[update_xr[1][k].eq(update_xr[2][k]) for k in range(n_taps)],
+                        *[update_xi[1][k].eq(update_xi[2][k]) for k in range(n_taps)],
+                        *push2,
+                    ).Elif(update_count == 4,
+                        *shift_down,
+                        *push3,
+                    ),
                 ],
             })
             update_ei, update_eq = update_ei[0], update_eq[0]

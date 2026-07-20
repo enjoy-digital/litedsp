@@ -110,12 +110,14 @@ class TestLMSEqualizer(unittest.TestCase):
     # is handshake-invariant). Aggressive step sizes so the weights move (and, for CMA, the
     # pre-mu error saturation is exercised) within the short run.
     def _run_bit_exact(self, samples, model_kwargs, controls, n_taps=5, mu_shift=12,
-        cma_egain=0, extra=None, architecture="classic", adaptation_delay=1):
+        cma_egain=0, extra=None, architecture="classic", adaptation_delay=1,
+        stream_kwargs=None):
         N   = len(samples)
         dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, wfrac=14, mu_shift=mu_shift,
             cma_egain=cma_egain, architecture=architecture, with_csr=False)
         gens = [_set_controls(dut, controls)] + (extra or [])
-        cap  = run_stream(dut, samples, N, ["i", "q", "d_i", "d_q"], ["i", "q"], extra=gens)
+        cap  = run_stream(dut, samples, N, ["i", "q", "d_i", "d_q"], ["i", "q"],
+            extra=gens, **(stream_kwargs or {}))
         y_i  = to_signed(column(cap, "i"), 16)
         y_q  = to_signed(column(cap, "q"), 16)
         m_i, m_q = equalizer_model(
@@ -169,6 +171,16 @@ class TestLMSEqualizer(unittest.TestCase):
             {"mode": MODE_CMA, "cma_r2": r2}, mu_shift=16, cma_egain=6, **common)
         self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
             {"mode": MODE_DD, "dd_level": 7000}, **common)
+
+    def test_pipelined_dd_queue_collision(self):
+        # This fixed valid/ready pattern fills two pending-error slots, then consumes and pushes
+        # on the same edge. It guards the conflict-free queue move independently of the rotating
+        # nightly LITEDSP_SEED campaign.
+        N = 240
+        _, i, q = _qpsk_channel(N, seed=21)
+        self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
+            {"mode": MODE_DD, "dd_level": 7000}, architecture="pipelined",
+            adaptation_delay=4, stream_kwargs={"sink_seed": 2, "source_seed": 3})
 
     def test_invalid_architecture(self):
         with self.assertRaises(ValueError):
