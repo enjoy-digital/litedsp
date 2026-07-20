@@ -282,12 +282,19 @@ def spec_squelch():
 
 def spec_agc():
     from litedsp.level.agc import LiteDSPAGC
-    n, target = 300, 8000
-    dut = LiteDSPAGC(data_width=16, with_csr=False, feedback_delay=2)
+    n, target, gain_max = 300, 8000, 320
+    dut = LiteDSPAGC(data_width=16, with_csr=False, feedback_delay=2, gain_max=gain_max)
     dut.target.reset = target
     cols = _rand_cols(2, n)
+    # Silence first drives gain into the upper clamp; a full-scale complex burst then drives it
+    # into the lower clamp. The random tail covers normal acquisition and both magnitude arms.
+    for c in cols:
+        c[:32] = [0]*32
+    for k in range(32, 96):
+        cols[0][k] =  30000 if (k & 1) else -30000
+        cols[1][k] =  20000 if (k & 2) else -20000
     return dut, cols, n - 4, lambda c: list(models.agc_model(
-        c[0], c[1], target, feedback_delay=2))
+        c[0], c[1], target, gain_max=gain_max, feedback_delay=2))
 
 def spec_envelope():
     from litedsp.level.peak import LiteDSPEnvelopeDetector

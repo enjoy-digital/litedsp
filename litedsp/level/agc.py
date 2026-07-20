@@ -187,10 +187,10 @@ class LiteDSPAGC(LiteXModule):
                 If(observation_pop, *gain_update),
                 Case(Cat(observation_pop, observation_push), {
                     0b01: [
-                        If(observation_count == 2,
-                            observation_hi[0].eq(observation_hi[1]),
-                            observation_lo[0].eq(observation_lo[1]),
-                        ),
+                        # A pop without a push follows a previously captured blocked output,
+                        # so the queue is full and the second observation becomes the head.
+                        observation_hi[0].eq(observation_hi[1]),
+                        observation_lo[0].eq(observation_lo[1]),
                         observation_count.eq(observation_count - 1),
                     ],
                     0b10: [
@@ -198,22 +198,18 @@ class LiteDSPAGC(LiteXModule):
                             observation_hi[0].eq(mag_hi),
                             observation_lo[0].eq(mag_lo),
                             observation_count.eq(1),
-                        ).Elif(observation_count == 1,
+                        ).Else(
                             observation_hi[1].eq(mag_hi),
                             observation_lo[1].eq(mag_lo),
                             observation_count.eq(2),
                         ),
                     ],
                     0b11: [
-                        If(observation_count == 1,
-                            observation_hi[0].eq(mag_hi),
-                            observation_lo[0].eq(mag_lo),
-                        ).Elif(observation_count == 2,
-                            observation_hi[0].eq(observation_hi[1]),
-                            observation_lo[0].eq(observation_lo[1]),
-                            observation_hi[1].eq(mag_hi),
-                            observation_lo[1].eq(mag_lo),
-                        ),
+                        # In steady flow one observation is due while the current output is
+                        # captured. A full queue implies that output was already captured and
+                        # therefore suppresses observation_push, making count==2 impossible.
+                        observation_hi[0].eq(mag_hi),
+                        observation_lo[0].eq(mag_lo),
                     ],
                 }),
             ]

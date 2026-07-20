@@ -13,7 +13,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Family/configuration | Current ECP5 | Recurrence that limits timing | First implementation to evaluate |
 |---|---:|---|---|
 | Viterbi hard / soft | 47.4 / 46.5 MHz classic; 106.0 / 110.8 MHz folded | ACS metric update followed by the global-min tree and normalization | folded option landed and target-closed |
-| AGC | 49.6 MHz classic; 134.7 MHz two-sample pipeline | gain multiply, output magnitude, error and gain integration in one accepted-sample step | two-sample option landed and target-closed |
+| AGC | 49.6 MHz classic; 133.9 MHz two-sample pipeline | gain multiply, output magnitude, error and gain integration in one accepted-sample step | two-sample option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
 | DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
@@ -156,9 +156,9 @@ the steady-state target is unchanged.
 The compatibility option remains `delayed_feedback=True` (one sample); the implementation
 registry selects `feedback_delay=2`. A two-entry observation queue keeps the sample-domain
 trajectory invariant when an output drains during an input gap. The two-sample configuration
-reaches a 134.7 MHz three-seed median on ECP5, 131.5 MHz on Artix-7, and 284.3 MHz on Artix
-UltraScale+, compared with 49.6 MHz for the classic ECP5 loop. Post-route resources are 424 LUT /
-126 FF / 4 DSP on ECP5, 264 / 126 / 2 on Artix-7, and 195 / 122 / 2 on UltraScale+. Characterization
+reaches a 133.9 MHz three-seed median on ECP5, 134.9 MHz on Artix-7, and 290.1 MHz on Artix
+UltraScale+, compared with 49.6 MHz for the classic ECP5 loop. Post-route resources are 390 LUT /
+126 FF / 4 DSP on ECP5, 231 / 126 / 2 on Artix-7, and 203 / 122 / 2 on UltraScale+. Characterization
 settles in 30 samples with 0.724% residual error and no measured overshoot for the reviewed
 stimulus.
 

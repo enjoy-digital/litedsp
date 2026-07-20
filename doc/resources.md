@@ -6,7 +6,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 
 | module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP/Fmax floor/target | Artix-7 (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target | Artix UltraScale+ (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target |
 |---|---|---|---|
-| `agc` | 424/126/0/4/114.5/100.0 | 264/126/0/2/111.8/100.0 | 195/122/0/2/241.7/100.0 |
+| `agc` | 390/126/0/4/113.8/100.0 | 231/126/0/2/114.7/100.0 | 203/122/0/2/246.6/100.0 |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- | 86/55/1/0/- |
 | `cfo_estimator` | 4805/1764/0/4/115.0 | 1527/1650/0/5/- | 1523/1650/0/5/- |
