@@ -157,13 +157,13 @@ class TestLMSEqualizer(unittest.TestCase):
         self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
             {"mode": MODE_DD, "dd_level": 7000})
 
-    # verify-tier: model — the full-rate adaptation pipeline delays updates by exactly four
+    # verify-tier: model — the full-rate adaptation pipeline delays updates by exactly eight
     # accepted samples in trained, CMA and decision-directed modes.
     def test_pipelined_modes_bit_exact(self):
         N = 240
         sym, i, q = _qpsk_channel(N, seed=21)
         d = np.concatenate([np.zeros(2, complex), sym])[:N]
-        common = {"architecture": "pipelined", "adaptation_delay": 4}
+        common = {"architecture": "pipelined", "adaptation_delay": 8}
         self.assertEqual(LiteDSPLMSEqualizer(architecture="pipelined", with_csr=False).latency, 3)
         self._run_bit_exact(_sink_samples(i, q, np.round(d.real).astype(int),
             np.round(d.imag).astype(int)), {"mode": MODE_TRAINED}, {}, **common)
@@ -178,12 +178,12 @@ class TestLMSEqualizer(unittest.TestCase):
         sym, i, q = _qpsk_channel(N, seed=22)
         d = np.concatenate([np.zeros(2, complex), sym])[:N]
         common = {"n_taps": 7, "architecture": "pipelined", "update_pipeline": True,
-                  "adaptation_delay": 5,
+                  "adaptation_delay": 9,
                   "stream_kwargs": {"sink_seed": 2, "source_seed": 3}}
         dut = LiteDSPLMSEqualizer(architecture="pipelined", update_pipeline=True,
             with_csr=False)
         self.assertEqual(dut.latency, 3)
-        self.assertEqual(dut.adaptation_delay, 5)
+        self.assertEqual(dut.adaptation_delay, 9)
         self._run_bit_exact(_sink_samples(i, q, np.round(d.real).astype(int),
             np.round(d.imag).astype(int)), {"mode": MODE_TRAINED}, {}, **common)
         r2 = _r2(7000)
@@ -203,7 +203,7 @@ class TestLMSEqualizer(unittest.TestCase):
         d   = np.concatenate([np.zeros(delay, complex), sym])[:N]
         y_i, y_q = equalizer_model(np.round(x.real).astype(int), np.round(x.imag).astype(int),
             np.round(d.real).astype(int), np.round(d.imag).astype(int), n_taps=n_taps,
-            mu_shift=20, adaptation_delay=5)
+            mu_shift=20, adaptation_delay=9)
         y = y_i + 1j*y_q
         tail = slice(N - 1000, N)
         dec = np.sign(y[tail].real) + 1j*np.sign(y[tail].imag)
@@ -220,7 +220,7 @@ class TestLMSEqualizer(unittest.TestCase):
         _, i, q = _qpsk_channel(N, seed=21)
         self._run_bit_exact(_sink_samples(i, q), {"mode": MODE_DD, "dd_level": 7000},
             {"mode": MODE_DD, "dd_level": 7000}, architecture="pipelined",
-            adaptation_delay=4, stream_kwargs={"sink_seed": 2, "source_seed": 3})
+            adaptation_delay=8, stream_kwargs={"sink_seed": 2, "source_seed": 3})
 
     def test_invalid_architecture(self):
         with self.assertRaises(ValueError):

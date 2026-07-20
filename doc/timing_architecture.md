@@ -20,7 +20,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
-| LMS equalizer (7 taps) | 69.1 MHz classic; 116.8 MHz update-pipelined median | complex gradient multiply/add feeds saturated weight recurrence | five-sample delayed-update option landed and target-closed |
+| LMS equalizer (7 taps) | 69.1 MHz classic; 114.0 MHz all-mode pipelined median | FIR rescale, CMA modulus/gradient, and saturated weight recurrence | nine-sample delayed-update option landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 122.8/98.4 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule; vector cascade also propagates ready | folded, interleaved, iterative, and native P2 target-closed; native P4 remains open on ECP5 |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -141,24 +141,25 @@ Verilator co-simulation of the pipelined option.
 
 ## LMS equalizer
 
-The pipelined equalizer originally registered the FIR products, FIR sum, modulus, and selected
-error but still applied each complex gradient directly to its weight. That recurrence combined
-two multipliers, an add/subtract, the adaptation shift, saturation, and the weight add in one
-edge. The explicit `update_pipeline=True` option registers the completed increments at their
-bounded post-shift width before the weight recurrence. It changes delayed-LMS adaptation from
-four to five accepted samples while preserving output latency (three clocks), exact arithmetic,
-and one-sample-per-clock throughput.
+Preserving the runtime trained/CMA/DD controls exposed three independent paths that a trained-only
+implementation had optimized away: FIR rescale into the modulus squares, square-product addition,
+and modulus subtract into the CMA multiplier/saturation chain. The pipelined architecture now
+registers the scaled output, square products, modulus sum, modulus error, CMA products, and selected
+error separately. The explicit `update_pipeline=True` option additionally registers completed
+increments at their bounded post-shift width before the weight recurrence. Together they change
+delayed-LMS adaptation from one sample in the classic loop to nine accepted samples, while
+preserving output latency (three clocks), exact arithmetic, and one-sample-per-clock throughput.
 
-Three ECP5 routes reach 114.1/116.8/118.9 MHz with 3894 LUT / 2863 FF / 56 DSP. Artix-7 reaches
-116.7 MHz with 1353 LUT / 1993 FF / 59 DSP, and Artix UltraScale+ reaches 205.6 MHz with 1351 /
-1993 / 59. Relative to the four-sample implementation, the ECP5 cost is 183 LUT and 197 FF;
-the Xilinx cost is 73 LUT and 351 FF on Artix-7. Trained, CMA, and decision-directed trajectories
-remain bit-exact against the five-sample model under randomized bubbles and backpressure, and the
-trained convergence bound remains closed. An independent Verilator co-simulation also guards the
-full-width gradient products against generated-Verilog context truncation.
+Three ECP5 routes reach 112.3/114.0/116.0 MHz with 5179 LUT / 5397 FF / 60 DSP. Artix-7 reaches
+120.3 MHz with 2184 LUT / 4404 FF / 63 DSP, and Artix UltraScale+ reaches 228.7 MHz with 2190 /
+4386 / 63. The substantial register cost is deliberate: every pending error carries its tap-window
+snapshot, so increasing the loop delay preserves bubble-invariant sample semantics. Trained, CMA,
+decision-directed, freeze, queue-collision, and convergence trajectories remain bit-exact against
+the nine-sample model. Independent Verilator co-simulation covers runtime mode switching and also
+guards full-width modulus/gradient products against generated-Verilog context truncation.
 
-The four-sample pipelined and one-sample classic loops remain API-compatible choices. Only the
-implementation registry selects the five-sample timing option.
+The eight-sample pipelined loop without the recurrence cut and the one-sample classic loop remain
+API-compatible choices. The implementation registry selects the nine-sample target-closed option.
 
 ## AGC
 

@@ -50,8 +50,9 @@ class LiteDSPLMSEqualizer(LiteXModule):
 
     Adaptation is *delayed LMS* (the standard hardware form). ``architecture="classic"``
     applies the previous sample's registered error/window. ``"pipelined"`` registers the FIR
-    products, sum, modulus square, and selected error separately and applies it after four
-    accepted samples. ``update_pipeline=True`` adds a fifth accepted-sample delay by registering
+    products, sum, scaled output, square products, modulus sum, modulus error, CMA product, and
+    selected error separately and applies it after eight accepted samples.
+    ``update_pipeline=True`` adds a ninth accepted-sample delay by registering
     the completed tap increments before the weight recurrence. All choices retain
     one-sample-per-clock filter throughput; the pipelined architecture adds two output cycles.
 
@@ -75,11 +76,11 @@ class LiteDSPLMSEqualizer(LiteXModule):
         serves blind acquisition and decision-directed tracking (each unit doubles the
         effective CMA step). 0 keeps the exact derived Q-format.
     architecture : str
-        ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for a four-sample
+        ``"classic"`` for one-sample delayed LMS, or ``"pipelined"`` for an eight-sample
         adaptation delay with unchanged filter throughput and two additional output cycles.
     update_pipeline : bool
         Register the pipelined architecture's completed tap increments before applying them.
-        This makes the adaptation delay five accepted samples and cuts the multiplier/add tree
+        This makes the adaptation delay nine accepted samples and cuts the multiplier/add tree
         away from the weight-feedback edge. It is an explicit control-loop trade-off and does
         not change filter-output latency or peak throughput.
     """
@@ -95,7 +96,7 @@ class LiteDSPLMSEqualizer(LiteXModule):
         self.mu_shift = mu_shift                         # LMS step size: mu = 2**-mu_shift.
         self.architecture     = architecture
         self.update_pipeline  = update_pipeline
-        self.adaptation_delay = 1 if architecture == "classic" else (5 if update_pipeline else 4)
+        self.adaptation_delay = 1 if architecture == "classic" else (9 if update_pipeline else 8)
         # Weight = Q``wint``.``wfrac`` signed. ``wint`` integer bits bound the weight magnitude
         # (saturated below); keeping ww = wint + wfrac <= 18 makes each weight*sample a single
         # 18x18 DSP. Stable equalizers have O(1) weights, so a few integer bits suffice.
@@ -217,6 +218,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
         # shift bounds the worst-case weight step during blind acquisition (large-modulus
         # transients make |dm| ~ 2^W), which is what keeps CMA stable at practical step sizes.
         F   = data_width - 1                             # Sample fractional bits (Q1.F).
+        mag2_full = Signal((2*data_width + 1, True))
+        self.comb += mag2_full.eq(yi*yi + yq*yq)
         # LMS Update.
         # -----------
         ei_d = Signal((data_width + 1, True))            # Registered error Re{e} (1 growth bit).
@@ -228,14 +231,18 @@ class LiteDSPLMSEqualizer(LiteXModule):
             e_q = Signal((data_width + 1, True))
             m2  = Signal((data_width + 2, True))
             dm  = Signal((data_width + 2, True))
+            cma_i_full = Signal((2*data_width + 2, True))
+            cma_q_full = Signal((2*data_width + 2, True))
             self.comb += [
-                m2.eq(rounded(yi*yi + yq*yq, F)),
+                m2.eq(rounded(mag2_full, F)),
                 dm.eq(self.cma_r2 - m2),
+                cma_i_full.eq(yi*dm),
+                cma_q_full.eq(yq*dm),
             ]
             self.comb += Case(self.mode, {
                 MODE_CMA: [
-                    e_i.eq(scaled(yi*dm, F - cma_egain, data_width + 1)[0]),
-                    e_q.eq(scaled(yq*dm, F - cma_egain, data_width + 1)[0]),
+                    e_i.eq(scaled(cma_i_full, F - cma_egain, data_width + 1)[0]),
+                    e_q.eq(scaled(cma_q_full, F - cma_egain, data_width + 1)[0]),
                 ],
                 MODE_DD: [
                     e_i.eq(Mux(yi < 0, -self.dd_level, self.dd_level) - yi),
@@ -258,7 +265,51 @@ class LiteDSPLMSEqualizer(LiteXModule):
             update_xr, update_xi = xr_d, xi_d
         else:
             # The product and sum registers above are the first adaptation stages. Register
-            # |y|^2, then the selected error; updates remain four accepted samples behind.
+            # the scaled output before its two square products: preserving runtime CMA controls
+            # otherwise leaves FIR scaling/saturation plus a multiplier in one ECP5 cycle.
+            # The modulus error and CMA product are separate stages before error selection, so
+            # updates remain eight accepted samples behind without changing filter-output
+            # latency or throughput.
+            y_valid = Signal()
+            y_yi, y_yq = Signal((data_width, True)), Signal((data_width, True))
+            y_di, y_dq = Signal((data_width, True)), Signal((data_width, True))
+            y_mode = Signal(2)
+            y_r2   = Signal(data_width + 1)
+            y_ddl  = Signal(data_width - 1)
+            y_xr = [Signal((data_width, True)) for _ in range(n_taps)]
+            y_xi = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.sync += If(adv,
+                y_valid.eq(fir_valid),
+                If(fir_valid,
+                    y_yi.eq(yi), y_yq.eq(yq), y_di.eq(fir_d_i), y_dq.eq(fir_d_q),
+                    y_mode.eq(fir_mode), y_r2.eq(fir_r2), y_ddl.eq(fir_ddl),
+                    *[y_xr[k].eq(fir_xr[k]) for k in range(n_taps)],
+                    *[y_xi[k].eq(fir_xi[k]) for k in range(n_taps)],
+                ),
+            )
+
+            # Register the square products before adding them.
+            mag_valid = Signal()
+            mag_yi, mag_yq = Signal((data_width, True)), Signal((data_width, True))
+            mag_di, mag_dq = Signal((data_width, True)), Signal((data_width, True))
+            mag_mode = Signal(2)
+            mag_r2   = Signal(data_width + 1)
+            mag_ddl  = Signal(data_width - 1)
+            mag_i2 = Signal((2*data_width, True))
+            mag_q2 = Signal((2*data_width, True))
+            mag_xr = [Signal((data_width, True)) for _ in range(n_taps)]
+            mag_xi = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.sync += If(adv,
+                mag_valid.eq(y_valid),
+                If(y_valid,
+                    mag_yi.eq(y_yi), mag_yq.eq(y_yq),
+                    mag_di.eq(y_di), mag_dq.eq(y_dq),
+                    mag_mode.eq(y_mode), mag_r2.eq(y_r2), mag_ddl.eq(y_ddl),
+                    mag_i2.eq(y_yi*y_yi), mag_q2.eq(y_yq*y_yq),
+                    *[mag_xr[k].eq(y_xr[k]) for k in range(n_taps)],
+                    *[mag_xi[k].eq(y_xi[k]) for k in range(n_taps)],
+                ),
+            )
             v1 = Signal()
             yi1, yq1 = Signal((data_width, True)), Signal((data_width, True))
             di1, dq1 = Signal((data_width, True)), Signal((data_width, True))
@@ -266,117 +317,128 @@ class LiteDSPLMSEqualizer(LiteXModule):
             r21 = Signal(data_width + 1)
             ddl1 = Signal(data_width - 1)
             m2_1 = Signal((data_width + 2, True))
-            dm_1 = Signal((data_width + 2, True))
-            ep_i = Signal((data_width + 1, True))
-            ep_q = Signal((data_width + 1, True))
             xr1 = [Signal((data_width, True)) for _ in range(n_taps)]
             xi1 = [Signal((data_width, True)) for _ in range(n_taps)]
-            adapt_step = Signal()
-            self.comb += adapt_step.eq(fir_valid & adv)
-            self.comb += dm_1.eq(r21 - m2_1)
-            self.comb += Case(mode1, {
-                MODE_CMA: [
-                    ep_i.eq(scaled(yi1*dm_1, F - cma_egain, data_width + 1)[0]),
-                    ep_q.eq(scaled(yq1*dm_1, F - cma_egain, data_width + 1)[0]),
-                ],
-                MODE_DD: [
-                    ep_i.eq(Mux(yi1 < 0, -ddl1, ddl1) - yi1),
-                    ep_q.eq(Mux(yq1 < 0, -ddl1, ddl1) - yq1),
-                ],
-                "default": [ep_i.eq(di1 - yi1), ep_q.eq(dq1 - yq1)],
-            })
-            self.sync += If(adapt_step,
-                v1.eq(1),
-                yi1.eq(yi), yq1.eq(yq), di1.eq(fir_d_i), dq1.eq(fir_d_q),
-                mode1.eq(fir_mode), r21.eq(fir_r2), ddl1.eq(fir_ddl),
-                m2_1.eq(rounded(yi*yi + yq*yq, F)),
-                *[xr1[k].eq(fir_xr[k]) for k in range(n_taps)],
-                *[xi1[k].eq(fir_xi[k]) for k in range(n_taps)],
+            mag2_sum = Signal((2*data_width + 1, True))
+            self.comb += mag2_sum.eq(mag_i2 + mag_q2)
+            self.sync += If(adv,
+                v1.eq(mag_valid),
+                If(mag_valid,
+                    yi1.eq(mag_yi), yq1.eq(mag_yq), di1.eq(mag_di), dq1.eq(mag_dq),
+                    mode1.eq(mag_mode), r21.eq(mag_r2), ddl1.eq(mag_ddl),
+                    m2_1.eq(rounded(mag2_sum, F)),
+                    *[xr1[k].eq(mag_xr[k]) for k in range(n_taps)],
+                    *[xi1[k].eq(mag_xi[k]) for k in range(n_taps)],
+                ),
             )
 
+            # Register the modulus subtraction before the CMA multiplier.
+            dm_valid = Signal()
+            yi2, yq2 = Signal((data_width, True)), Signal((data_width, True))
+            di2, dq2 = Signal((data_width, True)), Signal((data_width, True))
+            mode2 = Signal(2)
+            ddl2 = Signal(data_width - 1)
+            dm2 = Signal((data_width + 2, True))
+            xr2 = [Signal((data_width, True)) for _ in range(n_taps)]
+            xi2 = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.sync += If(adv,
+                dm_valid.eq(v1),
+                If(v1,
+                    yi2.eq(yi1), yq2.eq(yq1), di2.eq(di1), dq2.eq(dq1),
+                    mode2.eq(mode1), ddl2.eq(ddl1), dm2.eq(r21 - m2_1),
+                    *[xr2[k].eq(xr1[k]) for k in range(n_taps)],
+                    *[xi2[k].eq(xi1[k]) for k in range(n_taps)],
+                ),
+            )
+
+            # Register the full-precision CMA products before scaling/saturation and the mode
+            # mux. This is the second ECP5 timing boundary; trained and DD metadata follow the
+            # same path so runtime mode changes remain sample-aligned.
+            prod_valid = Signal()
+            yi3, yq3 = Signal((data_width, True)), Signal((data_width, True))
+            di3, dq3 = Signal((data_width, True)), Signal((data_width, True))
+            mode3 = Signal(2)
+            ddl3 = Signal(data_width - 1)
+            cma_i_full = Signal((2*data_width + 2, True))
+            cma_q_full = Signal((2*data_width + 2, True))
+            xr3 = [Signal((data_width, True)) for _ in range(n_taps)]
+            xi3 = [Signal((data_width, True)) for _ in range(n_taps)]
+            self.sync += If(adv,
+                prod_valid.eq(dm_valid),
+                If(dm_valid,
+                    yi3.eq(yi2), yq3.eq(yq2), di3.eq(di2), dq3.eq(dq2),
+                    mode3.eq(mode2), ddl3.eq(ddl2),
+                    cma_i_full.eq(yi2*dm2), cma_q_full.eq(yq2*dm2),
+                    *[xr3[k].eq(xr2[k]) for k in range(n_taps)],
+                    *[xi3[k].eq(xi2[k]) for k in range(n_taps)],
+                ),
+            )
+            ep_i = Signal((data_width + 1, True))
+            ep_q = Signal((data_width + 1, True))
+            self.comb += Case(mode3, {
+                MODE_CMA: [
+                    ep_i.eq(scaled(cma_i_full, F - cma_egain, data_width + 1)[0]),
+                    ep_q.eq(scaled(cma_q_full, F - cma_egain, data_width + 1)[0]),
+                ],
+                MODE_DD: [
+                    ep_i.eq(Mux(yi3 < 0, -ddl3, ddl3) - yi3),
+                    ep_q.eq(Mux(yq3 < 0, -ddl3, ddl3) - yq3),
+                ],
+                "default": [ep_i.eq(di3 - yi3), ep_q.eq(dq3 - yq3)],
+            })
+
             # Completed errors can arrive while the input has a bubble (the last FIR product
-            # is still draining). Keep them in a four-entry queue, but do not consume the head
-            # until four newer samples have been accepted. Merely consuming the head on the
+            # is still draining). Keep them in an eight-entry queue, but do not consume the head
+            # until eight newer samples have been accepted. Merely consuming the head on the
             # next input works at full rate but shortens the delayed-LMS distance when a bubble
-            # lets an error finish early. Four entries cover all warm-up errors if the input
+            # lets an error finish early. Eight entries cover all warm-up errors if the input
             # pauses immediately before the first update becomes due.
-            update_count = Signal(max=5)
-            accepted_count = Signal(max=5)
-            update_ei = [Signal((data_width + 1, True)) for _ in range(4)]
-            update_eq = [Signal((data_width + 1, True)) for _ in range(4)]
-            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(4)]
-            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(4)]
+            queue_depth = 8
+            update_count = Signal(max=queue_depth + 1)
+            accepted_count = Signal(max=9)
+            update_ei = [Signal((data_width + 1, True)) for _ in range(queue_depth)]
+            update_eq = [Signal((data_width + 1, True)) for _ in range(queue_depth)]
+            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(queue_depth)]
+            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(queue_depth)]
             error_ready = Signal()
             update_step = Signal()
             self.comb += [
-                error_ready.eq(adapt_step & v1),
-                update_step.eq(xfer & (accepted_count == 4)),
+                # The completed error drains even when no newer magnitude enters this cycle.
+                # Gating this with a newer stage's valid drops the tail after an input bubble.
+                error_ready.eq(adv & prod_valid),
+                update_step.eq(xfer & (accepted_count == 8)),
             ]
-            self.sync += If(xfer & (accepted_count != 4),
+            self.sync += If(xfer & (accepted_count != 8),
                 accepted_count.eq(accepted_count + 1),
             )
-            push0 = [
-                update_ei[0].eq(ep_i), update_eq[0].eq(ep_q),
-                *[update_xr[0][k].eq(xr1[k]) for k in range(n_taps)],
-                *[update_xi[0][k].eq(xi1[k]) for k in range(n_taps)],
-            ]
-            push1 = [
-                update_ei[1].eq(ep_i), update_eq[1].eq(ep_q),
-                *[update_xr[1][k].eq(xr1[k]) for k in range(n_taps)],
-                *[update_xi[1][k].eq(xi1[k]) for k in range(n_taps)],
-            ]
-            push2 = [
-                update_ei[2].eq(ep_i), update_eq[2].eq(ep_q),
-                *[update_xr[2][k].eq(xr1[k]) for k in range(n_taps)],
-                *[update_xi[2][k].eq(xi1[k]) for k in range(n_taps)],
-            ]
-            push3 = [
-                update_ei[3].eq(ep_i), update_eq[3].eq(ep_q),
-                *[update_xr[3][k].eq(xr1[k]) for k in range(n_taps)],
-                *[update_xi[3][k].eq(xi1[k]) for k in range(n_taps)],
-            ]
-            shift_down = [
-                update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
-                *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
-                *[update_xi[0][k].eq(update_xi[1][k]) for k in range(n_taps)],
-                update_ei[1].eq(update_ei[2]), update_eq[1].eq(update_eq[2]),
-                *[update_xr[1][k].eq(update_xr[2][k]) for k in range(n_taps)],
-                *[update_xi[1][k].eq(update_xi[2][k]) for k in range(n_taps)],
-                update_ei[2].eq(update_ei[3]), update_eq[2].eq(update_eq[3]),
-                *[update_xr[2][k].eq(update_xr[3][k]) for k in range(n_taps)],
-                *[update_xi[2][k].eq(update_xi[3][k]) for k in range(n_taps)],
-            ]
+            def copy_slot(dst, src):
+                return [
+                    update_ei[dst].eq(update_ei[src]), update_eq[dst].eq(update_eq[src]),
+                    *[update_xr[dst][k].eq(update_xr[src][k]) for k in range(n_taps)],
+                    *[update_xi[dst][k].eq(update_xi[src][k]) for k in range(n_taps)],
+                ]
+            pushes = [[
+                update_ei[n].eq(ep_i), update_eq[n].eq(ep_q),
+                *[update_xr[n][k].eq(xr3[k]) for k in range(n_taps)],
+                *[update_xi[n][k].eq(xi3[k]) for k in range(n_taps)],
+            ] for n in range(queue_depth)]
+            shift_down = sum((copy_slot(n, n + 1) for n in range(queue_depth - 1)), [])
+            push_only = {
+                n: [*pushes[n], update_count.eq(n + 1)] for n in range(queue_depth)
+            }
+            replace_head = {}
+            for count in range(1, queue_depth + 1):
+                replace_head[count] = [
+                    *sum((copy_slot(n, n + 1) for n in range(count - 1)), []),
+                    *pushes[count - 1],
+                ]
             self.sync += Case(Cat(update_step, error_ready), {
                 0b01: [
                     If(update_count >= 2, *shift_down),
                     update_count.eq(update_count - 1),
                 ],
-                0b10: [
-                    If(update_count == 0, *push0, update_count.eq(1)).
-                    Elif(update_count == 1, *push1, update_count.eq(2)).
-                    Elif(update_count == 2, *push2, update_count.eq(3)).
-                    Elif(update_count == 3, *push3, update_count.eq(4)),
-                ],
-                0b11: [
-                    If(update_count == 1, *push0).
-                    Elif(update_count == 2,
-                        update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
-                        *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
-                        *[update_xi[0][k].eq(update_xi[1][k]) for k in range(n_taps)],
-                        *push1,
-                    ).Elif(update_count == 3,
-                        update_ei[0].eq(update_ei[1]), update_eq[0].eq(update_eq[1]),
-                        *[update_xr[0][k].eq(update_xr[1][k]) for k in range(n_taps)],
-                        *[update_xi[0][k].eq(update_xi[1][k]) for k in range(n_taps)],
-                        update_ei[1].eq(update_ei[2]), update_eq[1].eq(update_eq[2]),
-                        *[update_xr[1][k].eq(update_xr[2][k]) for k in range(n_taps)],
-                        *[update_xi[1][k].eq(update_xi[2][k]) for k in range(n_taps)],
-                        *push2,
-                    ).Elif(update_count == 4,
-                        *shift_down,
-                        *push3,
-                    ),
-                ],
+                0b10: [Case(update_count, push_only)],
+                0b11: [Case(update_count, replace_head)],
             })
             update_ei, update_eq = update_ei[0], update_eq[0]
             update_xr, update_xi = update_xr[0], update_xi[0]

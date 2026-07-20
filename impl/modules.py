@@ -282,13 +282,13 @@ def pfb_channelizer_fft():
 
 def lms_equalizer():
     d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, with_csr=False)
-    return d, {d.train} | _eps(d.sink, d.source), 12.0
+    return d, {d.train, d.mode, d.cma_r2, d.dd_level} | _eps(d.sink, d.source), 12.0
 
 def lms_equalizer_pipelined():
     d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, architecture="pipelined",
         update_pipeline=True, with_csr=False)
     # A small implementation margin keeps the reviewed 100 MHz target out of route noise.
-    return d, {d.train} | _eps(d.sink, d.source), 9.8
+    return d, {d.train, d.mode, d.cma_r2, d.dd_level} | _eps(d.sink, d.source), 9.8
 
 def timing_recovery():
     d = LiteDSPTimingRecovery(data_width=16, with_csr=False)

@@ -185,14 +185,21 @@ def spec_moving_average():
                                         models.moving_average_model(np.array(c[1]), length_log2)]
 
 def spec_equalizer():
-    from litedsp.filter.equalizer import LiteDSPLMSEqualizer
-    n, n_taps, mu_shift = 240, 7, 12
+    from litedsp.filter.equalizer import LiteDSPLMSEqualizer, MODE_TRAINED, MODE_CMA, MODE_DD
+    n, n_taps, mu_shift, cma_egain = 1200, 7, 16, 6
+    cma_r2, dd_level = round(2*7000*7000/(1 << 15)), 7000
     dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, mu_shift=mu_shift,
+        cma_egain=cma_egain,
         architecture="pipelined", update_pipeline=True, with_csr=False)
     cols = _rand_cols(4, n, lo=-8000, hi=8000, seed=71)
-    return dut, cols, n - 8, lambda c: list(models.equalizer_model(
+    mode = [MODE_TRAINED if k < 300 else MODE_CMA if k < 600 else MODE_DD if k < 900
+            else MODE_TRAINED for k in range(n)]
+    train = [int(not 1000 <= k < 1050) for k in range(n)]
+    return dut, cols + [train, mode, [cma_r2]*n, [dd_level]*n], n - 8, \
+        lambda c: list(models.equalizer_model(
         c[0], c[1], c[2], c[3], n_taps=n_taps, data_width=16, mu_shift=mu_shift,
-        adaptation_delay=5))
+        cma_egain=cma_egain, mode=c[5], cma_r2=cma_r2, dd_level=dd_level, train=c[4],
+        adaptation_delay=9)), False, False, (dut.train, dut.mode, dut.cma_r2, dut.dd_level)
 
 def spec_pfb_channelizer():
     from litedsp.mixing.pfb_channelizer import LiteDSPPFBChannelizer
