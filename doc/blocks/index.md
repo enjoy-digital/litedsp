@@ -33,8 +33,8 @@
 | [FIR interpolator](fir_interpolator.md) | `LiteDSPFIRInterpolator` | 32 | 2 | Interpolate-by-L complex FIR with a single time-shared MAC per I/Q (polyphase). |
 | [CIC decimator](cic_decimator.md) | `LiteDSPCICDecimator` | 1 | 0 | CIC decimator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N``, rescaled to width. |
 | [CIC interpolator](cic_interpolator.md) | `LiteDSPCICInterpolator` | 1 | 0 | CIC interpolator by ``R`` (N stages, comb delay M). Gain ``(R*M)**N / R``, rescaled. |
-| [Halfband decimator](halfband_dec.md) | `LiteDSPHalfbandDecimator` | 24 | — | Decimate-by-2 half-band FIR. |
-| [Halfband interpolator](halfband_int.md) | `LiteDSPHalfbandInterpolator` | 23 | — | Interpolate-by-2 half-band FIR. |
+| [Halfband decimator](halfband_dec.md) | `LiteDSPHalfbandDecimator` | 24 | — | Decimate-by-2 half-band FIR with structural zero-tap pruning. |
+| [Halfband interpolator](halfband_int.md) | `LiteDSPHalfbandInterpolator` | 23 | — | Interpolate-by-2 half-band FIR with structural zero-tap pruning. |
 | [Hilbert](hilbert.md) | `LiteDSPHilbert` | 3 | — | Real -> analytic (complex) signal via a Hilbert FIR. |
 | [IIR biquad](iir_biquad.md) | `LiteDSPIIRBiquad` | 2 | 24 | One DF2T biquad section applied to I and Q with shared coefficients. |
 | [DC blocker](dc_blocker.md) | `LiteDSPDCBlocker` | 1 | 0 | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
