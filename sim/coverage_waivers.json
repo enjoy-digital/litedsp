@@ -8,6 +8,27 @@
       "test.test_equalizer:TestLMSEqualizer.test_cma_blind_convergence"
     ]
   },
+  "fir_decimator": {
+    "reason": "Migen expands the polyphase tap-offset and memory-address selectors into structural case arms that Verilator does not credit even when every valid tap executes; multiple geometries, backpressure, runtime reload, and pruned halfband behavior are checked semantically.",
+    "semantic_checks": [
+      "test.test_fir_poly:TestFIRDecimator.test_bit_exact",
+      "test.test_fir_reload:TestFIRReload.test_runtime_reload",
+      "test.test_halfband:TestHalfband.test_pruned_bit_exact"
+    ]
+  },
+  "fir_interpolator": {
+    "reason": "Migen expands the polyphase tap and phase selectors into structural case arms that Verilator does not credit even when every valid phase executes; multiple geometries, backpressure, and pruned halfband behavior are checked semantically.",
+    "semantic_checks": [
+      "test.test_fir_poly:TestFIRInterpolator.test_bit_exact",
+      "test.test_halfband:TestHalfband.test_pruned_bit_exact"
+    ]
+  },
+  "fir_interpolator_pipelined": {
+    "reason": "Migen expands the pipelined polyphase tap and phase selectors into structural case arms that Verilator does not credit even when every valid phase executes; both interpolator architectures and multiple geometries are checked by the same bit-exact randomized test.",
+    "semantic_checks": [
+      "test.test_fir_poly:TestFIRInterpolator.test_bit_exact"
+    ]
+  },
   "ldpc_decoder": {
     "reason": "The fixed 802.11n topology duplicates selector arms for every edge and layer; outcome coverage is more meaningful than hitting every structurally repeated arm.",
     "semantic_checks": [
