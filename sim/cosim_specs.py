@@ -510,8 +510,9 @@ def spec_ldpc_encoder():
     return dut, [data, first, last], LDPC_N, lambda c: [
         models.ldpc_encode_model(c[0]), out_first, out_last], True, True
 
-def spec_ldpc_decoder():
+def _spec_ldpc_decoder(z_parallel=False):
     from litedsp.comm.ldpc import LiteDSPLDPCDecoder, LDPC_K, LDPC_N
+    from litedsp.comm.ldpc_parallel import LiteDSPLDPCDecoderZParallel
     def random_message(seed):
         return [int(b) for b in np.random.default_rng(seed).integers(0, 2, LDPC_K)]
 
@@ -531,7 +532,8 @@ def spec_ldpc_decoder():
     ]
     expected = [bit for block in blocks for bit in models.ldpc_decode_model(block)[0]]
     llrs = [v for block in blocks for v in block]
-    dut  = LiteDSPLDPCDecoder(llr_bits=4, max_iters=8, with_csr=False)
+    cls = LiteDSPLDPCDecoderZParallel if z_parallel else LiteDSPLDPCDecoder
+    dut = cls(llr_bits=4, max_iters=8, with_csr=False)
     first = [int(k % LDPC_N == 0) for k in range(len(llrs))]
     last  = [int(k % LDPC_N == LDPC_N - 1) for k in range(len(llrs))]
     clear = [int(k == 3*LDPC_N) for k in range(len(llrs))]
@@ -540,6 +542,12 @@ def spec_ldpc_decoder():
     out_last  = [int(k % LDPC_K == LDPC_K - 1) for k in range(n_out)]
     return dut, [llrs, first, last, clear], n_out, lambda c: [
         expected, out_first, out_last], True, True, (dut.clear,)
+
+def spec_ldpc_decoder():
+    return _spec_ldpc_decoder()
+
+def spec_ldpc_decoder_z_parallel():
+    return _spec_ldpc_decoder(z_parallel=True)
 
 def spec_correlator():
     from litedsp.comm.correlator import LiteDSPCorrelator
@@ -763,6 +771,7 @@ SPECS = {
     "ccsds_rs_decoder": spec_ccsds_rs_decoder,
     "ldpc_encoder":      spec_ldpc_encoder,
     "ldpc_decoder":      spec_ldpc_decoder,
+    "ldpc_decoder_z_parallel": spec_ldpc_decoder_z_parallel,
     "correlator":       spec_correlator,
     "frame_sync":       spec_frame_sync,
     "frame_sync_pipelined": spec_frame_sync_pipelined,

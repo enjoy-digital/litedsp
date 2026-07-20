@@ -378,6 +378,28 @@ rounds back to the branch accumulator scale after a rank, whereas the small dire
 only once after its full sum. Acceptance covers M=16 and M=32, natural channel order, framing,
 randomized stalls, Verilator co-simulation, and both FPGA implementation targets.
 
+## LDPC lift parallelism
+
+The compact 802.11n decoder updates one lifted check row at a time. Its 44,500-clock worst-case
+block schedule is area-efficient, but simply pipelining the row-layered recurrence would not
+remove the factor `z=27`. `LiteDSPLDPCDecoderZParallel` instead stores APP values and compressed
+check state as vectors and evaluates all 27 lifted rows of one base-matrix edge together. A
+lane-local Q capture separates the wide memory/rotation/subtraction path from the replicated
+minimum update. The resulting schedule is 364 clocks/iteration and 3,908 clocks for an
+eight-iteration block, with the same quantization and bit-exact normalized-min-sum outcome.
+
+| Architecture | Worst clocks/block | ECP5 LUT/FF/BRAM/Fmax (kblock/s) | Artix-7 LUT/FF/BRAM/Fmax (kblock/s) | Artix UltraScale+ LUT/FF/BRAM/Fmax (kblock/s) |
+|---|---:|---:|---:|---:|
+| Serial | 44,500 | 693 / 198 / 2 / 103.6 MHz (2.33) | 355 / 178 / 1 / 124.5 MHz (2.80) | 467 / 188 / 0 / 225.6 MHz (5.07) |
+| z-parallel | 3,908 | 14500 / 2574 / 0 / 57.9 MHz (14.82) | 5766 / 2554 / 10 / 90.4 MHz (23.13) | 6219 / 2555 / 0 / 139.7 MHz (35.75) |
+
+Thus the z-parallel option delivers 6.4--8.3x worst-case block throughput, but costs 13--21x
+the LUTs and roughly 13--14x the registers. Memory inference is family-dependent: the Artix-7
+vector implementation uses ten BRAM tiles, while the ECP5 and UltraScale+ reference flows map
+the wide state differently. It closes the 100 MHz objective only on UltraScale+, so it remains
+an explicitly advisory `PNR_STRESS` configuration. The serial decoder remains the default and
+strict sentinel; early parity termination reduces the average block time of either architecture.
+
 ## Landing policy
 
 Each family is a separate change series: architecture parameter and model first, focused tests

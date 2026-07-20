@@ -3209,6 +3209,59 @@
       }
     }
   },
+  "ldpc_decoder_z_parallel": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 2574,
+      "fmax_mhz": 57.9,
+      "fmax_min": 49.2,
+      "fmax_target": 100.0,
+      "lut": 14500,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 2574,
+        "fmax_mhz": 57.9,
+        "fmax_min": 49.2,
+        "lut": 14500
+      }
+    },
+    "xilinx": {
+      "bram": 10,
+      "dsp": 0,
+      "ff": 2554,
+      "fmax_mhz": 90.4,
+      "fmax_min": 76.9,
+      "fmax_target": 100.0,
+      "lut": 5766,
+      "pnr": {
+        "bram": 10,
+        "dsp": 0,
+        "ff": 2554,
+        "fmax_mhz": 90.4,
+        "fmax_min": 76.9,
+        "lut": 5766
+      }
+    },
+    "xilinx_au": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 2555,
+      "fmax_mhz": 139.7,
+      "fmax_min": 118.7,
+      "fmax_target": 100.0,
+      "lut": 6219,
+      "pnr": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 2555,
+        "fmax_mhz": 139.7,
+        "fmax_min": 118.7,
+        "lut": 6219
+      }
+    }
+  },
   "ldpc_encoder": {
     "ecp5": {
       "bram": 0,

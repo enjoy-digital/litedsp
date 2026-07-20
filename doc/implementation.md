@@ -55,10 +55,11 @@ default, Explore, and high-net-delay/HigherDelayCost timing algorithms. Both ret
 reports and report worst/median/best fmax; budget updates use the median completed route.
 `--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
 nightly job indefinitely.
-The native x4 FFT configuration remains in `PNR_STRESS`, outside the bounded 37-block push/PR
-subset. Nightly CI routes it on an independent runner with a 90-minute timeout and retains a
-separate report artifact. The ready-cut x2 configuration has robust margin and is back in the
-regular strict subset.
+The native x4 FFT and z-parallel LDPC decoder remain in `PNR_STRESS`, outside the bounded
+push/PR subset. Nightly CI routes each on an independent runner with a long timeout and retains
+separate report artifacts. The FFT's ready-cut x2 configuration has robust margin and is back in
+the regular strict subset; the z-parallel LDPC option is a deliberate area/throughput trade-off,
+while the compact serial decoder remains the regular strict implementation sentinel.
 The classic serial FFT and the older split/folded parallel FFT configurations are retained as
 compatibility and comparison points, so they carry measured regression floors but no 100 MHz
 engineering objective. The folded/interleaved serial variants and native vector FFTs are the
@@ -161,11 +162,11 @@ timing budgets. Each device cell carries its own LUT/FF/BRAM/DSP counts and fmax
 avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing. Per-block
 datasheets present the same data from `impl/budgets.json`.
 
-The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
-configurations pass out-of-context synthesis; 37 bounded representative configurations form the
-regular P&R subset, one route-sensitive configuration forms the stability set, and one
-capacity-cliff native FFT configuration forms the stress set. All 39 pass
-place-and-route. The 26 reviewed timing architectures close their 100 MHz targets on this
+The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 91 registry
+configurations pass out-of-context synthesis; 38 bounded representative configurations form the
+regular P&R subset, one route-sensitive configuration forms the stability set, and two wide
+capacity/timing configurations form the stress set. All 41 pass place-and-route. The 28 reviewed
+timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part
 of the strict 100 MHz target set. Relative to the classic reduction, ECP5 moves from 6461 LUT /

@@ -18,6 +18,13 @@
       "test.test_ldpc:TestLDPC.test_model_waterfall"
     ]
   },
+  "ldpc_decoder_z_parallel": {
+    "reason": "The 27 replicated lanes expand constant rotation maps and mutually exclusive edge-register write arms; model identity covers converged and failure outcomes more meaningfully than generated-line hits.",
+    "semantic_checks": [
+      "test.test_ldpc:TestLDPC.test_z_parallel_decoder_matches_model",
+      "test.test_ldpc:TestLDPC.test_model_waterfall"
+    ]
+  },
   "pfb_channelizer_fft": {
     "reason": "Migen expands DIF addressing and natural-order bit reversal into exhaustive constant case arms that do not map cleanly to source-line coverage.",
     "semantic_checks": [

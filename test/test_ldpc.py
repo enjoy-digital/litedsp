@@ -27,6 +27,7 @@ import numpy as np
 from migen import run_simulation, passive
 
 from litedsp.comm.ldpc import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder, LDPC_BASE
+from litedsp.comm.ldpc_parallel import LiteDSPLDPCDecoderZParallel
 
 from test.common import stream_driver, stream_capture
 from test.models import (ldpc_encode_model, ldpc_decode_model, ldpc_expand_h,
@@ -57,9 +58,10 @@ def _status_monitor(dut, log):
         yield
 
 class TestLDPC(unittest.TestCase):
-    def _decode_blocks(self, llr_blocks, llr_bits=4, max_iters=8, throttle=0.2, ready_rate=0.7):
+    def _decode_blocks(self, llr_blocks, llr_bits=4, max_iters=8, throttle=0.2, ready_rate=0.7,
+        decoder_cls=LiteDSPLDPCDecoder):
         """Run LLR blocks through one RTL decoder; return (bits, per-block status tuples)."""
-        dut = LiteDSPLDPCDecoder(llr_bits=llr_bits, max_iters=max_iters, with_csr=False)
+        dut = decoder_cls(llr_bits=llr_bits, max_iters=max_iters, with_csr=False)
         mask = (1 << llr_bits) - 1
         cap, status = [], []
         run_simulation(dut, [
@@ -204,11 +206,39 @@ class TestLDPC(unittest.TestCase):
         self.assertEqual(bits, bits_m)
         self.assertEqual(status, [(2, 0, 1)])
 
+    def test_z_parallel_decoder_matches_model(self):
+        # The 27-lane core must preserve the serial core/model trajectory while cutting the
+        # lifted-row factor from the iteration schedule. Cover one converged noisy block and
+        # one deliberately uncorrectable block, including status and randomized handshakes.
+        msg = _random_message(54)
+        llr = _awgn_llrs(ldpc_encode_model(msg), 2.5, seed=64)
+        bits_m, it_m, ok_m = ldpc_decode_model(llr)
+        self.assertTrue(ok_m and it_m > 1)
+        bits, status = self._decode_blocks([llr], decoder_cls=LiteDSPLDPCDecoderZParallel)
+        self.assertEqual(bits, bits_m)
+        self.assertEqual(status, [(it_m, 1, 0)])
+
+        rng = np.random.default_rng(50)
+        bad = [int(v) for v in rng.integers(-7, 8, LDPC_N)]
+        bad_m, bad_it, bad_ok = ldpc_decode_model(bad, max_iters=2)
+        bits, status = self._decode_blocks([bad], max_iters=2,
+            decoder_cls=LiteDSPLDPCDecoderZParallel)
+        self.assertEqual((bad_it, bad_ok), (2, False))
+        self.assertEqual(bits, bad_m)
+        self.assertEqual(status, [(2, 0, 1)])
+
+        dut = LiteDSPLDPCDecoderZParallel(with_csr=False)
+        self.assertEqual(dut.parallelism, LDPC_Z)
+        self.assertEqual(dut.cycles_per_iteration, 364)
+        self.assertLess(dut.cycles_per_block,
+            LiteDSPLDPCDecoder(with_csr=False).cycles_per_block/10)
+
     # verify-tier: model — invalid parameters rejected with ValueError.
     def test_invalid_params(self):
-        for kwargs in ({"llr_bits": 1}, {"max_iters": 0}, {"max_iters": 32}):
-            with self.assertRaises(ValueError):
-                LiteDSPLDPCDecoder(with_csr=False, **kwargs)
+        for decoder_cls in (LiteDSPLDPCDecoder, LiteDSPLDPCDecoderZParallel):
+            for kwargs in ({"llr_bits": 1}, {"max_iters": 0}, {"max_iters": 32}):
+                with self.assertRaises(ValueError):
+                    decoder_cls(with_csr=False, **kwargs)
 
 if __name__ == "__main__":
     unittest.main()

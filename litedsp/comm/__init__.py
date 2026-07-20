@@ -14,6 +14,7 @@ from litedsp.comm.fm_demod        import LiteDSPFMDemod
 from litedsp.comm.frame_sync      import LiteDSPFrameSync
 from litedsp.comm.interleaver     import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.ldpc            import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
+from litedsp.comm.ldpc_parallel   import LiteDSPLDPCDecoderZParallel
 from litedsp.comm.mapper          import LiteDSPSymbolMapper
 from litedsp.comm.ofdm            import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer

@@ -116,6 +116,7 @@ VSPEC = {
     "ccsds_rs_decoder":   _v("ccsds_rs_decode_model", latency="variable", rate=None, cosim=True),
     "ldpc_encoder":       _v("ldpc_encode_model", latency="variable", rate=None, cosim=True),  # k bits in -> n bits out (framed).
     "ldpc_decoder":       _v("ldpc_decode_model", latency="variable", rate=None, cosim=True),  # n LLRs in -> k bits out (framed).
+    "ldpc_decoder_z_parallel": _v("ldpc_decode_model", latency="variable", rate=None, cosim=True),
     "cp_insert":          _v(latency="variable", rate=None),
     "cp_remove":          _v(rate=None),
     "ofdm_equalizer":     _v("ofdm_equalizer_model", rate=None),  # 1:1 steady-state; training frames consumed.

@@ -244,15 +244,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  # The native x4 FFT sits near the ECP5 capacity cliff. Route it independently with a long bound
-  # so it cannot starve the regular implementation matrix.
+  # Wide capacity/timing-stress datapaths route independently with a long bound so they cannot
+  # starve the regular implementation matrix.
   impl-stress:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        module: [fft_parallel_native_x4]
+        module: [fft_parallel_native_x4, ldpc_decoder_z_parallel]
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_nightly_${{ matrix.module }}
     steps:

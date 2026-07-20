@@ -49,8 +49,9 @@ NumPy model, 400-1200 blocks/point): BER 1.2e-1 @ 1.0 dB, 5.1e-2 @ 1.5 dB, 9.8e-
 
 Both blocks are block-serial and framed: boundaries are counted from reset (sink
 ``first``/``last`` ignored), outputs framed with ``first``/``last``. The LLR input is one
-LLR per beat (a z-parallel QC datapath — 27 check rows per cycle — is the documented
-follow-up); see ``cycles_per_block`` for the decode cost.
+LLR per beat. :class:`litedsp.comm.ldpc_parallel.LiteDSPLDPCDecoderZParallel` provides the
+area/throughput alternative that processes all 27 lifted check rows together; see
+``cycles_per_block`` for the serial decode cost.
 """
 
 from functools import reduce

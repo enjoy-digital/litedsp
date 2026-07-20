@@ -76,6 +76,7 @@ from litedsp.comm.rs               import (
     LiteDSPCCSDSRSEncoder, LiteDSPCCSDSRSDecoder,
 )
 from litedsp.comm.ldpc             import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
+from litedsp.comm.ldpc_parallel    import LiteDSPLDPCDecoderZParallel
 from litedsp.comm.ofdm             import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.comm.ofdm_eq          import LiteDSPOFDMEqualizer
 from litedsp.analysis.window       import LiteDSPWindow
@@ -194,6 +195,7 @@ ENTRIES = [
     ("ccsds_rs_decoder",   LiteDSPCCSDSRSDecoder,        {},                                     "comm",       "CCSDS RS decoder",      {"architecture": ["classic", "pipelined"]}),
     ("ldpc_encoder",       LiteDSPLDPCEncoder,           {},                                     "comm",       "LDPC encoder (802.11n)", None),
     ("ldpc_decoder",       LiteDSPLDPCDecoder,           {},                                     "comm",       "LDPC decoder (802.11n)", None),
+    ("ldpc_decoder_z_parallel", LiteDSPLDPCDecoderZParallel, {},                                  "comm",       "LDPC decoder (z-parallel)", None),
     ("cp_insert",          LiteDSPCPInsert,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP insert",        None),
     ("cp_remove",          LiteDSPCPRemove,              {"fft_size": 64, "cp_len": 16},         "comm",       "OFDM CP remove",        None),
     ("ofdm_equalizer",     LiteDSPOFDMEqualizer,         {"fft_size": 64},                       "comm",       "OFDM equalizer (1-tap)", None),

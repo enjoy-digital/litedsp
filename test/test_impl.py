@@ -99,7 +99,8 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertIn(dut.chain.outputs["bb_out"].payload.q, ios)
 
     def test_capacity_cliff_routes_are_isolated_from_the_regular_subset(self):
-        self.assertEqual(modules.PNR_STRESS, ["fft_parallel_native_x4"])
+        self.assertEqual(modules.PNR_STRESS,
+            ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"])
         for name in modules.PNR_STRESS:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
