@@ -3,70 +3,70 @@
     "ecp5": {
       "bram": 0,
       "dsp": 4,
-      "ff": 75,
-      "fmax_mhz": 106.3,
-      "fmax_min": 90.4,
+      "ff": 126,
+      "fmax_mhz": 134.7,
+      "fmax_min": 114.5,
       "fmax_target": 100.0,
-      "lut": 349,
+      "lut": 424,
       "pnr": {
         "bram": 0,
         "dsp": 4,
-        "ff": 75,
-        "fmax_mhz": 106.3,
-        "fmax_min": 90.4,
-        "lut": 349
+        "ff": 126,
+        "fmax_mhz": 134.7,
+        "fmax_min": 114.5,
+        "lut": 424
       },
       "synth": {
         "bram": 0,
         "dsp": 4,
-        "ff": 75,
-        "lut": 349
+        "ff": 126,
+        "lut": 390
       }
     },
     "xilinx": {
       "bram": 0,
       "dsp": 2,
-      "ff": 75,
-      "fmax_mhz": 103.3,
-      "fmax_min": 87.8,
+      "ff": 126,
+      "fmax_mhz": 131.5,
+      "fmax_min": 111.8,
       "fmax_target": 100.0,
-      "lut": 197,
+      "lut": 264,
       "pnr": {
         "bram": 0,
         "dsp": 2,
-        "ff": 75,
-        "fmax_mhz": 103.3,
-        "fmax_min": 87.8,
-        "lut": 197
+        "ff": 126,
+        "fmax_mhz": 131.5,
+        "fmax_min": 111.8,
+        "lut": 264
       },
       "synth": {
         "bram": 0,
         "dsp": 2,
-        "ff": 75,
-        "lut": 197
+        "ff": 126,
+        "lut": 269
       }
     },
     "xilinx_au": {
       "bram": 0,
       "dsp": 2,
-      "ff": 75,
-      "fmax_mhz": 198.3,
-      "fmax_min": 168.6,
+      "ff": 122,
+      "fmax_mhz": 284.3,
+      "fmax_min": 241.7,
       "fmax_target": 100.0,
-      "lut": 173,
+      "lut": 195,
       "pnr": {
         "bram": 0,
         "dsp": 2,
-        "ff": 75,
-        "fmax_mhz": 198.3,
-        "fmax_min": 168.6,
-        "lut": 173
+        "ff": 122,
+        "fmax_mhz": 284.3,
+        "fmax_min": 241.7,
+        "lut": 195
       },
       "synth": {
         "bram": 0,
         "dsp": 2,
-        "ff": 75,
-        "lut": 177
+        "ff": 122,
+        "lut": 200
       }
     }
   },
@@ -1803,70 +1803,70 @@
     "ecp5": {
       "bram": 0,
       "dsp": 52,
-      "ff": 5014,
-      "fmax_mhz": 77.7,
-      "fmax_min": 66.0,
+      "ff": 5287,
+      "fmax_mhz": 122.8,
+      "fmax_min": 104.3,
       "fmax_target": 100.0,
-      "lut": 8224,
+      "lut": 9835,
       "pnr": {
         "bram": 0,
         "dsp": 52,
-        "ff": 5014,
-        "fmax_mhz": 77.7,
-        "fmax_min": 66.0,
-        "lut": 8224
+        "ff": 5287,
+        "fmax_mhz": 122.8,
+        "fmax_min": 104.3,
+        "lut": 9835
       },
       "synth": {
         "bram": 0,
         "dsp": 52,
-        "ff": 5014,
-        "lut": 8224
+        "ff": 5287,
+        "lut": 8301
       }
     },
     "xilinx": {
       "bram": 0,
       "dsp": 52,
-      "ff": 2873,
-      "fmax_mhz": 97.7,
-      "fmax_min": 83.0,
+      "ff": 2954,
+      "fmax_mhz": 111.4,
+      "fmax_min": 94.7,
       "fmax_target": 100.0,
-      "lut": 3057,
+      "lut": 2947,
       "pnr": {
         "bram": 0,
         "dsp": 52,
-        "ff": 2873,
-        "fmax_mhz": 97.7,
-        "fmax_min": 83.0,
-        "lut": 3057
+        "ff": 2954,
+        "fmax_mhz": 111.4,
+        "fmax_min": 94.7,
+        "lut": 2947
       },
       "synth": {
         "bram": 0,
         "dsp": 52,
-        "ff": 2809,
-        "lut": 3269
+        "ff": 2954,
+        "lut": 3218
       }
     },
     "xilinx_au": {
       "bram": 0,
       "dsp": 52,
-      "ff": 2807,
-      "fmax_mhz": 149.3,
-      "fmax_min": 126.9,
+      "ff": 2954,
+      "fmax_mhz": 193.5,
+      "fmax_min": 164.5,
       "fmax_target": 100.0,
-      "lut": 2950,
+      "lut": 2865,
       "pnr": {
         "bram": 0,
         "dsp": 52,
-        "ff": 2807,
-        "fmax_mhz": 149.3,
-        "fmax_min": 126.9,
-        "lut": 2950
+        "ff": 2954,
+        "fmax_mhz": 193.5,
+        "fmax_min": 164.5,
+        "lut": 2865
       },
       "synth": {
         "bram": 0,
         "dsp": 52,
-        "ff": 2807,
-        "lut": 3036
+        "ff": 2954,
+        "lut": 2994
       }
     }
   },
@@ -1874,70 +1874,70 @@
     "ecp5": {
       "bram": 0,
       "dsp": 94,
-      "ff": 8433,
-      "fmax_mhz": 67.8,
-      "fmax_min": 57.6,
+      "ff": 8978,
+      "fmax_mhz": 98.4,
+      "fmax_min": 83.7,
       "fmax_target": 100.0,
-      "lut": 13859,
+      "lut": 16018,
       "pnr": {
         "bram": 0,
         "dsp": 94,
-        "ff": 8433,
-        "fmax_mhz": 67.8,
-        "fmax_min": 57.6,
-        "lut": 13859
+        "ff": 8978,
+        "fmax_mhz": 98.4,
+        "fmax_min": 83.7,
+        "lut": 16018
       },
       "synth": {
         "bram": 0,
         "dsp": 94,
-        "ff": 8433,
-        "lut": 13859
+        "ff": 8978,
+        "lut": 13832
       }
     },
     "xilinx": {
       "bram": 0,
-      "dsp": 94,
-      "ff": 4916,
-      "fmax_mhz": 78.1,
-      "fmax_min": 66.4,
+      "dsp": 95,
+      "ff": 5087,
+      "fmax_mhz": 110.5,
+      "fmax_min": 94.0,
       "fmax_target": 100.0,
-      "lut": 5357,
+      "lut": 4898,
       "pnr": {
         "bram": 0,
-        "dsp": 94,
-        "ff": 4916,
-        "fmax_mhz": 78.1,
-        "fmax_min": 66.4,
-        "lut": 5357
+        "dsp": 95,
+        "ff": 5087,
+        "fmax_mhz": 110.5,
+        "fmax_min": 94.0,
+        "lut": 4898
       },
       "synth": {
         "bram": 0,
-        "dsp": 94,
-        "ff": 4820,
-        "lut": 5747
+        "dsp": 95,
+        "ff": 5087,
+        "lut": 5421
       }
     },
     "xilinx_au": {
       "bram": 0,
       "dsp": 95,
-      "ff": 4821,
-      "fmax_mhz": 144.5,
-      "fmax_min": 122.9,
+      "ff": 5084,
+      "fmax_mhz": 180.6,
+      "fmax_min": 153.5,
       "fmax_target": 100.0,
-      "lut": 5204,
+      "lut": 4819,
       "pnr": {
         "bram": 0,
         "dsp": 95,
-        "ff": 4821,
-        "fmax_mhz": 144.5,
-        "fmax_min": 122.9,
-        "lut": 5204
+        "ff": 5084,
+        "fmax_mhz": 180.6,
+        "fmax_min": 153.5,
+        "lut": 4819
       },
       "synth": {
         "bram": 0,
         "dsp": 95,
-        "ff": 4821,
-        "lut": 5245
+        "ff": 5084,
+        "lut": 4926
       }
     }
   },
@@ -3190,18 +3190,18 @@
     "ecp5": {
       "bram": 0,
       "dsp": 56,
-      "ff": 2404,
+      "ff": 2666,
       "fmax_mhz": 99.8,
       "fmax_min": 84.8,
       "fmax_target": 100.0,
-      "lut": 3144,
+      "lut": 3711,
       "pnr": {
         "bram": 0,
         "dsp": 56,
-        "ff": 2404,
+        "ff": 2666,
         "fmax_mhz": 99.8,
         "fmax_min": 84.8,
-        "lut": 3144
+        "lut": 3711
       },
       "synth": {
         "bram": 0,
