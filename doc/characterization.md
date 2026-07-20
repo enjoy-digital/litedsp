@@ -61,13 +61,13 @@ CIC decimator, `diff_delay=1`, 16-bit. Max |measured - theoretical| droop over t
 
 ## agc
 
-AGC, `mu=8`, `gain_frac=8`, one-accepted-sample delayed feedback. Constant-envelope tone at 25% of target: samples to settle within +-5% of target, residual level error, and overshoot (alpha-max-beta-min magnitude, boxcar-smoothed).
+AGC, `mu=8`, `gain_frac=8`, two-accepted-sample pipelined feedback. Constant-envelope tone at 25% of target: samples to settle within +-5% of target, residual level error, and overshoot (alpha-max-beta-min magnitude, boxcar-smoothed).
 
 | Metric | Unit | Measured | Guaranteed |
 |---|---|---|---|
 | `overshoot_pct` | % | 0.00 | <= 0.01 |
-| `settling_samples` | samples | 31.00 | <= 31.93 |
-| `steady_state_error_pct` | % | 0.73 | <= 0.75 |
+| `settling_samples` | samples | 30.00 | <= 30.90 |
+| `steady_state_error_pct` | % | 0.72 | <= 0.75 |
 
 ## clipper
 

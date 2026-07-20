@@ -176,7 +176,7 @@ def spec_agc():
     t    = np.arange(n)
     i    = np.round(amp*np.cos(2*np.pi*f*t)).astype(np.int64)
     q    = np.round(amp*np.sin(2*np.pi*f*t)).astype(np.int64)
-    o_i, o_q = agc_model(i, q, target, delayed_feedback=True)
+    o_i, o_q = agc_model(i, q, target, feedback_delay=2)
     mag  = magnitude_model(o_i, o_q).astype(float)
     mag  = np.convolve(mag, np.ones(32)/32, mode="valid")  # ~2.3 tone periods.
     tail = mag[len(mag)//2:]
@@ -313,7 +313,7 @@ DESCRIPTIONS = {
                 "the quantized taps (impulse -> FFT); passband f<=0.15, stopband f>=0.25.",
     "cic"     : "CIC decimator, `diff_delay=1`, 16-bit. Max |measured - theoretical| droop over "
                 "the output passband (f_out 0.05..0.25) per (decimation R, n_stages N).",
-    "agc"     : "AGC, `mu=8`, `gain_frac=8`, one-accepted-sample delayed feedback. Constant-"
+    "agc"     : "AGC, `mu=8`, `gain_frac=8`, two-accepted-sample pipelined feedback. Constant-"
                 "envelope tone at 25% of target: samples to settle within +-5% of target, "
                 "residual level error, and overshoot (alpha-max-beta-min magnitude, boxcar-"
                 "smoothed).",

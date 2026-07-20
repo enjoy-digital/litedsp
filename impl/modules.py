@@ -177,7 +177,7 @@ def power():
     return d, {d.window_log2, d.power, d.update} | _eps(d.sink, d.source), 10.0
 
 def agc():
-    d = LiteDSPAGC(data_width=16, with_csr=False, delayed_feedback=True)
+    d = LiteDSPAGC(data_width=16, with_csr=False, feedback_delay=2)
     return d, {d.target} | _eps(d.sink, d.source), 10.0
 
 def dpd():
@@ -521,7 +521,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
               "pfb_channelizer_fft",
-              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "ddc_ip"]
+              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip"]
 
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives each one an
 # independent runner and a longer per-route timeout so neither can starve the regular sentinels.
@@ -529,7 +529,7 @@ PNR_STRESS = ["fft_parallel_native_x2", "fft_parallel_native_x4"]
 
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.
-PNR_STABILITY = ["agc", "dpd"]
+PNR_STABILITY = ["dpd"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.

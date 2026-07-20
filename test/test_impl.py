@@ -74,7 +74,7 @@ class TestImplementationBudgets(unittest.TestCase):
             self.assertNotIn(name, modules.TARGET_CLOSED)
 
     def test_route_sensitive_closed_targets_use_the_stability_set(self):
-        self.assertEqual(modules.PNR_STABILITY, ["agc", "dpd"])
+        self.assertEqual(modules.PNR_STABILITY, ["dpd"])
         for name in modules.PNR_STABILITY:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)

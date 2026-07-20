@@ -25,6 +25,7 @@ Estimates the input magnitude (alpha-max-beta-min), integrates the error into a 
 | `beta_shift` | `2` | int | Beta exponent of the alpha-max-beta-min magnitude estimate (|x| ~ max + min >> beta_shift). 2 is the usual multiplier-free compromise (~4% peak error). |
 | `with_irq` | `False` | bool | Add a LiteX EventManager interrupt on the block's trigger event. |
 | `delayed_feedback` | `False` | bool | When true, apply each magnitude observation on the following accepted sample.  This inserts one sample of control-loop delay without making the trajectory depend on stalls. |
+| `feedback_delay` | — | none | Explicit accepted-sample feedback delay (0, 1, or 2).  ``None`` preserves the ``delayed_feedback`` compatibility switch.  Delay 2 registers the output magnitude before the gain integrator, splitting the remaining feedback path at the cost of one additional control-loop sample; datapath latency and throughput are unchanged. |
 
 ## Ports
 

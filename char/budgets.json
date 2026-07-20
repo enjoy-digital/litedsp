@@ -6,11 +6,11 @@
     },
     "settling_samples": {
       "direction": "max",
-      "value": 31.0
+      "value": 30.0
     },
     "steady_state_error_pct": {
       "direction": "max",
-      "value": 0.733
+      "value": 0.724
     }
   },
   "cfr": {
