@@ -16,6 +16,10 @@ For each input it emits L outputs, output ``p`` computed from polyphase sub-filt
 additional clock per output, shortening the memory/multiply/accumulate critical path while
 retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
 
+``prune_zeros=True`` builds a compact, phase-specific MAC schedule from the non-zero
+build-time taps. Every phase must retain at least one tap. This is intended for structurally
+sparse filters such as half-band rate changers.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -26,6 +30,7 @@ retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
 | `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
+| `prune_zeros` | `False` | bool |  |
 
 ## Ports
 

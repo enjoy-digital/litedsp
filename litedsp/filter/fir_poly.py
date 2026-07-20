@@ -39,8 +39,14 @@ class LiteDSPFIRDecimator(LiteXModule):
 
     Collects R input samples then MACs the N taps over the sample window to produce one output
     (``y[m] = sum_t c[t]·x[mR-t]``), round + saturate. Coefficients are signed Q1.(W-1).
+
+    ``prune_zeros=True`` builds the MAC schedule and coefficient memory from only the non-zero
+    build-time taps. The omitted positions remain structural zeros and cannot be changed by
+    runtime coefficient reload; use the default rectangular schedule when every position must
+    remain writable.
     """
-    def __init__(self, n_taps=32, decimation=8, data_width=16, coefficients=None, shift=None, with_csr=True):
+    def __init__(self, n_taps=32, decimation=8, data_width=16, coefficients=None, shift=None,
+        with_csr=True, prune_zeros=False):
         R = decimation  # Literature name.
         check(n_taps >= 1 and R >= 1, "expected n_taps >= 1 and decimation >= 1")
         if shift is None:
@@ -48,10 +54,14 @@ class LiteDSPFIRDecimator(LiteXModule):
         if coefficients is None:
             coefficients = [(1 << (data_width - 1)) - 1] + [0]*(n_taps - 1)
         check(len(coefficients) == n_taps, "expected len(coefficients) == n_taps")
+        active_taps = [n for n, c in enumerate(coefficients) if c != 0] if prune_zeros else list(range(n_taps))
+        check(active_taps, "cannot prune an all-zero FIR")
         self.n_taps     = n_taps
+        self.n_mac_taps = len(active_taps)
         self.decimation = R
         self.data_width = data_width
-        self.cycles_per_output = R + n_taps + 1
+        self.prune_zeros = prune_zeros
+        self.cycles_per_output = R + self.n_mac_taps + 1
         self.latency = n_taps + 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -66,8 +76,9 @@ class LiteDSPFIRDecimator(LiteXModule):
 
         # Migen cannot build an address Signal for a depth-one Memory. Keep the public one-tap
         # configuration useful by padding the physical ROM; the FSM still visits only tap 0.
-        crom_depth = max(2, n_taps)
-        coeff_init = [c & ((1 << data_width) - 1) for c in coefficients] + [0]*(crom_depth - n_taps)
+        crom_depth = max(2, self.n_mac_taps)
+        coeff_init = [coefficients[n] & ((1 << data_width) - 1) for n in active_taps]
+        coeff_init += [0]*(crom_depth - self.n_mac_taps)
         crom = Memory(data_width, crom_depth, init=coeff_init)
         mi   = Memory(data_width, depth)
         mq   = Memory(data_width, depth)
@@ -79,21 +90,27 @@ class LiteDSPFIRDecimator(LiteXModule):
 
         # Coefficient Reload.
         # -------------------
-        # Coefficient-reload interface (write taps sequentially; default = the build-time taps).
+        # Coefficient-reload interface (write scheduled taps sequentially; default = the
+        # build-time taps). With zero pruning, omitted positions remain structural zeros.
         self.coeff_data = Signal(data_width)
         self.coeff_we   = Signal()
         self.coeff_rst  = Signal()
-        cwptr = Signal(max=n_taps) if n_taps > 1 else Signal()
+        cwptr = Signal(max=self.n_mac_taps) if self.n_mac_taps > 1 else Signal()
         self.comb += [cwp.adr.eq(cwptr), cwp.dat_w.eq(self.coeff_data), cwp.we.eq(self.coeff_we)]
         self.sync += If(self.coeff_rst, cwptr.eq(0)).Elif(self.coeff_we,
-            If(cwptr == (n_taps - 1), cwptr.eq(0)).Else(cwptr.eq(cwptr + 1)))
+            If(cwptr == (self.n_mac_taps - 1), cwptr.eq(0)).Else(cwptr.eq(cwptr + 1)))
 
         # Signals.
         # --------
         wptr  = Signal(max=depth)                     # Sample write pointer.
         decim = Signal(max=R) if R > 1 else Signal()  # Position within the R-sample window.
-        t     = Signal(max=n_taps + 1)                # Tap index (MAC step / coefficient address).
-        radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
+        t     = Signal(max=self.n_mac_taps + 1)       # Scheduled MAC step / coefficient address.
+        newest = Signal(max=depth)                    # History address of the newest input.
+        # Pad the constant table because ``t`` advances one past the last entry for the drain
+        # state. That value is never accumulated, but keeping it defined avoids a wide default
+        # mux arm in generated RTL.
+        tap_offset = Array([Constant(n, bits_for(depth - 1)) for n in active_taps] +
+            [Constant(0, bits_for(depth - 1))])
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
         prod_i = Signal((2*data_width, True))
         prod_q = Signal((2*data_width, True))
@@ -103,7 +120,7 @@ class LiteDSPFIRDecimator(LiteXModule):
         self.comb += [
             wip.adr.eq(wptr), wqp.adr.eq(wptr),
             wip.dat_w.eq(self.sink.i), wqp.dat_w.eq(self.sink.q),
-            rip.adr.eq(radr), rqp.adr.eq(radr), crp.adr.eq(t),
+            rip.adr.eq(newest - tap_offset[t]), rqp.adr.eq(newest - tap_offset[t]), crp.adr.eq(t),
             ci.eq(rip.dat_r), cq.eq(rqp.dat_r), cc.eq(crp.dat_r),
         ]
 
@@ -120,7 +137,7 @@ class LiteDSPFIRDecimator(LiteXModule):
                     NextValue(decim, 0),
                     NextValue(t, 0),
                     NextValue(acc_i, 0), NextValue(acc_q, 0),
-                    NextValue(radr, wptr),       # Newest sample (just written at wptr).
+                    NextValue(newest, wptr),     # Newest sample (just written at wptr).
                     NextState("MAC"),
                 ).Else(
                     NextValue(decim, decim + 1),
@@ -138,9 +155,8 @@ class LiteDSPFIRDecimator(LiteXModule):
                 NextValue(acc_i, acc_i + prod_i),
                 NextValue(acc_q, acc_q + prod_q),
             ),
-            NextValue(radr, radr - 1),
             NextValue(t, t + 1),
-            If(t == (n_taps - 1), NextState("MAC_DRAIN")),
+            If(t == (self.n_mac_taps - 1), NextState("MAC_DRAIN")),
         )
         fsm.act("MAC_DRAIN",
             NextValue(acc_i, acc_i + prod_i),
@@ -170,7 +186,8 @@ class LiteDSPFIRDecimator(LiteXModule):
         self._coeff_rst = CSRStorage(1, name="coeff_reset",
             description="Reset the coefficient write pointer to tap 0 (write to strobe).")
         self._coeff = CSRStorage(self.data_width, name="coeff",
-            description="Write the next FIR coefficient (auto-incrementing tap index).")
+            description="Write the next scheduled FIR coefficient (auto-incrementing MAC slot; "
+                        "structurally pruned zero positions are not writable).")
         self.comb += [
             self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.decimation),
             self.coeff_rst.eq(self._coeff_rst.re),
@@ -191,9 +208,13 @@ class LiteDSPFIRInterpolator(LiteXModule):
     ``architecture="pipelined"`` registers the product and drains the final product in one
     additional clock per output, shortening the memory/multiply/accumulate critical path while
     retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
+
+    ``prune_zeros=True`` builds a compact, phase-specific MAC schedule from the non-zero
+    build-time taps. Every phase must retain at least one tap. This is intended for structurally
+    sparse filters such as half-band rate changers.
     """
     def __init__(self, n_taps=32, interpolation=8, data_width=16, coefficients=None, shift=None,
-        with_csr=True, architecture="classic"):
+        with_csr=True, architecture="classic", prune_zeros=False):
         L = interpolation  # Literature name.
         check(n_taps >= 1 and L >= 1, "expected n_taps >= 1 and interpolation >= 1")
         check(architecture in ("classic", "pipelined"),
@@ -208,8 +229,23 @@ class LiteDSPFIRInterpolator(LiteXModule):
         sub         = (n_taps + L - 1)//L          # Taps per polyphase sub-filter.
         self.sub    = sub
         self.architecture = architecture
+        self.prune_zeros = prune_zeros
+        phase_taps = []
+        for p in range(L):
+            taps = []
+            for k in range(sub):
+                idx = p + k*L
+                c = coefficients[idx] if idx < n_taps else 0
+                if not prune_zeros or c != 0:
+                    taps.append((k, c))
+            phase_taps.append(taps)
+        check(all(phase_taps), "zero pruning requires at least one active tap per phase")
+        phase_counts = [len(taps) for taps in phase_taps]
+        max_mac_taps = max(phase_counts)
+        self.phase_mac_taps = tuple(phase_counts)
         pipeline = int(architecture == "pipelined")
-        self.cycles_per_output = sub + 1 + pipeline
+        self.cycles_per_output = max_mac_taps + 1 + pipeline
+        self.cycles_per_input = sum(phase_counts) + L*(1 + pipeline)
         self.latency = n_taps + pipeline
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -219,16 +255,18 @@ class LiteDSPFIRInterpolator(LiteXModule):
         # Memories.
         # ---------
         depth = _pow2_ceil(sub + 1)                                     # Sample buffer depth (pow2 wrap).
-        acc_w = 2*data_width + (sub if sub > 1 else 1).bit_length() + 1  # Product + log2(sub) growth.
+        acc_w = 2*data_width + (max_mac_taps if max_mac_taps > 1 else 1).bit_length() + 1
 
-        # Coefficients laid out by phase: crom[p*sub + k] = c[p + k*L] (0 if out of range).
-        coeff_init = []
-        for p in range(L):
-            for k in range(sub):
-                idx = p + k*L
-                coeff_init.append((coefficients[idx] if idx < n_taps else 0) & ((1 << data_width) - 1))
+        # Coefficients and history offsets are laid out as the active schedule for each phase.
+        # With pruning disabled this is the original rectangular p*sub+k layout.
+        phase_bases, coeff_init, history_offsets = [], [], []
+        for taps in phase_taps:
+            phase_bases.append(len(coeff_init))
+            coeff_init += [c & ((1 << data_width) - 1) for _, c in taps]
+            history_offsets += [k for k, _ in taps]
         # As above, preserve the valid n_taps=interpolation=1 boundary by padding the ROM.
-        crom_depth = max(2, L*sub)
+        # One extra slot also defines the address observed during the pipelined drain state.
+        crom_depth = max(2, len(coeff_init) + 1)
         coeff_init += [0]*(crom_depth - len(coeff_init))
         crom = Memory(data_width, crom_depth, init=coeff_init)
         mi   = Memory(data_width, depth)
@@ -242,9 +280,13 @@ class LiteDSPFIRInterpolator(LiteXModule):
         # --------
         wptr  = Signal(max=depth)                     # Sample write pointer.
         phase = Signal(max=L) if L > 1 else Signal()  # Polyphase index p (output within the group of L).
-        k     = Signal(max=sub + 1)                   # Tap index within the sub-filter.
-        coeff_adr = Signal(max=L*sub) if L*sub > 1 else Signal()
-        radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
+        k     = Signal(max=max_mac_taps + 1)          # MAC slot within the active phase schedule.
+        coeff_adr = Signal(max=crom_depth)
+        newest = Signal(max=depth)
+        phase_base = Array([Constant(v, bits_for(crom_depth - 1)) for v in phase_bases])
+        phase_count = Array([Constant(v, bits_for(max_mac_taps)) for v in phase_counts])
+        tap_offset = Array([Constant(v, bits_for(depth - 1)) for v in history_offsets] +
+            [Constant(0, bits_for(depth - 1))])
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
         ci = Signal((data_width, True))               # Signed views of the I/Q/coeff read data.
         cq = Signal((data_width, True))
@@ -252,7 +294,9 @@ class LiteDSPFIRInterpolator(LiteXModule):
         self.comb += [
             wip.adr.eq(wptr), wqp.adr.eq(wptr),
             wip.dat_w.eq(self.sink.i), wqp.dat_w.eq(self.sink.q),
-            rip.adr.eq(radr), rqp.adr.eq(radr),
+            coeff_adr.eq(phase_base[phase] + k),
+            rip.adr.eq(newest - tap_offset[coeff_adr]),
+            rqp.adr.eq(newest - tap_offset[coeff_adr]),
             crp.adr.eq(coeff_adr),
             ci.eq(rip.dat_r), cq.eq(rqp.dat_r), cc.eq(crp.dat_r),
         ]
@@ -271,9 +315,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
                 NextValue(wptr, wptr + 1),
                 NextValue(phase, 0),
                 NextValue(k, 0),
-                NextValue(coeff_adr, 0),
                 NextValue(acc_i, 0), NextValue(acc_q, 0),
-                NextValue(radr, wptr),     # Newest sample.
+                NextValue(newest, wptr),   # Newest sample (just written at wptr).
                 NextState("MAC"),
             )
         )
@@ -284,10 +327,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
             fsm.act("MAC",
                 NextValue(acc_i, acc_i + ci*cc),
                 NextValue(acc_q, acc_q + cq*cc),
-                NextValue(radr, radr - 1),
                 NextValue(k, k + 1),
-                NextValue(coeff_adr, coeff_adr + 1),
-                If(k == (sub - 1), NextState("EMIT")),
+                If(k == (phase_count[phase] - 1), NextState("EMIT")),
             )
         else:
             prod_i = Signal((2*data_width, True))
@@ -301,10 +342,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
                     NextValue(acc_q, acc_q + prod_q),
                 ),
                 NextValue(prod_valid, 1),
-                NextValue(radr, radr - 1),
                 NextValue(k, k + 1),
-                NextValue(coeff_adr, coeff_adr + 1),
-                If(k == (sub - 1), NextState("MAC_DRAIN")),
+                If(k == (phase_count[phase] - 1), NextState("MAC_DRAIN")),
             )
             fsm.act("MAC_DRAIN",
                 NextValue(acc_i, acc_i + prod_i),
@@ -324,7 +363,6 @@ class LiteDSPFIRInterpolator(LiteXModule):
                     NextValue(phase, phase + 1),
                     NextValue(k, 0),
                     NextValue(acc_i, 0), NextValue(acc_q, 0),
-                    NextValue(radr, wptr - 1),   # Re-scan window for the next phase.
                     NextState("MAC"),
                 )
             )

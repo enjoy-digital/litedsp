@@ -6,7 +6,10 @@ latency: 24 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Decimate-by-2 half-band FIR.
+Decimate-by-2 half-band FIR with structural zero-tap pruning.
+
+The default 23-tap schedule executes 13 products and accepts an output window every 16
+clocks, instead of spending MAC cycles on the ten exact-zero coefficients.
 
 ## Parameters
 
@@ -39,7 +42,7 @@ Reset the coefficient write pointer to tap 0 (write to strobe).
 
 ### `core_coeff` (read-write, 16 bits)
 
-Write the next FIR coefficient (auto-incrementing tap index).
+Write the next scheduled FIR coefficient (auto-incrementing MAC slot; structurally pruned zero positions are not writable).
 
 ## FPGA Resources
 

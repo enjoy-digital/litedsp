@@ -11,6 +11,11 @@ Decimate-by-R complex FIR with a single time-shared MAC per I/Q.
 Collects R input samples then MACs the N taps over the sample window to produce one output
 (``y[m] = sum_t c[t]·x[mR-t]``), round + saturate. Coefficients are signed Q1.(W-1).
 
+``prune_zeros=True`` builds the MAC schedule and coefficient memory from only the non-zero
+build-time taps. The omitted positions remain structural zeros and cannot be changed by
+runtime coefficient reload; use the default rectangular schedule when every position must
+remain writable.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -20,6 +25,7 @@ Collects R input samples then MACs the N taps over the sample window to produce 
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
+| `prune_zeros` | `False` | bool |  |
 
 ## Ports
 
@@ -45,7 +51,7 @@ Reset the coefficient write pointer to tap 0 (write to strobe).
 
 ### `coeff` (read-write, 16 bits)
 
-Write the next FIR coefficient (auto-incrementing tap index).
+Write the next scheduled FIR coefficient (auto-incrementing MAC slot; structurally pruned zero positions are not writable).
 
 ## FPGA Resources
 

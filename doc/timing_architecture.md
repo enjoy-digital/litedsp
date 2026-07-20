@@ -65,6 +65,23 @@ Acceptance requires hard and soft bit identity, tie behavior, punctured-zero LLR
 the existing BER/waterfall bounds. The option publishes traceback and output-cycle counts; its
 stream handshake makes the required input gap explicit while traceback is active.
 
+## Half-band structural zero pruning
+
+Half-band wrappers now compact their serial-MAC schedules around the exact-zero coefficients
+created at build time. For the default 23-tap decimator this reduces the scheduled products from
+23 to 13 and the complete output interval from 26 to 16 clocks. The corresponding interpolator
+uses phase schedules of 12 and one products and completes both phase outputs in 15 clocks rather
+than 26. Coefficient storage is compacted with the schedule; omitted structural zeros are
+intentionally not runtime-writable.
+
+The constant history-index lookup makes the individual ECP5 clock slower than the old rectangular
+counter: three routes reach 109.2/112.8/112.8 MHz instead of the previous 146.4 MHz baseline.
+Aggregate decimator capacity nevertheless rises from 5.63 to 7.05 million outputs/s because each
+window takes ten fewer clocks. Artix-7 reaches 146.8 MHz and Artix UltraScale+ 327.7 MHz. The
+default decimator uses 453 LUT / 157 FF / 2 DSP on ECP5, 231 / 94 / 2 on Artix-7, and 225 / 94 / 2
+on Artix UltraScale+. Bit-exact randomized-stall tests cover both directions against the complete
+unpruned mathematical model.
+
 ## DUC FIR interpolator
 
 The FIR-based DUC uses two serial MACs, one per I/Q component, for each polyphase output. In the

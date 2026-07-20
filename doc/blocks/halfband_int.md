@@ -6,7 +6,10 @@ latency: 23 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Interpolate-by-2 half-band FIR.
+Interpolate-by-2 half-band FIR with structural zero-tap pruning.
+
+The default 23-tap filter has phase schedules of 12 and one products, completing both
+outputs in 15 clocks instead of traversing a rectangular zero-padded schedule.
 
 ## Parameters
 
