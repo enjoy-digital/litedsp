@@ -20,7 +20,7 @@ import unittest
 
 import numpy as np
 
-from migen import run_simulation
+from migen import Signal, passive, run_simulation
 
 from litex.gen import LiteXModule
 
@@ -50,6 +50,82 @@ def _split(cap, n_channels):
     return out
 
 class TestResamplerFarm(unittest.TestCase):
+    def test_per_channel_taps(self):
+        # One shared MAC, independently initialized coefficient banks. Distinct impulse
+        # responses make a bank-address swap or accidental sharing immediately visible.
+        n_channels, n_taps, R, n = 3, 8, 2, 48
+        banks = [
+            [4096, 2048, 0, 0, 0, 0, 0, 0],
+            [-1024, 3072, 1536, 0, 0, 0, 0, 0],
+            [512, -768, 1280, 2048, 0, 0, 0, 0],
+        ]
+        xs = [([12000] + [0]*(n - 1), [(-1)**(j + k)*2000 for j in range(n)])
+              for k in range(n_channels)]
+        dut = LiteDSPResamplerFarm(n_channels=n_channels, n_taps=n_taps, decimation=R,
+            data_width=16, channel_coefficients=banks, with_csr=False,
+            architecture="pipelined")
+        self.assertTrue(dut.per_channel_taps)
+        cap = _run_farm(dut,
+            [[{"i": i[j], "q": q[j]} for j in range(n)] for i, q in xs],
+            n_channels*(n//R))
+        ref = farm_model(xs, banks, R)
+        for k, (got_i, got_q) in enumerate(_split(cap, n_channels)):
+            np.testing.assert_array_equal(got_i, ref[k][0])
+            np.testing.assert_array_equal(got_q, ref[k][1])
+        self.assertFalse(LiteDSPResamplerFarm(n_channels=2, n_taps=8, decimation=2,
+            with_csr=False).per_channel_taps)
+
+    def test_per_channel_reload_select(self):
+        n_channels, n_taps, R, n = 3, 8, 2, 32
+        initial = [[4096] + [0]*7 for _ in range(n_channels)]
+        replacement = [-2048, 3072, 1024, 0, 0, 0, 0, 0]
+        expected_banks = [list(bank) for bank in initial]
+        expected_banks[1] = replacement
+        xs = [([6000 + 500*k]*n, [-3000 + 250*k]*n) for k in range(n_channels)]
+        samples = [[{"i": i[j], "q": q[j]} for j in range(n)] for i, q in xs]
+        dut = LiteDSPResamplerFarm(n_channels=n_channels, n_taps=n_taps, decimation=R,
+            data_width=16, channel_coefficients=initial, with_csr=False,
+            architecture="pipelined")
+        start = Signal()
+        cap = []
+
+        def reload_bank():
+            yield dut.coeff_channel.eq(1)
+            yield dut.coeff_rst.eq(1)
+            yield
+            yield dut.coeff_rst.eq(0)
+            for coeff in replacement:
+                yield dut.coeff_data.eq(coeff)
+                yield dut.coeff_we.eq(1)
+                yield
+            yield dut.coeff_we.eq(0)
+            yield start.eq(1)
+
+        @passive
+        def delayed_driver(k):
+            while not (yield start):
+                yield
+            yield from stream_driver(dut.sinks[k], samples[k], ["i", "q"], seed=40 + k)
+
+        run_simulation(dut, [reload_bank(),
+            *[delayed_driver(k) for k in range(n_channels)],
+            stream_capture(dut.source, cap, n_channels*(n//R), ["i", "q", "channel"])])
+        ref = farm_model(xs, expected_banks, R)
+        for k, (got_i, got_q) in enumerate(_split(cap, n_channels)):
+            np.testing.assert_array_equal(got_i, ref[k][0])
+            np.testing.assert_array_equal(got_q, ref[k][1])
+
+    def test_invalid_per_channel_taps(self):
+        with self.assertRaises(ValueError):
+            LiteDSPResamplerFarm(n_channels=2, n_taps=8, coefficients=[1]*8,
+                channel_coefficients=[[1]*8]*2, with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPResamplerFarm(n_channels=3, n_taps=8, channel_coefficients=[[1]*8]*2,
+                with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPResamplerFarm(n_channels=2, n_taps=8,
+                channel_coefficients=[[1]*8, [1]*7], with_csr=False)
+
     def test_bit_exact_per_channel(self):
         # verify-tier: model — every channel bit-exact vs its own fir_decimator_model
         # (farm_model) under randomized per-sink stalls and output backpressure.
@@ -150,6 +226,7 @@ class TestResamplerFarm(unittest.TestCase):
         self.assertEqual(architecture.choices, ["classic", "pipelined"])
         self.assertEqual(VSPEC["resampler_farm"]["model"], "farm_model")
         self.assertIn("resampler_farm", IMPL_REGISTRY)
+        self.assertIn("resampler_farm_banked", IMPL_REGISTRY)
 
 if __name__ == "__main__":
     unittest.main()

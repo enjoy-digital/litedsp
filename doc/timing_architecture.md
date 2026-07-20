@@ -118,6 +118,14 @@ Acceptance covers two, three, and four channels, multiple tap/rate combinations,
 models under independent input stalls and output backpressure, channel isolation, and composition
 with `LiteDSPChannelDemux`.
 
+An optional channel-major coefficient memory now gives each stream an independent response while
+retaining the single complex MAC. With four 32-tap banks, ECP5 uses 554 LUT / 214 FF / 3 BRAM /
+2 DSP and routes at 131.8/132.7/133.7 MHz. Artix-7 uses 599 / 109 / 0 / 2 at a 171.5 MHz median;
+Artix UltraScale+ uses 574 / 109 / 0 / 2 at 385.1 MHz. The shared-ROM configuration remains the
+default and avoids the extra ECP5 coefficient BRAM. Verification independently initializes every
+bank and reloads a selected bank at runtime, checking that all other channel responses remain
+unchanged.
+
 ## Frame synchronizer
 
 The normalized detector contains three independent feed-forward timing paths: the matched-filter

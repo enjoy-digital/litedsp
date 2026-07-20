@@ -130,6 +130,13 @@ def resampler_farm():
         with_csr=False, architecture="pipelined")
     return d, {d.coeff_data, d.coeff_we, d.coeff_rst} | _eps(d.source, *d.sinks), 10.0
 
+def resampler_farm_banked():
+    taps = [[(1 << 15) - 1] + [0]*31 for _ in range(4)]
+    d = LiteDSPResamplerFarm(n_channels=4, n_taps=32, decimation=8, data_width=16,
+        channel_coefficients=taps, with_csr=False, architecture="pipelined")
+    return d, {d.coeff_data, d.coeff_we, d.coeff_rst, d.coeff_channel} | \
+        _eps(d.source, *d.sinks), 10.0
+
 def cic_decimator():
     d = LiteDSPCICDecimator(data_width=16, decimation=8, n_stages=4,
         with_csr=False, staged=True)
@@ -475,6 +482,7 @@ REGISTRY = {
     "nco": nco, "nco_qw": nco_qw, "cordic_rot": cordic_rot, "cordic_vec": cordic_vec,
     "mixer": mixer, "fir_complex": fir_complex, "fir_decimator": fir_decimator,
     "fir_interpolator": fir_interpolator, "resampler_farm": resampler_farm,
+    "resampler_farm_banked": resampler_farm_banked,
     "cic_decimator": cic_decimator,
     "cic_interpolator": cic_interpolator, "halfband": halfband, "iir_biquad": iir_biquad,
     "iir_biquad_folded": iir_biquad_folded,

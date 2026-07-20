@@ -288,11 +288,15 @@ def farm_model(inputs, coeffs, R, data_width=16, shift=None):
     """Reference for litedsp.rate.farm.LiteDSPResamplerFarm.
 
     ``inputs`` is a list of per-channel ``(i, q)`` sample arrays (the demuxed streams); each
-    channel is exactly an independent :func:`fir_decimator_model` (shared taps). Returns the
-    per-channel list of decimated ``(i, q)`` arrays.
+    channel is exactly an independent :func:`fir_decimator_model`. ``coeffs`` can be one
+    shared tap sequence or one sequence per channel. Returns the per-channel list of decimated
+    ``(i, q)`` arrays.
     """
-    return [(fir_decimator_model(i, coeffs, R, data_width, shift),
-             fir_decimator_model(q, coeffs, R, data_width, shift)) for (i, q) in inputs]
+    banked = len(coeffs) == len(inputs) and all(hasattr(c, "__len__") for c in coeffs)
+    taps = coeffs if banked else [coeffs]*len(inputs)
+    return [(fir_decimator_model(i, taps[k], R, data_width, shift),
+             fir_decimator_model(q, taps[k], R, data_width, shift))
+            for k, (i, q) in enumerate(inputs)]
 
 def fir_interpolator_model(x, coeffs, L, data_width=16, shift=None):
     """Reference for litedsp.filter.fir_poly.FIRInterpolator (one channel)."""

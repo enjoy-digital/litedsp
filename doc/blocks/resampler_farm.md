@@ -9,10 +9,10 @@ latency: 32 samples · CSR: yes · bypass: no
 Decimate-by-R complex FIR for ``n_channels`` streams sharing one serial-MAC engine.
 
 Each channel behaves bit-exactly like its own
-:class:`~litedsp.filter.fir_poly.LiteDSPFIRDecimator` (same taps for all channels this
-landing; per-channel coefficient banks are a documented follow-up), but the MAC datapath,
-coefficient ROM and control FSM are instantiated once and time-shared: only the sample
-history is banked per channel, in a single channel-major RAM
+:class:`~litedsp.filter.fir_poly.LiteDSPFIRDecimator`. By default all channels share
+``coefficients``. Supplying ``channel_coefficients`` creates one tap bank per channel;
+the MAC datapath and control FSM remain instantiated once and time-shared. Sample history
+is always banked per channel, in a single channel-major RAM
 (``address = {channel, pointer}``).
 
 **Channel convention** (composes with :mod:`litedsp.stream.route`): the input side uses
@@ -35,6 +35,11 @@ primarily history depth. Throughput is shared: one output costs ``n_taps`` MAC i
 so the aggregate input rate is bounded by ``f_clk * R/self.cycles_per_output`` samples/s
 across all channels.
 
+Enabling four independent 32-tap banks adds coefficient storage but no MAC arithmetic:
+the measured implementation uses 554 LUT / 214 FF / 3 BRAM / 2 DSP at 132.7 MHz on ECP5,
+599 / 109 / 0 / 2 at 171.5 MHz on Artix-7, and 574 / 109 / 0 / 2 at 385.1 MHz on Artix
+UltraScale+.
+
 ``architecture="classic"`` performs the RAM lookup, multiply, and accumulator update in one
 clock. ``architecture="pipelined"`` registers the RAM operands and then the product, draining
 both stages in two additional clocks per output. This preserves the shared two-multiplier
@@ -49,6 +54,7 @@ engine and bit-exact output sequence while separating all three timing paths.
 | `decimation` | `8` | int | Integer decimation factor. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
+| `channel_coefficients` | — | none | Optional ``n_channels`` by ``n_taps`` build-time coefficient banks. When present, ``coeff_channel`` selects the bank written by the reload interface; the active MAC channel selects the read bank. ``None`` retains the smaller shared-tap ROM. |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
 | `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
 
@@ -80,7 +86,7 @@ Reset the coefficient write pointer to tap 0 (write to strobe).
 
 ### `coeff` (read-write, 16 bits)
 
-Write the next FIR coefficient (auto-incrementing tap index, shared by all channels).
+Write the next FIR coefficient (auto-incrementing tap index).
 
 ## FPGA Resources
 
