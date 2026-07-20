@@ -38,6 +38,9 @@ jobs:
       - name: Sweep near-target native FFT routing on Artix-7
         run: python3 impl/run.py --device xilinx --flow pnr --module fft_parallel_native_x2 --strategies all --build "$LITEDSP_IMPL_BUILD"
 
+      - name: Sweep x4 native FFT routing on Artix-7
+        run: python3 impl/run.py --device xilinx --flow pnr --module fft_parallel_native_x4 --strategies all --build "$LITEDSP_IMPL_BUILD"
+
       - name: Upload Artix-7 timing reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,6 +83,9 @@ jobs:
 
       - name: Sweep native FFT routing on Artix UltraScale+
         run: python3 impl/run.py --device xilinx_au --flow pnr --module fft_parallel_native_x2 --strategies all --build "$LITEDSP_IMPL_BUILD"
+
+      - name: Sweep x4 native FFT routing on Artix UltraScale+
+        run: python3 impl/run.py --device xilinx_au --flow pnr --module fft_parallel_native_x4 --strategies all --build "$LITEDSP_IMPL_BUILD"
 
       - name: Upload Artix UltraScale+ timing reports
         if: always()

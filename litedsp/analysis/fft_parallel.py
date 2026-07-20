@@ -398,10 +398,10 @@ class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
 
     This rank alternates a store beat and a butterfly beat.  The butterfly difference is not
     needed until the following store beat, so register it before the twiddle multipliers and
-    complete that product in a second result register.  This separates subtract, DSP, and
-    rounding paths while retaining one accepted beat per clock.  The feedback registers only
-    need to hold the samples captured on store beats; the explicit result pipeline adds one
-    clock of rank latency.
+    retain the product bits required by round/saturate in a second result register.  This
+    separates subtract, DSP, and rounding paths while retaining one accepted beat per clock.
+    The feedback registers only need to hold the samples captured on store beats; the explicit
+    result pipeline adds one clock of rank latency.
     """
     def __init__(self, N, stage, n_samples=2, data_width=16, twiddle_width=16):
         D = N >> (stage + 1)
@@ -433,9 +433,11 @@ class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
         mid_product = Signal()
         mid_sum_i   = [Signal((data_width, True)) for _ in range(n_samples)]
         mid_sum_q   = [Signal((data_width, True)) for _ in range(n_samples)]
-        prod_width  = data_width + twiddle_width + 2
-        mid_prod_i  = [Signal((prod_width, True)) for _ in range(n_samples)]
-        mid_prod_q  = [Signal((prod_width, True)) for _ in range(n_samples)]
+        prod_width   = data_width + twiddle_width + 2
+        product_lsb  = twiddle_width - 1
+        product_width = prod_width - product_lsb
+        mid_prod_i   = [Signal((product_width, True)) for _ in range(n_samples)]
+        mid_prod_q   = [Signal((product_width, True)) for _ in range(n_samples)]
 
         cos_init = _twiddle_rom(D, math.cos, twiddle_width)
         sin_init = _twiddle_rom(D, math.sin, twiddle_width)
@@ -464,8 +466,12 @@ class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
                 prod_i.eq(diff_i[k]*tr - diff_q[k]*ti),
                 prod_q.eq(diff_i[k]*ti + diff_q[k]*tr),
             ]
-            product_i, _ = scaled(mid_prod_i[k], twiddle_width, data_width)
-            product_q, _ = scaled(mid_prod_q[k], twiddle_width, data_width)
+            # Bits below ``twiddle_width - 1`` cannot affect round-half-up.  Keeping the
+            # rounding bit and every more-significant bit is exactly equivalent to scaling
+            # the full product by ``twiddle_width``, while substantially reducing register
+            # and routing pressure on ECP5.
+            product_i, _ = scaled(mid_prod_i[k], 1, data_width)
+            product_q, _ = scaled(mid_prod_q[k], 1, data_width)
 
             self.sync += [
                 If(xfer & ~phase,
@@ -481,8 +487,8 @@ class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
                         mid_sum_i[k].eq(sum_i),
                         mid_sum_q[k].eq(sum_q),
                     ).Else(
-                        mid_prod_i[k].eq(prod_i),
-                        mid_prod_q[k].eq(prod_q),
+                        mid_prod_i[k].eq(prod_i[product_lsb:]),
+                        mid_prod_q[k].eq(prod_q[product_lsb:]),
                     ),
                 ),
                 If(adv,
@@ -531,8 +537,19 @@ class LiteDSPNativeParallelFFT(LiteXModule):
             setattr(self.submodules, f"stage{stage}", s)
             stages.append(s)
         self.comb += self.sink.connect(stages[0].sink)
-        for a, b in zip(stages, stages[1:]):
-            self.comb += a.source.connect(b.sink)
+        # A ready-only skid stage at the middle of the rank cascade breaks the otherwise
+        # end-to-end combinational backpressure path.  It is transparent while flowing, so
+        # nominal latency and P-sample-per-clock throughput are unchanged; on a downstream
+        # stall it retains the in-flight beat while stopping the upstream ranks.
+        ready_cut = len(stages)//2 - 1 if feedback_pipeline else -1
+        for rank, (a, b) in enumerate(zip(stages, stages[1:])):
+            if rank == ready_cut:
+                skid = stream.Buffer(iq_layout(data_width, n_samples),
+                    pipe_valid=False, pipe_ready=True)
+                self.submodules.ready_skid = skid
+                self.comb += [a.source.connect(skid.sink), skid.source.connect(b.sink)]
+            else:
+                self.comb += a.source.connect(b.sink)
 
         # The SDF cascade's first valid frame begins at scalar offset N-1. Realign that
         # lane-P-1 sample with the following beat so output frames again contain P samples.

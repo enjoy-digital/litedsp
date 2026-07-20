@@ -66,12 +66,14 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertIn(dut.chain.outputs["bb_out"].payload.q, ios)
 
     def test_capacity_cliff_routes_are_isolated_from_the_regular_subset(self):
-        self.assertEqual(modules.PNR_STRESS,
-            ["fft_parallel_native_x2", "fft_parallel_native_x4"])
+        self.assertEqual(modules.PNR_STRESS, ["fft_parallel_native_x4"])
         for name in modules.PNR_STRESS:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
             self.assertNotIn(name, modules.TARGET_CLOSED)
+
+        self.assertIn("fft_parallel_native_x2", modules.PNR_SUBSET)
+        self.assertIn("fft_parallel_native_x2", modules.TARGET_CLOSED)
 
     def test_route_sensitive_closed_targets_use_the_stability_set(self):
         self.assertEqual(modules.PNR_STABILITY, ["dpd"])
@@ -123,14 +125,14 @@ class TestImplementationBudgets(unittest.TestCase):
 
     def test_closed_target_gate_leaves_open_objectives_advisory(self):
         misses = {
-            "fft_parallel_native_x2": ["open objective"],
+            "fft_parallel_native_x4": ["open objective"],
             "ddc": [],
         }
         self.assertFalse(impl_run.targets_fail_gate(misses, gate_closed=True))
         misses["ddc"] = ["closed objective"]
         self.assertTrue(impl_run.targets_fail_gate(misses, gate_closed=True))
         self.assertTrue(impl_run.targets_fail_gate(
-            {"fft_parallel_native_x2": ["open objective"]}, gate_all=True))
+            {"fft_parallel_native_x4": ["open objective"]}, gate_all=True))
 
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -224,7 +226,8 @@ class TestImplementationBudgets(unittest.TestCase):
              "cic_decimator", "cic_interpolator", "agc", "fft_iter",
              "viterbi_decoder", "viterbi_decoder_soft",
              "cic_parallel_x2", "cic_parallel_x4",
-             "fft_folded", "fft_interleaved_x2", "goertzel_folded", "iir_biquad_folded",
+             "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
+             "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft",
              "timing_recovery", "cfr_pipelined", "ddc_ip"])
         gated = set(modules.PNR_SUBSET) | set(modules.PNR_STABILITY)

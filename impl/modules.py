@@ -519,13 +519,14 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "rs_decoder",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
+              "fft_parallel_native_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
               "pfb_channelizer_fft",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip"]
 
-# Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives each one an
-# independent runner and a longer per-route timeout so neither can starve the regular sentinels.
-PNR_STRESS = ["fft_parallel_native_x2", "fft_parallel_native_x4"]
+# Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives the remaining
+# x4 configuration an independent runner and a longer timeout so it cannot starve the sentinels.
+PNR_STRESS = ["fft_parallel_native_x4"]
 
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.
@@ -538,7 +539,8 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",
-                 "fft_folded", "fft_interleaved_x2", "goertzel_folded", "iir_biquad_folded",
+                 "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
+                 "goertzel_folded", "iir_biquad_folded",
                  "pfb_channelizer_folded", "pfb_channelizer_fft",
                  "timing_recovery", "cfr_pipelined", "ddc_ip"]
 

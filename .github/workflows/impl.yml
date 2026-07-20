@@ -35,8 +35,8 @@ jobs:
 
   ecp5-pnr:
     runs-on: ubuntu-latest
-    # The 36 single-route configurations take under 20 minutes on hosted runners. Marginal
-    # target-closed paths use the seed-median job; capacity-cliff FFTs use nightly stress jobs.
+    # The 37 single-route configurations take under 25 minutes on hosted runners. Marginal
+    # target-closed paths use the seed-median job; the capacity-cliff x4 FFT uses nightly stress.
     timeout-minutes: 45
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5

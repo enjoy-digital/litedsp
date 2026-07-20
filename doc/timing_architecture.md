@@ -20,7 +20,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
-| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 77.7/67.8 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule | folded, interleaved, and iterative target-closed; native feedback pipeline landed but remains open |
+| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 122.8/98.4 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule; vector cascade also propagates ready | folded, interleaved, iterative, and native P2 target-closed; native P4 remains open on ECP5 |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
 ## Viterbi decoder
@@ -266,30 +266,37 @@ constraint; it is therefore excluded from the nightly P&R subset and carries no 
 
 The native vector-SDF implementation advances one shared feedback line by P consecutive samples
 per clock and removes the split architecture's branch FIFOs, serializers and duplicated cores.
-Its `feedback_pipeline=True` option captures signed butterfly differences, registers the four
-real twiddle products, and completes feedback on the following edge. A packed same-address RAM
-bypass supplies the newest value when a shallow feedback line is revisited before the registered
-write becomes visible. Every serial fixed-point rounding boundary is retained and randomized
-backpressure still sustains the full lane rate:
+Its `feedback_pipeline=True` option captures signed butterfly differences, registers only the
+product bits that can affect exact round-half-up/saturation, and completes feedback on the
+following edge. A packed same-address RAM bypass supplies the newest value when a shallow
+feedback line is revisited before the registered write becomes visible.
+
+After the arithmetic path was split, ECP5 timing reports exposed the independent elastic-control
+limiter: `ready` propagated through every FFT rank into distributed-RAM write enables. A
+transparent ready-only skid boundary at the middle of the cascade splits that path in half. It
+adds one P-wide beat of storage that is used only on a downstream stall; nominal latency,
+arithmetic, and P-sample-per-clock throughput are unchanged. Every serial fixed-point rounding
+boundary is retained and randomized backpressure remains bit exact:
 
 | Native FFT (N=256, pipelined) | Latency | ECP5 LUT/FF/DSP/Fmax | Artix-7 LUT/FF/DSP/Fmax | Artix UltraScale+ LUT/FF/DSP/Fmax |
 |---|---:|---:|---:|---:|
-| P=2 | 143 clocks | 8224 / 5014 / 52 / 77.7 MHz | 3057 / 2873 / 52 / 97.7 MHz | 2950 / 2807 / 52 / 149.3 MHz |
-| P=4 | 78 clocks | 13859 / 8433 / 94 / 67.8 MHz | 5357 / 4916 / 94 / 78.1 MHz | 5204 / 4821 / 95 / 144.5 MHz |
+| P=2 | 144 clocks | 9835 / 5287 / 52 / 122.8 MHz | 2947 / 2954 / 52 / 111.4 MHz | 2865 / 2954 / 52 / 193.5 MHz |
+| P=4 | 79 clocks | 16018 / 8978 / 94 / 98.4 MHz | 4898 / 5087 / 95 / 110.5 MHz | 4819 / 5084 / 95 / 180.6 MHz |
 
-A dedicated three-strategy Vivado sweep of P=2 reaches 97.8/97.8/98.0 MHz
-worst/median/best on Artix-7 and 146.2/149.3/149.3 MHz on Artix UltraScale+. The narrow Artix-7
-spread confirms that its remaining 100 MHz gap is architectural rather than route luck; the
-UltraScale+ result has comfortable margin across all three timing-driven algorithms.
+Three ECP5 routes of P=2 reach 120.7/122.8/123.7 MHz worst/median/best. Dedicated three-strategy
+Vivado sweeps reach 111.4/111.4/111.6 MHz on Artix-7 and 191.9/193.5/193.5 MHz on Artix
+UltraScale+. P=2 therefore joins the regular `PNR_SUBSET` and strict `TARGET_CLOSED` set.
 
-The compatibility architecture remains available with `feedback_pipeline=False`. Compared with
-that architecture, P=2 improves from 63.0 to 77.7 MHz on ECP5 and from 82.4 to 97.7 MHz on
-Artix-7, at the cost of six clocks, 30% more ECP5 LUTs, and roughly five times its ECP5 FFs. P=4
-improves from 61.2 to 67.8 MHz on ECP5 and from 75.1 to 78.1 MHz on Artix-7, at the cost of five
-clocks, 29% more ECP5 LUTs, and roughly 4.7 times its ECP5 FFs. Both still accept P samples every
-clock. Neither width joins `TARGET_CLOSED`: the change is useful on P=2 and comfortably exceeds
-100 MHz on Artix UltraScale+, but the ECP5 and Artix-7 results do not justify declaring the
-cross-family objective met.
+P=4 closes both Xilinx profiles, but its ECP5 routes span 85.0/98.4/100.7 MHz. It remains an
+isolated `PNR_STRESS` configuration with an advisory 100 MHz objective; the 83.7 MHz regression
+floor is deliberately distinct from that target. This is route sensitivity at the larger
+94-DSP topology, not a throughput compromise: P=4 still accepts four samples every clock.
+
+The compatibility architecture remains available with `feedback_pipeline=False`. Relative to
+its 63.0 MHz ECP5 and 82.4 MHz Artix-7 P=2 results, the target-closed option costs seven clocks,
+273 ECP5 FFs over the previous pipelined baseline, and one stall-only skid beat. Relative to the
+classic P=4 option, the pipelined result adds six clocks and remains open only on ECP5. The
+published post-route counts include the skid storage and the extra commutated-rank state.
 
 The iterative option is now implemented as `registered_butterfly=True`: the read phase registers
 the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and

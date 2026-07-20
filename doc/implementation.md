@@ -55,9 +55,10 @@ default, Explore, and high-net-delay/HigherDelayCost timing algorithms. Both ret
 reports and report worst/median/best fmax; budget updates use the median completed route.
 `--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
 nightly job indefinitely.
-The native x2/x4 FFT configurations are collected in `PNR_STRESS`, outside the bounded 36-block
-push/PR subset. Nightly CI routes each stress configuration on an independent runner with a
-90-minute per-route timeout and retains a separate report artifact.
+The native x4 FFT configuration remains in `PNR_STRESS`, outside the bounded 37-block push/PR
+subset. Nightly CI routes it on an independent runner with a 90-minute timeout and retains a
+separate report artifact. The ready-cut x2 configuration has robust margin and is back in the
+regular strict subset.
 The marginal target-closed DPD configuration is collected in `PNR_STABILITY`. Push/PR CI routes
 it across seeds 0, 1 and 2 on an independent runner and gates its median, avoiding single-
 placement noise while preserving the strict 100 MHz objective. The two-sample pipelined AGC has
@@ -70,7 +71,7 @@ budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed su
 already achieved its objective; CI gates those blocks strictly while targets
 for architecture work in progress remain advisory. `.github/workflows/impl-xilinx.yml` provides
 equivalent strict Artix-7 and Artix UltraScale+ jobs on a self-hosted runner labelled `vivado`;
-both also sweep the native x2 FFT across three timing strategies. The complete generated `ddc_ip`
+both also sweep the native x2/x4 FFTs across three timing strategies. The complete generated `ddc_ip`
 integration sentinel is already in the strict target set, so it is not routed a second time.
 Implementation jobs retain synthesis logs, route logs, and detailed timing reports as artifacts,
 including on failure; the nightly ECP5 job additionally repeats the closest closed targets across
@@ -133,16 +134,16 @@ device-specific.
   serial/parallel CIC, AGC, and iterative-FFT configurations at 100 MHz while preserving their
   original compatibility modes. The folded streaming SDF FFT now also closes at half-rate, and
   its two-context interleaved composition closes at one aggregate sample per clock. Native P-wide
-  FFTs now use an explicit hazard-bypassed recurrence pipeline: this materially improves P=2
-  timing while preserving full lane rate, but does not close 100 MHz on ECP5 or Artix-7. The
+  FFTs now use an explicit hazard-bypassed recurrence pipeline: this materially improves timing
+  while preserving full lane rate; P=2 closes 100 MHz on all three profiles. The
   reviewed options, trade-offs and acceptance criteria are tracked in
   [`timing_architecture.md`](timing_architecture.md).
 - **Vector SDF needs an explicit recurrence pipeline.** A shared P-wide feedback memory enables
-  sustained P=2/P=4 operation. Registering its lane differences and four real twiddle products,
-  then bypassing same-address feedback hazards, raises P=2 from 63.0 to a 77.7 MHz ECP5 median
-  and from 82.4 to 97.7 MHz on Artix-7. The cost is 143 rather than 137 clocks of frame latency
-  and additional pipeline state; P=4 similarly moves from 61.2 to 67.8 MHz on ECP5. Their
-  100 MHz objectives remain distinct from their regression floors.
+  sustained P=2/P=4 operation. Registering its lane differences and required product bits,
+  bypassing same-address feedback hazards, and cutting the cascade ready path raises P=2 from
+  63.0 to a 122.8 MHz ECP5 median and from 82.4 to 111.4 MHz on Artix-7. The cost is 144 rather
+  than 137 clocks of frame latency plus one beat of stall-only skid storage; full lane rate is
+  unchanged. P=4 remains a separately reported capacity-stress configuration.
 - **The scalable PFB needs both algorithmic and timing architecture changes.** Replacing the
   M² direct DFT with a time-multiplexed radix-2 transform makes M>=16 practical, but its first
   memory-read/multiply schedule reached only 74.6 MHz. Registering read/difference, multiply,
@@ -157,10 +158,10 @@ avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing
 datasheets present the same data from `impl/budgets.json`.
 
 The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 87 registry
-configurations pass out-of-context synthesis; 36 bounded representative configurations form the
-regular P&R subset, one route-sensitive configuration forms the stability set, and two
-capacity-cliff native FFT configurations form the stress set. All 39 pass
-place-and-route. The 25 reviewed timing architectures close their 100 MHz targets on this
+configurations pass out-of-context synthesis; 37 bounded representative configurations form the
+regular P&R subset, one route-sensitive configuration forms the stability set, and one
+capacity-cliff native FFT configuration forms the stress set. All 39 pass
+place-and-route. The 26 reviewed timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part
 of the strict 100 MHz target set. Relative to the classic reduction, ECP5 moves from 6461 LUT /
