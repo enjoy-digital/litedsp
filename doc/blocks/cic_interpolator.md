@@ -45,7 +45,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 596 | 615 | 0 | 0 | 207.0 | 100.0 |
+| ecp5 | 593 | 615 | 0 | 0 | 157.0 | 100.0 |
 | xilinx | 486 | 615 | 0 | 0 | 202.3 | 100.0 |
 | xilinx_au | 486 | 615 | 0 | 0 | 457.2 | 100.0 |
 

@@ -70,6 +70,10 @@ integration sentinel is already in the strict target set, so it is not routed a 
 Implementation jobs retain synthesis logs, route logs, and detailed timing reports as artifacts,
 including on failure; the nightly ECP5 job additionally repeats the closest closed targets across
 three nextpnr routes.
+ECP5 baselines are calibrated against that pinned hosted toolchain. In particular, the staged CIC
+interpolator's route-sensitive ready chain uses the 184.7 MHz hosted result (a local three-seed
+168.4/184.8/240.5 MHz spread), and pipelined CFR uses its 106.3 MHz hosted result. Their separate
+100 MHz engineering targets remain strict even where the 85% regression floor is lower.
 When a new device profile is first characterized, it inherits the module's reviewed engineering
 target from an existing profile; its measured resource baseline and 85% timing floor remain fully
 device-specific.
