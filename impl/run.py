@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from impl.modules import REGISTRY, PNR_SUBSET, TARGET_CLOSED, SYNTH_ONLY
+from impl.modules import REGISTRY, PNR_SUBSET, PNR_STRESS, TARGET_CLOSED, SYNTH_ONLY
 from impl import wrap, ecp5, xilinx, report, budgets
 
 def aggregate_pnr_runs(runs, failures, run_kind="seed"):
@@ -129,6 +129,8 @@ def main():
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--module",         default=None,        help="Single module name (default: all).")
     selection.add_argument("--subset",         action="store_true", help="Only the P&R subset.")
+    selection.add_argument("--stress",         action="store_true",
+        help="Only capacity-cliff P&R stress configurations.")
     selection.add_argument("--target-closed",  action="store_true",
         help="Only blocks whose reviewed timing target is already closed.")
     selection.add_argument("--missing-budgets", action="store_true",
@@ -189,6 +191,8 @@ def main():
         names = [args.module]
     elif args.subset:
         names = list(PNR_SUBSET)
+    elif args.stress:
+        names = list(PNR_STRESS)
     elif args.target_closed:
         names = list(TARGET_CLOSED)
     elif args.missing_budgets:

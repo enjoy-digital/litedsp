@@ -520,8 +520,12 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
-              "pfb_channelizer_fft", "fft_parallel_native_x2", "fft_parallel_native_x4",
+              "pfb_channelizer_fft",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "ddc_ip"]
+
+# Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives each one an
+# independent runner and a longer per-route timeout so neither can starve the regular sentinels.
+PNR_STRESS = ["fft_parallel_native_x2", "fft_parallel_native_x4"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.

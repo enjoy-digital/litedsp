@@ -35,9 +35,9 @@ jobs:
 
   ecp5-pnr:
     runs-on: ubuntu-latest
-    # The 39-configuration matrix takes about 67 minutes on hosted runners;
-    # retain headroom for runner variance and the always-upload evidence step.
-    timeout-minutes: 90
+    # The 37 bounded configurations take about 19 minutes on hosted runners. Capacity-cliff
+    # native FFT routes have independent nightly jobs and cannot starve this regular gate.
+    timeout-minutes: 45
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5
     steps:

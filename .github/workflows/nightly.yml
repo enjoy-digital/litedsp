@@ -238,3 +238,52 @@ jobs:
             ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*.cfg
           if-no-files-found: warn
           retention-days: 14
+
+  # Native parallel FFTs sit near the ECP5 capacity cliff. Route each one independently with a
+  # long bound so it cannot starve the regular implementation matrix or the other stress width.
+  impl-stress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [fft_parallel_native_x2, fft_parallel_native_x4]
+    env:
+      LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_nightly_${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OSS CAD Suite (yosys/nextpnr)
+        uses: YosysHQ/setup-oss-cad-suite@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: "2025-06-25"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy pyyaml
+          pip install git+https://github.com/m-labs/migen.git@4c2ae8dfeea37f235b52acb8166f12acaaae4f7c
+          pip install git+https://github.com/enjoy-digital/litex.git
+
+      - name: Route ${{ matrix.module }} with the stress timeout
+        run: |
+          python3 impl/run.py --device ecp5 --flow pnr --module "${{ matrix.module }}" \
+            --pnr-timeout 5400 --build "$LITEDSP_IMPL_BUILD"
+
+      - name: Upload ${{ matrix.module }} implementation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecp5-stress-${{ matrix.module }}-reports
+          path: |
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_synth.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*_ecp5_pnr*.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ecp5/**/*.cfg
+          if-no-files-found: warn
+          retention-days: 14
