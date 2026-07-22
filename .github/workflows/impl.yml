@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [dpd]
+        module: [dpd, fft_parallel_native_x4]
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5_${{ matrix.module }}
     steps:

@@ -56,18 +56,19 @@ reports and report worst/median/best fmax; budget updates use the median complet
 `--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
 nightly job indefinitely.
 The native x4 FFT and z-parallel LDPC decoder remain in `PNR_STRESS`, outside the bounded
-push/PR subset. Nightly CI routes each on an independent runner with a long timeout and retains
-separate report artifacts. The FFT's ready-cut x2 configuration has robust margin and is back in
-the regular strict subset; the z-parallel LDPC option is a deliberate area/throughput trade-off,
-while the compact serial decoder remains the regular strict implementation sentinel.
+push/PR subset. Nightly CI routes the still-open LDPC design on an independent runner with a long
+timeout. The P=4 FFT now closes its target across three seeds and is gated with the route-sensitive
+stability set; its Xilinx strategy sweeps remain in the stress selection. The FFT's ready-cut x2
+configuration has robust margin in the regular strict subset, while the compact serial LDPC
+decoder remains its regular strict implementation sentinel.
 The classic serial FFT and the older split/folded parallel FFT configurations are retained as
 compatibility and comparison points, so they carry measured regression floors but no 100 MHz
 engineering objective. The folded/interleaved serial variants and native vector FFTs are the
 reviewed timing-oriented architectures; only their targets participate in closure tracking.
-The marginal target-closed DPD configuration is collected in `PNR_STABILITY`. Push/PR CI routes
-it across seeds 0, 1 and 2 on an independent runner and gates its median, avoiding single-
-placement noise while preserving the strict 100 MHz objective. The two-sample pipelined AGC has
-enough margin to return to the regular single-route subset.
+The route-sensitive target-closed DPD and native P=4 FFT configurations are collected in
+`PNR_STABILITY`. Push/PR CI routes each across seeds 0, 1 and 2 on an independent runner and gates
+its median, avoiding single-placement noise while preserving the strict 100 MHz objective. The
+two-sample pipelined AGC has enough margin to remain in the regular single-route subset.
 Independent modules can be built with `--jobs N`; results are collected in registry order and a
 single process updates the budget file after every worker completes. The default remains one job
 so CI runners with a single Vivado license are unchanged.
@@ -164,8 +165,9 @@ datasheets present the same data from `impl/budgets.json`.
 
 The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 91 registry
 configurations pass out-of-context synthesis; 38 bounded representative configurations form the
-regular P&R subset, one route-sensitive configuration forms the stability set, and two wide
-capacity/timing configurations form the stress set. All 41 pass place-and-route. The 28 reviewed
+regular P&R subset, two route-sensitive configurations form the stability set, and two wide
+capacity/timing configurations form the stress set (native P=4 belongs to both latter views).
+All 41 distinct configurations pass place-and-route. The 29 reviewed
 timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part

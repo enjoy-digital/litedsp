@@ -252,7 +252,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [fft_parallel_native_x4, ldpc_decoder_z_parallel]
+        # Native P=4 FFT closure is checked by the three-seed stability job above.
+        module: [ldpc_decoder_z_parallel]
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_nightly_${{ matrix.module }}
     steps:

@@ -558,7 +558,7 @@ PNR_STRESS = ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
 
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.
-PNR_STABILITY = ["dpd"]
+PNR_STABILITY = ["dpd", "fft_parallel_native_x4"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
@@ -568,6 +568,7 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "viterbi_decoder", "viterbi_decoder_soft",
                  "cic_parallel_x2", "cic_parallel_x4",
                  "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
+                 "fft_parallel_native_x4",
                  "goertzel_folded", "iir_biquad_folded",
                  "pfb_channelizer_folded", "pfb_channelizer_fft",
                  "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip"]

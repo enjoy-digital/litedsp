@@ -104,13 +104,14 @@ class TestImplementationBudgets(unittest.TestCase):
         for name in modules.PNR_STRESS:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
-            self.assertNotIn(name, modules.TARGET_CLOSED)
+        self.assertIn("fft_parallel_native_x4", modules.TARGET_CLOSED)
+        self.assertNotIn("ldpc_decoder_z_parallel", modules.TARGET_CLOSED)
 
         self.assertIn("fft_parallel_native_x2", modules.PNR_SUBSET)
         self.assertIn("fft_parallel_native_x2", modules.TARGET_CLOSED)
 
     def test_route_sensitive_closed_targets_use_the_stability_set(self):
-        self.assertEqual(modules.PNR_STABILITY, ["dpd"])
+        self.assertEqual(modules.PNR_STABILITY, ["dpd", "fft_parallel_native_x4"])
         for name in modules.PNR_STABILITY:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
@@ -159,14 +160,14 @@ class TestImplementationBudgets(unittest.TestCase):
 
     def test_closed_target_gate_leaves_open_objectives_advisory(self):
         misses = {
-            "fft_parallel_native_x4": ["open objective"],
+            "ldpc_decoder_z_parallel": ["open objective"],
             "ddc": [],
         }
         self.assertFalse(impl_run.targets_fail_gate(misses, gate_closed=True))
         misses["ddc"] = ["closed objective"]
         self.assertTrue(impl_run.targets_fail_gate(misses, gate_closed=True))
         self.assertTrue(impl_run.targets_fail_gate(
-            {"fft_parallel_native_x4": ["open objective"]}, gate_all=True))
+            {"ldpc_decoder_z_parallel": ["open objective"]}, gate_all=True))
 
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -261,6 +262,7 @@ class TestImplementationBudgets(unittest.TestCase):
              "viterbi_decoder", "viterbi_decoder_soft",
              "cic_parallel_x2", "cic_parallel_x4",
              "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
+             "fft_parallel_native_x4",
              "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft",
              "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip"])

@@ -21,7 +21,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
 | LMS equalizer (7 taps) | 69.1 MHz classic; 114.0 MHz all-mode pipelined median | FIR rescale, CMA modulus/gradient, and saturated weight recurrence | nine-sample delayed-update option landed and target-closed |
-| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 122.8/98.4 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule; vector cascade also propagates ready | folded, interleaved, iterative, and native P2 target-closed; native P4 remains open on ECP5 |
+| SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 122.8/107.7 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule; vector cascade also propagates ready | folded, interleaved, iterative, and native P2/P4 target-closed |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
 ## Viterbi decoder
@@ -329,22 +329,26 @@ boundary is retained and randomized backpressure remains bit exact:
 | Native FFT (N=256, pipelined) | Latency | ECP5 LUT/FF/DSP/Fmax | Artix-7 LUT/FF/DSP/Fmax | Artix UltraScale+ LUT/FF/DSP/Fmax |
 |---|---:|---:|---:|---:|
 | P=2 | 144 clocks | 9835 / 5287 / 52 / 122.8 MHz | 2947 / 2954 / 52 / 111.4 MHz | 2865 / 2954 / 52 / 193.5 MHz |
-| P=4 | 79 clocks | 16018 / 8978 / 94 / 98.4 MHz | 4898 / 5087 / 95 / 110.5 MHz | 4819 / 5084 / 95 / 180.6 MHz |
+| P=4 | 79 clocks | 16021 / 8982 / 94 / 107.7 MHz | 4905 / 5023 / 95 / 110.3 MHz | 4825 / 5020 / 95 / 195.3 MHz |
 
 Three ECP5 routes of P=2 reach 120.7/122.8/123.7 MHz worst/median/best. Dedicated three-strategy
 Vivado sweeps reach 111.4/111.4/111.6 MHz on Artix-7 and 191.9/193.5/193.5 MHz on Artix
 UltraScale+. P=2 therefore joins the regular `PNR_SUBSET` and strict `TARGET_CLOSED` set.
 
-P=4 closes both Xilinx profiles, but its ECP5 routes span 85.0/98.4/100.7 MHz. It remains an
-isolated `PNR_STRESS` configuration with an advisory 100 MHz objective; the 83.7 MHz regression
-floor is deliberately distinct from that target. This is route sensitivity at the larger
-94-DSP topology, not a throughput compromise: P=4 still accepts four samples every clock.
+The P=4 D=2 rank originally placed subtract, twiddle DSP and rounded feedback on one path. Since
+one beat contains the rank's complete store/butterfly group, registering its differences before
+the DSPs preserves the SDF schedule: current sums remain in the current output beat and the
+registered differences become the following beat's leading lanes. The change adds four FFs but
+no latency or throughput cost. Three ECP5 routes now span 103.9/107.7/110.9 MHz and close the
+target. Three-strategy Vivado sweeps reach 110.3/110.3/110.4 MHz on Artix-7 and
+195.3/195.3/195.4 MHz on Artix UltraScale+. CI retains P=4 in the isolated stress set for its
+94-DSP ECP5 capacity while gating its three-seed median through `PNR_STABILITY`.
 
 The compatibility architecture remains available with `feedback_pipeline=False`. Relative to
 its 63.0 MHz ECP5 and 82.4 MHz Artix-7 P=2 results, the target-closed option costs seven clocks,
 273 ECP5 FFs over the previous pipelined baseline, and one stall-only skid beat. Relative to the
-classic P=4 option, the pipelined result adds six clocks and remains open only on ECP5. The
-published post-route counts include the skid storage and the extra commutated-rank state.
+classic P=4 option, the pipelined result adds six clocks. The published post-route counts include
+the skid storage, commutated-rank state, and four late-rank difference registers.
 
 The iterative option is now implemented as `registered_butterfly=True`: the read phase registers
 the asynchronous twiddle ROM result, and a fourth butterfly phase registers the scaled sums and

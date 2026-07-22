@@ -393,6 +393,91 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
         )
 
 
+class _LiteDSPFFTVectorPackedStage(LiteXModule):
+    """P=4 late rank with one complete D=2 butterfly group per input beat.
+
+    The generic within-beat recurrence sends lane 0/1 differences through subtract, DSP and
+    rounding logic before committing them as the next beat's leading outputs. For D=P/2 the
+    whole recurrence group is already present in one beat. Its paired sums belong to the current
+    output beat while its differences become the following beat's leading lanes, so only the
+    differences need a register before the multipliers. This removes the late multiplier-to-state
+    path without changing latency, the one-beat initiation interval, or arithmetic.
+    """
+    def __init__(self, N, stage, n_samples=4, data_width=16, twiddle_width=16):
+        D = N >> (stage + 1)
+        check(D*2 == n_samples, "packed vector stage requires D = n_samples/2")
+        self.D       = D
+        self.latency = 1
+        self.sink    = stream.Endpoint(iq_layout(data_width, n_samples))
+        self.source  = stream.Endpoint(iq_layout(data_width, n_samples))
+
+        # # #
+
+        adv       = Signal()
+        xfer      = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            self.sink.ready.eq(adv),
+            xfer.eq(self.sink.valid & adv),
+        ]
+
+        in_lanes  = iq_lanes(self.sink,   data_width, n_samples)
+        out_lanes = iq_lanes(self.source, data_width, n_samples)
+        prod_width = data_width + twiddle_width + 2
+        mid_diff_i = [Signal((data_width + 1, True)) for _ in range(D)]
+        mid_diff_q = [Signal((data_width + 1, True)) for _ in range(D)]
+
+        cos_init = _twiddle_rom(D, math.cos, twiddle_width)
+        sin_init = _twiddle_rom(D, math.sin, twiddle_width)
+        sign = 1 << (twiddle_width - 1)
+        for k in range(D):
+            ar = Signal((data_width, True))
+            ai = Signal((data_width, True))
+            br = Signal((data_width, True))
+            bi = Signal((data_width, True))
+            self.comb += [
+                ar.eq(in_lanes[k][0]), ai.eq(in_lanes[k][1]),
+                br.eq(in_lanes[k + D][0]), bi.eq(in_lanes[k + D][1]),
+            ]
+            sum_i_full = Signal((data_width + 1, True))
+            sum_q_full = Signal((data_width + 1, True))
+            diff_i     = Signal((data_width + 1, True))
+            diff_q     = Signal((data_width + 1, True))
+            self.comb += [
+                sum_i_full.eq(ar + br), sum_q_full.eq(ai + bi),
+                diff_i.eq(ar - br), diff_q.eq(ai - bi),
+            ]
+            sum_i, _ = scaled(sum_i_full, 1, data_width)
+            sum_q, _ = scaled(sum_q_full, 1, data_width)
+
+            tr_v = cos_init[k] - (1 << twiddle_width) if cos_init[k] & sign else cos_init[k]
+            ti_v = sin_init[k] - (1 << twiddle_width) if sin_init[k] & sign else sin_init[k]
+            tr = Constant(tr_v, (twiddle_width, True))
+            ti = Constant(ti_v, (twiddle_width, True))
+            prod_i = Signal((prod_width, True))
+            prod_q = Signal((prod_width, True))
+            self.comb += [
+                prod_i.eq(mid_diff_i[k]*tr - mid_diff_q[k]*ti),
+                prod_q.eq(mid_diff_i[k]*ti + mid_diff_q[k]*tr),
+            ]
+            product_i, _ = scaled(prod_i, twiddle_width, data_width)
+            product_q, _ = scaled(prod_q, twiddle_width, data_width)
+            self.sync += If(adv,
+                out_lanes[k][0].eq(product_i),
+                out_lanes[k][1].eq(product_q),
+                out_lanes[k + D][0].eq(sum_i),
+                out_lanes[k + D][1].eq(sum_q),
+                If(xfer,
+                    mid_diff_i[k].eq(diff_i),
+                    mid_diff_q[k].eq(diff_q),
+                ),
+            )
+
+        self.sync += If(adv,
+            self.source.valid.eq(self.sink.valid),
+        )
+
+
 class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
     """Vector SDF stage for ``D == P`` with the difference registered across phases.
 
@@ -529,6 +614,8 @@ class LiteDSPNativeParallelFFT(LiteXModule):
             D = N >> (stage + 1)
             if feedback_pipeline and D > n_samples:
                 cls = _LiteDSPFFTVectorPipelinedStage
+            elif feedback_pipeline and n_samples == 4 and D*2 == n_samples:
+                cls = _LiteDSPFFTVectorPackedStage
             elif feedback_pipeline and D == n_samples:
                 cls = _LiteDSPFFTVectorCommutatedStage
             else:
