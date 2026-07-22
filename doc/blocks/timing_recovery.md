@@ -29,6 +29,7 @@ the symbol midpoint; modulation-agnostic, locks without carrier lock, for ``sps=
 | `gain_mu` | `0.1` | float | Proportional gain on the fractional interpolation phase ``mu`` (quantized to Q.frac). Larger = faster timing acquisition, more jitter. |
 | `gain_omega` | — | none | Integral gain on the samples/symbol estimate ``omega`` (quantized to Q.frac; default gain_mu**2/4, the critically-damped choice). |
 | `ted` | `"mm"` | str | Timing error detector: "mm" (Mueller & Muller, decision-directed, multiplier-free) or "gardner" (non-decision-aided, extra midpoint interpolation, needs sps = 2). |
+| `architecture` | `"classic"` | str | ``"classic"`` updates the loop directly from the registered timing error. ``"pipelined"`` registers the scaled proportional/integral corrections first, adding one processing clock per output symbol while shortening the feedback path. |
 
 ## Ports
 

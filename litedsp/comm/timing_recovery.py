@@ -44,15 +44,22 @@ class LiteDSPTimingRecovery(LiteXModule):
     ted : str
         Timing error detector: "mm" (Mueller & Muller, decision-directed, multiplier-free)
         or "gardner" (non-decision-aided, extra midpoint interpolation, needs sps = 2).
+    architecture : str
+        ``"classic"`` updates the loop directly from the registered timing error.
+        ``"pipelined"`` registers the scaled proportional/integral corrections first,
+        adding one processing clock per output symbol while shortening the feedback path.
     """
     def __init__(self, data_width=16, sps=2, frac=16, gain_mu=0.1, gain_omega=None, ted="mm",
-        with_csr=True):
+        with_csr=True, architecture="classic"):
         check(ted in ("mm", "gardner"), "expected ted in ('mm', 'gardner')")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         if gain_omega is None:
             gain_omega = gain_mu*gain_mu/4
         self.data_width = data_width
         self.sps = sps
         self.ted = ted
+        self.architecture = architecture
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.latency = None  # Variable (adaptive symbol-rate output).
@@ -86,7 +93,13 @@ class LiteDSPTimingRecovery(LiteXModule):
         # window/mu stop changing; emission waits SETTLE cycles after the last consumed sample
         # so only one multiply level remains per clock (was: three chained multiplies, the
         # block's critical path). Throughput cost: sps + SETTLE cycles per symbol.
-        SETTLE = 5                                       # Coefficients + 3 Horner stages + error.
+        # The loop-pipelined form spends one otherwise idle controller clock registering the
+        # gain-scaled corrections.  Timing recovery already accepts fewer than one sample per
+        # clock, so this makes the timing/throughput trade-off explicit without reducing the
+        # datapath's accepted-sample rate while it is consuming a window.
+        loop_pipeline = int(architecture == "pipelined")
+        SETTLE = 5 + loop_pipeline                       # Interpolator/error + optional loop cut.
+        self.settle_cycles = SETTLE
         settle    = Signal(max=SETTLE + 1)
         consuming = Signal()
         emitting  = Signal()
@@ -165,10 +178,22 @@ class LiteDSPTimingRecovery(LiteXModule):
         # ----------------------------------------------------------------
         omega_n = Signal((iw, True))
         mu_n    = Signal((iw + 1, True))
-        self.comb += [
-            omega_n.eq(omega + ((go_q*err) >> amp_shift)),
-            mu_n.eq(mu + omega + ((gm_q*err) >> amp_shift)),
-        ]
+        if architecture == "classic":
+            self.comb += [
+                omega_n.eq(omega + ((go_q*err) >> amp_shift)),
+                mu_n.eq(mu + omega + ((gm_q*err) >> amp_shift)),
+            ]
+        else:
+            omega_correction = Signal((iw, True))
+            mu_correction    = Signal((iw + 1, True))
+            self.sync += [
+                omega_correction.eq((go_q*err) >> amp_shift),
+                mu_correction.eq((gm_q*err) >> amp_shift),
+            ]
+            self.comb += [
+                omega_n.eq(omega + omega_correction),
+                mu_n.eq(mu + omega + mu_correction),
+            ]
         omega_c = Signal((iw, True))
         self.comb += omega_c.eq(
             Mux(omega_n < (omega_mid - omega_lim), omega_mid - omega_lim,

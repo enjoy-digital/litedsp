@@ -54,13 +54,27 @@ class TestTimingRecovery(unittest.TestCase):
         self.assertEqual(errors, 0,
             f"{errors} symbol decision errors after {settle}-symbol settle")
 
-    def run_mm(self, x, sps=2, ted="mm"):
-        dut = LiteDSPTimingRecovery(data_width=16, sps=sps, gain_mu=0.1, ted=ted, with_csr=False)
+    def run_mm(self, x, sps=2, ted="mm", architecture="classic"):
+        dut = LiteDSPTimingRecovery(data_width=16, sps=sps, gain_mu=0.1, ted=ted,
+            with_csr=False, architecture=architecture)
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         n_out = len(x)//sps - 8
         cap = run_stream(dut, samples, n_out, ["i", "q"], ["i", "q"],
             sink_throttle=0.0, source_ready_rate=1.0)
         return to_signed(column(cap, "i"), 16) + 1j*to_signed(column(cap, "q"), 16)
+
+    def test_loop_architectures_match(self):
+        _, x = make_signal(L=160, sps_hi=32, sps=2, offset=7, seed=8)
+        classic   = self.run_mm(x, architecture="classic")
+        pipelined = self.run_mm(x, architecture="pipelined")
+        self.assertTrue(np.array_equal(classic, pipelined))
+        self.assertEqual(LiteDSPTimingRecovery(with_csr=False).settle_cycles, 5)
+        self.assertEqual(LiteDSPTimingRecovery(
+            with_csr=False, architecture="pipelined").settle_cycles, 6)
+
+    def test_invalid_architecture(self):
+        with self.assertRaises(ValueError):
+            LiteDSPTimingRecovery(with_csr=False, architecture="invalid")
 
     # verify-tier: bound — eye metrics + error-free decisions after the derived settle length.
     def test_eye_opens(self):
