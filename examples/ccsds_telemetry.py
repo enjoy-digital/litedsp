@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""CCSDS-style concatenated-FEC telemetry chain with the burst-spreading interleaver (AN005).
+"""CCSDS dual-basis concatenated-FEC telemetry chain with burst interleaving (AN005).
 
 The classic CCSDS 131.0-B deep-space telemetry stack, assembled from LiteDSP blocks:
 
@@ -30,8 +30,6 @@ ONE RS codeword (I = 1) to keep simulation time sane (the soft Viterbi decoder s
 burst that is *uncorrectable without interleaving* — the money demo in RTL (a few minutes).
 
 Documented deviations from CCSDS 131.0-B (see doc/app_notes/an005_ccsds_telemetry.md):
-- The RS codec is the conventional-basis 0x11D/fcr=0 codec, not the CCSDS dual-basis 0x187
-  code (byte-compatible chain structure, not bit-compatible with a CCSDS channel).
 - Interleaving depth I = 2 for the model sweep (I = 1 for the default RTL point) keeps the
   runtime sane; the standard depths are I in {1, 2, 3, 4, 5, 8} with I = 5 typical (the
   blocks default to rows=5).
@@ -56,7 +54,10 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.comm.rs          import LiteDSPRSEncoder, LiteDSPRSDecoder
+from litedsp.comm.rs          import (
+    CCSDS_GF_POLY, CCSDS_FCR, CCSDS_PRIM, CCSDS_TO_DUAL, CCSDS_TO_CONVENTIONAL,
+    LiteDSPCCSDSRSEncoder, LiteDSPCCSDSRSDecoder,
+)
 from litedsp.comm.interleaver import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.coding      import LiteDSPConvEncoder
 from litedsp.comm.mapper      import LiteDSPSymbolMapper
@@ -86,7 +87,7 @@ def burst_position(rows):
 class CCSDSTx(LiteXModule):
     """RS encode (I codewords) -> byte interleave -> serialize -> conv K=7 -> QPSK map."""
     def __init__(self, rows=SWEEP_I, interleave=True):
-        self.rs   = LiteDSPRSEncoder(n=RS_N, k=RS_K, with_csr=False)
+        self.rs   = LiteDSPCCSDSRSEncoder(with_csr=False)
         self.conv = LiteDSPConvEncoder(with_csr=False)              # K=7, G=(171,133) octal.
         self.b2b  = stream.Converter(8, 1)                          # Bytes -> bits, LSB-first.
         self.map  = LiteDSPSymbolMapper(bits_per_axis=1, spacing=SPACING, with_csr=False)
@@ -109,7 +110,9 @@ class CCSDSRxBackend(LiteXModule):
     """Decoded bits -> pack bytes -> deinterleave -> RS decode (the post-Viterbi RX)."""
     def __init__(self, rows=SWEEP_I, interleave=True):
         self.b2B = stream.Converter(1, 8)                           # Bits -> bytes, LSB-first.
-        self.rsd = LiteDSPRSDecoder(n=RS_N, k=RS_K, with_csr=False)
+        # Classic scheduling keeps this application-note simulation short; the wrapper's
+        # dual-basis mapping and corrected byte stream are identical to pipelined mode.
+        self.rsd = LiteDSPCCSDSRSDecoder(with_csr=False, architecture="classic")
         self.sink, self.source = self.b2B.sink, self.rsd.source
         path = [self.b2B.source]
         if interleave:
@@ -139,11 +142,25 @@ def bytes_to_bits(data):
 def bits_to_bytes(bits):
     return [sum(bits[8*i + j] << j for j in range(8)) for i in range(len(bits)//8)]
 
+def ccsds_rs_encode(message):
+    """CCSDS dual-basis RS(255,223) model matching ``LiteDSPCCSDSRSEncoder``."""
+    conventional = [CCSDS_TO_CONVENTIONAL[int(byte)] for byte in message]
+    codeword = rs_encode_model(conventional, n=RS_N, k=RS_K,
+        poly=CCSDS_GF_POLY, fcr=CCSDS_FCR, prim=CCSDS_PRIM)
+    return [CCSDS_TO_DUAL[byte] for byte in codeword]
+
+def ccsds_rs_decode(codeword):
+    """CCSDS dual-basis RS(255,223) model matching ``LiteDSPCCSDSRSDecoder``."""
+    conventional = [CCSDS_TO_CONVENTIONAL[int(byte)] for byte in codeword]
+    message, corrected, uncorrectable = rs_decode_model(conventional, n=RS_N, k=RS_K,
+        poly=CCSDS_GF_POLY, fcr=CCSDS_FCR, prim=CCSDS_PRIM)
+    return [CCSDS_TO_DUAL[byte] for byte in message], corrected, uncorrectable
+
 def tx_model(msg, rows, interleave=True):
     """Bit-exact model TX; returns (codeword bytes, channel I, channel Q) incl. flush symbols."""
     cw = []
     for c in range(rows):
-        cw += rs_encode_model(msg[c*RS_K:(c + 1)*RS_K], n=RS_N, k=RS_K)
+        cw += ccsds_rs_encode(msg[c*RS_K:(c + 1)*RS_K])
     chan = block_interleave_model(cw, rows=rows, cols=RS_N) if interleave else cw
     syms = conv_encode(bytes_to_bits(chan) + [0]*FLUSH_BITS)
     i = np.array([(2*((s >> 0) & 1) - 1)*SPACING for s in syms], np.int64)
@@ -173,7 +190,7 @@ def rx_model(i, q, rows, interleave=True):
         rxb = block_deinterleave_model(rxb, rows=rows, cols=RS_N)
     out, stats = [], []
     for c in range(rows):
-        m, corrected, unc = rs_decode_model(rxb[c*RS_N:(c + 1)*RS_N], n=RS_N, k=RS_K)
+        m, corrected, unc = ccsds_rs_decode(rxb[c*RS_N:(c + 1)*RS_N])
         out += m
         stats.append((corrected, unc))
     return out, stats, rxb

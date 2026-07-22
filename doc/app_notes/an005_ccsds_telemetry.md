@@ -35,7 +35,8 @@ decoder's bursty errors across I RS codewords (~I× correctable-burst gain).
 
 The interleaver sits **between the RS and convolutional layers, on bytes** — the CCSDS
 convention. On the transmit side the I RS codewords of a frame are written into an I × 255
-matrix row-wise (codeword by codeword, exactly the order a single time-shared `LiteDSPRSEncoder`
+matrix row-wise (codeword by codeword, exactly the order a single time-shared
+`LiteDSPCCSDSRSEncoder`
 emits them) and transmitted column-wise: byte 0 of every codeword, then byte 1, … Adjacent
 channel bytes therefore belong to *different* codewords. Viterbi errors arrive in bursts (a
 wrong survivor path persists for tens of trellis steps), so after deinterleaving a burst of B
@@ -47,13 +48,16 @@ Both interleaver blocks are ping-pong buffered (2 × rows·cols bytes of block R
 fills one bank while the reader drains the other, so back-to-back blocks stream gaplessly at
 1 byte/cycle (asserted in `test/test_interleaver.py`).
 
-## Documented deviations from CCSDS 131.0-B
+## CCSDS compatibility and documented deviations
 
-- **Conventional-basis RS**: `litedsp.comm.rs` implements RS(255,223) over GF(2^8) with field
-  polynomial 0x11D and fcr = 0. CCSDS specifies 0x187 with a *dual-basis* (Berlekamp) symbol
-  representation. The chain structure, rates and burst behavior are identical; the byte stream
-  is not bit-compatible with a real CCSDS channel without a basis-conversion stage (a
-  documented follow-up in `litedsp/comm/rs.py`).
+The application uses `LiteDSPCCSDSRSEncoder` and `LiteDSPCCSDSRSDecoder`: the fixed-profile
+RS(255,223) codec with field polynomial 0x187, first consecutive root 112, primitive step 11,
+and the CCSDS Berlekamp dual-basis stream representation. Its encoder parity is checked against
+an independent libfec known-answer vector, so the RS byte stream is interoperable rather than
+merely structurally equivalent.
+
+The remaining deliberate simplifications are:
+
 - **Interleaving depth**: the sweep uses I = 2 (I = 5 is the standard's typical depth — same
   blocks, `rows=5`); the RTL confirmation point defaults to I = 1 / one codeword purely for
   simulation time (see below).
@@ -66,13 +70,13 @@ fills one bank while the reader drains the other, so back-to-back blocks stream 
 
 | Block | Role | ECP5 LUT/FF/BRAM/DSP | Fmax (MHz) |
 |---|---|---|---|
-| `LiteDSPRSEncoder` (255,223) | outer encoder (systematic LFSR) | 487/265/0/0 | 119 |
-| `LiteDSPBlockInterleaver` (5×255) | depth-I byte interleaver, ping-pong RAM | 164/85/2/0 | 200 |
+| `LiteDSPCCSDSRSEncoder` (255,223) | dual-basis outer encoder | 573/265/0/0 | 223.4 |
+| `LiteDSPBlockInterleaver` (5×255) | depth-I byte interleaver, ping-pong RAM | 165/85/2/0 | 199.6 |
 | `LiteDSPConvEncoder` (K=7) | inner encoder | not characterized | - |
-| `LiteDSPSymbolMapper` / `LiteDSPSoftDemapper` | QPSK map / 4-bit LLRs | 203/44/0/2 (demap) | - |
-| `LiteDSPViterbiDecoder` (soft, K=7) | inner decoder (decision RAM + folded traceback) | 6848/864/2/0 | 94 |
-| `LiteDSPBlockDeinterleaver` (5×255) | inverse permutation | 162/85/2/0 | 187 |
-| `LiteDSPRSDecoder` (255,223) | outer decoder (BM + Chien/Forney) | 3680/1321/1/0 | 74 |
+| `LiteDSPSymbolMapper` / `LiteDSPSoftDemapper` | QPSK map / 4-bit LLRs | 211/44/0/2 (demap) | 87.3 |
+| `LiteDSPViterbiDecoder` (soft, K=7) | inner decoder (decision RAM + folded traceback) | 6848/864/2/0 | 94.2 |
+| `LiteDSPBlockDeinterleaver` (5×255) | inverse permutation | 164/85/2/0 | 198.1 |
+| `LiteDSPCCSDSRSDecoder` (255,223) | dual-basis outer decoder (BM + Chien/Forney) | 3741/1482/1/0 | 102.9 |
 
 (Reference numbers at the registry configurations from [`doc/resources.md`](../resources.md);
 fmax values are the budget minima. The Viterbi implementation registry selects the folded
@@ -148,8 +152,9 @@ The model sweep takes a few seconds (bit-exact NumPy models, including the step-
 - [`block_interleaver`](../blocks/block_interleaver.md) /
   [`block_deinterleaver`](../blocks/block_deinterleaver.md) — the depth-I byte interleaver
   pair (geometry, ping-pong buffering, framing)
-- [`rs_encoder`](../blocks/rs_encoder.md) / [`rs_decoder`](../blocks/rs_decoder.md) —
-  RS(255, k) codec (basis conventions, correction status CSRs)
+- [`ccsds_rs_encoder`](../blocks/ccsds_rs_encoder.md) /
+  [`ccsds_rs_decoder`](../blocks/ccsds_rs_decoder.md) — fixed-profile dual-basis CCSDS
+  RS(255,223) codec (basis conversion and correction-status CSRs)
 - [`conv_encoder`](../blocks/conv_encoder.md) /
   [`viterbi_decoder`](../blocks/viterbi_decoder.md) — the inner K=7 code (hard/soft, LLR
   conventions, traceback depth)
