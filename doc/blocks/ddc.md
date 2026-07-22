@@ -19,6 +19,7 @@ is the NCO ``phase_inc`` CSR (set it to ``-f_tune`` in phase units). Canonical R
 | `decimation` | `8` | int | Integer decimation factor. |
 | `method` | `"cic"` | str | Core implementation selector. Choices: `cic`, `fir`. |
 | `phase_bits` | `32` | int | Phase accumulator width in bits. |
+| `fir_architecture` | `"classic"` | str |  |
 
 ## Ports
 
@@ -47,8 +48,8 @@ Phase increment (sets output frequency).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 962 | 381 | 2 | 6 | 92.5 | 100.0 |
-| xilinx | 468 | 149 | 1 | 6 | 128.9 | 100.0 |
-| xilinx_au | 457 | 149 | 1 | 6 | 257.7 | 100.0 |
+| ecp5 | 765 | 395 | 4 | 6 | 128.7 | 100.0 |
+| xilinx | 550 | 149 | 1 | 6 | 132.9 | 100.0 |
+| xilinx_au | 546 | 149 | 1 | 6 | 281.9 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

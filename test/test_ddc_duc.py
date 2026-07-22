@@ -57,19 +57,21 @@ class TestInterpolator(unittest.TestCase):
 
 class TestDDC(unittest.TestCase):
     def test_tune_to_baseband(self):
-        decim, n = 4, 4*400
-        f = 0.10
-        dut = LiteDSPDDC(data_width=16, decimation=decim, method="fir", with_csr=False)
-        dut.nco.phase_inc.reset = int(round(f*(1 << 32))) & 0xffffffff  # down-mix by f.
-        x = tone(n, f, amp=12000)
-        samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
-        cap = run_stream(dut, samples, n//decim - 10, ["i", "q"], ["i", "q"],
-            sink_throttle=0.0, source_ready_rate=1.0)
-        y = column(cap, "i", 16) + 1j*column(cap, "q", 16)
-        y = y[len(y)//2:]                              # Skip transient.
-        # Tone brought to DC: |mean| should dominate the AC variation.
-        self.assertGreater(np.abs(y.mean()), 3000)
-        self.assertLess(y.std(), np.abs(y.mean())/10 + 1)
+        for architecture in ("classic", "pipelined"):
+            decim, n = 4, 4*400
+            f = 0.10
+            dut = LiteDSPDDC(data_width=16, decimation=decim, method="fir", with_csr=False,
+                fir_architecture=architecture)
+            dut.nco.phase_inc.reset = int(round(f*(1 << 32))) & 0xffffffff  # down-mix by f.
+            x = tone(n, f, amp=12000)
+            samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
+            cap = run_stream(dut, samples, n//decim - 10, ["i", "q"], ["i", "q"],
+                sink_throttle=0.0, source_ready_rate=1.0)
+            y = column(cap, "i", 16) + 1j*column(cap, "q", 16)
+            y = y[len(y)//2:]                              # Skip transient.
+            # Tone brought to DC: |mean| should dominate the AC variation.
+            self.assertGreater(np.abs(y.mean()), 3000, architecture)
+            self.assertLess(y.std(), np.abs(y.mean())/10 + 1, architecture)
 
 class TestDUC(unittest.TestCase):
     def test_upconvert(self):

@@ -23,7 +23,8 @@ class LiteDSPDDC(LiteXModule):
     Tunes a band centered at the NCO frequency down to baseband and decimates. The tuning word
     is the NCO ``phase_inc`` CSR (set it to ``-f_tune`` in phase units). Canonical RX front-end.
     """
-    def __init__(self, data_width=16, decimation=8, method="cic", phase_bits=32, with_csr=True):
+    def __init__(self, data_width=16, decimation=8, method="cic", phase_bits=32, with_csr=True,
+        fir_architecture="classic"):
         self.data_width = data_width
         self.decimation = decimation
         self.sink   = stream.Endpoint(iq_layout(data_width))  # High-rate I/Q input.
@@ -36,7 +37,7 @@ class LiteDSPDDC(LiteXModule):
         self.nco   = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer = LiteDSPMixer(data_width=data_width, with_csr=False)  # Mode hardwired below.
         self.decim = LiteDSPDecimator(data_width=data_width, decimation=decimation, method=method,
-            with_csr=with_csr)
+            with_csr=with_csr, fir_architecture=fir_architecture)
         self.latency = self.decim.latency
 
         # Datapath.

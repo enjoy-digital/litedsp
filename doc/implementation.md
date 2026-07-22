@@ -130,6 +130,11 @@ floor.
   pointer and registered product separate asynchronous coefficient selection and multiplication
   from accumulator feedback. The L=8/65-tap configuration rises from 74.3 to 107.1 MHz on ECP5;
   `cycles_per_output` rises from 11 to 12 and the classic API mode remains available.
+- **The FIR decimator needs a register before, not only after, its multiplier.** Registering the
+  asynchronous history/coefficient operands adds one drain clock, maps the DDC histories into
+  block RAM, and raises the three-route ECP5 medians from 103.5 to 184.9 MHz for the standalone
+  FIR sentinel and from 93.6 to 151.4 MHz for the DDC. Artix-7 and Artix UltraScale+ DDC routes
+  reach 156.4 and 331.7 MHz; the classic API schedule remains available.
 - **Registering the resampler-farm RAM boundary improves both timing and mapping.** Operand and
   product registers split the banked history lookup, multiply, and accumulator feedback. The
   ECP5 implementation rises from 86.3 to a 152.8 MHz three-route median and maps its histories

@@ -15,7 +15,8 @@ class TestCoverageWaivers(unittest.TestCase):
     def test_semantic_checks_resolve(self):
         waivers = load_waivers()
         self.assertEqual(set(waivers), {
-            "equalizer", "fir_decimator", "fir_interpolator", "fir_interpolator_pipelined",
+            "equalizer", "fir_decimator", "fir_decimator_pipelined", "fir_interpolator",
+            "fir_interpolator_pipelined",
             "ldpc_decoder", "ldpc_decoder_z_parallel", "pfb_channelizer_fft",
             "pfb_channelizer_fft_2x",
         })

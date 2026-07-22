@@ -11,6 +11,10 @@ Decimate-by-R complex FIR with a single time-shared MAC per I/Q.
 Collects R input samples then MACs the N taps over the sample window to produce one output
 (``y[m] = sum_t c[t]·x[mR-t]``), round + saturate. Coefficients are signed Q1.(W-1).
 
+``architecture="classic"`` registers the product before the accumulator. The
+``"pipelined"`` architecture also registers the RAM operands, adding one drain clock per
+output while separating address/read routing from the multiplier input.
+
 ``prune_zeros=True`` builds the MAC schedule and coefficient memory from only the non-zero
 build-time taps. The omitted positions remain structural zeros and cannot be changed by
 runtime coefficient reload; use the default rectangular schedule when every position must
@@ -25,6 +29,7 @@ remain writable.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
+| `architecture` | `"classic"` | str |  |
 | `prune_zeros` | `False` | bool |  |
 
 ## Ports
@@ -57,9 +62,9 @@ Write the next scheduled FIR coefficient (auto-incrementing MAC slot; structural
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 541 | 168 | 0 | 2 | 108.7 | — |
-| xilinx | 283 | 105 | 0 | 2 | 121.8 | — |
-| xilinx_au | 257 | 105 | 0 | 2 | 305.1 | — |
+| ecp5 | 550 | 217 | 0 | 2 | 157.2 | — |
+| xilinx | 379 | 171 | 0 | 2 | 175.9 | — |
+| xilinx_au | 338 | 105 | 0 | 2 | 313.1 | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

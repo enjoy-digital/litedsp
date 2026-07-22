@@ -135,6 +135,17 @@ def spec_fir_decimator():
     return dut, cols, n//R - 2, lambda c: [models.fir_decimator_model(c[0], coeffs, R),
                                            models.fir_decimator_model(c[1], coeffs, R)]
 
+def spec_fir_decimator_pipelined():
+    from litedsp.filter.fir_poly import LiteDSPFIRDecimator
+    from litedsp.filter.design   import firwin_lowpass
+    n, n_taps, R = 256, 17, 8
+    coeffs = firwin_lowpass(n_taps, 0.4/R)
+    dut = LiteDSPFIRDecimator(n_taps=n_taps, decimation=R, data_width=16,
+        coefficients=coeffs, with_csr=False, architecture="pipelined")
+    cols = _rand_cols(2, n)
+    return dut, cols, n//R - 2, lambda c: [models.fir_decimator_model(c[0], coeffs, R),
+                                           models.fir_decimator_model(c[1], coeffs, R)]
+
 def spec_fir_interpolator():
     from litedsp.filter.fir_poly import LiteDSPFIRInterpolator
     from litedsp.filter.design   import firwin_lowpass
@@ -821,6 +832,7 @@ SPECS = {
     "fir_complex":      spec_fir_complex,
     "fir_complex_pipelined": spec_fir_complex_pipelined,
     "fir_decimator":    spec_fir_decimator,
+    "fir_decimator_pipelined": spec_fir_decimator_pipelined,
     "fir_interpolator": spec_fir_interpolator,
     "fir_interpolator_pipelined": spec_fir_interpolator_pipelined,
     "cic_decimator":    spec_cic_decimator,
@@ -898,6 +910,7 @@ def check_coverage():
     from test.registry import VSPEC
     variants = {
         "fir_complex_pipelined":     "fir_complex",
+        "fir_decimator_pipelined":   "fir_decimator",
         "fir_interpolator_pipelined": "fir_interpolator",
         "frame_sync_pipelined":       "frame_sync",
         "rs_decoder_pipelined":       "rs_decoder",

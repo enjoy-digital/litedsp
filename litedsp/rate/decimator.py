@@ -30,7 +30,7 @@ class LiteDSPDecimator(LiteXModule):
         used by ``method="fir"`` only (the CIC response is fixed by its structure).
     """
     def __init__(self, data_width=16, decimation=8, method="cic", n_taps=None, cutoff=0.4,
-        n_stages=4, with_csr=True):
+        n_stages=4, with_csr=True, fir_architecture="classic"):
         check(method in ["cic", "fir"], "expected method in ['cic', 'fir']")
         self.decimation = decimation
         self.method     = method
@@ -46,7 +46,7 @@ class LiteDSPDecimator(LiteXModule):
             n_taps = n_taps or (8*decimation + 1)  # ~8 taps per polyphase branch.
             coeffs = firwin_lowpass(n_taps, cutoff/decimation, data_width=data_width)  # Cutoff at the input (high) rate.
             self.core = LiteDSPFIRDecimator(n_taps=n_taps, decimation=decimation, data_width=data_width,
-                coefficients=coeffs, with_csr=with_csr)
+                coefficients=coeffs, with_csr=with_csr, architecture=fir_architecture)
         self.latency = self.core.latency
         self.comb += [
             self.sink.connect(self.core.sink),

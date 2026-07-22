@@ -100,6 +100,10 @@ Additional contracts introduced with the harmonization:
   bounded).
 - Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock — parallel
   NCO/mixer/FIR/CIC/DDC, bit-identical to their serial counterparts.
+- Timing-oriented FIR decimator schedule with registered RAM operands and an explicit second
+  drain stage. It adds one clock per output while remaining bit-exact; the FIR-based DDC rises
+  from a 93.6 MHz to a 151.4 MHz three-route ECP5 median and closes 100 MHz on Artix-7 and
+  Artix UltraScale+ as well.
 - All public hardware classes carry the `LiteDSP` prefix (`LiteDSPNCO`, `LiteDSPFIRFilter`,
   ...), following the LiteX ecosystem naming convention.
 - Standardized interfaces: LiteX `stream.Endpoint` with full valid/ready backpressure, uniform

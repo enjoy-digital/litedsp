@@ -16,6 +16,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | AGC | 49.6 MHz classic; 133.9 MHz two-sample pipeline | gain multiply, output magnitude, error and gain integration in one accepted-sample step | two-sample option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
+| FIR decimator / FIR DDC | 103.5 / 93.6 MHz classic median; 184.9 / 151.4 MHz pipelined median | asynchronous history/coefficient lookup, multiplier, then product register | operand-register option landed; DDC target-closed |
 | DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
 | Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
@@ -98,6 +99,31 @@ remains the API default; the implementation registry selects the pipelined optio
 
 Acceptance covers odd and even branch lengths, exact fixed-point output, randomized input/output
 stalls, the DUC image-rejection/upconversion test, and an independent Verilator co-simulation.
+
+## FIR decimator and DDC
+
+The serial FIR decimator already registered each product before the accumulator, but its tap
+address still fed asynchronous sample/coefficient memories and the DSP multiplier in one clock.
+The timing-oriented option registers those three operands, multiplies them on the following
+clock, and drains the product and accumulator stages after the final tap. The arithmetic order
+and one-tap-per-MAC-clock schedule are unchanged.
+
+For an R=8 filter, `cycles_per_output` changes from `R + N + 1` to `R + N + 2`; nominal
+latency changes from `N + 1` to `N + 2`. Thus the implementation FIR sentinel (N=32) takes 42
+clocks/output rather than 41, while the FIR DDC (N=65) takes 75 rather than 74. The added
+register boundary also lets Yosys map the DDC histories into block RAM: ECP5 usage changes from
+roughly 951 LUT / 381 FF / 2 BRAM / 6 DSP to 765 / 395 / 4 / 6.
+
+Before the change, three current-tool ECP5 routes measured 102.8/103.5/103.8 MHz for the FIR
+sentinel and 92.2/93.6/94.2 MHz for the DDC. The pipelined schedule measures
+178.2/184.9/188.6 MHz and 151.2/151.4/152.1 MHz respectively. Routed Artix-7 results are
+207.0/156.4 MHz, and Artix UltraScale+ results are 368.3/331.7 MHz. The classic architecture
+remains the API default; implementation sentinels select `architecture="pipelined"`, and the
+DDC exposes the same choice as `fir_architecture`.
+
+Acceptance covers one-tap and multi-tap drain behavior, randomized-stall identity against the
+existing FIR model, classic/pipelined DDC tuning, emitted-Verilog co-simulation, and all three
+reference device profiles.
 
 ## Resampler farm
 

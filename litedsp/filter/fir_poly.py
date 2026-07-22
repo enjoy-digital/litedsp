@@ -40,15 +40,21 @@ class LiteDSPFIRDecimator(LiteXModule):
     Collects R input samples then MACs the N taps over the sample window to produce one output
     (``y[m] = sum_t c[t]·x[mR-t]``), round + saturate. Coefficients are signed Q1.(W-1).
 
+    ``architecture="classic"`` registers the product before the accumulator. The
+    ``"pipelined"`` architecture also registers the RAM operands, adding one drain clock per
+    output while separating address/read routing from the multiplier input.
+
     ``prune_zeros=True`` builds the MAC schedule and coefficient memory from only the non-zero
     build-time taps. The omitted positions remain structural zeros and cannot be changed by
     runtime coefficient reload; use the default rectangular schedule when every position must
     remain writable.
     """
     def __init__(self, n_taps=32, decimation=8, data_width=16, coefficients=None, shift=None,
-        with_csr=True, prune_zeros=False):
+        with_csr=True, architecture="classic", prune_zeros=False):
         R = decimation  # Literature name.
         check(n_taps >= 1 and R >= 1, "expected n_taps >= 1 and decimation >= 1")
+        check(architecture in ("classic", "pipelined"),
+            "architecture must be 'classic' or 'pipelined'.")
         if shift is None:
             shift = data_width - 1
         if coefficients is None:
@@ -60,9 +66,11 @@ class LiteDSPFIRDecimator(LiteXModule):
         self.n_mac_taps = len(active_taps)
         self.decimation = R
         self.data_width = data_width
+        self.architecture = architecture
         self.prune_zeros = prune_zeros
-        self.cycles_per_output = R + self.n_mac_taps + 1
-        self.latency = n_taps + 1
+        pipeline = int(architecture == "pipelined")
+        self.cycles_per_output = R + self.n_mac_taps + 1 + pipeline
+        self.latency = n_taps + 1 + pipeline
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -145,24 +153,59 @@ class LiteDSPFIRDecimator(LiteXModule):
             )
         )
         # MAC: register one product per cycle while accumulating the preceding tap. Splitting
-        # the multiplier from the accumulator feedback is one extra drain cycle per output,
-        # but preserves the serial-MAC area and bit-exact arithmetic while removing the
-        # multiplier-plus-wide-adder critical path.
-        fsm.act("MAC",
-            NextValue(prod_i, ci*cc),
-            NextValue(prod_q, cq*cc),
-            If(t != 0,
+        # the multiplier from the accumulator feedback preserves the serial-MAC area and
+        # bit-exact arithmetic while removing the multiplier-plus-wide-adder critical path.
+        if architecture == "classic":
+            fsm.act("MAC",
+                NextValue(prod_i, ci*cc),
+                NextValue(prod_q, cq*cc),
+                If(t != 0,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(t, t + 1),
+                If(t == (self.n_mac_taps - 1), NextState("MAC_DRAIN")),
+            )
+            fsm.act("MAC_DRAIN",
                 NextValue(acc_i, acc_i + prod_i),
                 NextValue(acc_q, acc_q + prod_q),
-            ),
-            NextValue(t, t + 1),
-            If(t == (self.n_mac_taps - 1), NextState("MAC_DRAIN")),
-        )
-        fsm.act("MAC_DRAIN",
-            NextValue(acc_i, acc_i + prod_i),
-            NextValue(acc_q, acc_q + prod_q),
-            NextState("EMIT"),
-        )
+                NextState("EMIT"),
+            )
+        else:
+            # Register the asynchronous sample/coefficient reads before the DSP multiplier.
+            # Two fill clocks and two drain states keep one tap issued per MAC clock; only one
+            # extra clock is added versus the classic product-only pipeline.
+            operand_i = Signal((data_width, True))
+            operand_q = Signal((data_width, True))
+            operand_c = Signal((data_width, True))
+            fsm.act("MAC",
+                NextValue(operand_i, ci),
+                NextValue(operand_q, cq),
+                NextValue(operand_c, cc),
+                NextValue(prod_i, operand_i*operand_c),
+                NextValue(prod_q, operand_q*operand_c),
+                If(t >= 2,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(t, t + 1),
+                If(t == (self.n_mac_taps - 1), NextState("MAC_DRAIN_PRODUCT")),
+            )
+            drain_product = [
+                NextValue(prod_i, operand_i*operand_c),
+                NextValue(prod_q, operand_q*operand_c),
+            ]
+            if self.n_mac_taps > 1:
+                drain_product += [
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ]
+            fsm.act("MAC_DRAIN_PRODUCT", *drain_product, NextState("MAC_DRAIN_ACC"))
+            fsm.act("MAC_DRAIN_ACC",
+                NextValue(acc_i, acc_i + prod_i),
+                NextValue(acc_q, acc_q + prod_q),
+                NextState("EMIT"),
+            )
         out_i, _ = scaled(acc_i, shift, data_width)
         out_q, _ = scaled(acc_q, shift, data_width)
         # EMIT: present the rescaled result; upstream stays stalled until it is accepted.

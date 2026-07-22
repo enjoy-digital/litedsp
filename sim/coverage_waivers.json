@@ -16,6 +16,13 @@
       "test.test_halfband:TestHalfband.test_pruned_bit_exact"
     ]
   },
+  "fir_decimator_pipelined": {
+    "reason": "Migen expands the pipelined tap-offset/address selectors and mutually exclusive fill/drain states into generated case arms; one-tap and multi-tap geometries, randomized backpressure, and runtime reload are checked semantically.",
+    "semantic_checks": [
+      "test.test_fir_poly:TestFIRDecimator.test_bit_exact",
+      "test.test_fir_reload:TestFIRReload.test_runtime_reload"
+    ]
+  },
   "fir_interpolator": {
     "reason": "Migen expands the polyphase tap and phase selectors into structural case arms that Verilator does not credit even when every valid phase executes; multiple geometries, backpressure, and pruned halfband behavior are checked semantically.",
     "semantic_checks": [

@@ -122,7 +122,8 @@ def fir_complex():
     return d, {d.bypass} | _eps(d.sink, d.source), 10.0
 
 def fir_decimator():
-    d = LiteDSPFIRDecimator(n_taps=32, decimation=8, data_width=16, with_csr=False)
+    d = LiteDSPFIRDecimator(n_taps=32, decimation=8, data_width=16, with_csr=False,
+        architecture="pipelined")
     return d, {d.coeff_data, d.coeff_we, d.coeff_rst} | _eps(d.sink, d.source), 10.0
 
 def fir_interpolator():
@@ -265,7 +266,8 @@ def histogram():
     return d, _eps(d.sink, d.source), 10.0
 
 def ddc():
-    d = LiteDSPDDC(data_width=16, decimation=8, method="fir", with_csr=False)
+    d = LiteDSPDDC(data_width=16, decimation=8, method="fir", with_csr=False,
+        fir_architecture="pipelined")
     return d, {d.nco.phase_inc} | _eps(d.sink, d.source), 10.0
 
 def duc():
