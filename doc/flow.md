@@ -21,9 +21,9 @@ all code generation is headless and reused identically by the CLI, tests, and th
 - **`builder.py`** — `LiteDSPFlowChain`: instantiates each block as a *named submodule* (id = name, so
   `get_csrs()` auto-prefixes the whole register map), resolves port refs, exposes single-IO
   `.sink`/`.source`.
-- **`glue.py`** — auto-inserts `LiteDSPSplit` for fan-out, rejects combinational/feedback loops, and
-  *reports* reconvergent latency imbalance (insert an explicit `delay` block to fix — kept
-  non-mutating so generated chains are predictable and bit-identical to hand-wired ones).
+- **`glue.py`** — auto-inserts schema-preserving fan-out and reconvergent-path delays, and rejects
+  combinational/feedback loops. Inserted glue copies the complete payload, parameter fields, and
+  `first`/`last` markers rather than assuming a 16-bit I/Q stream.
 - **`ipcore.py`** — `LiteDSPFlowIPCore`: AXI-Lite→CSR bridge over a `CSRBankArray` (one bank per block,
   addressed exactly as LiteX/SoCMini) + the chain's AXI-Stream-compatible data ports.
 
@@ -49,6 +49,14 @@ all code generation is headless and reused identically by the CLI, tests, and th
 ```
 Port refs are `"<block_id>.<port>"` (e.g. `mix.sink_a`, `split0.sources[0]`); top-level I/O are
 referenced by their bare id. See `litedsp/flow/examples/`.
+
+The JSON `layout` value (`iq`, `iq_symbol`, `real`, or `raw`) is a compatibility category. The
+builder derives each top-level endpoint's concrete field widths, signedness, and parameter layout
+from its connected block port. This permits, for example, one-bit FEC streams, wider statistic
+records, FFT exponent parameters, and timestamped I/Q without pretending that every `real` or
+`raw` port has the global `data_width`. A `raw` top-level port must therefore connect to a block
+port from which its schema can be inferred. Fan-out destinations with the same category but
+different concrete schemas are rejected before Verilog generation.
 
 ## Usage
 
@@ -99,8 +107,12 @@ active-low reset interfaces are associated explicitly rather than relying on nam
   tuning, FIR reload, capture + PSD plot) for every discovered block — netlist block ids are
   the register prefixes, so live controls line up with editor nodes.
 - Latency balancing on reconvergent paths is automatic: unequal-latency joins get an exact
-  alignment `LiteDSPDelay` inserted (reported in `flow_inserted`); `auto_delay=False` restores
-  warn-only behavior.
+  schema-preserving elastic delay inserted (reported in `flow_inserted`); `auto_delay=False`
+  restores warn-only behavior. Analysis reads the instantiated block's selected latency, so an
+  architecture/depth parameter that differs from the palette default is aligned correctly.
+- Automatic fan-out and alignment support I/Q, real, symbol/FEC, arbitrary raw payloads, and
+  stream parameter fields. Randomized-stall regressions cover framed 9-bit real reconvergence and
+  timestamp-param fan-out, including exact `first`/`last` preservation.
 - Load/Save round-trips the canvas: node positions are stored in the netlist's `editor`
   section (ignored by codegen) and restored on load, with a grid fallback for hand-written
   netlists.

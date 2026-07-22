@@ -11,14 +11,17 @@ import unittest
 
 import numpy as np
 
-from litex.gen import LiteXModule
+from migen import Signal
 
-from litedsp.common           import iq_layout
+from litex.gen import LiteXModule
+from litex.soc.interconnect import stream
+
+from litedsp.common           import iq_layout, real_layout
 from litedsp.filter.dc_blocker import LiteDSPDCBlocker
 from litedsp.level.gain        import LiteDSPGain
 from litedsp.stream.split      import LiteDSPSplit
 from litedsp.stream.combine    import LiteDSPCombine
-from litedsp.flow              import registry, docgen, netlist as nlmod
+from litedsp.flow              import registry, metadata, docgen, netlist as nlmod
 from litedsp.flow.builder      import LiteDSPFlowChain
 from litedsp.flow.generate     import generate
 
@@ -30,6 +33,35 @@ def _samples(n, seed=0):
     xi  = rng.randint(-3000, 3000, n)
     xq  = rng.randint(-3000, 3000, n)
     return [{"i": int(xi[k]), "q": int(xq[k])} for k in range(n)]
+
+
+class _SelectableRealDelay(LiteXModule):
+    """Test-only non-I/Q block whose selected depth differs from its reflected default."""
+    def __init__(self, data_width=9, depth=1):
+        from litedsp.flow.glue import _FlowDelay
+        self.latency = depth
+        description = stream.EndpointDescription(real_layout(data_width))
+        self.delay = _FlowDelay(description, depth)
+        self.sink, self.source = self.delay.sink, self.delay.source
+
+
+class _RealJoin(LiteXModule):
+    """Test-only synchronous real-stream join used to exercise generic auto-alignment."""
+    def __init__(self, data_width=9):
+        self.latency = 0
+        self.sink_a = stream.Endpoint(real_layout(data_width))
+        self.sink_b = stream.Endpoint(real_layout(data_width))
+        self.source = stream.Endpoint(real_layout(data_width))
+        consume = Signal()
+        self.comb += [
+            self.source.valid.eq(self.sink_a.valid & self.sink_b.valid),
+            consume.eq(self.source.valid & self.source.ready),
+            self.sink_a.ready.eq(consume),
+            self.sink_b.ready.eq(consume),
+            self.source.data.eq(self.sink_a.data + self.sink_b.data),
+            self.source.first.eq(self.sink_a.first),
+            self.source.last.eq(self.sink_a.last),
+        ]
 
 
 class TestRegistry(unittest.TestCase):
@@ -179,7 +211,145 @@ class TestAutoDelay(unittest.TestCase):
         self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
 
 
+class TestGenericFlowGlue(unittest.TestCase):
+    def _real_registry(self):
+        reg = dict(registry.registry())
+        reg["test_real_delay"] = metadata.reflect(
+            "test_real_delay", _SelectableRealDelay, {"data_width": 9, "depth": 1})
+        reg["test_real_join"] = metadata.reflect(
+            "test_real_join", _RealJoin, {"data_width": 9})
+        return reg
+
+    def test_real_fanout_and_selected_latency_alignment_preserve_frames(self):
+        reg = self._real_registry()
+        nl = nlmod.from_dict({
+            "name": "real_reconverge", "data_width": 16,
+            "inputs": [{"id": "samples", "layout": "real"}],
+            "outputs": [{"id": "summed", "layout": "real"}],
+            "blocks": [
+                {"id": "branch", "type": "test_real_delay",
+                 "params": {"data_width": 9, "depth": 2}},
+                {"id": "join", "type": "test_real_join", "params": {"data_width": 9}},
+            ],
+            "connections": [
+                {"from": "samples", "to": "branch.sink"},
+                {"from": "samples", "to": "join.sink_b"},
+                {"from": "branch.source", "to": "join.sink_a"},
+                {"from": "join.source", "to": "summed"},
+            ],
+        })
+        dut = LiteDSPFlowChain(nl, reg=reg, with_csr=False)
+        self.assertEqual(dut.flow_inserted, ["split_samples", "delay_join_sink_b"])
+        self.assertEqual(dut.flow_warnings, [])
+        self.assertEqual(dut.delay_join_sink_b.depth, 2)  # Instance depth, not registry default 1.
+        self.assertEqual(len(dut.sink.data), 9)            # Inferred concrete width, not global 16.
+
+        n = 180
+        rng = np.random.RandomState(51)
+        data = rng.randint(-100, 101, n)
+        samples = [{"data": int(value), "first": int(k % 15 == 0),
+                    "last": int(k % 15 == 14)} for k, value in enumerate(data)]
+        cap = run_stream(dut, samples, n, ["data", "first", "last"],
+            ["data", "first", "last"], sink_throttle=0.25, source_ready_rate=0.6,
+            sink_seed=53, source_seed=59)
+        np.testing.assert_array_equal(column(cap, "data", 9), 2*data)
+        self.assertEqual([sample["first"] for sample in cap],
+            [sample["first"] for sample in samples])
+        self.assertEqual([sample["last"] for sample in cap],
+            [sample["last"] for sample in samples])
+
+        warn_only = LiteDSPFlowChain(nl, reg=reg, with_csr=False, auto_delay=False)
+        self.assertEqual(warn_only.flow_inserted, ["split_samples"])
+        self.assertIn("'sink_a': 2", warn_only.flow_warnings[0])
+        self.assertIn("'sink_b': 0", warn_only.flow_warnings[0])
+
+    def test_same_category_with_different_concrete_widths_is_rejected(self):
+        nl = nlmod.from_dict({
+            "name": "width_mismatch", "data_width": 16,
+            "inputs": [{"id": "samples", "layout": "real"}], "outputs": [],
+            "blocks": [
+                {"id": "nine", "type": "test_real_delay",
+                 "params": {"data_width": 9, "depth": 1}},
+                {"id": "ten", "type": "test_real_delay",
+                 "params": {"data_width": 10, "depth": 1}},
+            ],
+            "connections": [
+                {"from": "samples", "to": "nine.sink"},
+                {"from": "samples", "to": "ten.sink"},
+            ],
+        })
+        with self.assertRaisesRegex(nlmod.NetlistError, "incompatible concrete destinations"):
+            LiteDSPFlowChain(nl, reg=self._real_registry(), with_csr=False)
+
+        internal = nlmod.from_dict({
+            "name": "internal_width_mismatch", "data_width": 16,
+            "inputs": [], "outputs": [],
+            "blocks": [
+                {"id": "nine", "type": "test_real_delay",
+                 "params": {"data_width": 9, "depth": 1}},
+                {"id": "ten", "type": "test_real_delay",
+                 "params": {"data_width": 10, "depth": 1}},
+            ],
+            "connections": [{"from": "nine.source", "to": "ten.sink"}],
+        })
+        with self.assertRaisesRegex(nlmod.NetlistError, "concrete layout mismatch"):
+            LiteDSPFlowChain(internal, reg=self._real_registry(), with_csr=False)
+
+    def test_timestamp_params_survive_fanout_to_top_level(self):
+        nl = nlmod.from_dict({
+            "name": "tagged_fanout", "data_width": 16,
+            "inputs": [{"id": "samples", "layout": "iq"}],
+            "outputs": [{"id": "tagged", "layout": "iq"}],
+            "blocks": [
+                {"id": "tag", "type": "timestamper", "params": {"stream_id": 23}},
+                {"id": "strip", "type": "time_untagger", "params": {}},
+                {"id": "drain", "type": "null_sink", "params": {}},
+            ],
+            "connections": [
+                {"from": "samples", "to": "tag.sink"},
+                {"from": "tag.source", "to": "tagged"},
+                {"from": "tag.source", "to": "strip.sink"},
+                {"from": "strip.source", "to": "drain.sink"},
+            ],
+        })
+        dut = LiteDSPFlowChain(nl, with_csr=False)
+        self.assertEqual(dut.flow_inserted, ["split_tag_source"])
+        self.assertEqual([field[0] for field in dut.source.description.param_layout],
+            ["timestamp", "stream_id"])
+        n = 96
+        samples = _samples(n, seed=61)
+        for k, sample in enumerate(samples):
+            sample.update(first=int(k % 12 == 0), last=int(k % 12 == 11))
+        cap = run_stream(dut, samples, n, ["i", "q", "first", "last"],
+            ["i", "q", "timestamp", "stream_id", "first", "last"],
+            sink_throttle=0.2, source_ready_rate=0.65, sink_seed=67, source_seed=71)
+        np.testing.assert_array_equal(column(cap, "i", 16), [sample["i"] for sample in samples])
+        np.testing.assert_array_equal(column(cap, "q", 16), [sample["q"] for sample in samples])
+        self.assertEqual([sample["timestamp"] for sample in cap], [0]*n)
+        self.assertEqual([sample["stream_id"] for sample in cap], [23]*n)
+        self.assertEqual([sample["first"] for sample in cap],
+            [sample["first"] for sample in samples])
+        self.assertEqual([sample["last"] for sample in cap],
+            [sample["last"] for sample in samples])
+
+
 class TestValidationAndGenerate(unittest.TestCase):
+    def test_unknown_top_level_layout_rejected(self):
+        nl = nlmod.from_dict({
+            "name": "bad_layout", "inputs": [{"id": "in0", "layout": "bytes"}],
+            "outputs": [], "blocks": [], "connections": [],
+        })
+        with self.assertRaisesRegex(nlmod.NetlistError, "unknown layout"):
+            LiteDSPFlowChain(nl, with_csr=False)
+
+    def test_unconnected_raw_top_level_requires_inference(self):
+        nl = nlmod.from_dict({
+            "name": "raw_without_shape", "inputs": [{"id": "in0", "layout": "raw"}],
+            "outputs": [], "blocks": [], "connections": [],
+        })
+        with self.assertRaisesRegex(nlmod.NetlistError, "concrete endpoint schema"):
+            LiteDSPFlowChain(nl, with_csr=False)
+
     def test_loop_rejected(self):
         nl = nlmod.from_dict({
             "name": "loop", "data_width": 16, "inputs": [], "outputs": [],

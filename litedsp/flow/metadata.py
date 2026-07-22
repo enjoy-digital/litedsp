@@ -33,7 +33,7 @@ class ParamSpec:
 class PortSpec:
     name: str                       # Endpoint attribute, e.g. "sink", "source", "sinks[0]", "sink_a".
     direction: str                  # "sink" (input) or "source" (output).
-    layout: str                     # iq | real | raw
+    layout: str                     # iq | iq_symbol | real | raw
 
 @dataclass
 class CsrFieldSpec:
