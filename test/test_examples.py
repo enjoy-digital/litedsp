@@ -63,5 +63,8 @@ class TestAppNoteExamples(unittest.TestCase):
     def test_adsb_receiver_smoke(self):     # AN006.
         self._run_example("adsb_receiver.py")
 
+    def test_ais_receiver_smoke(self):      # AN007.
+        self._run_example("ais_receiver.py")
+
 if __name__ == "__main__":
     unittest.main()
