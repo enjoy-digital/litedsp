@@ -229,9 +229,9 @@ class TestLDPC(unittest.TestCase):
 
         dut = LiteDSPLDPCDecoderZParallel(with_csr=False)
         self.assertEqual(dut.parallelism, LDPC_Z)
-        self.assertEqual(dut.cycles_per_iteration, 364)
+        self.assertEqual(dut.cycles_per_iteration, 464)
         self.assertLess(dut.cycles_per_block,
-            LiteDSPLDPCDecoder(with_csr=False).cycles_per_block/10)
+            LiteDSPLDPCDecoder(with_csr=False).cycles_per_block/9)
 
     # verify-tier: model — invalid parameters rejected with ValueError.
     def test_invalid_params(self):

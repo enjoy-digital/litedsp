@@ -73,7 +73,9 @@ Additional contracts introduced with the harmonization:
   termination on a clean syndrome and iteration/parity/failure status CSRs. Bit-exact golden
   models including iteration counts; measured quantized waterfall BER 9.8e-3 @ 2.0 dB /
   6.7e-4 @ 2.5 dB / < 2.6e-6 @ 3.0 dB Eb/N0 (BPSK, AWGN, 8 iterations). One LLR per beat;
-  the z-parallel QC datapath is a documented follow-up.
+  the optional z-parallel QC datapath evaluates all 27 lifted rows together with lane-banked
+  APP/check state, staged cyclic rotations and an overlapped write pipe (4,708 worst-case
+  clocks/block; bit-exact with the serial decoder/model).
 - Digital predistortion actuator (`litedsp/level/dpd.py`, `LiteDSPDPD`): memory-polynomial-lite
   per-tap complex-gain LUTs on delayed samples (Q2.frac entries, two-region alpha-max-beta-min
   magnitude binning, identity reset = exact passthrough, sequential CSR LUT reload with tap

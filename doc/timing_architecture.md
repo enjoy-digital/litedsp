@@ -386,23 +386,30 @@ randomized stalls, Verilator co-simulation, and both FPGA implementation targets
 
 The compact 802.11n decoder updates one lifted check row at a time. Its 44,500-clock worst-case
 block schedule is area-efficient, but simply pipelining the row-layered recurrence would not
-remove the factor `z=27`. `LiteDSPLDPCDecoderZParallel` instead stores APP values and compressed
-check state as vectors and evaluates all 27 lifted rows of one base-matrix edge together. A
-lane-local Q capture separates the wide memory/rotation/subtraction path from the replicated
-minimum update. The resulting schedule is 364 clocks/iteration and 3,908 clocks for an
-eight-iteration block, with the same quantization and bit-exact normalized-min-sum outcome.
+remove the factor `z=27`. `LiteDSPLDPCDecoderZParallel` instead evaluates all 27 lifted rows of
+one base-matrix edge together. APP and compressed check state are split into 27 narrow lane
+banks. A logarithmic cyclic barrel network replaces the flat 27:1 lane selectors, and the edge
+path is staged as bank/rotation capture, lane-local Q capture, then replicated minimum update.
+The inverse rotation is registered and its write is overlapped: after one fill clock per layer,
+edge N commits while edge N+1 is prepared. The resulting schedule is 464 clocks/iteration and
+4,708 clocks for an eight-iteration block, with the same quantization and bit-exact
+normalized-min-sum outcome.
 
 | Architecture | Worst clocks/block | ECP5 LUT/FF/BRAM/Fmax (kblock/s) | Artix-7 LUT/FF/BRAM/Fmax (kblock/s) | Artix UltraScale+ LUT/FF/BRAM/Fmax (kblock/s) |
 |---|---:|---:|---:|---:|
 | Serial | 44,500 | 693 / 198 / 2 / 103.6 MHz (2.33) | 355 / 178 / 1 / 124.5 MHz (2.80) | 467 / 188 / 0 / 225.6 MHz (5.07) |
-| z-parallel | 3,908 | 14500 / 2574 / 0 / 57.9 MHz (14.82) | 5766 / 2554 / 10 / 90.4 MHz (23.13) | 6219 / 2555 / 0 / 139.7 MHz (35.75) |
+| z-parallel | 4,708 | 8561 / 2907 / 0 / 74.7 MHz (15.87) | 3991 / 3124 / 0 / 102.4 MHz (21.75) | 4777 / 3167 / 0 / 151.2 MHz (32.12) |
 
-Thus the z-parallel option delivers 6.4--8.3x worst-case block throughput, but costs 13--21x
-the LUTs and roughly 13--14x the registers. Memory inference is family-dependent: the Artix-7
-vector implementation uses ten BRAM tiles, while the ECP5 and UltraScale+ reference flows map
-the wide state differently. It closes the 100 MHz objective only on UltraScale+, so it remains
-an explicitly advisory `PNR_STRESS` configuration. The serial decoder remains the default and
-strict sentinel; early parity termination reduces the average block time of either architecture.
+Thus the z-parallel option delivers 6.3--7.8x worst-case block throughput, but costs 10--12x
+the LUTs and roughly 15--18x the registers. Relative to the earlier packed-vector datapath,
+lane banking reduces LUTs by 41%/31%/23% and eliminates ten Artix-7 BRAM tiles. The extra pipe
+state raises FFs and the schedule grows 20%; ECP5 block throughput improves 7%, while Artix-7
+and UltraScale+ exchange 6%/10% block throughput for the area reduction and stronger clock
+margin. Three ECP5 routes span 72.2/74.7/75.3 MHz; three-strategy Vivado sweeps span
+102.4/102.4/103.1 MHz on Artix-7 and 126.9/151.2/151.2 MHz on UltraScale+. It closes the
+100 MHz objective on both Xilinx profiles but not ECP5, so remains an advisory `PNR_STRESS`
+configuration. The serial decoder remains the default strict sentinel; early parity termination
+reduces the average block time of either architecture.
 
 ## Landing policy
 

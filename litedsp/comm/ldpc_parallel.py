@@ -9,9 +9,9 @@
 The serial decoder in :mod:`litedsp.comm.ldpc` minimizes area by processing one of the 27
 lifted check rows at a time. This architecture processes all ``z=27`` rows of a base-matrix
 layer together. It retains the same row-layered normalized min-sum arithmetic and compressed
-check messages, but stores APP values as 24 vectors and check state as 12 vectors. Each edge
-passes through read, lane-local Q, check-update, and write stages; the external stream remains
-one LLR/bit per beat.
+check messages, but stores APP values and check state in one narrow bank per lifted row. Each
+edge passes through bank read, cyclic rotation/Q, check-update, and write stages; the external
+stream remains one LLR/bit per beat.
 """
 
 from functools import reduce
@@ -34,18 +34,18 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
     """27-row-parallel normalized min-sum LDPC decoder.
 
     The algorithm and quantization are bit-exact with :class:`LiteDSPLDPCDecoder`; the trade-off
-    is replicated check-node arithmetic and wider vector memories in exchange for removing the
+    is replicated check-node arithmetic and lane-banked state in exchange for removing the
     factor ``z`` from the per-iteration schedule. With the default code, an iteration takes
-    ``4*E + m_b = 364`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
-    Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 3908 clocks at eight
+    ``5*E + 2*m_b = 464`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
+    Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 4708 clocks at eight
     iterations, excluding handshake stalls (versus 44,500 for the serial architecture).
 
-    The characterized default reaches 57.9/90.4/139.7 MHz on ECP5/Artix-7/Artix UltraScale+,
-    or 14.8/23.1/35.7 thousand worst-case blocks/s. That is 6.4--8.3x the serial core's
-    family-matched block throughput, at 13--21x its LUT count and about 13--14x its register
-    count (Artix-7 also uses 10 BRAM tiles rather than one). The 100 MHz engineering target is
-    closed on UltraScale+ only, so implementation sweeps classify this wide datapath as a
-    capacity/timing stress configuration rather than a compact drop-in replacement.
+    The characterized default reaches 74.7/102.4/151.2 MHz on ECP5/Artix-7/Artix UltraScale+,
+    or 15.9/21.8/32.1 thousand worst-case blocks/s. That is 6.3--7.8x the serial core's
+    family-matched block throughput, at 10--12x its LUT count and about 15--18x its register
+    count. The 100 MHz engineering target closes on both Xilinx profiles; ECP5 remains open,
+    so implementation sweeps retain this wide datapath as a capacity/timing stress
+    configuration rather than a compact drop-in replacement.
 
     Parameters
     ----------
@@ -82,7 +82,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         self.z = z
         self.parallelism = z
         self.latency = None
-        self.cycles_per_iteration = 4*sum(degs) + mb
+        self.cycles_per_iteration = 5*sum(degs) + 2*mb
         self.cycles_per_block = (n + max_iters*self.cycles_per_iteration +
             k + 2*(k//z))
         self.sink   = stream.Endpoint([("llrs", llr_bits)])
@@ -100,12 +100,15 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         deg_arr    = Array(degs)
         start_arr  = Array(starts)
 
-        # Vector memories: one APP word per variable block and one check-state word per layer.
-        app_ram = Memory(z*app_w, nb)
-        chk_ram = Memory(z*chk_w, mb)
-        app_p   = app_ram.get_port(write_capable=True)
-        chk_p   = chk_ram.get_port(write_capable=True)
-        self.specials += app_ram, chk_ram, app_p, chk_p
+        # Lane-banked state. The previous 162-bit APP and 540-bit check words inferred wide
+        # muxes (and family-dependent BRAM packing) whose routes dominated the clock period.
+        # All banks share an address and are read/written together, preserving the algorithm
+        # while giving implementation tools 27 independent narrow memories to place.
+        app_rams = [Memory(app_w, nb, name=f"app_ram_{j}") for j in range(z)]
+        chk_rams = [Memory(chk_w, mb, name=f"chk_ram_{j}") for j in range(z)]
+        app_ps   = [ram.get_port(write_capable=True) for ram in app_rams]
+        chk_ps   = [ram.get_port(write_capable=True) for ram in chk_rams]
+        self.specials += app_rams + chk_rams + app_ps + chk_ps
 
         layer = Signal(max=mb)
         edge  = Signal(max=max_deg + 1)
@@ -114,12 +117,19 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         g     = Signal(max=len(flat))
         shift = Signal(max=z)
         block = Signal(max=nb)
+        write_edge  = Signal(max=max_deg + 1)
+        write_g     = Signal(max=len(flat))
+        write_shift = Signal(max=z)
+        write_block = Signal(max=nb)
         self.comb += [
             deg.eq(deg_arr[layer]),
             start.eq(start_arr[layer]),
             g.eq(start + edge),
             shift.eq(shifts[g]),
             block.eq(col_blocks[g]),
+            write_g.eq(start + write_edge),
+            write_shift.eq(shifts[write_g]),
+            write_block.eq(col_blocks[write_g]),
         ]
 
         # Decode state.
@@ -138,17 +148,16 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         old_m1, old_m2 = [], []
         old_idx, old_signs, old_total = [], [], []
         for j in range(z):
-            base = j*chk_w
             om1 = Signal(mag_w)
             om2 = Signal(mag_w)
             oi  = Signal(idx_w)
             os  = Signal(max_deg)
             ot  = Signal()
             self.comb += [
-                om1.eq(chk_p.dat_r[base:base + mag_w]),
-                om2.eq(chk_p.dat_r[base + mag_w:base + 2*mag_w]),
-                oi.eq(chk_p.dat_r[base + 2*mag_w:base + 2*mag_w + idx_w]),
-                os.eq(chk_p.dat_r[base + 2*mag_w + idx_w:base + chk_w]),
+                om1.eq(chk_ps[j].dat_r[:mag_w]),
+                om2.eq(chk_ps[j].dat_r[mag_w:2*mag_w]),
+                oi.eq(chk_ps[j].dat_r[2*mag_w:2*mag_w + idx_w]),
+                os.eq(chk_ps[j].dat_r[2*mag_w + idx_w:]),
                 ot.eq(reduce(xor, [os[b] for b in range(max_deg)])),
             ]
             old_m1.append(om1)
@@ -157,13 +166,20 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             old_signs.append(os)
             old_total.append(ot)
 
-        # Rotate the selected APP block into check-row order and form all 27 Q values.
-        app_lanes = Array(Signal((app_w, True), name=f"app_lane_{v}") for v in range(z))
-        for v in range(z):
-            self.comb += app_lanes[v].eq(app_p.dat_r[v*app_w:(v + 1)*app_w])
-        rot_sum = [Signal(max=2*z, name=f"rot_sum_{j}") for j in range(z)]
-        rot_idx = [Signal(max=z, name=f"rot_idx_{j}") for j in range(z)]
-        app_rot = [Signal((app_w, True), name=f"app_rot_{j}") for j in range(z)]
+        # Rotate the selected APP block into check-row order with a logarithmic cyclic barrel
+        # network. A flat Array indexed independently by every lane synthesized as 27 unrelated
+        # 27:1 muxes; the five shared binary rotation levels express the QC structure directly.
+        rot_stages = [[p.dat_r for p in app_ps]]
+        for bit, amount in enumerate((1, 2, 4, 8, 16)):
+            stage_lanes = [Signal((app_w, True), name=f"app_rot_{bit}_{j}") for j in range(z)]
+            for j in range(z):
+                self.comb += stage_lanes[j].eq(Mux(
+                    shift[bit], rot_stages[-1][(j + amount) % z], rot_stages[-1][j]))
+            rot_stages.append(stage_lanes)
+        rotated_app = rot_stages[-1]
+        app_rot = [Signal((app_w, True), name=f"app_rot_pipe_{j}") for j in range(z)]
+
+        # Form all 27 lane-local Q values.
         r_old   = [Signal((mag_w + 1, True), name=f"r_old_{j}") for j in range(z)]
         q_full  = [Signal((q_w, True), name=f"q_full_{j}") for j in range(z)]
         q_abs   = [Signal(q_w - 1, name=f"q_abs_{j}") for j in range(z)]
@@ -176,12 +192,6 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             old_mag = Signal(mag_w)
             old_sgn = Signal()
             self.comb += [
-                # Keep the pre-modulo sum explicitly six bits wide. Without this boundary,
-                # Verilog expression sizing truncates ``shift + j`` at five bits for j >= 5,
-                # while Migen simulation retains the carry.
-                rot_sum[j].eq(shift + j),
-                rot_idx[j].eq(Mux(rot_sum[j] >= z, rot_sum[j] - z, rot_sum[j])),
-                app_rot[j].eq(app_lanes[rot_idx[j]]),
                 old_mag.eq(Mux(old_idx[j] == edge, old_m2[j], old_m1[j])),
                 old_sgn.eq(old_total[j] ^ (old_signs[j] >> edge)[0]),
                 r_old[j].eq(Mux(first_it, 0, Mux(old_sgn, -old_mag, old_mag))),
@@ -208,9 +218,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             )
 
         # Build one updated APP block in variable order for the WRITE pass.
-        updated = Array(Signal((app_w, True), name=f"updated_{j}") for j in range(z))
-        inv_idx = [Signal(max=z, name=f"inv_idx_{v}") for v in range(z)]
-        write_lanes = [Signal((app_w, True), name=f"write_lane_{v}") for v in range(z)]
+        updated = [Signal((app_w, True), name=f"updated_{j}") for j in range(z)]
         packed_checks = []
         for j in range(z):
             m1n = Signal(mag_w)
@@ -223,10 +231,10 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             self.comb += [
                 m1n.eq(m1[j] - (m1[j] >> 2)),
                 m2n.eq(m2[j] - (m2[j] >> 2)),
-                rmag.eq(Mux(edge == min_idx[j], m2n, m1n)),
-                rsgn.eq(totals[j] ^ (signs[j] >> edge)[0]),
+                rmag.eq(Mux(write_edge == min_idx[j], m2n, m1n)),
+                rsgn.eq(totals[j] ^ (signs[j] >> write_edge)[0]),
                 rnew.eq(Mux(rsgn, -rmag, rmag)),
-                qsel.eq(Array([q_regs[b][j] for b in range(max_deg)])[edge]),
+                qsel.eq(Array([q_regs[b][j] for b in range(max_deg)])[write_edge]),
                 asum.eq(qsel + rnew),
                 If(asum > appmax,
                     updated[j].eq(appmax),
@@ -237,13 +245,23 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
                 ),
             ]
             packed_checks.append(Cat(m1n, m2n, min_idx[j], signs[j]))
-        for v in range(z):
-            self.comb += [
-                inv_idx[v].eq(Mux(v < shift, v + z - shift, v - shift)),
-                write_lanes[v].eq(updated[inv_idx[v]]),
-            ]
-        app_write_word = Cat(*write_lanes)
-        chk_write_word = Cat(*packed_checks)
+
+        # Return from check-row order to variable order with the inverse cyclic barrel network.
+        inv_stages = [updated]
+        for bit, amount in enumerate((1, 2, 4, 8, 16)):
+            stage_lanes = [Signal((app_w, True), name=f"app_inv_{bit}_{j}") for j in range(z)]
+            for j in range(z):
+                self.comb += stage_lanes[j].eq(Mux(
+                    write_shift[bit], inv_stages[-1][(j - amount) % z], inv_stages[-1][j]))
+            inv_stages.append(stage_lanes)
+        write_lanes = inv_stages[-1]
+        write_pipe = [Signal((app_w, True), name=f"app_write_pipe_{j}") for j in range(z)]
+        write_block_pipe = Signal(max=nb)
+        # The pipe advances continuously. WRITE consumes the value captured on the preceding
+        # clock while the look-ahead network prepares the next edge; unconditional registers
+        # avoid a high-fanout clock-enable mux across all 27 lanes.
+        self.sync += [write_pipe[j].eq(write_lanes[j]) for j in range(z)]
+        self.sync += write_block_pipe.eq(write_block)
         totals_any = Signal()
         self.comb += totals_any.eq(Cat(*totals) != 0)
 
@@ -280,9 +298,9 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         self.fsm = fsm = FSM(reset_state="LOAD")
         fsm.act("LOAD",
             self.sink.ready.eq(1),
-            app_p.adr.eq(load_blk),
-            app_p.dat_w.eq(load_full),
-            app_p.we.eq(self.sink.valid & (load_t == (z - 1))),
+            *[app_ps[j].adr.eq(load_blk) for j in range(z)],
+            *[app_ps[j].dat_w.eq(load_full[j*app_w:(j + 1)*app_w]) for j in range(z)],
+            *[app_ps[j].we.eq(self.sink.valid & (load_t == (z - 1))) for j in range(z)],
             If(self.sink.valid,
                 NextValue(load_vec, load_full),
                 If(load_t == (z - 1),
@@ -296,7 +314,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             ),
         )
         fsm.act("LAYER_INIT",
-            chk_p.adr.eq(layer),
+            *[p.adr.eq(layer) for p in chk_ps],
             *[NextValue(m1[j], qmax) for j in range(z)],
             *[NextValue(m2[j], qmax) for j in range(z)],
             *[NextValue(min_idx[j], 0) for j in range(z)],
@@ -306,41 +324,53 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             NextState("READ_ISSUE"),
         )
         fsm.act("READ_ISSUE",
-            chk_p.adr.eq(layer),
-            app_p.adr.eq(block),
+            *[p.adr.eq(layer) for p in chk_ps],
+            *[p.adr.eq(block) for p in app_ps],
+            NextState("APP_CAPTURE"),
+        )
+        fsm.act("APP_CAPTURE",
+            *[p.adr.eq(layer) for p in chk_ps],
+            *[p.adr.eq(block) for p in app_ps],
+            *[NextValue(app_rot[j], rotated_app[j]) for j in range(z)],
             NextState("Q_CAPTURE"),
         )
         # Capture the APP/check subtraction and magnitude clamp before the min1/min2 update.
-        # Besides shortening the logic path, these lane-local registers break the long route
-        # from the 162-bit APP memory output to all 27 replicated check accumulators.
+        # These lane-local registers make the minimum recurrence the third and final edge stage.
         fsm.act("Q_CAPTURE",
-            chk_p.adr.eq(layer),
-            app_p.adr.eq(block),
+            *[p.adr.eq(layer) for p in chk_ps],
+            *[p.adr.eq(block) for p in app_ps],
             *[NextValue(q_pipe[j], q_full[j]) for j in range(z)],
             *[NextValue(qmag_pipe[j], q_mag[j]) for j in range(z)],
             *[NextValue(qsign_pipe[j], q_sign[j]) for j in range(z)],
             NextState("READ_PROCESS"),
         )
         fsm.act("READ_PROCESS",
-            chk_p.adr.eq(layer),
-            app_p.adr.eq(block),
+            *[p.adr.eq(layer) for p in chk_ps],
+            *[p.adr.eq(block) for p in app_ps],
             q_we.eq(1),
             If(edge == (deg - 1),
                 NextValue(edge, 0),
-                NextState("WRITE"),
+                NextValue(write_edge, 0),
+                NextState("WRITE_CAPTURE"),
             ).Else(
                 NextValue(edge, edge + 1),
                 NextState("READ_ISSUE"),
             ),
         )
+        # Fill the overlapped write pipe once per layer before committing one edge each clock.
+        # This removes the previous min/select/rotation-to-RAM path at a 12-clock/iteration cost.
+        fsm.act("WRITE_CAPTURE",
+            NextValue(write_edge, 1),
+            NextState("WRITE"),
+        )
         fsm.act("WRITE",
-            app_p.adr.eq(block),
-            app_p.dat_w.eq(app_write_word),
-            app_p.we.eq(1),
+            *[app_ps[j].adr.eq(write_block_pipe) for j in range(z)],
+            *[app_ps[j].dat_w.eq(write_pipe[j]) for j in range(z)],
+            *[app_ps[j].we.eq(1) for j in range(z)],
             If(edge == 0,
-                chk_p.adr.eq(layer),
-                chk_p.dat_w.eq(chk_write_word),
-                chk_p.we.eq(1),
+                *[chk_ps[j].adr.eq(layer) for j in range(z)],
+                *[chk_ps[j].dat_w.eq(packed_checks[j]) for j in range(z)],
+                *[chk_ps[j].we.eq(1) for j in range(z)],
                 If(totals_any, NextValue(unsat, 1)),
             ),
             If(edge == (deg - 1),
@@ -365,15 +395,18 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
                     NextValue(layer, layer + 1),
                     NextState("LAYER_INIT"),
                 ),
-            ).Else(NextValue(edge, edge + 1)),
+            ).Else(
+                NextValue(edge, edge + 1),
+                If(edge < (deg - 2), NextValue(write_edge, write_edge + 1)),
+            ),
         )
         fsm.act("OUT_READ",
-            app_p.adr.eq(out_blk),
+            *[p.adr.eq(out_blk) for p in app_ps],
             NextState("OUT_CAPTURE"),
         )
         fsm.act("OUT_CAPTURE",
-            app_p.adr.eq(out_blk),
-            NextValue(out_vec, app_p.dat_r),
+            *[p.adr.eq(out_blk) for p in app_ps],
+            NextValue(out_vec, Cat(*[p.dat_r for p in app_ps])),
             NextValue(out_t, 0),
             NextState("OUT_EMIT"),
         )
