@@ -34,11 +34,12 @@ DQPSK theory curve, and (2) a full RTL simulation point that matches the NumPy g
   exactly 90°; the slicer happily decides in the rotated constellation and the differential
   decode cancels the constant offset — no carrier-*phase* loop needed. Small build-time LUTs
   translate between phase indices and the mapper/slicer symbol encoding (`[q|i]`).
-- **Carrier-frequency recovery is out of scope** (documented honest subset): the shipped
-  [`carrier_loop`](../blocks/carrier_loop.md) detectors target residual-carrier tones (PLL) and
-  suppressed-carrier BPSK (Costas); a 4th-power / decision-directed QPSK detector is future
-  work, so this note runs with frequency-locked LOs and demonstrates the *quadrant ambiguity*
-  resolution instead.
+- **Carrier-frequency recovery is out of this experiment's scope**: the note deliberately uses
+  DQPSK with frequency-locked LOs to demonstrate *quadrant ambiguity* resolution. A
+  non-differential receiver can now insert [`carrier_loop`](../blocks/carrier_loop.md) with
+  `detector="qpsk"`; its multiplier-free `sign(I)*Q - sign(Q)*I` decision-directed detector
+  tracks carrier frequency/phase with the expected four stable quadrant ambiguities. The same
+  block retains `"pll"` (residual tone) and `"bpsk"` (Costas) modes.
 - **Timing recovery is real**: the channel applies a 0.35-sample fractional delay (all-pass
   FFT delay), and the Mueller & Müller interpolating loop
   ([`timing_recovery`](../blocks/timing_recovery.md)) acquires and tracks it. During

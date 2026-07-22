@@ -8,7 +8,7 @@ import unittest
 
 import numpy as np
 
-from litedsp.comm.pll import LiteDSPPLL, LiteDSPCostas
+from litedsp.comm.pll import LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas, LiteDSPQPSKCostas
 
 from test.common import run_stream, column
 
@@ -78,6 +78,30 @@ class TestCostas(unittest.TestCase):
         phe = np.angle(z*np.exp(-1j*np.angle(z[3*n//4:].mean())))
         self.assertLess(lock_time(phe), LOCK_BOUND)
         self.assertLess(np.sqrt(np.mean(phe[3*n//4:]**2)), RMS_BOUND)
+
+class TestQPSKCostas(unittest.TestCase):
+    # verify-tier: bound — the sign(I)*Q-sign(Q)*I detector removes random QPSK data without
+    # multipliers. Wiping the known symbols leaves the recovered carrier up to a quadrant.
+    def test_recovers_qpsk(self):
+        n = 12000
+        f = 0.004
+        rng = np.random.RandomState(2)
+        data = (2*rng.randint(0, 2, n) - 1) + 1j*(2*rng.randint(0, 2, n) - 1)
+        x = 7600*data*np.exp(1j*2*np.pi*f*np.arange(n))
+        dut = LiteDSPQPSKCostas(data_width=16, kp_shift=5, ki_shift=13, with_csr=False)
+        cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
+            n, ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
+        yc = column(cap, "i", 16) + 1j*column(cap, "q", 16)
+        z = yc*np.conj(data[:len(yc)])
+        tail = z[3*n//4:]
+        self.assertGreater(np.abs(tail.mean()), 9000)
+        phe = np.angle(z*np.exp(-1j*np.angle(tail.mean())))
+        self.assertLess(lock_time(phe), 6*(1 << (13 - 5)))
+        self.assertLess(np.sqrt(np.mean(phe[3*n//4:]**2)), 6e-3)
+
+    def test_invalid_detector(self):
+        with self.assertRaises(ValueError):
+            LiteDSPCarrierLoop(detector="invalid", with_csr=False)
 
 if __name__ == "__main__":
     unittest.main()

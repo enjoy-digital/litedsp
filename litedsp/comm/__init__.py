@@ -19,7 +19,7 @@ from litedsp.comm.mapper          import LiteDSPSymbolMapper
 from litedsp.comm.ofdm            import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer
 from litedsp.comm.phase_detect    import LiteDSPPhaseDetect
-from litedsp.comm.pll             import LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas
+from litedsp.comm.pll             import LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas, LiteDSPQPSKCostas
 from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer
 from litedsp.comm.rs              import (
     LiteDSPRSEncoder, LiteDSPRSDecoder,

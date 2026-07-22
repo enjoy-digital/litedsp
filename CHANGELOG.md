@@ -41,7 +41,8 @@ Additional contracts introduced with the harmonization:
   (FIR direct/symmetric/polyphase, CIC, halfband, IIR biquad, Hilbert, RRC pulse shaping,
   Farrow/rational/arbitrary resamplers, LMS equalizer, coefficient design), `rate/`, `level/`
   (gain, AGC, CFR, power, RMS, squelch, log/dB), `correction/` (DC offset, I/Q balance, CFO),
-  `comm/` (FM/AM demod, PLL/Costas, coarse CFO estimator, timing recovery with M&M or Gardner
+  `comm/` (FM/AM demod, PLL/BPSK Costas/QPSK decision-directed carrier recovery, coarse CFO
+  estimator, timing recovery with M&M or Gardner
   TED, slicer, mapper,
   scrambler, CRC, convolutional encoder + hard/soft-decision Viterbi decoder,
   puncturer/depuncturer (DVB-S rates 2/3..7/8), Reed-Solomon RS(255, k) encoder + decoder,

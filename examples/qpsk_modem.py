@@ -17,7 +17,8 @@ Full transmit -> channel -> receive modem built from LiteDSP blocks:
 Differential (DQPSK) encoding makes the link immune to the 90 deg channel rotation (quadrant
 ambiguity) without a carrier-phase loop: the slicer decides in the rotated constellation and the
 differential decode cancels the constant offset. Carrier-*frequency* recovery is out of scope
-here (the shipped LiteDSPCarrierLoop detectors target residual-carrier/BPSK; see the app note).
+here; non-differential receivers can insert LiteDSPCarrierLoop(detector="qpsk") before timing
+or slicing, while this note intentionally demonstrates differential quadrant resolution.
 
 The BER vs Eb/N0 sweep runs on the bit-exact NumPy golden models (test/models.py) for speed,
 with ideal symbol-instant sampling in place of the timing loop; ONE full RTL simulation point

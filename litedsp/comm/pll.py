@@ -13,7 +13,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common   import iq_layout, scaled
+from litedsp.common   import check, iq_layout, scaled
 from litedsp.control  import LiteDSPPILoop
 
 # Carrier Recovery Loop ----------------------------------------------------------------------------
@@ -25,8 +25,9 @@ class LiteDSPCarrierLoop(LiteXModule):
     Each sample is derotated by ``exp(-j*phase)``; the phase error feeds a :class:`LiteDSPPILoop` whose
     output advances the NCO phase (a 2nd-order loop that locks frequency and phase). The
     derotated (baseband) signal is the output. ``decision_directed=False`` (PLL) uses the
-    derotated imaginary part as the error (residual-carrier / tone); ``True`` (Costas) uses
-    ``sign(I)*Q`` (suppressed-carrier BPSK).
+    derotated imaginary part as the error (residual-carrier / tone). ``detector="bpsk"`` uses
+    ``sign(I)*Q`` and ``detector="qpsk"`` uses ``sign(I)*Q - sign(Q)*I``. The latter is the
+    multiplier-free decision-directed QPSK detector with four stable phase ambiguities.
 
     Parameters
     ----------
@@ -40,12 +41,21 @@ class LiteDSPCarrierLoop(LiteXModule):
         Integral (frequency) gain of the PI loop: Ki = 2**-ki_shift per sample. Larger
         shift = smaller gain (slower frequency acquisition, less jitter).
     decision_directed : bool
-        False: PLL phase detector (error = derotated Q; residual carrier / tone). True:
-        Costas detector (error = sign(I)*Q; suppressed-carrier BPSK).
+        Backward-compatible BPSK selector. When ``detector`` is omitted, False selects PLL and
+        True selects BPSK Costas behavior.
+    detector : str or None
+        ``"pll"`` for a residual carrier, ``"bpsk"`` for suppressed-carrier BPSK, or
+        ``"qpsk"`` for decision-directed QPSK. Explicit ``detector`` takes precedence over
+        ``decision_directed``.
     """
     def __init__(self, data_width=16, phase_bits=32, lut_depth=1024,
-        kp_shift=6, ki_shift=14, decision_directed=False, with_csr=True):
-        self.decision_directed = decision_directed
+        kp_shift=6, ki_shift=14, decision_directed=False, detector=None, with_csr=True):
+        if detector is None:
+            detector = "bpsk" if decision_directed else "pll"
+        check(detector in ("pll", "bpsk", "qpsk"),
+            "detector must be 'pll', 'bpsk', or 'qpsk'.")
+        self.detector = detector
+        self.decision_directed = detector != "pll"
         self.sink    = stream.Endpoint(iq_layout(data_width))
         self.source  = stream.Endpoint(iq_layout(data_width))
         self.latency = 1
@@ -91,9 +101,12 @@ class LiteDSPCarrierLoop(LiteXModule):
 
         # Phase error, scaled up into phase-rate units so the PI loop spans the full range.
         # ---------------------------------------------------------------------------------
-        err = Signal((data_width + 1, True))  # +1 bit so -d_q cannot overflow.
-        if decision_directed:
+        err = Signal((data_width + 2, True))  # Headroom for negate and QPSK's two terms.
+        if detector == "bpsk":
             self.comb += err.eq(Mux(d_i >= 0, d_q, -d_q))     # Costas (BPSK).
+        elif detector == "qpsk":
+            self.comb += err.eq(
+                Mux(d_i >= 0, d_q, -d_q) - Mux(d_q >= 0, d_i, -d_i))  # QPSK DD.
         else:
             self.comb += err.eq(d_q)                          # PLL (tone / residual carrier).
         err_scaled = Signal((phase_bits + 2, True))
@@ -136,4 +149,12 @@ class LiteDSPCostas(LiteDSPCarrierLoop):
     """Costas loop for suppressed-carrier BPSK (decision-directed phase detector)."""
     def __init__(self, **kwargs):
         kwargs.pop("decision_directed", None)
-        LiteDSPCarrierLoop.__init__(self, decision_directed=True, **kwargs)
+        kwargs.pop("detector", None)
+        LiteDSPCarrierLoop.__init__(self, detector="bpsk", **kwargs)
+
+class LiteDSPQPSKCostas(LiteDSPCarrierLoop):
+    """Decision-directed Costas loop for QPSK (four-fold phase ambiguity)."""
+    def __init__(self, **kwargs):
+        kwargs.pop("decision_directed", None)
+        kwargs.pop("detector", None)
+        LiteDSPCarrierLoop.__init__(self, detector="qpsk", **kwargs)
