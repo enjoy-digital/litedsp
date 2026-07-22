@@ -58,6 +58,15 @@ class TestPFBChannelizerBitExact(unittest.TestCase):
         # Default prototype = firwin_lowpass(M*T, 0.4/M) (unity DC gain, Q1.15).
         dut = LiteDSPPFBChannelizer(with_csr=False)
         self.assertEqual(dut.coefficients, firwin_lowpass(32, 0.1))
+        self.assertEqual((dut.requested_architecture, dut.architecture), ("auto", "classic"))
+
+    def test_auto_selects_scalable_transform(self):
+        small = LiteDSPPFBChannelizer(n_channels=8, taps_per_channel=2, with_csr=False)
+        large = LiteDSPPFBChannelizer(n_channels=16, taps_per_channel=2, with_csr=False)
+        self.assertEqual((small.requested_architecture, small.architecture), ("auto", "classic"))
+        self.assertEqual((large.requested_architecture, large.architecture), ("auto", "fft"))
+        self.assertLess(large.cycles_per_frame,
+            16 + 16*(2*2 + 1) + 16*(2*16 + 1))  # Faster than the folded O(M^2) schedule.
 
     # verify-tier: model — folded multiply/accumulate states retain the exact full-precision
     # branch and DFT sums under randomized stream stalls.

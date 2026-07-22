@@ -36,7 +36,7 @@ def _pow2_ceil(n):
 
 @ResetInserter()
 class LiteDSPPFBChannelizer(LiteXModule):
-    """Critically-sampled uniform DFT filter bank (polyphase FIR + direct M-point DFT).
+    """Critically-sampled uniform filter bank (polyphase FIR + scalable direct/FFT transform).
 
     A commutator distributes consecutive input samples over ``M = n_channels`` polyphase
     branches; every M input samples, each branch computes a ``taps_per_channel``-tap dot-
@@ -66,7 +66,9 @@ class LiteDSPPFBChannelizer(LiteXModule):
     increasing this to ``M + M*(2*T + 1) + M*(2*M + 1)`` cycles while preserving the exact
     full-precision sums. ``"classic"`` remains the default.
 
-    ``architecture="fft"`` selects a time-multiplexed radix-2 DIF transform for ``M >= 16``.
+    ``architecture="auto"`` is the unified scalable option: it selects the direct transform
+    for ``M <= 8`` and the time-multiplexed radix-2 DIF transform for ``M >= 16``.
+    ``architecture="fft"`` selects that FFT transform explicitly.
     It uses the timing-oriented two-cycle polyphase MAC and computes one butterfly in four
     clocks (registered read/difference, registered multiply, then two single-port
     feedback-memory writes), reducing the DFT work from O(M^2) to O(M log2(M)) while retaining
@@ -90,16 +92,20 @@ class LiteDSPPFBChannelizer(LiteXModule):
         taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a
         full-scale tone at a channel center emerges at full scale in that channel).
     architecture : str
-        ``"classic"`` for one MAC term per clock, ``"folded"`` for separate multiply and
-        accumulate clocks in both direct sections, or ``"fft"`` for the scalable DFT stage.
+        ``"auto"`` to select classic for M <= 8 and FFT for M >= 16, ``"classic"`` for one
+        MAC term per clock, ``"folded"`` for separate multiply and accumulate clocks in both
+        direct sections, or ``"fft"`` for the scalable DFT stage.
     """
     def __init__(self, n_channels=4, taps_per_channel=8, data_width=16, coefficients=None,
-        architecture="classic", with_csr=True):
+        architecture="auto", with_csr=True):
         M, T = n_channels, taps_per_channel  # Literature names.
         check(M >= 2 and (M & (M - 1)) == 0, "expected n_channels power of two and >= 2")
         check(T >= 1, "expected taps_per_channel >= 1")
-        check(architecture in ("classic", "folded", "fft"),
-            "architecture must be 'classic', 'folded', or 'fft'.")
+        check(architecture in ("auto", "classic", "folded", "fft"),
+            "architecture must be 'auto', 'classic', 'folded', or 'fft'.")
+        requested_architecture = architecture
+        if architecture == "auto":
+            architecture = "classic" if M <= 8 else "fft"
         if architecture == "fft":
             check(M >= 16, "fft architecture requires n_channels >= 16")
         else:
@@ -112,6 +118,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
         self.data_width       = data_width
         self.coefficients     = coefficients
         self.architecture     = architecture
+        self.requested_architecture = requested_architecture
         if architecture == "classic":
             self.cycles_per_frame = M + M*(T + 1) + M*(M + 1)
         elif architecture == "folded":

@@ -366,9 +366,10 @@ and published latency, frame gap, samples/clock, LUT/FF/BRAM/DSP and achieved fm
 ## PFB channel transform
 
 The direct PFB channelizer time-shares one DFT multiply/accumulate over all M² branch/bin pairs.
-That is compact for M<=8, but a folded M=16/T=8 frame would take 816 clocks. The scalable
-`architecture="fft"` option retains the same full-precision polyphase FIR, then runs a radix-2
-DIF transform with explicit per-rank twiddle rounding and natural-order output.
+That is compact for M<=8, but a folded M=16/T=8 frame would take 816 clocks. The unified scalable
+`architecture="auto"` option selects that direct transform through M=8 and the FFT at M>=16.
+The FFT path retains the same full-precision polyphase FIR, then runs a radix-2 DIF transform
+with explicit per-rank twiddle rounding and natural-order output.
 
 The timing path is split into the proven two-cycle polyphase MAC plus four FFT phases: register
 the dual-memory read/difference, register the twiddle products, write the sum, and write the

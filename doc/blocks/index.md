@@ -21,7 +21,7 @@
 | [DDC](ddc.md) | `LiteDSPDDC` | 1 | 6 | Digital down-converter: NCO + complex mixer (down) + decimator. |
 | [DUC](duc.md) | `LiteDSPDUC` | 1 | 6 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
 | [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 34 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
-| [PFB channelizer](pfb_channelizer.md) | `LiteDSPPFBChannelizer` | 60 | 11 | Critically-sampled uniform DFT filter bank (polyphase FIR + direct M-point DFT). |
+| [PFB channelizer (scalable)](pfb_channelizer.md) | `LiteDSPPFBChannelizer` | 60 | 11 | Critically-sampled uniform filter bank (polyphase FIR + scalable direct/FFT transform). |
 
 ## Filtering (`filter/`)
 

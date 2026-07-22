@@ -1,4 +1,4 @@
-# PFB channelizer
+# PFB channelizer (scalable)
 
 `LiteDSPPFBChannelizer` — `litedsp.mixing.pfb_channelizer` — category `mixing`
 
@@ -6,7 +6,7 @@ latency: 60 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Critically-sampled uniform DFT filter bank (polyphase FIR + direct M-point DFT).
+Critically-sampled uniform filter bank (polyphase FIR + scalable direct/FFT transform).
 
 A commutator distributes consecutive input samples over ``M = n_channels`` polyphase
 branches; every M input samples, each branch computes a ``taps_per_channel``-tap dot-
@@ -36,7 +36,9 @@ Throughput: one shared MAC, ``M + M*(T + 1) + M*(M + 1)`` cycles per M-sample fr
 increasing this to ``M + M*(2*T + 1) + M*(2*M + 1)`` cycles while preserving the exact
 full-precision sums. ``"classic"`` remains the default.
 
-``architecture="fft"`` selects a time-multiplexed radix-2 DIF transform for ``M >= 16``.
+``architecture="auto"`` is the unified scalable option: it selects the direct transform
+for ``M <= 8`` and the time-multiplexed radix-2 DIF transform for ``M >= 16``.
+``architecture="fft"`` selects that FFT transform explicitly.
 It uses the timing-oriented two-cycle polyphase MAC and computes one butterfly in four
 clocks (registered read/difference, registered multiply, then two single-port
 feedback-memory writes), reducing the DFT work from O(M^2) to O(M log2(M)) while retaining
@@ -55,7 +57,7 @@ M/2 inputs, halved commutator stride + alternating DFT phase correction).
 | `taps_per_channel` | `8` | int | Prototype taps per polyphase branch T (prototype length = ``n_channels * taps_per_channel``). Sets the channel shape/stopband and the MAC length. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Prototype low-pass taps, signed Q1.(W-1) integers, length ``n_channels * taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a full-scale tone at a channel center emerges at full scale in that channel). |
-| `architecture` | `"classic"` | str | ``"classic"`` for one MAC term per clock, ``"folded"`` for separate multiply and accumulate clocks in both direct sections, or ``"fft"`` for the scalable DFT stage. Choices: `classic`, `folded`, `fft`. |
+| `architecture` | `"auto"` | str | ``"auto"`` to select classic for M <= 8 and FFT for M >= 16, ``"classic"`` for one MAC term per clock, ``"folded"`` for separate multiply and accumulate clocks in both direct sections, or ``"fft"`` for the scalable DFT stage. Choices: `auto`, `classic`, `folded`, `fft`. |
 
 ## Ports
 

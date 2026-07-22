@@ -10,8 +10,8 @@ Split a wide band into ``n_channels`` uniformly-spaced sub-channels.
 
 Implemented as a bank of DDCs (one per channel, tuned to ``k/n_channels`` and decimated):
 correct, portable, and composed from tested blocks. ``self.sources[k]`` is sub-channel ``k``
-(baseband, decimated). Resource-optimal sharing via a polyphase-FIR + FFT structure is a
-documented future refinement.
+(baseband, decimated). For larger uniform banks, :class:`LiteDSPPFBChannelizer` with
+``architecture="auto"`` provides the shared polyphase-FIR plus direct/FFT scalable option.
 
 ## Parameters
 
