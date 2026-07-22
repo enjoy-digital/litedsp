@@ -41,6 +41,44 @@ def nco_model(phase_inc, n, phase_bits=32, data_width=16, lut_depth=1024):
         out_q.append(sin_t[addr])
     return np.array(out_i), np.array(out_q)
 
+def carrier_loop_model(i, q, detector="pll", data_width=16, phase_bits=32,
+    lut_depth=1024, kp_shift=6, ki_shift=14):
+    """Bit-exact reference for :class:`LiteDSPCarrierLoop`.
+
+    The NCO uses the phase at the start of each accepted sample.  The proportional phase
+    update and integral update therefore both see the old integral value, exactly as the
+    synchronous RTL does.  PI state and the phase accumulator wrap in two's complement;
+    only the complex derotation is rounded and saturated.
+    """
+    if detector not in ("pll", "bpsk", "qpsk"):
+        raise ValueError("detector must be 'pll', 'bpsk', or 'qpsk'")
+    addr_bits    = int(round(np.log2(lut_depth)))
+    cos_t, sin_t = nco_lut(lut_depth, data_width)
+    phase_mask   = (1 << phase_bits) - 1
+    loop_width   = phase_bits + 2
+    loop_wrap    = _wrapper(loop_width)
+    phase        = 0
+    integral     = 0
+    out_i, out_q = [], []
+    for xn_i, xn_q in zip(i, q):
+        addr = phase >> (phase_bits - addr_bits)
+        c, s = int(cos_t[addr]), int(sin_t[addr])
+        d_i = int(np_scaled(int(xn_i)*c + int(xn_q)*s, data_width - 1, data_width))
+        d_q = int(np_scaled(int(xn_q)*c - int(xn_i)*s, data_width - 1, data_width))
+        if detector == "bpsk":
+            error = d_q if d_i >= 0 else -d_q
+        elif detector == "qpsk":
+            error = (d_q if d_i >= 0 else -d_q) - (d_i if d_q >= 0 else -d_i)
+        else:
+            error = d_q
+        error = loop_wrap(error << (phase_bits - data_width))
+        loop_out = loop_wrap(integral + (error >> kp_shift))
+        out_i.append(d_i)
+        out_q.append(d_q)
+        phase    = (phase + loop_out) & phase_mask
+        integral = loop_wrap(integral + (error >> ki_shift))
+    return np.asarray(out_i, np.int64), np.asarray(out_q, np.int64)
+
 # Mixer --------------------------------------------------------------------------------------------
 
 def mixer_model(a_i, a_q, b_i, b_q, mode="down", data_width=16, shift=None):

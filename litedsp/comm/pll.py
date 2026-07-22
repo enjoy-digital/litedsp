@@ -96,8 +96,17 @@ class LiteDSPCarrierLoop(LiteXModule):
         # Derotate: d = input * exp(-j*phase) = (i*cos + q*sin) + j(q*cos - i*sin).
         # -------------------------------------------------------------------------
         i, q = self.sink.i, self.sink.q
-        d_i, _ = scaled(i*cos + q*sin, data_width - 1, data_width)
-        d_q, _ = scaled(q*cos - i*sin, data_width - 1, data_width)
+        # Keep the products in explicitly sized signals.  Besides documenting the required
+        # add headroom, this prevents Verilog expression-context sizing from narrowing the
+        # inline multiplies before the rounding/saturation logic sees them.
+        d_i_full = Signal((2*data_width + 1, True))
+        d_q_full = Signal((2*data_width + 1, True))
+        self.comb += [
+            d_i_full.eq(i*cos + q*sin),
+            d_q_full.eq(q*cos - i*sin),
+        ]
+        d_i, _ = scaled(d_i_full, data_width - 1, data_width)
+        d_q, _ = scaled(d_q_full, data_width - 1, data_width)
 
         # Phase error, scaled up into phase-rate units so the PI loop spans the full range.
         # ---------------------------------------------------------------------------------
