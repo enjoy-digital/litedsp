@@ -33,6 +33,7 @@ Config example (see ``examples/ddc_core.yml``)::
 Usage::
 
     litedsp_gen config.yml [--output-dir build] [--name core_name]
+    litedsp_gen config.yml --output-dir build --vivado-ip
 """
 
 import os
@@ -42,6 +43,7 @@ import yaml
 
 from litedsp.flow import netlist as netlist_mod
 from litedsp.flow.ipcore import generate_ip
+from litedsp.flow.vivado import DEFAULT_PART, package_vivado
 
 # Config -------------------------------------------------------------------------------------------
 
@@ -90,6 +92,10 @@ def main():
     parser.add_argument("config",                        help="YAML config file.")
     parser.add_argument("--name",       default=None,    help="Standalone core/module name (default: from config).")
     parser.add_argument("--output-dir", default="build", help="Output directory.")
+    parser.add_argument("--vivado-ip", action="store_true",
+        help="Package the generated core for Vivado IP Integrator (runs Vivado IP Packager).")
+    parser.add_argument("--vivado-part", default=DEFAULT_PART,
+        help=f"Vivado packaging/project part (default: {DEFAULT_PART}).")
     args = parser.parse_args()
 
     path, ip = generate_core(args.config, output_dir=args.output_dir, name=args.name)
@@ -97,7 +103,7 @@ def main():
     # Report generated artifacts + register map.
     build_dir = os.path.dirname(path)
     print(f"Generated: {path}")
-    for f in ("csr.csv", "csr.json", "csr.h"):
+    for f in ("csr.csv", "csr.json", "csr.h", "blocks.json"):
         print(f"           {os.path.join(build_dir, f)}")
     if ip.chain.flow_inserted:
         print(f"Inserted glue: {', '.join(ip.chain.flow_inserted)}")
@@ -106,6 +112,11 @@ def main():
     print("CSR banks:")
     for bank_name, region in sorted(ip.csr_regions().items(), key=lambda kv: kv[1].origin):
         print(f"  0x{region.origin:08x}: {bank_name}")
+    if args.vivado_ip:
+        package_dir = os.path.join(build_dir, "vivado_ip")
+        component = package_vivado(ip, path, package_dir, name=os.path.splitext(os.path.basename(path))[0],
+            part=args.vivado_part)
+        print(f"Vivado IP: {component}")
     return 0
 
 if __name__ == "__main__":

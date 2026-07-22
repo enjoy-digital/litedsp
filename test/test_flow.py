@@ -238,5 +238,54 @@ class TestIPCore(unittest.TestCase):
         self.assertEqual(rb, 0x0abcdef0)
 
 
+class TestVivadoIPPackage(unittest.TestCase):
+    def _package(self, config, name):
+        import tempfile
+        from litedsp.gen import generate_core
+        from litedsp.flow.vivado import package_vivado
+        root = tempfile.mkdtemp(prefix="litedsp_vivado_")
+        path, ip = generate_core(config, os.path.join(root, "core"))
+        component = package_vivado(ip, path, os.path.join(root, "ip"), name=name,
+            run_vivado=False)
+        return root, component
+
+    def test_ddc_package_has_canonical_buses_and_driver_artifacts(self):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root, component = self._package(os.path.join(here, "examples", "ddc_core.yml"),
+            "ddc_core")
+        package = os.path.dirname(component)
+        self.assertFalse(os.path.exists(component))  # Script-only mode is portable without Vivado.
+        for rel in ("hdl/ddc_core.v", "hdl/ddc_core_vivado.v", "hdl/cos_rom.init",
+                    "drivers/csr.csv", "drivers/csr.json", "drivers/csr.h",
+                    "drivers/blocks.json", "package_ip.tcl", "vivado_ip.json"):
+            self.assertTrue(os.path.exists(os.path.join(package, rel)), rel)
+        with open(os.path.join(package, "hdl", "ddc_core_vivado.v")) as f:
+            wrapper = f.read()
+        for port in ("s_axis_rx_in_tdata", "m_axis_bb_out_tdata", "s_axi_awvalid",
+                     "aclk", "aresetn"):
+            self.assertIn(port, wrapper)
+        self.assertIn("assign m_axis_bb_out_tdata = {bb_out_payload_q, bb_out_payload_i};",
+            wrapper)
+        with open(os.path.join(package, "package_ip.tcl")) as f:
+            script = f.read()
+        for bus in ("S_AXI", "S_AXIS_RX_IN", "M_AXIS_BB_OUT", "ASSOCIATED_BUSIF"):
+            self.assertIn(bus, script)
+        self.assertIn("set_property value 100000000 $frequency", script)
+
+    def test_symbol_stream_is_byte_padded_and_keeps_first_last(self):
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _, component = self._package(
+            os.path.join(here, "examples", "qpsk_receiver_core.yml"), "qpsk_receiver_core")
+        wrapper_path = os.path.join(os.path.dirname(component), "hdl",
+            "qpsk_receiver_core_vivado.v")
+        with open(wrapper_path) as f:
+            wrapper = f.read()
+        self.assertIn("output wire [39:0] m_axis_symbols_out_tdata", wrapper)
+        self.assertIn("assign m_axis_symbols_out_tdata = {6'd0, symbols_out_payload_symbol, "
+                      "symbols_out_payload_q, symbols_out_payload_i};", wrapper)
+        self.assertIn(".symbols_out_first(m_axis_symbols_out_tuser[0])", wrapper)
+        self.assertIn(".symbols_out_last(m_axis_symbols_out_tlast)", wrapper)
+
+
 if __name__ == "__main__":
     unittest.main()

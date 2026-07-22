@@ -59,6 +59,9 @@ litedsp_flow litedsp/flow/examples/ddc.json --out build/ddc
 # Standalone core (AXI IP + csr.csv / csr.json / csr.h) from a YAML config (see litedsp/gen.py):
 litedsp_gen examples/ddc_core.yml --output-dir build/ddc_core
 
+# Vivado IP-Integrator package (component.xml + canonical AXI buses + driver artifacts):
+litedsp_gen examples/ddc_core.yml --output-dir build/ddc_core --vivado-ip
+
 # ...or directly from a netlist JSON:
 python -c "from litedsp.flow.ipcore import generate_ip; generate_ip('litedsp/flow/examples/ddc.json','build/ddc_ip')"
 
@@ -71,6 +74,13 @@ an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
 `<id>_payload_i`/`_q`=tdata). The register map gives each block its own bank, e.g. `lo_phase_inc`,
 `lpf_coeffs_coeff_0…` — write them over AXI-Lite at the addresses in `csr.csv`.
 Top-level layout `iq_symbol` adds `<id>_payload_symbol[1:0]` for a QPSK slicer's hard decision.
+
+With ``--vivado-ip``, the endpoint leaves are wrapped as canonical, byte-aligned AXI4-Stream
+interfaces. I/Q occupies the low/high halves of ``TDATA``; additional payload fields follow in
+layout order, unused high bits are zero, ``first`` maps to ``TUSER[0]``, and ``last`` maps to
+``TLAST``. The package includes ``component.xml``, synthesizable HDL and ROM initialization
+files, XGUI metadata, ``csr.csv/json/h`` and ``blocks.json``. Its AXI4-Lite, stream, clock and
+active-low reset interfaces are associated explicitly rather than relying on name inference.
 
 ## Status / roadmap
 
@@ -90,4 +100,5 @@ Top-level layout `iq_symbol` adds `<id>_payload_symbol[1:0]` for a QPSK slicer's
 - Load/Save round-trips the canvas: node positions are stored in the netlist's `editor`
   section (ignored by codegen) and restored on load, with a grid fallback for hand-written
   netlists.
-- Next: packaging the IP for Vivado IP-integrator.
+- Vivado IP-Integrator packaging is generated and integrity-checked from the same core/netlist;
+  the DDC and QPSK receiver examples exercise 32-bit I/Q and byte-padded I/Q+symbol streams.
