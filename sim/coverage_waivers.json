@@ -51,5 +51,12 @@
     "semantic_checks": [
       "test.test_pfb_channelizer:TestPFBChannelizerBitExact.test_fft_architecture_bit_exact"
     ]
+  },
+  "pfb_channelizer_fft_2x": {
+    "reason": "Migen expands the shared DIF addressing and natural-order bit reversal into exhaustive constant case arms that do not map cleanly to source-line coverage; the overlapping M/2-hop history and odd-bin phase correction are checked independently.",
+    "semantic_checks": [
+      "test.test_pfb_channelizer:TestPFBChannelizerBitExact.test_oversampled_fft_bit_exact",
+      "test.test_pfb_channelizer:TestPFBChannelizerFunctional.test_oversampled_odd_channel_phase_correction"
+    ]
   }
 }

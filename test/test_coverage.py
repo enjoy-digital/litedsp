@@ -17,6 +17,7 @@ class TestCoverageWaivers(unittest.TestCase):
         self.assertEqual(set(waivers), {
             "equalizer", "fir_decimator", "fir_interpolator", "fir_interpolator_pipelined",
             "ldpc_decoder", "ldpc_decoder_z_parallel", "pfb_channelizer_fft",
+            "pfb_channelizer_fft_2x",
         })
         self.assertGreaterEqual(len(waivers["ldpc_decoder"]["semantic_checks"]), 5)
 
