@@ -16,6 +16,7 @@ import tempfile
 import threading
 import time
 import unittest
+import yaml
 from unittest import mock
 
 from impl import budgets, ecp5, xilinx, wrap, modules
@@ -132,6 +133,14 @@ class TestImplementationBudgets(unittest.TestCase):
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
             self.assertIn(name, modules.TARGET_CLOSED)
+
+    def test_push_workflow_routes_every_stability_sentinel(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+            ".github", "workflows", "impl.yml")
+        with open(path) as f:
+            workflow = yaml.safe_load(f)
+        matrix = workflow["jobs"]["ecp5-pnr-stability"]["strategy"]["matrix"]["module"]
+        self.assertEqual(matrix, modules.PNR_STABILITY)
 
     def test_route_statistics_select_median_run(self):
         runs = [
