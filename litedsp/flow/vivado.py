@@ -137,7 +137,7 @@ def _wrapper_verilog(core_name, wrapper_name, interfaces):
         connections += [
             f"        .{name}_valid({p}_tvalid)",
             f"        .{name}_ready({p}_tready)",
-            f"        .{name}_first({p}_tuser[0])",
+            f"        .{name}_first({p}_tuser)",
             f"        .{name}_last({p}_tlast)",
         ]
         bit = 0
@@ -277,6 +277,53 @@ def _package_tcl(name, wrapper_name, part, clock_ns, interfaces):
     return "\n".join(lines)
 
 
+def _validation_tcl(name, clock_ns, interfaces):
+    bus_names = ["S_AXI"] + [
+        f"{'S' if i['direction'] == 'slave' else 'M'}_AXIS_{i['name'].upper()}"
+        for i in interfaces
+    ]
+    lines = [
+        "if {$argc != 2} { error {usage: validate_ip.tcl <part> <build-dir>} }",
+        "set part [lindex $argv 0]",
+        "set build [file normalize [lindex $argv 1]]",
+        "set root [file normalize [file dirname [info script]]]",
+        "file delete -force $build",
+        "create_project -force litedsp_validate $build -part $part",
+        "set_property ip_repo_paths [list $root] [current_project]",
+        "update_ip_catalog",
+        "create_bd_design litedsp_ip",
+        f"set dut [create_bd_cell -type ip -vlnv enjoy-digital.fr:litedsp:{name}:1.0 dut]",
+    ]
+    for bus_name in bus_names:
+        lines.append(f"make_bd_intf_pins_external [get_bd_intf_pins dut/{bus_name}]")
+    lines += [
+        "make_bd_pins_external [get_bd_pins dut/aclk]",
+        "make_bd_pins_external [get_bd_pins dut/aresetn]",
+        f"set_property CONFIG.FREQ_HZ {round(1e9/clock_ns)} [get_bd_ports aclk_0]",
+        "set_property CONFIG.POLARITY ACTIVE_LOW [get_bd_ports aresetn_0]",
+        "assign_bd_address",
+        "validate_bd_design",
+        "save_bd_design",
+        "set bd_file [get_files litedsp_ip.bd]",
+        "generate_target all $bd_file",
+        "set wrapper [make_wrapper -files $bd_file -top]",
+        "add_files -norecurse $wrapper",
+        "set_property top litedsp_ip_wrapper [current_fileset]",
+        "update_compile_order -fileset sources_1",
+        "launch_runs synth_1 -jobs 4",
+        "wait_on_run synth_1",
+        "if {[get_property PROGRESS [get_runs synth_1]] ne {100%}} { error {synth_1 did not complete} }",
+        "open_run synth_1",
+        "report_utilization -file [file join $build utilization.rpt]",
+        "write_checkpoint -force [file join $build litedsp_ip.dcp]",
+        'puts "VALIDATED_PART=$part"',
+        "close_project",
+        "exit",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def package_vivado(ip, verilog_path, package_dir, name=None, part=DEFAULT_PART, run_vivado=True,
                    timeout=600):
     """Create and optionally execute a Vivado IP-XACT packaging directory.
@@ -309,6 +356,8 @@ def package_vivado(ip, verilog_path, package_dir, name=None, part=DEFAULT_PART, 
     script_path = os.path.join(package_dir, "package_ip.tcl")
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(_package_tcl(name, wrapper_name, part, ip.netlist.clock_ns, interfaces))
+    with open(os.path.join(package_dir, "validate_ip.tcl"), "w", encoding="utf-8") as f:
+        f.write(_validation_tcl(name, ip.netlist.clock_ns, interfaces))
     with open(os.path.join(package_dir, "vivado_ip.json"), "w", encoding="utf-8") as f:
         json.dump({
             "name": name,
@@ -330,3 +379,23 @@ def package_vivado(ip, verilog_path, package_dir, name=None, part=DEFAULT_PART, 
         if not os.path.exists(component):
             raise RuntimeError(f"Vivado produced no component.xml (see {package_dir}/package_ip.log)")
     return component
+
+
+def validate_vivado_ip(package_dir, part=DEFAULT_PART, build_dir=None, timeout=1800):
+    """Instantiate a packaged core in a minimal IP-Integrator design and synthesize its wrapper."""
+    if shutil.which("vivado") is None:
+        raise RuntimeError("Vivado is required to validate a packaged IP core")
+    component = os.path.join(package_dir, "component.xml")
+    if not os.path.exists(component):
+        raise RuntimeError(f"missing packaged component: {component}")
+    build_dir = os.path.abspath(build_dir or os.path.join(package_dir, "validation"))
+    log_path = os.path.join(package_dir, "validate_ip.log")
+    with open(log_path, "w", encoding="utf-8") as log:
+        subprocess.run(["vivado", "-mode", "batch", "-nojournal", "-nolog",
+                        "-source", "validate_ip.tcl", "-tclargs", part, build_dir],
+                       cwd=package_dir, stdout=log, stderr=subprocess.STDOUT,
+                       check=True, timeout=timeout)
+    checkpoint = os.path.join(build_dir, "litedsp_ip.dcp")
+    if not os.path.exists(checkpoint):
+        raise RuntimeError(f"Vivado produced no validation checkpoint (see {log_path})")
+    return checkpoint

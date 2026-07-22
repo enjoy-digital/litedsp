@@ -62,6 +62,10 @@ litedsp_gen examples/ddc_core.yml --output-dir build/ddc_core
 # Vivado IP-Integrator package (component.xml + canonical AXI buses + driver artifacts):
 litedsp_gen examples/ddc_core.yml --output-dir build/ddc_core --vivado-ip
 
+# Also instantiate it in a block design and synthesize that wrapper for the selected part:
+litedsp_gen examples/ddc_core.yml --output-dir build/ddc_core --vivado-ip --vivado-validate \
+  --vivado-part xcau20p-ffvb676-2-e
+
 # ...or directly from a netlist JSON:
 python -c "from litedsp.flow.ipcore import generate_ip; generate_ip('litedsp/flow/examples/ddc.json','build/ddc_ip')"
 
@@ -102,3 +106,6 @@ active-low reset interfaces are associated explicitly rather than relying on nam
   netlists.
 - Vivado IP-Integrator packaging is generated and integrity-checked from the same core/netlist;
   the DDC and QPSK receiver examples exercise 32-bit I/Q and byte-padded I/Q+symbol streams.
+  ``--vivado-validate`` additionally makes every bus external in a minimal block design, runs
+  ``validate_bd_design`` and synthesizes the generated wrapper, catching catalog, interface and
+  packaged-source errors that standalone HDL synthesis cannot see.

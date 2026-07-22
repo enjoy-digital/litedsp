@@ -43,7 +43,7 @@ import yaml
 
 from litedsp.flow import netlist as netlist_mod
 from litedsp.flow.ipcore import generate_ip
-from litedsp.flow.vivado import DEFAULT_PART, package_vivado
+from litedsp.flow.vivado import DEFAULT_PART, package_vivado, validate_vivado_ip
 
 # Config -------------------------------------------------------------------------------------------
 
@@ -96,7 +96,11 @@ def main():
         help="Package the generated core for Vivado IP Integrator (runs Vivado IP Packager).")
     parser.add_argument("--vivado-part", default=DEFAULT_PART,
         help=f"Vivado packaging/project part (default: {DEFAULT_PART}).")
+    parser.add_argument("--vivado-validate", action="store_true",
+        help="Instantiate the packaged core in IP Integrator and synthesize the block-design wrapper.")
     args = parser.parse_args()
+    if args.vivado_validate and not args.vivado_ip:
+        parser.error("--vivado-validate requires --vivado-ip")
 
     path, ip = generate_core(args.config, output_dir=args.output_dir, name=args.name)
 
@@ -117,6 +121,10 @@ def main():
         component = package_vivado(ip, path, package_dir, name=os.path.splitext(os.path.basename(path))[0],
             part=args.vivado_part)
         print(f"Vivado IP: {component}")
+        if args.vivado_validate:
+            checkpoint = validate_vivado_ip(package_dir, part=args.vivado_part,
+                build_dir=os.path.join(build_dir, "vivado_validation"))
+            print(f"Validated: {checkpoint}")
     return 0
 
 if __name__ == "__main__":

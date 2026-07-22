@@ -29,6 +29,12 @@ jobs:
       - name: Check Vivado installation
         run: vivado -version
 
+      - name: Package and validate the DDC IP on Artix-7
+        run: |
+          python3 -m litedsp.gen examples/ddc_core.yml \
+            --output-dir "$LITEDSP_IMPL_BUILD/ddc_ip" --vivado-ip --vivado-validate \
+            --vivado-part xc7a200tsbg484-3
+
       - name: Synthesize all blocks for Artix-7
         run: python3 impl/run.py --device xilinx --flow synth --build "$LITEDSP_IMPL_BUILD"
 
@@ -50,6 +56,10 @@ jobs:
             ${{ env.LITEDSP_IMPL_BUILD }}/xilinx/**/*_vivado.log
             ${{ env.LITEDSP_IMPL_BUILD }}/xilinx/**/timing_summary.rpt
             ${{ env.LITEDSP_IMPL_BUILD }}/xilinx/**/timing_paths.rpt
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/component.xml
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/package_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/validate_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_validation/utilization.rpt
           if-no-files-found: warn
           retention-days: 14
 
@@ -75,6 +85,12 @@ jobs:
       - name: Check Vivado installation
         run: vivado -version
 
+      - name: Package and validate the DDC IP on Artix UltraScale+
+        run: |
+          python3 -m litedsp.gen examples/ddc_core.yml \
+            --output-dir "$LITEDSP_IMPL_BUILD/ddc_ip" --vivado-ip --vivado-validate \
+            --vivado-part xcau20p-ffvb676-2-e
+
       - name: Synthesize all blocks for Artix UltraScale+
         run: python3 impl/run.py --device xilinx_au --flow synth --build "$LITEDSP_IMPL_BUILD"
 
@@ -96,5 +112,9 @@ jobs:
             ${{ env.LITEDSP_IMPL_BUILD }}/xilinx_au/**/*_vivado.log
             ${{ env.LITEDSP_IMPL_BUILD }}/xilinx_au/**/timing_summary.rpt
             ${{ env.LITEDSP_IMPL_BUILD }}/xilinx_au/**/timing_paths.rpt
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/component.xml
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/package_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/validate_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_validation/utilization.rpt
           if-no-files-found: warn
           retention-days: 14

@@ -257,7 +257,8 @@ class TestVivadoIPPackage(unittest.TestCase):
         self.assertFalse(os.path.exists(component))  # Script-only mode is portable without Vivado.
         for rel in ("hdl/ddc_core.v", "hdl/ddc_core_vivado.v", "hdl/cos_rom.init",
                     "drivers/csr.csv", "drivers/csr.json", "drivers/csr.h",
-                    "drivers/blocks.json", "package_ip.tcl", "vivado_ip.json"):
+                    "drivers/blocks.json", "package_ip.tcl", "validate_ip.tcl",
+                    "vivado_ip.json"):
             self.assertTrue(os.path.exists(os.path.join(package, rel)), rel)
         with open(os.path.join(package, "hdl", "ddc_core_vivado.v")) as f:
             wrapper = f.read()
@@ -271,6 +272,13 @@ class TestVivadoIPPackage(unittest.TestCase):
         for bus in ("S_AXI", "S_AXIS_RX_IN", "M_AXIS_BB_OUT", "ASSOCIATED_BUSIF"):
             self.assertIn(bus, script)
         self.assertIn("set_property value 100000000 $frequency", script)
+        with open(os.path.join(package, "validate_ip.tcl")) as f:
+            validation = f.read()
+        self.assertIn("create_bd_cell -type ip -vlnv enjoy-digital.fr:litedsp:ddc_core:1.0",
+            validation)
+        self.assertIn("assign_bd_address", validation)
+        self.assertIn("validate_bd_design", validation)
+        self.assertIn("launch_runs synth_1", validation)
 
     def test_symbol_stream_is_byte_padded_and_keeps_first_last(self):
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -283,7 +291,7 @@ class TestVivadoIPPackage(unittest.TestCase):
         self.assertIn("output wire [39:0] m_axis_symbols_out_tdata", wrapper)
         self.assertIn("assign m_axis_symbols_out_tdata = {6'd0, symbols_out_payload_symbol, "
                       "symbols_out_payload_q, symbols_out_payload_i};", wrapper)
-        self.assertIn(".symbols_out_first(m_axis_symbols_out_tuser[0])", wrapper)
+        self.assertIn(".symbols_out_first(m_axis_symbols_out_tuser)", wrapper)
         self.assertIn(".symbols_out_last(m_axis_symbols_out_tlast)", wrapper)
 
 
