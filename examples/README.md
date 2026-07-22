@@ -34,6 +34,7 @@ headless (matplotlib Agg, `savefig` only) and are smoke-checked in CI (`test/tes
 | [AN005 — CCSDS concatenated-FEC telemetry](../doc/app_notes/an005_ccsds_telemetry.md) | `ccsds_telemetry.py` | dual-basis CCSDS RSEncoder ×I → BlockInterleaver → ConvEncoder(K=7) → QPSK/AWGN + jammer burst → SoftDemapper → soft Viterbi → BlockDeinterleaver → CCSDS RSDecoder | Burst spreading: a burst that is uncorrectable without interleaving is fully corrected at I = 2 (~I× correctable burst); RTL end-to-end recovers the message error-free |
 | [AN006 — ADS-B / Mode-S receiver](../doc/app_notes/an006_adsb_receiver.md) | `adsb_receiver.py` | 2 MHz magnitude → Correlator(8 us preamble) → PPM early/late decision | Exact frame acquisition and zero errors across a noisy 112-bit DF17 frame |
 | [AN007 — AIS GMSK receiver](../doc/app_notes/an007_ais_receiver.md) | `ais_receiver.py` | GMSK/CFO/AWGN → FMDemod → integrate/dump → NRZI → training/FCS | Exact training acquisition, zero payload errors, and valid X.25 FCS |
+| [AN008 — Chirp spread-spectrum receiver](../doc/app_notes/an008_css_receiver.md) | `css_receiver.py` | CSS upchirp → dechirp → fixed-point FFT → peak bin | Exact SF7 symbol recovery with a ≥12 dB FFT-bin margin under noise and CFO |
 
 ## Standalone core configs
 
