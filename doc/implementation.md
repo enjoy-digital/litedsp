@@ -178,7 +178,7 @@ timing budgets. Each device cell carries its own LUT/FF/BRAM/DSP counts and fmax
 avoiding stale duplicated tables and accidental mixing of ECP5 and Xilinx timing. Per-block
 datasheets present the same data from `impl/budgets.json`.
 
-The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 91 registry
+The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: all 93 registry
 configurations pass out-of-context synthesis; 38 bounded representative configurations form the
 regular P&R subset, two route-sensitive configurations form the stability set, and two wide
 capacity/timing configurations form the stress set (native P=4 belongs to both latter views).

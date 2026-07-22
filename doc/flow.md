@@ -14,7 +14,7 @@ all code generation is headless and reused identically by the CLI, tests, and th
 
 - **`metadata.py`** — reflects each block into a `BlockSpec` (params from the constructor
   signature, stream ports + payload layouts from a built instance, CSRs from `get_csrs()`).
-- **`registry.py`** — the palette: ~88 blocks across 9 categories, with construction defaults and
+- **`registry.py`** — the palette: 117 blocks across 9 categories, with construction defaults and
   enumerated param choices. `registry.registry()` builds them all (cached).
 - **`netlist.py`** — the tool-agnostic JSON format + load/save + validation (unknown
   type/port/param, layout mismatch, raw fan-in, duplicate/invalid ids).

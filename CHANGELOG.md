@@ -33,7 +33,7 @@ Additional contracts introduced with the harmonization:
 - Constructors raise `ValueError` with an actionable message on invalid parameters
   (`litedsp.common.check`); validation survives `python -O`.
 - The coding/FEC and OFDM blocks (scrambler, CRC, convolutional encoder, Viterbi decoder,
-  CP insert/remove) are now registered in the flow/GUI palette (114 blocks total).
+  CP insert/remove) are now registered in the flow/GUI palette (117 blocks total).
 
 - Portable RF/DSP block toolbox, pure Migen/LiteX (no vendor IP): `generation/` (NCO/DDS,
   CORDIC, chirp, noise, replay, patterns), `mixing/` (mixer, DDC/DUC, DDC-bank and
@@ -55,8 +55,8 @@ Additional contracts introduced with the harmonization:
   and full hard-decision decoder (syndromes, serial Berlekamp-Massey, Chien search, Forney
   magnitudes), t = (n - k)/2 configurable from 1 to 16 (RS(255,223) default), corrected-symbol
   and uncorrectable-block status CSRs, bit-exact golden models including status. Conventional
-  basis (field polynomial 0x11D, fcr = 0); CCSDS 131.0-B dual-basis (0x187) conversion is a
-  documented follow-up.
+  basis (field polynomial 0x11D, fcr = 0), plus CCSDS 131.0-B-5 RS(255,223) wrappers using the
+  standard 0x187 field and Berlekamp dual-basis stream conversion.
 - Block interleaver/deinterleaver (`litedsp/comm/interleaver.py`, `LiteDSPBlockInterleaver`/
   `LiteDSPBlockDeinterleaver`): CCSDS-style depth-I byte interleaving between the RS and
   convolutional layers (rows x cols transpose, write row-wise / read column-wise), ping-pong
