@@ -163,7 +163,9 @@ floor.
   M² direct DFT with a time-multiplexed radix-2 transform makes M>=16 practical, but its first
   memory-read/multiply schedule reached only 74.6 MHz. Registering read/difference, multiply,
   and the two single-port writes raises the M=16/T=8 median to 113.2 MHz while retaining the
-  O(M log M) schedule and bit-exact per-rank rounding model.
+  O(M log M) schedule and bit-exact per-rank rounding model. The 2x-oversampled mode advances
+  by M/2 inputs and applies the required alternating odd-bin correction; its separate sentinel
+  routes at 105.2/129.2/227.7 MHz on ECP5/Artix-7/Artix UltraScale+.
 
 ## Current results
 

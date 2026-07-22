@@ -383,6 +383,13 @@ rounds back to the branch accumulator scale after a rank, whereas the small dire
 only once after its full sum. Acceptance covers M=16 and M=32, natural channel order, framing,
 randomized stalls, Verilator co-simulation, and both FPGA implementation targets.
 
+The same direct and FFT engines now support `oversampling=2`: each transform advances by M/2
+new samples, reuses the overlapping history, and emits M channel samples. An alternating
+odd-channel sign correction removes the half-frame DFT rotation, so a channel-center tone stays
+at DC rather than changing sign on every frame. The M=16/T=8 FFT sentinel remains target-closed
+at 105.2 MHz on ECP5, 129.2 MHz on Artix-7, and 227.7 MHz on Artix UltraScale+; its steady frame
+schedule drops from 432 to 424 clocks while its aggregate output/input rate doubles.
+
 ## LDPC lift parallelism
 
 The compact 802.11n decoder updates one lifted check row at a time. Its 44,500-clock worst-case

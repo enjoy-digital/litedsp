@@ -347,20 +347,23 @@ def fir_interpolator_model(x, coeffs, L, data_width=16, shift=None):
 
 # PFB Channelizer ----------------------------------------------------------------------------------
 
-def pfb_channelizer_model(i, q, coefficients, n_channels, data_width=16):
+def pfb_channelizer_model(i, q, coefficients, n_channels, data_width=16, oversampling=1):
     """Bit-exact reference for litedsp.mixing.pfb_channelizer.LiteDSPPFBChannelizer.
 
-    Critically-sampled uniform DFT filter bank. Per M-input frame m (newest sample index
-    ``base = m*M + M - 1``): M polyphase branch dot-products (branch p = prototype phase
+    Uniform DFT filter bank with hop ``H=M/oversampling``. Per frame m (newest sample index
+    ``base = m*H + H - 1``): M polyphase branch dot-products (branch p = prototype phase
     ``coefficients[p::M]`` over samples ``x[base - p - t*M]``, zero history before the
     stream), then an M-point DFT with the gateware's quantized Q1.(W-1) twiddles
     (kernel ``exp(+2j*pi*k*p/M)``: channel k centered at ``+k/M`` of the input rate).
     Products/accumulations are exact; a single round-half-up + saturate by
     ``2*(data_width - 1)`` bits (coefficient + twiddle fractional bits) at the output.
-    Returns ``(i, q)`` int arrays of ``(len(i)//M)*M`` samples (frame-major, channel =
-    position within the frame).
+    In 2x mode, odd channels are negated on alternating frames to remove the half-frame DFT
+    phase rotation. Returns frame-major channel samples.
     """
     M     = n_channels
+    if oversampling not in (1, 2):
+        raise ValueError("oversampling must be 1 or 2")
+    H     = M//oversampling
     T     = len(coefficients)//M
     xi    = np.asarray(i, np.int64)
     xq    = np.asarray(q, np.int64)
@@ -370,8 +373,8 @@ def pfb_channelizer_model(i, q, coefficients, n_channels, data_width=16):
     tw_s  = np.array([int(round(math.sin(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
     shift = 2*(data_width - 1)
     out_i, out_q = [], []
-    for m in range(len(xi)//M):
-        base = m*M + M - 1
+    for m in range(len(xi)//H):
+        base = m*H + H - 1
         ui   = np.zeros(M, np.int64)  # Branch dot-products (full width, exact).
         uq   = np.zeros(M, np.int64)
         for p in range(M):
@@ -383,11 +386,15 @@ def pfb_channelizer_model(i, q, coefficients, n_channels, data_width=16):
         for k in range(M):
             j  = (k*np.arange(M)) % M     # Twiddle index k*p mod M.
             c, s = tw_c[j], tw_s[j]
-            out_i.append(int(np_scaled(np.sum(ui*c) - np.sum(uq*s), shift, data_width)))
-            out_q.append(int(np_scaled(np.sum(ui*s) + np.sum(uq*c), shift, data_width)))
+            yi = int(np.sum(ui*c) - np.sum(uq*s))
+            yq = int(np.sum(ui*s) + np.sum(uq*c))
+            if oversampling == 2 and (m & 1) and (k & 1):
+                yi, yq = -yi, -yq
+            out_i.append(int(np_scaled(yi, shift, data_width)))
+            out_q.append(int(np_scaled(yq, shift, data_width)))
     return np.array(out_i, np.int64), np.array(out_q, np.int64)
 
-def pfb_channelizer_fft_model(i, q, coefficients, n_channels, data_width=16):
+def pfb_channelizer_fft_model(i, q, coefficients, n_channels, data_width=16, oversampling=1):
     """Bit-exact reference for the PFB channelizer's radix-2 FFT architecture.
 
     The polyphase FIR is identical to :func:`pfb_channelizer_model`. Its full-precision
@@ -396,6 +403,9 @@ def pfb_channelizer_fft_model(i, q, coefficients, n_channels, data_width=16):
     the bit-reversed DIF state before the final coefficient-scale round/saturate.
     """
     M     = n_channels
+    if oversampling not in (1, 2):
+        raise ValueError("oversampling must be 1 or 2")
+    H     = M//oversampling
     T     = len(coefficients)//M
     bits  = M.bit_length() - 1
     xi    = np.asarray(i, np.int64)
@@ -405,8 +415,8 @@ def pfb_channelizer_fft_model(i, q, coefficients, n_channels, data_width=16):
     tw_c  = np.array([int(round(math.cos(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
     tw_s  = np.array([int(round(math.sin(2*math.pi*j/M)*scale)) for j in range(M)], np.int64)
     out_i, out_q = [], []
-    for m in range(len(xi)//M):
-        base = m*M + M - 1
+    for m in range(len(xi)//H):
+        base = m*H + H - 1
         fi, fq = [0]*M, [0]*M
         for p in range(M):
             for t in range(T):
@@ -432,8 +442,11 @@ def pfb_channelizer_fft_model(i, q, coefficients, n_channels, data_width=16):
                                                data_width - 1))
         for k in range(M):
             r = _bit_reverse(k, bits)
-            out_i.append(int(np_scaled(fi[r], data_width - 1, data_width)))
-            out_q.append(int(np_scaled(fq[r], data_width - 1, data_width)))
+            yi, yq = fi[r], fq[r]
+            if oversampling == 2 and (m & 1) and (k & 1):
+                yi, yq = -yi, -yq
+            out_i.append(int(np_scaled(yi, data_width - 1, data_width)))
+            out_q.append(int(np_scaled(yq, data_width - 1, data_width)))
     return np.array(out_i, np.int64), np.array(out_q, np.int64)
 
 # IIR Biquad ---------------------------------------------------------------------------------------

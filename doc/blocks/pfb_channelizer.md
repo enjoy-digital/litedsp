@@ -6,15 +6,18 @@ latency: 60 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Critically-sampled uniform filter bank (polyphase FIR + scalable direct/FFT transform).
+Uniform filter bank (polyphase FIR + scalable direct/FFT transform).
 
 A commutator distributes consecutive input samples over ``M = n_channels`` polyphase
-branches; every M input samples, each branch computes a ``taps_per_channel``-tap dot-
+branches; every ``M/oversampling`` input samples, each branch computes a
+``taps_per_channel``-tap dot-
 product over its sample history (prototype phase ``p``: taps ``coefficients[p::M]``,
 newest frame sample on branch 0) and the M branch results feed an M-point DFT with
-kernel ``exp(+2j*pi*k*p/M)``. Aggregate rate is preserved: M channel samples out per
-M input samples, emitted as a framed burst (``first`` on the frame's channel 0,
-``last`` on channel M-1, channel index = position in the frame).
+kernel ``exp(+2j*pi*k*p/M)``. ``oversampling=1`` preserves the aggregate rate: M channel
+samples out per M inputs. ``oversampling=2`` uses overlapping histories and emits M
+samples per M/2 new inputs; odd channels receive the alternating half-frame phase
+correction required to keep a channel-center tone at DC. Each output set is a framed
+burst (``first`` on channel 0, ``last`` on channel M-1).
 
 Channel convention: channel ``k`` is the band centered at ``+k/M`` of the input sample
 rate (``k > M/2`` wraps to the negative frequencies, center ``(k - M)/M``), brought to
@@ -29,7 +32,8 @@ DFT accumulators add ``W + clog2(M) + 1`` bits (twiddle product + M-term sum); a
 :func:`litedsp.common.scaled` (round half-up + saturate) by ``2*(W - 1)`` bits (the
 coefficient + twiddle fractional bits) produces the output — no intermediate rounding.
 
-Throughput: one shared MAC, ``M + M*(T + 1) + M*(M + 1)`` cycles per M-sample frame
+Throughput: one shared MAC, ``H + M*(T + 1) + M*(M + 1)`` cycles per frame, where
+``H = M/oversampling``
 (load + branch FIRs + DFT/emit), so ``fs_in <= f_clk * M / cycles_per_frame`` (roughly
 ``f_clk / (T + M + 3)``); the input is stalled (backpressured) while a frame computes.
 ``architecture="folded"`` separates every multiply from its recursive accumulation,
@@ -46,9 +50,6 @@ full branch precision and natural channel order. Twiddle products round back to 
 accumulator's fractional scale after each FFT rank; this arithmetic has its own bit-exact
 golden model.
 
-Follow-up (documented, not implemented here): a 2x-oversampled variant (M outputs per
-M/2 inputs, halved commutator stride + alternating DFT phase correction).
-
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -58,6 +59,7 @@ M/2 inputs, halved commutator stride + alternating DFT phase correction).
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Prototype low-pass taps, signed Q1.(W-1) integers, length ``n_channels * taps_per_channel`` (default: ``firwin_lowpass(M*T, 0.4/M)``, unity DC gain, so a full-scale tone at a channel center emerges at full scale in that channel). |
 | `architecture` | `"auto"` | str | ``"auto"`` to select classic for M <= 8 and FFT for M >= 16, ``"classic"`` for one MAC term per clock, ``"folded"`` for separate multiply and accumulate clocks in both direct sections, or ``"fft"`` for the scalable DFT stage. Choices: `auto`, `classic`, `folded`, `fft`. |
+| `oversampling` | `1` | int | Aggregate output/input rate: 1 for critically sampled (M outputs per M inputs), or 2 for overlapping frames (M outputs per M/2 inputs) with odd-bin phase correction. |
 
 ## Ports
 

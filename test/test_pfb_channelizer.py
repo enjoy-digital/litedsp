@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""PFB channelizer (critically-sampled uniform DFT filter bank) tests.
+"""PFB channelizer (critical and 2x-oversampled uniform DFT filter bank) tests.
 
 verify-tier: model
 """
@@ -94,6 +94,32 @@ class TestPFBChannelizerBitExact(unittest.TestCase):
             LiteDSPPFBChannelizer(n_channels=16, architecture="classic", with_csr=False)
         with self.assertRaises(ValueError):
             LiteDSPPFBChannelizer(n_channels=8, architecture="fft", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPPFBChannelizer(oversampling=4, with_csr=False)
+
+    # verify-tier: model — 2x mode advances by M/2 inputs, emits two framed channel sets per
+    # M inputs, and removes the alternating odd-bin phase from both direct architectures.
+    def test_oversampled_direct_bit_exact(self):
+        for architecture in ("classic", "folded"):
+            M, T, n = 4, 4, 64
+            coeffs = firwin_lowpass(M*T, 0.4/M)
+            prng = random.Random(1100 + (architecture == "folded"))
+            x_i = [prng.randint(-25000, 25000) for _ in range(n)]
+            x_q = [prng.randint(-25000, 25000) for _ in range(n)]
+            dut = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T,
+                coefficients=coeffs, architecture=architecture, oversampling=2, with_csr=False)
+            cap = run_stream(dut, [{"i": i, "q": q} for i, q in zip(x_i, x_q)], 2*n,
+                ["i", "q"], ["i", "q", "first", "last"], sink_throttle=0.2,
+                source_ready_rate=0.6)
+            ri, rq = pfb_channelizer_model(x_i, x_q, coeffs, M, oversampling=2)
+            np.testing.assert_array_equal(column(cap, "i", 16), ri)
+            np.testing.assert_array_equal(column(cap, "q", 16), rq)
+            pos = np.arange(2*n) % M
+            np.testing.assert_array_equal(column(cap, "first"), pos == 0)
+            np.testing.assert_array_equal(column(cap, "last"), pos == M - 1)
+            compute = M*((T + 1) if architecture == "classic" else (2*T + 1))
+            transform = M*((M + 1) if architecture == "classic" else (2*M + 1))
+            self.assertEqual(dut.cycles_per_frame, M//2 + compute + transform)
 
     # verify-tier: model — M>=16 uses the O(M log M) radix-2 DFT schedule with its explicit
     # per-rank twiddle rounding, natural channel order, framing, and randomized stream stalls.
@@ -117,6 +143,25 @@ class TestPFBChannelizerBitExact(unittest.TestCase):
             np.testing.assert_array_equal(column(cap, "last"),  pos == M - 1)
             self.assertEqual(dut.cycles_per_frame,
                 M + M*(2*T + 1) + 2*M*int(np.log2(M)) + M)
+
+    # verify-tier: model — the scalable radix-2 path uses the same overlapping history and
+    # phase convention as the direct transform.
+    def test_oversampled_fft_bit_exact(self):
+        M, T, n = 16, 2, 64
+        coeffs = firwin_lowpass(M*T, 0.4/M)
+        prng = random.Random(1200)
+        x_i = [prng.randint(-25000, 25000) for _ in range(n)]
+        x_q = [prng.randint(-25000, 25000) for _ in range(n)]
+        dut = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T,
+            coefficients=coeffs, architecture="fft", oversampling=2, with_csr=False)
+        cap = run_stream(dut, [{"i": i, "q": q} for i, q in zip(x_i, x_q)], 2*n,
+            ["i", "q"], ["i", "q", "first", "last"], sink_throttle=0.2,
+            source_ready_rate=0.6)
+        ri, rq = pfb_channelizer_fft_model(x_i, x_q, coeffs, M, oversampling=2)
+        np.testing.assert_array_equal(column(cap, "i", 16), ri)
+        np.testing.assert_array_equal(column(cap, "q", 16), rq)
+        self.assertEqual(dut.cycles_per_frame,
+            M//2 + M*(2*T + 1) + 2*M*int(np.log2(M)) + M)
 
 # Functional ---------------------------------------------------------------------------------------
 
@@ -173,6 +218,21 @@ class TestPFBChannelizerFunctional(unittest.TestCase):
         rejection = 10*np.log10(spectrum[peak]/np.delete(spectrum, peak).max())
         self.assertGreaterEqual(rejection, 85.4,
             f"alias rejection {rejection:.1f} dB (LITEDSP_SEED=0 measured 88.5 dB)")
+
+    # verify-tier: invariant — a center tone in an odd channel would alternate sign between
+    # M/2-hop frames without the oversampled DFT phase correction. After filter warm-up its
+    # corrected complex output is constant to the integer quantization floor.
+    def test_oversampled_odd_channel_phase_correction(self):
+        M, T, k, n_frames = self.M, self.T, 1, 64
+        hop = M//2
+        n = hop*(n_frames + 4)
+        x = 12000*np.exp(1j*(2*np.pi*k*np.arange(n)/M + 0.3))
+        dut = LiteDSPPFBChannelizer(n_channels=M, taps_per_channel=T,
+            data_width=16, oversampling=2, with_csr=False)
+        y = _run_frames(dut, x, n_frames)
+        tail = y[2*T:, k]
+        self.assertGreater(np.abs(tail.mean()), 11000)
+        self.assertLess(tail.std(), 1.0)
 
 if __name__ == "__main__":
     unittest.main()

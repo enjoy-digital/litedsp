@@ -4,7 +4,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Polyphase filter-bank (PFB) channelizer: critically-sampled uniform DFT filter bank.
+"""Polyphase filter-bank (PFB) channelizer: critical or 2x-oversampled DFT filter bank.
 
 Splits a wide band into ``M`` uniformly-spaced channels through one shared prototype filter
 (polyphase-decomposed) followed by an M-point DFT — the resource-optimal alternative to the
@@ -36,15 +36,18 @@ def _pow2_ceil(n):
 
 @ResetInserter()
 class LiteDSPPFBChannelizer(LiteXModule):
-    """Critically-sampled uniform filter bank (polyphase FIR + scalable direct/FFT transform).
+    """Uniform filter bank (polyphase FIR + scalable direct/FFT transform).
 
     A commutator distributes consecutive input samples over ``M = n_channels`` polyphase
-    branches; every M input samples, each branch computes a ``taps_per_channel``-tap dot-
+    branches; every ``M/oversampling`` input samples, each branch computes a
+    ``taps_per_channel``-tap dot-
     product over its sample history (prototype phase ``p``: taps ``coefficients[p::M]``,
     newest frame sample on branch 0) and the M branch results feed an M-point DFT with
-    kernel ``exp(+2j*pi*k*p/M)``. Aggregate rate is preserved: M channel samples out per
-    M input samples, emitted as a framed burst (``first`` on the frame's channel 0,
-    ``last`` on channel M-1, channel index = position in the frame).
+    kernel ``exp(+2j*pi*k*p/M)``. ``oversampling=1`` preserves the aggregate rate: M channel
+    samples out per M inputs. ``oversampling=2`` uses overlapping histories and emits M
+    samples per M/2 new inputs; odd channels receive the alternating half-frame phase
+    correction required to keep a channel-center tone at DC. Each output set is a framed
+    burst (``first`` on channel 0, ``last`` on channel M-1).
 
     Channel convention: channel ``k`` is the band centered at ``+k/M`` of the input sample
     rate (``k > M/2`` wraps to the negative frequencies, center ``(k - M)/M``), brought to
@@ -59,7 +62,8 @@ class LiteDSPPFBChannelizer(LiteXModule):
     :func:`litedsp.common.scaled` (round half-up + saturate) by ``2*(W - 1)`` bits (the
     coefficient + twiddle fractional bits) produces the output — no intermediate rounding.
 
-    Throughput: one shared MAC, ``M + M*(T + 1) + M*(M + 1)`` cycles per M-sample frame
+    Throughput: one shared MAC, ``H + M*(T + 1) + M*(M + 1)`` cycles per frame, where
+    ``H = M/oversampling``
     (load + branch FIRs + DFT/emit), so ``fs_in <= f_clk * M / cycles_per_frame`` (roughly
     ``f_clk / (T + M + 3)``); the input is stalled (backpressured) while a frame computes.
     ``architecture="folded"`` separates every multiply from its recursive accumulation,
@@ -75,9 +79,6 @@ class LiteDSPPFBChannelizer(LiteXModule):
     full branch precision and natural channel order. Twiddle products round back to the branch
     accumulator's fractional scale after each FFT rank; this arithmetic has its own bit-exact
     golden model.
-
-    Follow-up (documented, not implemented here): a 2x-oversampled variant (M outputs per
-    M/2 inputs, halved commutator stride + alternating DFT phase correction).
 
     Parameters
     ----------
@@ -95,12 +96,16 @@ class LiteDSPPFBChannelizer(LiteXModule):
         ``"auto"`` to select classic for M <= 8 and FFT for M >= 16, ``"classic"`` for one
         MAC term per clock, ``"folded"`` for separate multiply and accumulate clocks in both
         direct sections, or ``"fft"`` for the scalable DFT stage.
+    oversampling : int
+        Aggregate output/input rate: 1 for critically sampled (M outputs per M inputs), or
+        2 for overlapping frames (M outputs per M/2 inputs) with odd-bin phase correction.
     """
     def __init__(self, n_channels=4, taps_per_channel=8, data_width=16, coefficients=None,
-        architecture="auto", with_csr=True):
+        architecture="auto", oversampling=1, with_csr=True):
         M, T = n_channels, taps_per_channel  # Literature names.
         check(M >= 2 and (M & (M - 1)) == 0, "expected n_channels power of two and >= 2")
         check(T >= 1, "expected taps_per_channel >= 1")
+        check(oversampling in (1, 2), "oversampling must be 1 or 2")
         check(architecture in ("auto", "classic", "folded", "fft"),
             "architecture must be 'auto', 'classic', 'folded', or 'fft'.")
         requested_architecture = architecture
@@ -119,12 +124,15 @@ class LiteDSPPFBChannelizer(LiteXModule):
         self.coefficients     = coefficients
         self.architecture     = architecture
         self.requested_architecture = requested_architecture
+        self.oversampling      = oversampling
+        self.frame_stride      = M//oversampling
+        H = self.frame_stride
         if architecture == "classic":
-            self.cycles_per_frame = M + M*(T + 1) + M*(M + 1)
+            self.cycles_per_frame = H + M*(T + 1) + M*(M + 1)
         elif architecture == "folded":
-            self.cycles_per_frame = M + M*(2*T + 1) + M*(2*M + 1)
+            self.cycles_per_frame = H + M*(2*T + 1) + M*(2*M + 1)
         else:
-            self.cycles_per_frame = M + M*(2*T + 1) + 2*M*int(math.log2(M)) + M
+            self.cycles_per_frame = H + M*(2*T + 1) + 2*M*int(math.log2(M)) + M
         self.latency = self.cycles_per_frame               # Burst latency (cycles per frame).
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Wide-band I/Q input.
         self.source = stream.Endpoint(iq_layout(data_width))  # Framed channel samples (M per frame).
@@ -171,6 +179,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
         k    = Signal(max=M)       # Output channel (DFT bin) index.
         pd   = Signal(max=M)       # DFT input (branch) index.
         tw_addr = Signal(max=M)    # Folded DFT twiddle index (recurrent k*p mod M).
+        phase_flip = Signal()      # 2x mode: negate odd bins on alternating half-frames.
         radr = Signal(max=depth)   # History read pointer (walks back from newest, stride M).
         acc_i,  acc_q  = Signal((acc_w, True)),  Signal((acc_w, True))    # Branch accumulators.
         dacc_i, dacc_q = Signal((dacc_w, True)), Signal((dacc_w, True))   # DFT accumulators.
@@ -300,22 +309,27 @@ class LiteDSPPFBChannelizer(LiteXModule):
                     rounded(fft_prod_q, data_width - 1))),
             ]
             fft_emit_addr = Array([int(f"{j:0{fft_bits}b}"[::-1], 2) for j in range(M)])[k]
-            fft_out_i, _ = scaled(far, data_width - 1, data_width)
-            fft_out_q, _ = scaled(faq, data_width - 1, data_width)
+            fft_correct_i = Mux(phase_flip & k[0], -far, far) if oversampling == 2 else far
+            fft_correct_q = Mux(phase_flip & k[0], -faq, faq) if oversampling == 2 else faq
+            fft_out_i, _ = scaled(fft_correct_i, data_width - 1, data_width)
+            fft_out_q, _ = scaled(fft_correct_q, data_width - 1, data_width)
 
-        out_i, _ = scaled(dacc_i, shift, data_width)
-        out_q, _ = scaled(dacc_q, shift, data_width)
+        dft_correct_i = Mux(phase_flip & k[0], -dacc_i, dacc_i) if oversampling == 2 else dacc_i
+        dft_correct_q = Mux(phase_flip & k[0], -dacc_q, dacc_q) if oversampling == 2 else dacc_q
+        out_i, _ = scaled(dft_correct_i, shift, data_width)
+        out_q, _ = scaled(dft_correct_q, shift, data_width)
 
         # FSM.
         # ----
         self.fsm = fsm = FSM(reset_state="LOAD")
-        # LOAD: commutate M input samples into the history; the M-th kicks off the branch MACs.
+        # LOAD: commutate H new input samples into history; the H-th starts a transform over
+        # the latest M*T history. In 2x mode consecutive transforms overlap by M/2 samples.
         fsm.act("LOAD",
             self.sink.ready.eq(1),
             If(self.sink.valid,
                 wip.we.eq(1), wqp.we.eq(1),
                 NextValue(wptr, wptr + 1),
-                If(pos == (M - 1),
+                If(pos == (H - 1),
                     NextValue(pos, 0),
                     NextValue(p, 0), NextValue(t, 0),
                     NextValue(acc_i, 0), NextValue(acc_q, 0),
@@ -449,6 +463,7 @@ class LiteDSPPFBChannelizer(LiteXModule):
             self.source.q.eq(fft_out_q if architecture == "fft" else out_q),
             If(self.source.ready,
                 If(k == (M - 1),
+                    *([NextValue(phase_flip, ~phase_flip)] if oversampling == 2 else []),
                     NextState("LOAD"),
                 ).Else(
                     NextValue(k, k + 1),

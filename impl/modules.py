@@ -291,6 +291,11 @@ def pfb_channelizer_fft():
         architecture="fft", with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def pfb_channelizer_fft_2x():
+    d = LiteDSPPFBChannelizer(n_channels=16, taps_per_channel=8, data_width=16,
+        architecture="fft", oversampling=2, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def lms_equalizer():
     d = LiteDSPLMSEqualizer(n_taps=7, data_width=16, with_csr=False)
     return d, {d.train, d.mode, d.cma_r2, d.dd_level} | _eps(d.sink, d.source), 12.0
@@ -523,6 +528,7 @@ REGISTRY = {
     "ddc_ip": ddc_ip, "qpsk_receiver_ip": qpsk_receiver_ip,
     "pfb_channelizer": pfb_channelizer, "pfb_channelizer_folded": pfb_channelizer_folded,
     "pfb_channelizer_fft": pfb_channelizer_fft,
+    "pfb_channelizer_fft_2x": pfb_channelizer_fft_2x,
     "lms_equalizer": lms_equalizer, "lms_equalizer_pipelined": lms_equalizer_pipelined,
     "timing_recovery": timing_recovery, "fm_demod": fm_demod,
     "correlator": correlator, "frame_sync": frame_sync, "cfo_estimator": cfo_estimator,
@@ -559,6 +565,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "fft_parallel_native_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
               "pfb_channelizer_fft",
+              "pfb_channelizer_fft_2x",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip",
               "qpsk_receiver_ip"]
 
@@ -580,7 +587,7 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
                  "fft_parallel_native_x4",
                  "goertzel_folded", "iir_biquad_folded",
-                 "pfb_channelizer_folded", "pfb_channelizer_fft",
+                 "pfb_channelizer_folded", "pfb_channelizer_fft", "pfb_channelizer_fft_2x",
                  "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip",
                  "qpsk_receiver_ip"]
 
