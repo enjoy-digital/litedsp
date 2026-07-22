@@ -1163,6 +1163,33 @@ def time_untagger_model(i, q):
     """Reference for litedsp.stream.timestamp.LiteDSPTimeUntagger (identity on the payload)."""
     return np.asarray(i, np.int64), np.asarray(q, np.int64)
 
+# OFDM framing -------------------------------------------------------------------------------------
+
+def cp_insert_model(i, q, fft_size=64, cp_len=16):
+    """Insert each complete OFDM symbol's tail before its payload."""
+    out_i, out_q = [], []
+    for start in range(0, min(len(i), len(q)), fft_size):
+        frame_i = list(i[start:start + fft_size])
+        frame_q = list(q[start:start + fft_size])
+        if len(frame_i) != fft_size or len(frame_q) != fft_size:
+            break
+        out_i += frame_i[-cp_len:] + frame_i
+        out_q += frame_q[-cp_len:] + frame_q
+    return np.asarray(out_i, dtype=np.int64), np.asarray(out_q, dtype=np.int64)
+
+def cp_remove_model(i, q, fft_size=64, cp_len=16):
+    """Drop the prefix from each complete CP + OFDM-symbol frame."""
+    frame_size = fft_size + cp_len
+    out_i, out_q = [], []
+    for start in range(0, min(len(i), len(q)), frame_size):
+        frame_i = list(i[start:start + frame_size])
+        frame_q = list(q[start:start + frame_size])
+        if len(frame_i) != frame_size or len(frame_q) != frame_size:
+            break
+        out_i += frame_i[cp_len:]
+        out_q += frame_q[cp_len:]
+    return np.asarray(out_i, dtype=np.int64), np.asarray(out_q, dtype=np.int64)
+
 # Combine ------------------------------------------------------------------------------------------
 
 def combine_model(channels_i, channels_q, enable=None, out_width=16):

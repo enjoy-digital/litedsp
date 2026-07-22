@@ -549,6 +549,38 @@ def spec_ldpc_decoder():
 def spec_ldpc_decoder_z_parallel():
     return _spec_ldpc_decoder(z_parallel=True)
 
+def spec_cp_insert():
+    from litedsp.comm.ofdm import LiteDSPCPInsert
+    N, CP, n_frames = 16, 4, 4
+    n = N*n_frames
+    dut = LiteDSPCPInsert(fft_size=N, cp_len=CP, data_width=16, with_csr=False)
+    i, q = _rand_cols(2, n, lo=-12000, hi=12000, seed=74)
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    out_n = (N + CP)*n_frames
+    out_first = [int(k % (N + CP) == 0) for k in range(out_n)]
+    out_last  = [int(k % (N + CP) == N + CP - 1) for k in range(out_n)]
+    return dut, [i, q, first, last], out_n, lambda c: [
+        *models.cp_insert_model(c[0], c[1], fft_size=N, cp_len=CP), out_first, out_last], \
+        True, True
+
+def spec_cp_remove():
+    from litedsp.comm.ofdm import LiteDSPCPRemove
+    N, CP, n_frames = 16, 4, 4
+    payload_i, payload_q = _rand_cols(2, N*n_frames, lo=-12000, hi=12000, seed=75)
+    i, q = models.cp_insert_model(payload_i, payload_q, fft_size=N, cp_len=CP)
+    i, q = i.tolist(), q.tolist()
+    n = len(i)
+    dut = LiteDSPCPRemove(fft_size=N, cp_len=CP, data_width=16, with_csr=False)
+    first = [int(k % (N + CP) == 0) for k in range(n)]
+    last  = [int(k % (N + CP) == N + CP - 1) for k in range(n)]
+    out_n = N*n_frames
+    out_first = [int(k % N == 0) for k in range(out_n)]
+    out_last  = [int(k % N == N - 1) for k in range(out_n)]
+    return dut, [i, q, first, last], out_n, lambda c: [
+        *models.cp_remove_model(c[0], c[1], fft_size=N, cp_len=CP), out_first, out_last], \
+        True, True
+
 def spec_correlator():
     from litedsp.comm.correlator import LiteDSPCorrelator
     n, seq = 340, [1, 1, 1, -1, -1, 1, -1]                         # Barker-7 matched filter.
@@ -612,16 +644,17 @@ def spec_magnitude():
     return dut, cols, n - 4, lambda c: [models.magnitude_model(np.array(c[0]), np.array(c[1]))]
 
 def spec_window():
-    # Window *sinks* a plain stream (the frame counter is internal); it only *produces*
-    # first/last frame markers, which the generic TB ignores. Blocks that would need
-    # first/last driven on their sink (framed-stream input) are not in the cosim set yet;
-    # TODO: extend stream_tb.cpp with first/last columns when one lands.
+    # Capture the internally generated frame markers as well as the windowed payload. Together
+    # with the framed codec/OFDM specs this keeps both tag directions exercised in the generic TB.
     from litedsp.analysis.window import LiteDSPWindow, window_coefficients
     n, n_win = 192, 64
     dut    = LiteDSPWindow(n=n_win, data_width=16, window="hann", with_csr=False)
     coeffs = window_coefficients(n_win, "hann")
     cols   = _rand_cols(2, n)
-    return dut, cols, n - 4, lambda c: list(models.window_model(c[0], c[1], coeffs))
+    first  = [int(k % n_win == 0) for k in range(n)]
+    last   = [int(k % n_win == n_win - 1) for k in range(n)]
+    return dut, cols, n - 4, lambda c: [
+        *models.window_model(c[0], c[1], coeffs), first, last], False, True
 
 def spec_psd():
     # Framed *output* (first/last markers on the emitted spectrum) is fine for the generic TB:
@@ -772,6 +805,8 @@ SPECS = {
     "ldpc_encoder":      spec_ldpc_encoder,
     "ldpc_decoder":      spec_ldpc_decoder,
     "ldpc_decoder_z_parallel": spec_ldpc_decoder_z_parallel,
+    "cp_insert":          spec_cp_insert,
+    "cp_remove":          spec_cp_remove,
     "correlator":       spec_correlator,
     "frame_sync":       spec_frame_sync,
     "frame_sync_pipelined": spec_frame_sync_pipelined,

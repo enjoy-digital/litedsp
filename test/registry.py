@@ -117,8 +117,8 @@ VSPEC = {
     "ldpc_encoder":       _v("ldpc_encode_model", latency="variable", rate=None, cosim=True),  # k bits in -> n bits out (framed).
     "ldpc_decoder":       _v("ldpc_decode_model", latency="variable", rate=None, cosim=True),  # n LLRs in -> k bits out (framed).
     "ldpc_decoder_z_parallel": _v("ldpc_decode_model", latency="variable", rate=None, cosim=True),
-    "cp_insert":          _v(latency="variable", rate=None),
-    "cp_remove":          _v(rate=None),
+    "cp_insert":          _v("cp_insert_model", latency="variable", rate=None, cosim=True),
+    "cp_remove":          _v("cp_remove_model", rate=None, cosim=True),
     "ofdm_equalizer":     _v("ofdm_equalizer_model", rate=None),  # 1:1 steady-state; training frames consumed.
     # analysis.
     "window":             _v("window_model", cosim=True),
