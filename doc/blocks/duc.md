@@ -48,8 +48,8 @@ Phase increment (sets output frequency).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 763 | 374 | 2 | 6 | 91.0 | 100.0 |
-| xilinx | 381 | 142 | 1 | 6 | 102.4 | 100.0 |
-| xilinx_au | 373 | 142 | 1 | 6 | 216.9 | 100.0 |
+| ecp5 | 744 | 417 | 2 | 6 | 92.0 | 100.0 |
+| xilinx | 476 | 129 | 1 | 6 | 102.5 | 100.0 |
+| xilinx_au | 468 | 129 | 1 | 6 | 207.6 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

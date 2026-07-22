@@ -440,70 +440,70 @@
     "ecp5": {
       "bram": 6,
       "dsp": 24,
-      "ff": 1342,
-      "fmax_mhz": 112.7,
-      "fmax_min": 95.8,
+      "ff": 1530,
+      "fmax_mhz": 153.1,
+      "fmax_min": 130.2,
       "fmax_target": 100.0,
-      "lut": 3044,
+      "lut": 3112,
       "pnr": {
         "bram": 6,
         "dsp": 24,
-        "ff": 1342,
-        "fmax_mhz": 112.7,
-        "fmax_min": 95.8,
-        "lut": 3044
+        "ff": 1530,
+        "fmax_mhz": 153.1,
+        "fmax_min": 130.2,
+        "lut": 3112
       },
       "synth": {
         "bram": 6,
         "dsp": 24,
-        "ff": 1342,
-        "lut": 3044
+        "ff": 1530,
+        "lut": 3112
       }
     },
     "xilinx": {
       "bram": 2,
       "dsp": 24,
-      "ff": 419,
-      "fmax_mhz": 163.2,
-      "fmax_min": 138.7,
+      "ff": 684,
+      "fmax_mhz": 162.9,
+      "fmax_min": 138.5,
       "fmax_target": 100.0,
-      "lut": 1327,
+      "lut": 1811,
       "pnr": {
         "bram": 2,
         "dsp": 24,
-        "ff": 419,
-        "fmax_mhz": 163.2,
-        "fmax_min": 138.7,
-        "lut": 1327
+        "ff": 684,
+        "fmax_mhz": 162.9,
+        "fmax_min": 138.5,
+        "lut": 1811
       },
       "synth": {
         "bram": 2,
         "dsp": 24,
-        "ff": 419,
-        "lut": 1327
+        "ff": 683,
+        "lut": 1979
       }
     },
     "xilinx_au": {
       "bram": 2,
       "dsp": 24,
-      "ff": 420,
-      "fmax_mhz": 300.1,
-      "fmax_min": 255.1,
+      "ff": 684,
+      "fmax_mhz": 324.1,
+      "fmax_min": 275.5,
       "fmax_target": 100.0,
-      "lut": 1297,
+      "lut": 1778,
       "pnr": {
         "bram": 2,
         "dsp": 24,
-        "ff": 420,
-        "fmax_mhz": 300.1,
-        "fmax_min": 255.1,
-        "lut": 1297
+        "ff": 684,
+        "fmax_mhz": 324.1,
+        "fmax_min": 275.5,
+        "lut": 1778
       },
       "synth": {
         "bram": 2,
         "dsp": 24,
-        "ff": 420,
-        "lut": 1365
+        "ff": 684,
+        "lut": 1792
       }
     }
   },
@@ -1448,70 +1448,70 @@
     "ecp5": {
       "bram": 2,
       "dsp": 6,
-      "ff": 374,
-      "fmax_mhz": 107.1,
-      "fmax_min": 91.0,
+      "ff": 417,
+      "fmax_mhz": 108.2,
+      "fmax_min": 92.0,
       "fmax_target": 100.0,
-      "lut": 763,
+      "lut": 744,
       "pnr": {
         "bram": 2,
         "dsp": 6,
-        "ff": 374,
-        "fmax_mhz": 107.1,
-        "fmax_min": 91.0,
-        "lut": 763
+        "ff": 417,
+        "fmax_mhz": 108.2,
+        "fmax_min": 92.0,
+        "lut": 744
       },
       "synth": {
         "bram": 2,
         "dsp": 6,
-        "ff": 374,
-        "lut": 763
+        "ff": 417,
+        "lut": 744
       }
     },
     "xilinx": {
       "bram": 1,
       "dsp": 6,
-      "ff": 142,
-      "fmax_mhz": 120.5,
-      "fmax_min": 102.4,
+      "ff": 129,
+      "fmax_mhz": 120.6,
+      "fmax_min": 102.5,
       "fmax_target": 100.0,
-      "lut": 381,
+      "lut": 476,
       "pnr": {
         "bram": 1,
         "dsp": 6,
-        "ff": 142,
-        "fmax_mhz": 120.5,
-        "fmax_min": 102.4,
-        "lut": 381
+        "ff": 129,
+        "fmax_mhz": 120.6,
+        "fmax_min": 102.5,
+        "lut": 476
       },
       "synth": {
         "bram": 1,
         "dsp": 6,
-        "ff": 142,
-        "lut": 417
+        "ff": 129,
+        "lut": 514
       }
     },
     "xilinx_au": {
       "bram": 1,
       "dsp": 6,
-      "ff": 142,
-      "fmax_mhz": 255.2,
-      "fmax_min": 216.9,
+      "ff": 129,
+      "fmax_mhz": 244.2,
+      "fmax_min": 207.6,
       "fmax_target": 100.0,
-      "lut": 373,
+      "lut": 468,
       "pnr": {
         "bram": 1,
         "dsp": 6,
-        "ff": 142,
-        "fmax_mhz": 255.2,
-        "fmax_min": 216.9,
-        "lut": 373
+        "ff": 129,
+        "fmax_mhz": 244.2,
+        "fmax_min": 207.6,
+        "lut": 468
       },
       "synth": {
         "bram": 1,
         "dsp": 6,
-        "ff": 142,
-        "lut": 394
+        "ff": 129,
+        "lut": 490
       }
     }
   },

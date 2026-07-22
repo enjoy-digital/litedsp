@@ -22,6 +22,7 @@ correct, portable, and composed from tested blocks. ``self.sources[k]`` is sub-c
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `method` | `"fir"` | str | Core implementation selector. Choices: `cic`, `fir`. |
 | `phase_bits` | `32` | int | Phase accumulator width in bits. |
+| `fir_architecture` | `"classic"` | str | FIR decimator schedule used by every DDC when ``method="fir"``. ``"classic"`` is the compatibility default; ``"pipelined"`` adds one clock of latency/output interval and registers the asynchronous history/coefficient reads for timing margin. Choices: `classic`, `pipelined`. |
 
 ## Ports
 
@@ -39,9 +40,9 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 3044 | 1342 | 6 | 24 | 95.8 | 100.0 |
-| xilinx | 1327 | 419 | 2 | 24 | 138.7 | 100.0 |
-| xilinx_au | 1297 | 420 | 2 | 24 | 255.1 | 100.0 |
+| ecp5 | 3112 | 1530 | 6 | 24 | 130.2 | 100.0 |
+| xilinx | 1811 | 684 | 2 | 24 | 138.5 | 100.0 |
+| xilinx_au | 1778 | 684 | 2 | 24 | 275.5 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

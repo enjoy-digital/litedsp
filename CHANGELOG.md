@@ -104,6 +104,11 @@ Additional contracts introduced with the harmonization:
   drain stage. It adds one clock per output while remaining bit-exact; the FIR-based DDC rises
   from a 93.6 MHz to a 151.4 MHz three-route ECP5 median and closes 100 MHz on Artix-7 and
   Artix UltraScale+ as well.
+- Timing-oriented FIR interpolator schedule with registered RAM operands, product, and two drain
+  stages. It adds one clock per output over the product-only pipeline; three ECP5 routes keep the
+  FIR DUC above 100 MHz (103.7/108.2/108.5 MHz). The DDC-bank channelizer now exposes the same
+  `fir_architecture` selector; its pipelined implementation routes at 139.2/153.1/157.1 MHz on
+  ECP5 and is reverified on Artix-7 and Artix UltraScale+.
 - All public hardware classes carry the `LiteDSP` prefix (`LiteDSPNCO`, `LiteDSPFIRFilter`,
   ...), following the LiteX ecosystem naming convention.
 - Standardized interfaces: LiteX `stream.Endpoint` with full valid/ready backpressure, uniform

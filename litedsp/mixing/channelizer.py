@@ -29,9 +29,13 @@ class LiteDSPChannelizer(LiteXModule):
     n_channels : int
         Number of uniformly-spaced sub-channels; channel ``k`` is centered at ``k/n_channels``
         of the input sample rate. Resources scale linearly (one DDC per channel).
+    fir_architecture : str
+        FIR decimator schedule used by every DDC when ``method="fir"``. ``"classic"`` is the
+        compatibility default; ``"pipelined"`` adds one clock of latency/output interval and
+        registers the asynchronous history/coefficient reads for timing margin.
     """
     def __init__(self, n_channels=4, decimation=None, data_width=16, method="fir",
-        phase_bits=32, with_csr=True):
+        phase_bits=32, with_csr=True, fir_architecture="classic"):
         check(n_channels >= 1, "expected n_channels >= 1")
         check(decimation is None or decimation >= 1, "expected decimation >= 1")
         if decimation is None:
@@ -53,7 +57,7 @@ class LiteDSPChannelizer(LiteXModule):
         mask = (1 << phase_bits) - 1                          # Wrap the tuning word to phase_bits.
         for k in range(n_channels):
             ddc = LiteDSPDDC(data_width=data_width, decimation=decimation, method=method,
-                phase_bits=phase_bits, with_csr=False)
+                phase_bits=phase_bits, with_csr=False, fir_architecture=fir_architecture)
             # Center channel k at k/n_channels of the input sample rate (retunable at runtime).
             ddc.nco.phase_inc.reset = int(round(k/n_channels*(1 << phase_bits))) & mask
             self.add_module(name=f"ddc{k}", module=ddc)

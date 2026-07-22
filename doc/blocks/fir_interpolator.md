@@ -12,9 +12,10 @@ For each input it emits L outputs, output ``p`` computed from polyphase sub-filt
 ``c[p::L]`` over the recent inputs (``y[nL+p] = sum_k c[p+kL]·x[n-k]``), round + saturate.
 
 ``architecture="classic"`` performs the multiply and accumulator update in one clock.
-``architecture="pipelined"`` registers the product and drains the final product in one
-additional clock per output, shortening the memory/multiply/accumulate critical path while
-retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
+``architecture="pipelined"`` registers both the asynchronous RAM operands and the product,
+then drains those two stages in two additional clocks per output. This keeps the same
+two-multiplier serial-MAC area and bit-exact output sequence while separating address/read,
+multiply, and accumulator-feedback paths.
 
 ``prune_zeros=True`` builds a compact, phase-specific MAC schedule from the non-zero
 build-time taps. Every phase must retain at least one tap. This is intended for structurally

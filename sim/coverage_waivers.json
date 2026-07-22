@@ -31,7 +31,7 @@
     ]
   },
   "fir_interpolator_pipelined": {
-    "reason": "Migen expands the pipelined polyphase tap and phase selectors into structural case arms that Verilator does not credit even when every valid phase executes; both interpolator architectures and multiple geometries are checked by the same bit-exact randomized test.",
+    "reason": "Migen expands the pipelined polyphase tap/phase selectors and mutually exclusive operand/product drain states into structural case arms that Verilator does not credit even when every valid phase executes; both architectures, the one-tap boundary, multiple geometries, and randomized backpressure are checked by the same bit-exact test.",
     "semantic_checks": [
       "test.test_fir_poly:TestFIRInterpolator.test_bit_exact"
     ]

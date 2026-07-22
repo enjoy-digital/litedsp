@@ -276,7 +276,8 @@ def duc():
     return d, {d.nco.phase_inc} | _eps(d.sink, d.source), 10.0
 
 def channelizer():
-    d = LiteDSPChannelizer(n_channels=4, decimation=4, data_width=16, method="fir", with_csr=False)
+    d = LiteDSPChannelizer(n_channels=4, decimation=4, data_width=16, method="fir", with_csr=False,
+        fir_architecture="pipelined")
     return d, _eps(d.sink, *d.sources), 10.0
 
 def pfb_channelizer():

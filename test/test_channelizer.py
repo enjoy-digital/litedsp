@@ -16,11 +16,17 @@ from test.common import stream_driver, stream_capture, column
 
 class TestChannelizer(unittest.TestCase):
     def test_separates_channels(self):
+        for fir_architecture in ("classic", "pipelined"):
+            with self.subTest(fir_architecture=fir_architecture):
+                self._check_separates_channels(fir_architecture)
+
+    def _check_separates_channels(self, fir_architecture):
         M = 4
         n = M*160
         k0 = 2                                            # Tone in channel 2.
         x = 12000*np.exp(1j*2*np.pi*(k0/M)*np.arange(n))
-        dut = LiteDSPChannelizer(n_channels=M, decimation=M, data_width=16, method="fir", with_csr=False)
+        dut = LiteDSPChannelizer(n_channels=M, decimation=M, data_width=16, method="fir",
+            with_csr=False, fir_architecture=fir_architecture)
 
         samples = [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x]
         n_out = n//M - 20

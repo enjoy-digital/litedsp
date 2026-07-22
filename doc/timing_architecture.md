@@ -17,7 +17,8 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
 | FIR decimator / FIR DDC | 103.5 / 93.6 MHz classic median; 184.9 / 151.4 MHz pipelined median | asynchronous history/coefficient lookup, multiplier, then product register | operand-register option landed; DDC target-closed |
-| DUC FIR interpolator | 74.3 MHz classic; 107.1 MHz pipelined | asynchronous coefficient selection, multiply, and serial accumulator feedback | product-register option landed and target-closed |
+| DUC FIR interpolator | 74.3 MHz classic; 108.2 MHz operand-pipelined median (103.7 worst) | asynchronous history/coefficient lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
+| Four-DDC channelizer | 112.7 MHz classic baseline (96.9 route outlier); 153.1 MHz pipelined median (139.2 worst) | replicated DDC history/coefficient reads and bank-wide ready fanout | FIR operand pipeline selected by the implementation sentinel |
 | Resampler farm | 86.3 MHz classic; 152.8 MHz pipelined median | channel-banked distributed-RAM lookup, multiply, and serial accumulator feedback | operand/product pipeline landed and target-closed |
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
@@ -86,19 +87,37 @@ unpruned mathematical model.
 ## DUC FIR interpolator
 
 The FIR-based DUC uses two serial MACs, one per I/Q component, for each polyphase output. In the
-classic schedule an asynchronous coefficient lookup, multiplier, and accumulator update share a
-clock. The pipelined option replaces the phase/tap address expression with a sequential
-coefficient pointer, registers each product, and consumes the final product in a drain clock.
+classic schedule an asynchronous history/coefficient lookup, multiplier, and accumulator update
+share a clock. The first pipelined version registered only the product; a GitHub ECP5 route at
+97.6 MHz showed that its address/read-to-DSP path did not retain enough margin. The target-closed
+option now registers the sample and coefficient operands, multiplies them in the next stage, and
+drains the product and accumulator after the final tap.
 
-For the implementation configuration (L=8, 65 taps), `cycles_per_output` rises from 11 to 12 and
-nominal FIR latency from 65 to 66 clocks; the numerical output and output rate remain unchanged.
-ECP5 moves from 74.3 MHz, 643 LUT / 302 FF / 7 DSP to 107.1 MHz, 763 LUT / 374 FF / 6 DSP.
-Artix-7 reaches 120.5 MHz with 381 LUT / 142 FF / 1 BRAM / 6 DSP post-route, and Artix
-UltraScale+ reaches 255.2 MHz with 373 LUT / 142 FF / 1 BRAM / 6 DSP. The classic architecture
-remains the API default; the implementation registry selects the pipelined option.
+For the implementation configuration (L=8, 65 taps), `cycles_per_output` is now 13 rather than
+12 for the product-only pipeline or 11 for classic; nominal FIR latency is 67 rather than 66/65
+clocks. Thus the deeper cut costs one clock per high-rate output (8.3% more than product-only),
+while leaving output values, ordering, and backpressure behavior unchanged. Three ECP5 routes
+reach 103.7/108.2/108.5 MHz with 744 LUT / 417 FF / 2 BRAM / 6 DSP, versus 763 / 374 / 2 / 6
+for the product-only baseline. Three-strategy Artix-7 routes reach 120.0/120.6/120.6 MHz with
+476 / 129 / 1 / 6, and Artix UltraScale+ reaches 238.4/244.2/244.2 MHz with 468 / 129 / 1 / 6.
+The Artix-7 LUT increase from 381 to 476 and the ECP5 43-FF increase are the explicit cost of the
+more robust memory boundary. The classic architecture remains the API default; the implementation
+registry selects the pipelined option.
 
-Acceptance covers odd and even branch lengths, exact fixed-point output, randomized input/output
-stalls, the DUC image-rejection/upconversion test, and an independent Verilator co-simulation.
+The four-DDC channelizer exposes the same `fir_architecture` choice and passes it to every branch.
+Its implementation sentinel now selects the operand-pipelined decimator. At R=4/N=33, per-channel
+latency rises from 34 to 35 clocks and the complete output interval from 38 to 39 clocks. ECP5
+resources move from 3044 LUT / 1342 FF / 6 BRAM / 24 DSP to 3112 / 1530 / 6 / 24, while three
+routes reach 139.2/153.1/157.1 MHz. This removes the earlier 96.9 MHz route outlier and increases
+worst-route output capacity despite the extra schedule clock. Artix-7 reaches
+149.7/162.9/162.9 MHz at 1811 / 684 / 2 / 24 and Artix UltraScale+ reaches
+308.9/324.1/324.1 MHz at 1778 / 684 / 2 / 24. Compared with the classic Xilinx baselines, the
+robust shared implementation costs roughly 480 LUT and 264 FF for the four branches; users that
+prioritize area over ECP5 route margin retain the classic default.
+
+Acceptance covers one-tap, odd, and even branch lengths, exact fixed-point output, randomized
+input/output stalls, both channelizer architectures, the DUC image-rejection/upconversion test,
+independent Verilator co-simulation, and all three implementation profiles.
 
 ## FIR decimator and DDC
 

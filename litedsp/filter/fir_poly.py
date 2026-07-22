@@ -248,9 +248,10 @@ class LiteDSPFIRInterpolator(LiteXModule):
     ``c[p::L]`` over the recent inputs (``y[nL+p] = sum_k c[p+kL]·x[n-k]``), round + saturate.
 
     ``architecture="classic"`` performs the multiply and accumulator update in one clock.
-    ``architecture="pipelined"`` registers the product and drains the final product in one
-    additional clock per output, shortening the memory/multiply/accumulate critical path while
-    retaining the same two-multiplier serial-MAC area and bit-exact output sequence.
+    ``architecture="pipelined"`` registers both the asynchronous RAM operands and the product,
+    then drains those two stages in two additional clocks per output. This keeps the same
+    two-multiplier serial-MAC area and bit-exact output sequence while separating address/read,
+    multiply, and accumulator-feedback paths.
 
     ``prune_zeros=True`` builds a compact, phase-specific MAC schedule from the non-zero
     build-time taps. Every phase must retain at least one tap. This is intended for structurally
@@ -286,7 +287,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
         phase_counts = [len(taps) for taps in phase_taps]
         max_mac_taps = max(phase_counts)
         self.phase_mac_taps = tuple(phase_counts)
-        pipeline = int(architecture == "pipelined")
+        pipeline = 2*int(architecture == "pipelined")
         self.cycles_per_output = max_mac_taps + 1 + pipeline
         self.cycles_per_input = sum(phase_counts) + L*(1 + pipeline)
         self.latency = n_taps + pipeline
@@ -364,8 +365,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
             )
         )
         # MAC: one sub-filter tap per cycle (sub taps per output sample). The explicit
-        # pipelined option separates the memory/multiplier path from the accumulator recurrence;
-        # its final registered product is consumed in one drain cycle.
+        # pipelined option separates address/read, multiply, and accumulator feedback; its
+        # operand and product stages are consumed in two drain cycles.
         if architecture == "classic":
             fsm.act("MAC",
                 NextValue(acc_i, acc_i + ci*cc),
@@ -374,23 +375,44 @@ class LiteDSPFIRInterpolator(LiteXModule):
                 If(k == (phase_count[phase] - 1), NextState("EMIT")),
             )
         else:
+            operand_i = Signal((data_width, True))
+            operand_q = Signal((data_width, True))
+            operand_c = Signal((data_width, True))
             prod_i = Signal((2*data_width, True))
             prod_q = Signal((2*data_width, True))
+            operand_valid = Signal()
             prod_valid = Signal()
             fsm.act("MAC",
-                NextValue(prod_i, ci*cc),
-                NextValue(prod_q, cq*cc),
+                NextValue(operand_i, ci),
+                NextValue(operand_q, cq),
+                NextValue(operand_c, cc),
+                NextValue(prod_i, operand_i*operand_c),
+                NextValue(prod_q, operand_q*operand_c),
                 If(prod_valid,
                     NextValue(acc_i, acc_i + prod_i),
                     NextValue(acc_q, acc_q + prod_q),
                 ),
-                NextValue(prod_valid, 1),
+                NextValue(operand_valid, 1),
+                NextValue(prod_valid, operand_valid),
                 NextValue(k, k + 1),
-                If(k == (phase_count[phase] - 1), NextState("MAC_DRAIN")),
+                If(k == (phase_count[phase] - 1), NextState("MAC_DRAIN_PRODUCT")),
             )
-            fsm.act("MAC_DRAIN",
-                NextValue(acc_i, acc_i + prod_i),
-                NextValue(acc_q, acc_q + prod_q),
+            fsm.act("MAC_DRAIN_PRODUCT",
+                NextValue(prod_i, operand_i*operand_c),
+                NextValue(prod_q, operand_q*operand_c),
+                If(prod_valid,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
+                NextValue(operand_valid, 0),
+                NextValue(prod_valid, operand_valid),
+                NextState("MAC_DRAIN_ACC"),
+            )
+            fsm.act("MAC_DRAIN_ACC",
+                If(prod_valid,
+                    NextValue(acc_i, acc_i + prod_i),
+                    NextValue(acc_q, acc_q + prod_q),
+                ),
                 NextValue(prod_valid, 0),
                 NextState("EMIT"),
             )

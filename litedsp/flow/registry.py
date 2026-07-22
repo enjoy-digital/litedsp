@@ -120,7 +120,7 @@ ENTRIES = [
     ("mixer",              LiteDSPMixer,                 {},                                     "mixing",     "Mixer (complex)",       None),
     ("ddc",                LiteDSPDDC,                   {"decimation": 8},                      "mixing",     "DDC",                   _METHOD),
     ("duc",                LiteDSPDUC,                   {"interpolation": 8},                   "mixing",     "DUC",                   {"method": ["cic", "fir"], "fir_architecture": ["classic", "pipelined"]}),
-    ("channelizer",        LiteDSPChannelizer,           {"n_channels": 4, "decimation": 4},     "mixing",     "Channelizer",           _METHOD),
+    ("channelizer",        LiteDSPChannelizer,           {"n_channels": 4, "decimation": 4},     "mixing",     "Channelizer",           {"method": ["cic", "fir"], "fir_architecture": ["classic", "pipelined"]}),
     ("pfb_channelizer",    LiteDSPPFBChannelizer,        {"n_channels": 4, "taps_per_channel": 8, "architecture": "auto"}, "mixing", "PFB channelizer (scalable)", {"architecture": ["auto", "classic", "folded", "fft"]}),
     # filter ---------------------------------------------------------------------------------------
     ("fir_real",           LiteDSPFIRFilter,             {"n_taps": 32},                         "filter",     "FIR (real)",            {"architecture": ["classic", "pipelined"]}),

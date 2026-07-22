@@ -46,14 +46,15 @@ class TestFIRDecimator(unittest.TestCase):
 class TestFIRInterpolator(unittest.TestCase):
     def test_bit_exact(self):
         for architecture in ("classic", "pipelined"):
-            for n_taps, L in [(16, 4), (24, 8), (9, 3)]:
-                coeffs = firwin_lowpass(n_taps, 0.4/L, gain=L)  # gain L to offset zero-stuff loss.
+            for n_taps, L in [(16, 4), (24, 8), (9, 3), (1, 1)]:
+                coeffs = ([32767] if n_taps == 1 else
+                    firwin_lowpass(n_taps, 0.4/L, gain=L))  # Gain L offsets zero-stuff loss.
                 prng   = random.Random(n_taps + 1)
                 x_i    = [prng.randint(-8000, 8000) for _ in range(40)]
                 x_q    = [prng.randint(-8000, 8000) for _ in range(40)]
                 dut    = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=L, data_width=16,
                     coefficients=coeffs, with_csr=False, architecture=architecture)
-                pipeline = int(architecture == "pipelined")
+                pipeline = 2*int(architecture == "pipelined")
                 self.assertEqual(dut.cycles_per_output, (n_taps + L - 1)//L + 1 + pipeline)
                 self.assertEqual(dut.latency, n_taps + pipeline)
                 n_out  = len(x_i)*L
