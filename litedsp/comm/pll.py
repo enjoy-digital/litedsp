@@ -49,10 +49,11 @@ class LiteDSPCarrierLoop(LiteXModule):
         ``decision_directed``.
     architecture : str
         ``"classic"`` applies the current sample's detector error to the next accepted sample.
-        ``"pipelined"`` registers the NCO operands, mixer products and detector error, applying
-        each error four accepted samples later. The latter retains one sample/clock throughput
-        and is intended for high-clock-rate receiver chains; its additional loop delay changes
-        acquisition and jitter and is therefore explicit rather than a transparent retiming.
+        ``"pipelined"`` registers the NCO operands, mixer products, and rounded derotation before
+        the detector, applying each error four accepted samples later. The latter retains one
+        sample/clock throughput and is intended for high-clock-rate receiver chains; its additional
+        loop delay changes acquisition and jitter and is therefore explicit rather than a
+        transparent retiming.
     """
     def __init__(self, data_width=16, phase_bits=32, lut_depth=1024,
         kp_shift=6, ki_shift=14, decision_directed=False, detector=None,
@@ -166,22 +167,35 @@ class LiteDSPCarrierLoop(LiteXModule):
                 d_i_full.eq(s2_ic + s2_qs),
                 d_q_full.eq(s2_qc - s2_is),
             ]
-            d_i, _ = scaled(d_i_full, data_width - 1, data_width)
-            d_q, _ = scaled(d_q_full, data_width - 1, data_width)
+            mixed_i, _ = scaled(d_i_full, data_width - 1, data_width)
+            mixed_q, _ = scaled(d_q_full, data_width - 1, data_width)
+
+            # Stage 3: register the rounded/saturated derotation before the detector. Driving the
+            # source directly from this stage retains the existing three-clock output latency,
+            # while cutting the product-add/rescale path away from the decision/error reduction.
+            s3_valid = Signal()
+            s3_i, s3_q = Signal((data_width, True)), Signal((data_width, True))
+            s3_first, s3_last = Signal(), Signal()
             err = Signal((data_width + 2, True))
             if detector == "bpsk":
-                self.comb += err.eq(Mux(d_i >= 0, d_q, -d_q))
+                self.comb += err.eq(Mux(s3_i >= 0, s3_q, -s3_q))
             elif detector == "qpsk":
                 self.comb += err.eq(
-                    Mux(d_i >= 0, d_q, -d_q) - Mux(d_q >= 0, d_i, -d_i))
+                    Mux(s3_i >= 0, s3_q, -s3_q) - Mux(s3_q >= 0, s3_i, -s3_i))
             else:
-                self.comb += err.eq(d_q)
-            next_error = Signal((phase_bits + 2, True))
-            self.comb += next_error.eq(err << (phase_bits - data_width))
-
-            # Stage 3/output: register the scaled sample and its detector error.  ``completed``
-            # means that output/error pair leaves the globally stalled pipeline this cycle.
+                self.comb += err.eq(s3_q)
             completed_error = Signal((phase_bits + 2, True))
+            self.comb += [
+                completed_error.eq(err << (phase_bits - data_width)),
+                self.source.valid.eq(s3_valid),
+                self.source.i.eq(s3_i),
+                self.source.q.eq(s3_q),
+                self.source.first.eq(s3_first),
+                self.source.last.eq(s3_last),
+            ]
+
+            # ``completed`` means that the registered output/error pair leaves the globally
+            # stalled pipeline this cycle.
             completed = Signal()
             self.comb += completed.eq(adv & self.source.valid)
             self.sync += If(adv,
@@ -197,11 +211,10 @@ class LiteDSPCarrierLoop(LiteXModule):
                     s2_qc.eq(s1_q*s1_cos), s2_is.eq(s1_i*s1_sin),
                     s2_first.eq(s1_first), s2_last.eq(s1_last),
                 ),
-                self.source.valid.eq(s2_valid),
+                s3_valid.eq(s2_valid),
                 If(s2_valid,
-                    self.source.i.eq(d_i), self.source.q.eq(d_q),
-                    self.source.first.eq(s2_first), self.source.last.eq(s2_last),
-                    completed_error.eq(next_error),
+                    s3_i.eq(mixed_i), s3_q.eq(mixed_q),
+                    s3_first.eq(s2_first), s3_last.eq(s2_last),
                 ),
             )
 

@@ -92,10 +92,12 @@ target from an existing profile; its measured resource baseline and 85% timing f
 device-specific.
 
 The QPSK receiver sentinel selects an explicit four-sample delayed carrier-loop architecture.
-Registered NCO operands, mixer products, and detector error cut the former one-cycle
+Registered NCO operands, mixer products, and rounded derotation cut the former one-cycle
 NCO-LUT/multiply/detector/PI arc while an accepted-sample error queue preserves deterministic
-behavior through bubbles and backpressure. Three-route/strategy medians are 108.8 MHz on ECP5,
-128.1 MHz on Artix-7, and 234.2 MHz on Artix UltraScale+, so the complete generated receiver now
+behavior through bubbles and backpressure. The rounded-derotation boundary keeps the product
+reduction and decision detector on separate timing arcs. Three-route/strategy medians are
+109.0 MHz on ECP5, 129.7 MHz on Artix-7, and 245.9 MHz on Artix UltraScale+, so the complete
+generated receiver now
 carries the same strict 100 MHz objective on all three profiles. The one-sample classic loop
 remains the API default; latency, area, and acquisition measurements are published in
 [`timing_architecture.md`](timing_architecture.md).
@@ -152,7 +154,7 @@ remains the API default; latency, area, and acquisition measurements are publish
 - **Carrier recovery needs sample-domain delayed feedback, not clock-domain retiming.** The QPSK
   receiver's four-sample loop queues completed detector errors until the corresponding accepted
   sample distance has elapsed, so stalls cannot alter its trajectory. The complete generated core
-  rises from 41.7/65.8/126.4 MHz to 108.8/128.1/234.2 MHz on ECP5/Artix-7/Artix UltraScale+ while
+  rises from 41.7/65.8/126.4 MHz to 109.0/129.7/245.9 MHz on ECP5/Artix-7/Artix UltraScale+ while
   retaining one sample/clock throughput; output latency rises from one to three clocks.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the

@@ -4518,70 +4518,70 @@
     "ecp5": {
       "bram": 2,
       "dsp": 20,
-      "ff": 869,
-      "fmax_mhz": 108.8,
-      "fmax_min": 92.5,
+      "ff": 851,
+      "fmax_mhz": 109.0,
+      "fmax_min": 92.7,
       "fmax_target": 100.0,
-      "lut": 1689,
+      "lut": 1773,
       "pnr": {
         "bram": 2,
         "dsp": 20,
-        "ff": 869,
-        "fmax_mhz": 108.8,
-        "fmax_min": 92.5,
-        "lut": 1689
+        "ff": 851,
+        "fmax_mhz": 109.0,
+        "fmax_min": 92.7,
+        "lut": 1773
       },
       "synth": {
         "bram": 2,
         "dsp": 20,
-        "ff": 869,
-        "lut": 1689
+        "ff": 851,
+        "lut": 1773
       }
     },
     "xilinx": {
       "bram": 1,
       "dsp": 12,
-      "ff": 552,
-      "fmax_mhz": 128.1,
-      "fmax_min": 108.9,
+      "ff": 562,
+      "fmax_mhz": 129.7,
+      "fmax_min": 110.2,
       "fmax_target": 100.0,
-      "lut": 974,
+      "lut": 950,
       "pnr": {
         "bram": 1,
         "dsp": 12,
-        "ff": 552,
-        "fmax_mhz": 128.1,
-        "fmax_min": 108.9,
-        "lut": 974
+        "ff": 562,
+        "fmax_mhz": 129.7,
+        "fmax_min": 110.2,
+        "lut": 950
       },
       "synth": {
         "bram": 1,
         "dsp": 12,
-        "ff": 552,
-        "lut": 990
+        "ff": 562,
+        "lut": 964
       }
     },
     "xilinx_au": {
       "bram": 1,
       "dsp": 12,
-      "ff": 540,
-      "fmax_mhz": 234.2,
-      "fmax_min": 199.1,
+      "ff": 550,
+      "fmax_mhz": 245.9,
+      "fmax_min": 209.0,
       "fmax_target": 100.0,
-      "lut": 968,
+      "lut": 943,
       "pnr": {
         "bram": 1,
         "dsp": 12,
-        "ff": 540,
-        "fmax_mhz": 234.2,
-        "fmax_min": 199.1,
-        "lut": 968
+        "ff": 550,
+        "fmax_mhz": 245.9,
+        "fmax_min": 209.0,
+        "lut": 943
       },
       "synth": {
         "bram": 1,
         "dsp": 12,
-        "ff": 540,
-        "lut": 1006
+        "ff": 550,
+        "lut": 978
       }
     }
   },
