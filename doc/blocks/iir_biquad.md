@@ -23,7 +23,7 @@ bit-identical to classic mode. The bypass value is sampled with each folded inpu
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `frac_bits` | `14` | int | Fractional bits of the coefficient/control fixed-point format. |
-| `architecture` | `"classic"` | str | Choices: `classic`, `folded`. |
+| `architecture` | `"classic"` | str | Implementation architecture selector; timing variants publish latency/throughput trade-offs. Choices: `classic`, `folded`. |
 
 ## Ports
 

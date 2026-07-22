@@ -11,6 +11,7 @@ import numpy as np
 from litedsp.comm.pll import LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas, LiteDSPQPSKCostas
 
 from test.common import run_stream, column
+from test.models import carrier_loop_model
 
 # Loop bound derivation (kp_shift=4, ki_shift=12, phase_bits P=32, data_width D=16, amplitude A):
 # the detector output is ~A*sin(phase_error) counts, scaled by 2**(P-D) into phase-rate units, so
@@ -99,9 +100,55 @@ class TestQPSKCostas(unittest.TestCase):
         self.assertLess(lock_time(phe), 6*(1 << (13 - 5)))
         self.assertLess(np.sqrt(np.mean(phe[3*n//4:]**2)), 6e-3)
 
+    def test_pipelined_recovers_qpsk(self):
+        n = 12000
+        f = 0.004
+        rng = np.random.RandomState(2)
+        data = (2*rng.randint(0, 2, n) - 1) + 1j*(2*rng.randint(0, 2, n) - 1)
+        x = 7600*data*np.exp(1j*2*np.pi*f*np.arange(n))
+        dut = LiteDSPQPSKCostas(data_width=16, kp_shift=5, ki_shift=13,
+            architecture="pipelined", with_csr=False)
+        cap = run_stream(dut, [{"i": int(round(v.real)), "q": int(round(v.imag))} for v in x],
+            n, ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
+        yc = column(cap, "i", 16) + 1j*column(cap, "q", 16)
+        z = yc*np.conj(data[:len(yc)])
+        tail = z[3*n//4:]
+        self.assertGreater(np.abs(tail.mean()), 9000)
+        phe = np.angle(z*np.exp(-1j*np.angle(tail.mean())))
+        self.assertLess(lock_time(phe), 7*(1 << (13 - 5)))
+        self.assertLess(np.sqrt(np.mean(phe[3*n//4:]**2)), 7e-3)
+
+    def test_architectures_match_delayed_models_under_stalls(self):
+        n = 400
+        rng = np.random.RandomState(33)
+        i = rng.randint(-14000, 14001, n)
+        q = rng.randint(-14000, 14001, n)
+        samples = [{"i": int(xi), "q": int(xq), "first": int(k == 0),
+                    "last": int(k == n - 1)}
+                   for k, (xi, xq) in enumerate(zip(i, q))]
+        for architecture, latency, loop_delay in (("classic", 1, 1), ("pipelined", 3, 4)):
+            with self.subTest(architecture=architecture):
+                dut = LiteDSPCarrierLoop(data_width=16, detector="qpsk", kp_shift=6,
+                    ki_shift=14, architecture=architecture, with_csr=False)
+                cap = run_stream(dut, samples, n, ["i", "q", "first", "last"],
+                    ["i", "q", "first", "last"], sink_throttle=0.25,
+                    source_ready_rate=0.65, sink_seed=41, source_seed=43)
+                ref_i, ref_q = carrier_loop_model(i, q, detector="qpsk", kp_shift=6,
+                    ki_shift=14, loop_delay=loop_delay)
+                np.testing.assert_array_equal(column(cap, "i", 16), ref_i)
+                np.testing.assert_array_equal(column(cap, "q", 16), ref_q)
+                self.assertEqual([sample["first"] for sample in cap], [1] + [0]*(n - 1))
+                self.assertEqual([sample["last"] for sample in cap], [0]*(n - 1) + [1])
+                self.assertEqual(dut.latency, latency)
+                self.assertEqual(dut.loop_delay, loop_delay)
+
     def test_invalid_detector(self):
         with self.assertRaises(ValueError):
             LiteDSPCarrierLoop(detector="invalid", with_csr=False)
+
+    def test_invalid_architecture(self):
+        with self.assertRaises(ValueError):
+            LiteDSPCarrierLoop(architecture="invalid", with_csr=False)
 
 if __name__ == "__main__":
     unittest.main()

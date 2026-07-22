@@ -42,13 +42,15 @@ def nco_model(phase_inc, n, phase_bits=32, data_width=16, lut_depth=1024):
     return np.array(out_i), np.array(out_q)
 
 def carrier_loop_model(i, q, detector="pll", data_width=16, phase_bits=32,
-    lut_depth=1024, kp_shift=6, ki_shift=14):
+    lut_depth=1024, kp_shift=6, ki_shift=14, loop_delay=1):
     """Bit-exact reference for :class:`LiteDSPCarrierLoop`.
 
-    The NCO uses the phase at the start of each accepted sample.  The proportional phase
-    update and integral update therefore both see the old integral value, exactly as the
-    synchronous RTL does.  PI state and the phase accumulator wrap in two's complement;
-    only the complex derotation is rounded and saturated.
+    The NCO uses the phase at the start of each accepted sample. ``loop_delay`` is the number
+    of accepted samples from detecting an error until it changes the phase seen by a later
+    sample (one for classic, four for the timing-oriented pipeline). The proportional phase
+    update and integral update both see the old integral value, exactly as synchronous RTL does.
+    PI state and the phase accumulator wrap in two's complement; only complex derotation is
+    rounded and saturated.
     """
     if detector not in ("pll", "bpsk", "qpsk"):
         raise ValueError("detector must be 'pll', 'bpsk', or 'qpsk'")
@@ -59,6 +61,7 @@ def carrier_loop_model(i, q, detector="pll", data_width=16, phase_bits=32,
     loop_wrap    = _wrapper(loop_width)
     phase        = 0
     integral     = 0
+    pending      = []
     out_i, out_q = [], []
     for xn_i, xn_q in zip(i, q):
         addr = phase >> (phase_bits - addr_bits)
@@ -72,11 +75,14 @@ def carrier_loop_model(i, q, detector="pll", data_width=16, phase_bits=32,
         else:
             error = d_q
         error = loop_wrap(error << (phase_bits - data_width))
-        loop_out = loop_wrap(integral + (error >> kp_shift))
         out_i.append(d_i)
         out_q.append(d_q)
-        phase    = (phase + loop_out) & phase_mask
-        integral = loop_wrap(integral + (error >> ki_shift))
+        pending.append(error)
+        if len(pending) >= loop_delay:
+            update = pending.pop(0)
+            loop_out = loop_wrap(integral + (update >> kp_shift))
+            phase    = (phase + loop_out) & phase_mask
+            integral = loop_wrap(integral + (update >> ki_shift))
     return np.asarray(out_i, np.int64), np.asarray(out_q, np.int64)
 
 # Mixer --------------------------------------------------------------------------------------------

@@ -4516,72 +4516,72 @@
   },
   "qpsk_receiver_ip": {
     "ecp5": {
-      "bram": 0,
+      "bram": 2,
       "dsp": 20,
-      "ff": 612,
-      "fmax_mhz": 41.7,
-      "fmax_min": 35.4,
-      "fmax_target": 40.0,
-      "lut": 2476,
+      "ff": 869,
+      "fmax_mhz": 108.8,
+      "fmax_min": 92.5,
+      "fmax_target": 100.0,
+      "lut": 1689,
       "pnr": {
-        "bram": 0,
+        "bram": 2,
         "dsp": 20,
-        "ff": 612,
-        "fmax_mhz": 41.7,
-        "fmax_min": 35.4,
-        "lut": 2476
+        "ff": 869,
+        "fmax_mhz": 108.8,
+        "fmax_min": 92.5,
+        "lut": 1689
       },
       "synth": {
-        "bram": 0,
+        "bram": 2,
         "dsp": 20,
-        "ff": 612,
-        "lut": 2476
+        "ff": 869,
+        "lut": 1689
       }
     },
     "xilinx": {
       "bram": 1,
       "dsp": 12,
-      "ff": 455,
-      "fmax_mhz": 65.8,
-      "fmax_min": 56.0,
-      "fmax_target": 60.0,
-      "lut": 885,
+      "ff": 552,
+      "fmax_mhz": 128.1,
+      "fmax_min": 108.9,
+      "fmax_target": 100.0,
+      "lut": 974,
       "pnr": {
         "bram": 1,
         "dsp": 12,
-        "ff": 455,
-        "fmax_mhz": 65.8,
-        "fmax_min": 56.0,
-        "lut": 885
+        "ff": 552,
+        "fmax_mhz": 128.1,
+        "fmax_min": 108.9,
+        "lut": 974
       },
       "synth": {
         "bram": 1,
         "dsp": 12,
-        "ff": 455,
-        "lut": 892
+        "ff": 552,
+        "lut": 990
       }
     },
     "xilinx_au": {
       "bram": 1,
       "dsp": 12,
-      "ff": 443,
-      "fmax_mhz": 126.4,
-      "fmax_min": 107.4,
+      "ff": 540,
+      "fmax_mhz": 234.2,
+      "fmax_min": 199.1,
       "fmax_target": 100.0,
-      "lut": 874,
+      "lut": 968,
       "pnr": {
         "bram": 1,
         "dsp": 12,
-        "ff": 443,
-        "fmax_mhz": 126.4,
-        "fmax_min": 107.4,
-        "lut": 874
+        "ff": 540,
+        "fmax_mhz": 234.2,
+        "fmax_min": 199.1,
+        "lut": 968
       },
       "synth": {
         "bram": 1,
         "dsp": 12,
-        "ff": 443,
-        "lut": 911
+        "ff": 540,
+        "lut": 1006
       }
     }
   },

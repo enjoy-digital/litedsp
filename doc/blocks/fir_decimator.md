@@ -29,7 +29,7 @@ remain writable.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
-| `architecture` | `"classic"` | str |  |
+| `architecture` | `"classic"` | str | Implementation architecture selector; timing variants publish latency/throughput trade-offs. |
 | `prune_zeros` | `False` | bool |  |
 
 ## Ports

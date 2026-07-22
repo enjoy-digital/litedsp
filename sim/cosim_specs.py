@@ -73,15 +73,16 @@ def spec_mixer():
         lambda c: list(models.mixer_model(c[0], c[1], c[2], c[3])), \
         False, False, (dut.mode, dut.bypass)
 
-def _spec_carrier_loop(detector):
+def _spec_carrier_loop(detector, architecture="classic"):
     from litedsp.comm.pll import LiteDSPCarrierLoop
     n = 280
     dut = LiteDSPCarrierLoop(data_width=16, detector=detector, kp_shift=6, ki_shift=14,
-        with_csr=False)
+        architecture=architecture, with_csr=False)
     cols = _rand_cols(2, n, lo=-14000, hi=14000,
         seed={"pll": 101, "bpsk": 103, "qpsk": 107}[detector])
     return dut, cols, n - 4, lambda c: list(models.carrier_loop_model(
-        c[0], c[1], detector=detector, kp_shift=6, ki_shift=14))
+        c[0], c[1], detector=detector, kp_shift=6, ki_shift=14,
+        loop_delay=dut.loop_delay))
 
 def spec_carrier_loop():
     return _spec_carrier_loop("pll")
@@ -91,6 +92,9 @@ def spec_carrier_loop_bpsk():
 
 def spec_carrier_loop_qpsk():
     return _spec_carrier_loop("qpsk")
+
+def spec_carrier_loop_qpsk_pipelined():
+    return _spec_carrier_loop("qpsk", architecture="pipelined")
 
 # Filter -------------------------------------------------------------------------------------------
 
@@ -828,6 +832,7 @@ SPECS = {
     "carrier_loop":     spec_carrier_loop,
     "carrier_loop_bpsk": spec_carrier_loop_bpsk,
     "carrier_loop_qpsk": spec_carrier_loop_qpsk,
+    "carrier_loop_qpsk_pipelined": spec_carrier_loop_qpsk_pipelined,
     "fir_real":         spec_fir_real,
     "fir_complex":      spec_fir_complex,
     "fir_complex_pipelined": spec_fir_complex_pipelined,
@@ -923,6 +928,7 @@ def check_coverage():
         "pfb_channelizer_fft_2x":    "pfb_channelizer",
         "carrier_loop_bpsk":         "carrier_loop",
         "carrier_loop_qpsk":         "carrier_loop",
+        "carrier_loop_qpsk_pipelined": "carrier_loop",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

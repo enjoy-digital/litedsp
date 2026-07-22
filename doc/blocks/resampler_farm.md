@@ -56,7 +56,7 @@ engine and bit-exact output sequence while separating all three timing paths.
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `channel_coefficients` | — | none | Optional ``n_channels`` by ``n_taps`` build-time coefficient banks. When present, ``coeff_channel`` selects the bank written by the reload interface; the active MAC channel selects the read bank. ``None`` retains the smaller shared-tap ROM. |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
-| `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
+| `architecture` | `"classic"` | str | Implementation architecture selector; timing variants publish latency/throughput trade-offs. Choices: `classic`, `pipelined`. |
 
 ## Ports
 

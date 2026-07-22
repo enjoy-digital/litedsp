@@ -91,12 +91,14 @@ When a new device profile is first characterized, it inherits the module's revie
 target from an existing profile; its measured resource baseline and 85% timing floor remain fully
 device-specific.
 
-The QPSK receiver sentinel deliberately carries family-specific targets because its unpipelined
-decision-directed carrier loop closes the NCO-LUT/multiply/detector/PI feedback arc in one cycle:
-40 MHz on ECP5, 60 MHz on Artix-7, and 100 MHz on Artix UltraScale+. The measured routes are
-41.7/65.8/126.4 MHz respectively. A faster variant therefore requires an explicit delayed-loop
-architecture and corresponding acquisition/jitter trade study rather than a relaxed regression
-floor.
+The QPSK receiver sentinel selects an explicit four-sample delayed carrier-loop architecture.
+Registered NCO operands, mixer products, and detector error cut the former one-cycle
+NCO-LUT/multiply/detector/PI arc while an accepted-sample error queue preserves deterministic
+behavior through bubbles and backpressure. Three-route/strategy medians are 108.8 MHz on ECP5,
+128.1 MHz on Artix-7, and 234.2 MHz on Artix UltraScale+, so the complete generated receiver now
+carries the same strict 100 MHz objective on all three profiles. The one-sample classic loop
+remains the API default; latency, area, and acquisition measurements are published in
+[`timing_architecture.md`](timing_architecture.md).
 
 ## Findings (what implementation testing caught)
 
@@ -147,6 +149,11 @@ floor.
   splitting Chien reductions, and staging the shared inverse/Forney result raises the RS(255,223)
   decoder from 86.5 MHz to a 124.3 MHz ECP5 three-route median. Worst-case decoding grows from
   2249 to 3126 clocks; the correction algorithm and output/status behavior remain bit-exact.
+- **Carrier recovery needs sample-domain delayed feedback, not clock-domain retiming.** The QPSK
+  receiver's four-sample loop queues completed detector errors until the corresponding accepted
+  sample distance has elapsed, so stalls cannot alter its trajectory. The complete generated core
+  rises from 41.7/65.8/126.4 MHz to 108.8/128.1/234.2 MHz on ECP5/Artix-7/Artix UltraScale+ while
+  retaining one sample/clock throughput; output latency rises from one to three clocks.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,
@@ -182,7 +189,7 @@ The Artix UltraScale+ profile has a complete baseline on `xcau20p-ffvb676-2-e`: 
 configurations pass out-of-context synthesis; 38 bounded representative configurations form the
 regular P&R subset, two route-sensitive configurations form the stability set, and two wide
 capacity/timing configurations form the stress set (native P=4 belongs to both latter views).
-All 41 distinct configurations pass place-and-route. The 29 reviewed
+All 41 distinct configurations pass place-and-route. The 30 reviewed
 timing architectures close their 100 MHz targets on this
 profile. The complete generated `ddc_ip` sentinel also routes on every family; its raw results
 are 107.6 MHz on ECP5, 121.2 MHz on Artix-7, and 274.7 MHz on Artix UltraScale+. It is now part

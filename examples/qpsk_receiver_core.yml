@@ -20,7 +20,7 @@ flow:
   inputs     : [{id: samples_in, layout: iq}]
   outputs    : [{id: symbols_out, layout: iq_symbol}]
   blocks:
-    - {id: carrier, type: carrier_loop,    params: {detector: qpsk, kp_shift: 5, ki_shift: 13}}
+    - {id: carrier, type: carrier_loop,    params: {detector: qpsk, architecture: pipelined, kp_shift: 5, ki_shift: 13}}
     - {id: timing,  type: timing_recovery, params: {sps: 2, ted: mm}}
     - {id: decide,  type: slicer,          params: {bits_per_axis: 1, spacing: 8192}}
   connections:

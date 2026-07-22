@@ -26,6 +26,7 @@ multiplier-free decision-directed QPSK detector with four stable phase ambiguiti
 | `ki_shift` | `14` | int | Integral (frequency) gain of the PI loop: Ki = 2**-ki_shift per sample. Larger shift = smaller gain (slower frequency acquisition, less jitter). |
 | `decision_directed` | `False` | bool | Backward-compatible BPSK selector. When ``detector`` is omitted, False selects PLL and True selects BPSK Costas behavior. |
 | `detector` | `"pll"` | str | ``"pll"`` for a residual carrier, ``"bpsk"`` for suppressed-carrier BPSK, or ``"qpsk"`` for decision-directed QPSK. Explicit ``detector`` takes precedence over ``decision_directed``. Choices: `pll`, `bpsk`, `qpsk`. |
+| `architecture` | `"classic"` | str | ``"classic"`` applies the current sample's detector error to the next accepted sample. ``"pipelined"`` registers the NCO operands, mixer products and detector error, applying each error four accepted samples later. The latter retains one sample/clock throughput and is intended for high-clock-rate receiver chains; its additional loop delay changes acquisition and jitter and is therefore explicit rather than a transparent retiming. Choices: `classic`, `pipelined`. |
 
 ## Ports
 

@@ -103,6 +103,7 @@ PARAM_GLOSSARY = {
     "registered_butterfly": "Register iterative-FFT add/subtract results before BRAM writeback.",
     "decision_memory": "Store Viterbi survivor decisions in RAM and use folded synchronous traceback.",
     "normalize_interval": "Accepted Viterbi symbols between path-metric normalization cycles.",
+    "architecture":  "Implementation architecture selector; timing variants publish latency/throughput trade-offs.",
     "frac_bits":     "Fractional bits of the coefficient/control fixed-point format.",
     "frac":          "Fractional bits of the control fixed-point format.",
     "phase_bits":    "Phase accumulator width in bits.",

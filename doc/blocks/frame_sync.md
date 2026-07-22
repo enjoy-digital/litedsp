@@ -57,7 +57,7 @@ selection, or tags.
 | `frame_len` | — | none | Frame length in samples; when given, ``source.last`` is asserted ``frame_len`` samples after (and including) the ``first`` sample. ``None`` tags ``first`` only. |
 | `peak_window` | `4` | int | Local-maximum search window after a threshold crossing, in samples. Also sets the output look-ahead delay (classic ``latency = correlator latency + peak_window + 2``). |
 | `with_irq` | `False` | bool | Add a LiteX EventManager interrupt on the block's trigger event. |
-| `architecture` | `"classic"` | str | Choices: `classic`, `pipelined`. |
+| `architecture` | `"classic"` | str | Implementation architecture selector; timing variants publish latency/throughput trade-offs. Choices: `classic`, `pipelined`. |
 
 ## Ports
 

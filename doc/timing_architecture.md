@@ -23,6 +23,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
 | LMS equalizer (7 taps) | 69.1 MHz classic; 114.0 MHz all-mode pipelined median | FIR rescale, CMA modulus/gradient, and saturated weight recurrence | nine-sample delayed-update option landed and target-closed |
+| QPSK receiver IP | 41.7 MHz classic; 108.8 MHz four-sample loop median | NCO LUT, four mixer products, decision detector, PI update, and phase recurrence | accepted-sample delayed loop landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 122.8/107.7 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule; vector cascade also propagates ready | folded, interleaved, iterative, and native P2/P4 target-closed |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -230,6 +231,45 @@ guards full-width modulus/gradient products against generated-Verilog context tr
 
 The eight-sample pipelined loop without the recurrence cut and the one-sample classic loop remain
 API-compatible choices. The implementation registry selects the nine-sample target-closed option.
+
+## QPSK carrier recovery
+
+The classic carrier loop derives its NCO phase, reads both trigonometric tables, performs four
+real products and two sums, evaluates the decision-directed detector, and feeds the PI/phase
+recurrence in one accepted-sample interval. That exact one-sample recurrence limits the complete
+generated QPSK receiver to 41.7 MHz on ECP5 and 65.8 MHz on Artix-7; inserting an unnamed register
+would silently change its control dynamics.
+
+`architecture="pipelined"` is therefore an explicit four-sample loop. It registers the NCO
+operands, registers all mixer products, and registers the scaled output and detector error. A
+four-entry observation queue applies error *n* only after three newer input samples have been
+accepted, so the updated phase is first seen by sample *n+4*. Completed errors may enter the queue
+during an input bubble, but the accepted-sample counter does not advance; output backpressure
+freezes all datapath stages. Consequently arbitrary stream stalls do not shorten or lengthen the
+sample-domain feedback distance.
+
+The complete AXI-Stream/AXI-Lite QPSK receiver, including timing recovery and hard slicer, measures:
+
+| Architecture/profile | LUT | FF | BRAM | DSP | Raw P&R fmax |
+|---|---:|---:|---:|---:|---:|
+| Pipelined, ECP5-85 (three-route median) | 1689 | 869 | 2 | 20 | 108.8 MHz |
+| Pipelined, Artix-7 `xc7a200t-3` (three-strategy median) | 974 | 552 | 1 | 12 | 128.1 MHz |
+| Pipelined, Artix UltraScale+ `xcau20p-2` (three-strategy median) | 968 | 540 | 1 | 12 | 234.2 MHz |
+
+Relative to the classic complete core, ECP5 moves from 2476 LUT / 612 FF / 0 BRAM / 20 DSP to
+1689 / 869 / 2 / 20; the registered NCO boundary lets both tables infer as BRAM. Artix-7 moves
+from 885 LUT / 455 FF / 1 BRAM / 12 DSP to 974 / 552 / 1 / 12. Output latency rises from one to
+three clocks, loop delay rises from one to four accepted samples, and peak throughput remains one
+sample per clock. On the deterministic QPSK acquisition stimulus used by the regression, classic
+and pipelined loops lock in 609 and 608 samples respectively and settle at 1.769 and 1.769 mrad RMS
+phase error; these measurements validate the selected gains but do not imply identical dynamics
+for every channel condition.
+
+The classic architecture remains the API default. The generated receiver sentinel selects the
+pipelined option and carries a strict 100 MHz target on all three reference devices. Acceptance
+covers bit-exact delayed-loop modeling, QPSK lock/jitter bounds, `first`/`last` propagation,
+randomized valid/ready stalls, independent Verilator co-simulation, and three-route/strategy
+physical implementation sweeps.
 
 ## AGC
 

@@ -175,7 +175,7 @@ ENTRIES = [
     ("correlator",         LiteDSPCorrelator,            {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Correlator",            None),
     ("frame_sync",         LiteDSPFrameSync,             {"sequence": [1, 1, 1, -1, -1, 1, -1]}, "comm",       "Frame sync (preamble)", {"architecture": ["classic", "pipelined"]}),
     ("timing_recovery",    LiteDSPTimingRecovery,        {},                                     "comm",       "Timing recovery (M&M)", None),
-    ("carrier_loop",       LiteDSPCarrierLoop,           {"detector": "pll"},                    "comm",       "Carrier loop (PLL)",    {"detector": ["pll", "bpsk", "qpsk"]}),
+    ("carrier_loop",       LiteDSPCarrierLoop,           {"detector": "pll"},                    "comm",       "Carrier loop (PLL)",    {"detector": ["pll", "bpsk", "qpsk"], "architecture": ["classic", "pipelined"]}),
     ("phase_detect",       LiteDSPPhaseDetect,           {},                                     "comm",       "Phase detector",        None),
     ("cfo_estimator",      LiteDSPCFOEstimator,          {},                                     "comm",       "CFO estimator (coarse)", None),
     ("diff_encoder",       LiteDSPDifferentialEncoder,   {},                                     "comm",       "Differential encoder",  None),

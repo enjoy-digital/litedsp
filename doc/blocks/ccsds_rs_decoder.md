@@ -15,7 +15,7 @@ the same classic or timing-oriented pipelined schedule as ``LiteDSPRSDecoder``.
 
 | Parameter | Default | Type | Description |
 |---|---|---|---|
-| `architecture` | `"pipelined"` | str | Choices: `classic`, `pipelined`. |
+| `architecture` | `"pipelined"` | str | Implementation architecture selector; timing variants publish latency/throughput trade-offs. Choices: `classic`, `pipelined`. |
 
 ## Ports
 
