@@ -6,7 +6,7 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""AIS 9600-baud GMSK discriminator and NRZI receive chain (AN007)."""
+"""AIS GMSK/NRZI receiver with HDLC flags, bit unstuffing, and FCS (AN007)."""
 
 import argparse
 import os
@@ -22,6 +22,7 @@ from test.common import column, run_stream
 SPS = 4
 BT = 0.4
 PREAMBLE = np.tile([0, 1], 12).astype(np.int8)
+FLAG = np.array([(0x7e >> n) & 1 for n in range(8)], dtype=np.int8)  # LSB first.
 
 
 def crc16_x25(bits):
@@ -37,6 +38,64 @@ def crc16_x25(bits):
 def fcs_bits(bits):
     value = crc16_x25(bits)
     return np.array([(value >> n) & 1 for n in range(16)], dtype=np.int8)
+
+
+def bit_stuff(bits):
+    """Insert a zero after every run of five ones in an HDLC frame body."""
+    out, ones = [], 0
+    for bit in np.asarray(bits, dtype=np.int8):
+        out.append(int(bit))
+        if bit:
+            ones += 1
+            if ones == 5:
+                out.append(0)
+                ones = 0
+        else:
+            ones = 0
+    return np.asarray(out, dtype=np.int8)
+
+
+def bit_unstuff(bits):
+    """Remove HDLC stuffed zeros; reject a missing zero after a five-one run."""
+    out, ones, n = [], 0, 0
+    bits = np.asarray(bits, dtype=np.int8)
+    while n < len(bits):
+        bit = int(bits[n])
+        out.append(bit)
+        n += 1
+        if bit:
+            ones += 1
+            if ones == 5:
+                if n >= len(bits) or bits[n] != 0:
+                    raise ValueError("invalid HDLC bit stuffing")
+                n += 1
+                ones = 0
+        else:
+            ones = 0
+    return np.asarray(out, dtype=np.int8)
+
+
+def hdlc_encode(payload):
+    body = np.r_[payload, fcs_bits(payload)]
+    return np.r_[FLAG, bit_stuff(body), FLAG]
+
+
+def hdlc_decode(bits):
+    """Extract the first flag-delimited frame and return payload, FCS status, and flag offsets."""
+    bits = np.asarray(bits, dtype=np.int8)
+    flags = [n for n in range(len(bits) - len(FLAG) + 1)
+             if np.array_equal(bits[n:n + len(FLAG)], FLAG)]
+    if len(flags) < 2:
+        raise ValueError("HDLC start/end flags not found")
+    start = flags[0]
+    stop = next((n for n in flags[1:] if n >= start + 2*len(FLAG)), None)
+    if stop is None:
+        raise ValueError("HDLC end flag not found")
+    body = bit_unstuff(bits[start + len(FLAG):stop])
+    if len(body) < 16:
+        raise ValueError("HDLC body is shorter than its FCS")
+    payload, got_fcs = body[:-16], body[-16:]
+    return payload, np.array_equal(got_fcs, fcs_bits(payload)), (start, stop)
 
 
 def nrzi_encode(bits, initial=1):
@@ -110,7 +169,8 @@ def main():
     args = parser.parse_args()
     rng = np.random.default_rng(7)
     payload = rng.integers(0, 2, 96, dtype=np.int8)
-    frame = np.r_[PREAMBLE, payload, fcs_bits(payload)]
+    hdlc = hdlc_encode(payload)
+    frame = np.r_[PREAMBLE, hdlc]
     prefix = np.ones(12, dtype=np.int8)
     tx_bits = np.r_[prefix, frame, np.ones(8, dtype=np.int8)]
     i, q = gmsk_modulate(tx_bits)
@@ -118,19 +178,23 @@ def main():
     # Find the alternating training sequence in the recovered bit stream.
     scores = np.correlate(2*decoded - 1, 2*PREAMBLE - 1, mode="valid")
     start = int(np.argmax(scores))
-    got = decoded[start + len(PREAMBLE):start + len(frame)]
-    errors = int(np.count_nonzero(got != frame[len(PREAMBLE):]))
-    got_payload = got[:len(payload)]
-    got_fcs = got[len(payload):]
-    crc_ok = np.array_equal(got_fcs, fcs_bits(got_payload))
+    got_payload, crc_ok, flags = hdlc_decode(decoded[start + len(PREAMBLE):])
+    errors = int(np.count_nonzero(got_payload != payload))
+    stuffed = len(hdlc) - 2*len(FLAG) - len(payload) - 16
     eye = float(np.min(np.abs(metrics[start:start + len(frame)])))
-    print(f"AIS receiver (AN007): preamble symbol {start}, {errors} bit errors, "
-          f"CRC {'OK' if crc_ok else 'FAIL'}, minimum eye {eye:.0f}")
+    print(f"AIS receiver (AN007): preamble symbol {start}, flags {flags[0]}/{flags[1]}, "
+          f"{stuffed} stuffed bits, {errors} payload bit errors, "
+          f"FCS {'OK' if crc_ok else 'FAIL'}, minimum eye {eye:.0f}")
     assert start == len(prefix)
     assert errors == 0 and crc_ok
+    assert flags == (0, len(hdlc) - len(FLAG)) and stuffed > 0
+    corrupted = payload.copy()
+    corrupted[37] ^= 1
+    bad = np.r_[FLAG, bit_stuff(np.r_[corrupted, fcs_bits(payload)]), FLAG]
+    assert not hdlc_decode(bad)[1]
     assert eye > 1000
     save_plot(args.plot_dir, metrics, start)
-    print("PASS: RTL FM discriminator recovered the noisy AIS GMSK/NRZI frame and FCS")
+    print("PASS: RTL discriminator recovered and HDLC-deframed the complete AIS packet")
 
 
 if __name__ == "__main__":
