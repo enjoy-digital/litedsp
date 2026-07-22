@@ -70,6 +70,7 @@ The IP core exposes a `s_axil_*` AXI-Lite slave for configuration and, per top-l
 an AXI-Stream port (`<id>_valid`=tvalid, `<id>_ready`=tready, `<id>_last`=tlast,
 `<id>_payload_i`/`_q`=tdata). The register map gives each block its own bank, e.g. `lo_phase_inc`,
 `lpf_coeffs_coeff_0…` — write them over AXI-Lite at the addresses in `csr.csv`.
+Top-level layout `iq_symbol` adds `<id>_payload_symbol[1:0]` for a QPSK slicer's hard decision.
 
 ## Status / roadmap
 

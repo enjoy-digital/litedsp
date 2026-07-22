@@ -96,5 +96,20 @@ class TestGen(unittest.TestCase):
             self.assertEqual(os.path.basename(path), "ddc_core.v")
             self.assertEqual(ip.chain.flow_warnings, [])   # delay block aligns the mixer inputs.
 
+    def test_generate_qpsk_receiver_example_config(self):
+        example = os.path.join(os.path.dirname(__file__), "..", "examples",
+            "qpsk_receiver_core.yml")
+        with tempfile.TemporaryDirectory() as tmp:
+            path, ip = generate_core(example, output_dir=tmp)
+            self.assertEqual(os.path.basename(path), "qpsk_receiver_core.v")
+            self.assertEqual([b.type for b in ip.netlist.blocks],
+                ["carrier_loop", "timing_recovery", "slicer"])
+            with open(path) as f:
+                self.assertIn("symbols_out_payload_symbol", f.read())
+            with open(os.path.join(tmp, "csr.json")) as f:
+                registers = json.load(f)["csr_registers"]
+            self.assertIn("carrier_frequency", registers)
+            self.assertIn("timing_omega", registers)
+
 if __name__ == "__main__":
     unittest.main()

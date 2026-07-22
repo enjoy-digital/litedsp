@@ -4435,6 +4435,77 @@
       }
     }
   },
+  "qpsk_receiver_ip": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 20,
+      "ff": 612,
+      "fmax_mhz": 41.7,
+      "fmax_min": 35.4,
+      "fmax_target": 40.0,
+      "lut": 2476,
+      "pnr": {
+        "bram": 0,
+        "dsp": 20,
+        "ff": 612,
+        "fmax_mhz": 41.7,
+        "fmax_min": 35.4,
+        "lut": 2476
+      },
+      "synth": {
+        "bram": 0,
+        "dsp": 20,
+        "ff": 612,
+        "lut": 2476
+      }
+    },
+    "xilinx": {
+      "bram": 1,
+      "dsp": 12,
+      "ff": 455,
+      "fmax_mhz": 65.8,
+      "fmax_min": 56.0,
+      "fmax_target": 60.0,
+      "lut": 885,
+      "pnr": {
+        "bram": 1,
+        "dsp": 12,
+        "ff": 455,
+        "fmax_mhz": 65.8,
+        "fmax_min": 56.0,
+        "lut": 885
+      },
+      "synth": {
+        "bram": 1,
+        "dsp": 12,
+        "ff": 455,
+        "lut": 892
+      }
+    },
+    "xilinx_au": {
+      "bram": 1,
+      "dsp": 12,
+      "ff": 443,
+      "fmax_mhz": 126.4,
+      "fmax_min": 107.4,
+      "fmax_target": 100.0,
+      "lut": 874,
+      "pnr": {
+        "bram": 1,
+        "dsp": 12,
+        "ff": 443,
+        "fmax_mhz": 126.4,
+        "fmax_min": 107.4,
+        "lut": 874
+      },
+      "synth": {
+        "bram": 1,
+        "dsp": 12,
+        "ff": 443,
+        "lut": 911
+      }
+    }
+  },
   "resampler_farm": {
     "ecp5": {
       "bram": 2,

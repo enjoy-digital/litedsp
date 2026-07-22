@@ -493,6 +493,15 @@ def ddc_ip():
     d = LiteDSPFlowIPCore(nl, **core_config)
     return d, d.io_signals(), nl.clock_ns
 
+def qpsk_receiver_ip():
+    """Complete generated QPSK receiver IP with AXI-Stream and AXI-Lite interfaces."""
+    config = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "examples", "qpsk_receiver_core.yml")
+    nl, core_config = parse_config(config)
+    core_config.pop("name", None)
+    d = LiteDSPFlowIPCore(nl, **core_config)
+    return d, d.io_signals(), nl.clock_ns
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -511,7 +520,7 @@ REGISTRY = {
     "fft_interleaved_x2": fft_interleaved_x2, "fft_iter": fft_iter, "psd": psd,
     "goertzel": goertzel, "goertzel_folded": goertzel_folded,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
-    "ddc_ip": ddc_ip,
+    "ddc_ip": ddc_ip, "qpsk_receiver_ip": qpsk_receiver_ip,
     "pfb_channelizer": pfb_channelizer, "pfb_channelizer_folded": pfb_channelizer_folded,
     "pfb_channelizer_fft": pfb_channelizer_fft,
     "lms_equalizer": lms_equalizer, "lms_equalizer_pipelined": lms_equalizer_pipelined,
@@ -550,7 +559,8 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "fft_parallel_native_x2",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
               "pfb_channelizer_fft",
-              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip"]
+              "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip",
+              "qpsk_receiver_ip"]
 
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives these wide
 # configurations an independent runner and a longer timeout so they cannot starve the sentinels.
@@ -571,7 +581,8 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "fft_parallel_native_x4",
                  "goertzel_folded", "iir_biquad_folded",
                  "pfb_channelizer_folded", "pfb_channelizer_fft",
-                 "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip"]
+                 "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip",
+                 "qpsk_receiver_ip"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

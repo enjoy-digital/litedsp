@@ -98,6 +98,21 @@ class TestImplementationBudgets(unittest.TestCase):
         self.assertIn(dut.chain.inputs["rx_in"].payload.i, ios)
         self.assertIn(dut.chain.outputs["bb_out"].payload.q, ios)
 
+    def test_complete_qpsk_receiver_ip_is_an_implementation_sentinel(self):
+        self.assertIn("qpsk_receiver_ip", modules.REGISTRY)
+        self.assertIn("qpsk_receiver_ip", modules.PNR_SUBSET)
+        dut, ios, clock_ns = modules.REGISTRY["qpsk_receiver_ip"]()
+        names = {signal.name_override for signal in ios if signal.name_override}
+        self.assertEqual(clock_ns, 10.0)
+        self.assertIn("s_axil_awvalid", names)
+        self.assertIn("samples_in", dut.chain.inputs)
+        self.assertIn("symbols_out", dut.chain.outputs)
+        self.assertEqual(dut.chain.carrier.detector, "qpsk")
+        self.assertEqual(dut.chain.timing.sps, 2)
+        self.assertIn(dut.chain.inputs["samples_in"].payload.i, ios)
+        self.assertIn(dut.chain.outputs["symbols_out"].payload.q, ios)
+        self.assertIn(dut.chain.outputs["symbols_out"].payload.symbol, ios)
+
     def test_capacity_cliff_routes_are_isolated_from_the_regular_subset(self):
         self.assertEqual(modules.PNR_STRESS,
             ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"])

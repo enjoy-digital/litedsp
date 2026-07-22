@@ -45,4 +45,5 @@ map artifacts:
 | Config | Chain | Generate |
 |---|---|---|
 | `ddc_core.yml` | NCO → Mixer(down) → FIR → Downsampler | `litedsp_gen examples/ddc_core.yml` |
+| `qpsk_receiver_core.yml` | QPSK Costas → M&M timing recovery → hard decisions | `litedsp_gen examples/qpsk_receiver_core.yml` |
 | `spectrum_core.yml` | Window(hann) → FFT → PSD | `litedsp_gen examples/spectrum_core.yml` |

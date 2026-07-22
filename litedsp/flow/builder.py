@@ -18,14 +18,18 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common      import iq_layout, real_layout
+from litedsp.common      import iq_layout, iq_symbol_layout, real_layout
 from litedsp.flow        import registry, glue
 from litedsp.flow.netlist import validate, split_ref
 
 # Helpers ------------------------------------------------------------------------------------------
 
 def _layout(kind, data_width):
-    return real_layout(data_width) if kind == "real" else iq_layout(data_width)
+    if kind == "real":
+        return real_layout(data_width)
+    if kind == "iq_symbol":
+        return iq_symbol_layout(data_width)
+    return iq_layout(data_width)
 
 def _build_kwargs(spec, params, data_width, with_csr):
     """Merge registry defaults + netlist params; inject data_width and with_csr where accepted."""

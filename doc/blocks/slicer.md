@@ -26,7 +26,7 @@ symbol index on ``source.symbol`` (``[q_bits | i_bits]``). QPSK = ``bits_per_axi
 | Port | Direction | Layout |
 |---|---|---|
 | `sink` | sink | iq |
-| `source` | source | iq |
+| `source` | source | iq_symbol |
 
 Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 

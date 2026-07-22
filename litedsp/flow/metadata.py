@@ -210,6 +210,8 @@ def _csr_spec(csr):
 
 def _layout(ep):
     fields = [n for n, *_ in ep.description.payload_layout]
+    if set(fields) >= {"i", "q", "symbol"}:
+        return "iq_symbol"
     if set(fields) >= {"i", "q"}:
         return "iq"
     if fields == ["data"]:

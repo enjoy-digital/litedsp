@@ -38,9 +38,11 @@ LUT/FF/BRAM/DSP usage plus P&R timing, and fails on implementation errors or bud
 Each Vivado P&R directory retains `timing_summary.rpt` and the ten worst paths in
 `timing_paths.rpt` so a missed target can be traced to an architectural path rather than treated
 as unexplained seed noise.
-The `ddc_ip` configuration is a complete generated integration sentinel: NCO/mixer/FIR/decimator
-datapath, AXI-Stream ingress/egress, AXI-Lite-to-CSR bridge, and all block CSR banks are synthesized
-and routed together rather than testing only isolated DSP blocks.
+The `ddc_ip` and `qpsk_receiver_ip` configurations are complete generated integration sentinels.
+The former covers an NCO/mixer/FIR/decimator datapath; the latter covers QPSK carrier recovery,
+adaptive symbol timing, and hard decisions. Both include AXI-Stream ingress/egress, the
+AXI-Lite-to-CSR bridge, and all block CSR banks, and are synthesized and routed together rather
+than testing only isolated DSP blocks.
 Resource results may exceed their checked-in baseline by 15%; independent `synth` and `pnr`
 resource dictionaries prevent pre-optimization synthesis utilization from overwriting post-route
 utilization. The fmax floor is set to 85% of the baseline P&R result. Both the raw measurement
@@ -89,6 +91,13 @@ interpolator's route-sensitive ready chain uses the 184.7 MHz hosted result (a l
 When a new device profile is first characterized, it inherits the module's reviewed engineering
 target from an existing profile; its measured resource baseline and 85% timing floor remain fully
 device-specific.
+
+The QPSK receiver sentinel deliberately carries family-specific targets because its unpipelined
+decision-directed carrier loop closes the NCO-LUT/multiply/detector/PI feedback arc in one cycle:
+40 MHz on ECP5, 60 MHz on Artix-7, and 100 MHz on Artix UltraScale+. The measured routes are
+41.7/65.8/126.4 MHz respectively. A faster variant therefore requires an explicit delayed-loop
+architecture and corresponding acquisition/jitter trade study rather than a relaxed regression
+floor.
 
 ## Findings (what implementation testing caught)
 

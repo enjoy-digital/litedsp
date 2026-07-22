@@ -62,6 +62,10 @@ def iq_layout(data_width=16, n_samples=1):
         ("q", n_samples*data_width),
     ]
 
+def iq_symbol_layout(data_width=16, symbol_width=2):
+    """Complex sample plus a hard-decision symbol (QPSK uses ``symbol_width=2``)."""
+    return iq_layout(data_width) + [("symbol", symbol_width)]
+
 # Timestamps (see litedsp/stream/timestamp.py and doc/timestamps.md).
 TIMESTAMP_WIDTH = 64
 
