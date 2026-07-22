@@ -390,7 +390,7 @@ def ldpc_decoder():
 
 def ldpc_decoder_z_parallel():
     d = LiteDSPLDPCDecoderZParallel(llr_bits=4, max_iters=8, with_csr=False)
-    return d, {d.iterations, d.parity_ok, d.failures, d.clear} | _eps(d.sink, d.source), 12.0
+    return d, {d.iterations, d.parity_ok, d.failures, d.clear} | _eps(d.sink, d.source), 10.0
 
 def stream_fifo():
     d = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
@@ -575,7 +575,7 @@ PNR_STRESS = ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
 
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.
-PNR_STABILITY = ["dpd", "fft_parallel_native_x4"]
+PNR_STABILITY = ["dpd", "fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
@@ -589,7 +589,7 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "goertzel_folded", "iir_biquad_folded",
                  "pfb_channelizer_folded", "pfb_channelizer_fft", "pfb_channelizer_fft_2x",
                  "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip",
-                 "qpsk_receiver_ip"]
+                 "qpsk_receiver_ip", "ldpc_decoder_z_parallel"]
 
 # Modules whose exposed ports exceed device pins: synthesis-only (skipped by the P&R flow).
 SYNTH_ONLY = ["fir", "fir_parallel_x2", "fir_parallel_x4", "mixer_parallel_x4"]

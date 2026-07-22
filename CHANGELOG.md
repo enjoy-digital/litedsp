@@ -75,8 +75,9 @@ Additional contracts introduced with the harmonization:
   models including iteration counts; measured quantized waterfall BER 9.8e-3 @ 2.0 dB /
   6.7e-4 @ 2.5 dB / < 2.6e-6 @ 3.0 dB Eb/N0 (BPSK, AWGN, 8 iterations). One LLR per beat;
   the optional z-parallel QC datapath evaluates all 27 lifted rows together with lane-banked
-  APP/check state, staged cyclic rotations and an overlapped write pipe (4,708 worst-case
-  clocks/block; bit-exact with the serial decoder/model).
+  APP/check state, staged cyclic rotations and a three-stage overlapped write pipe (4,900
+  worst-case clocks/block; bit-exact with the serial decoder/model; 100 MHz target closed on
+  ECP5, Artix-7, and Artix UltraScale+).
 - Digital predistortion actuator (`litedsp/level/dpd.py`, `LiteDSPDPD`): memory-polynomial-lite
   per-tap complex-gain LUTs on delayed samples (Q2.frac entries, two-region alpha-max-beta-min
   magnitude binning, identity reset = exact passthrough, sequential CSR LUT reload with tap

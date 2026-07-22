@@ -398,26 +398,25 @@ remove the factor `z=27`. `LiteDSPLDPCDecoderZParallel` instead evaluates all 27
 one base-matrix edge together. APP and compressed check state are split into 27 narrow lane
 banks. A logarithmic cyclic barrel network replaces the flat 27:1 lane selectors, and the edge
 path is staged as bank/rotation capture, lane-local Q capture, then replicated minimum update.
-The inverse rotation is registered and its write is overlapped: after one fill clock per layer,
-edge N commits while edge N+1 is prepared. The resulting schedule is 464 clocks/iteration and
-4,708 clocks for an eight-iteration block, with the same quantization and bit-exact
-normalized-min-sum outcome.
+The inverse write path has distinct edge-select, saturated-update, and inverse-barrel registers;
+after three fill clocks per layer, edge N commits while edge N+3 is prepared. The resulting
+schedule is 488 clocks/iteration and 4,900 clocks for an eight-iteration block, with the same
+quantization and bit-exact normalized-min-sum outcome.
 
 | Architecture | Worst clocks/block | ECP5 LUT/FF/BRAM/Fmax (kblock/s) | Artix-7 LUT/FF/BRAM/Fmax (kblock/s) | Artix UltraScale+ LUT/FF/BRAM/Fmax (kblock/s) |
 |---|---:|---:|---:|---:|
 | Serial | 44,500 | 693 / 198 / 2 / 103.6 MHz (2.33) | 355 / 178 / 1 / 124.5 MHz (2.80) | 467 / 188 / 0 / 225.6 MHz (5.07) |
-| z-parallel | 4,708 | 8561 / 2907 / 0 / 74.7 MHz (15.87) | 3991 / 3124 / 0 / 102.4 MHz (21.75) | 4777 / 3167 / 0 / 151.2 MHz (32.12) |
+| z-parallel | 4,900 | 9948 / 3413 / 0 / 101.3 MHz (20.67) | 4205 / 3629 / 0 / 122.7 MHz (25.04) | 4284 / 3632 / 0 / 190.3 MHz (38.84) |
 
-Thus the z-parallel option delivers 6.3--7.8x worst-case block throughput, but costs 10--12x
-the LUTs and roughly 15--18x the registers. Relative to the earlier packed-vector datapath,
-lane banking reduces LUTs by 41%/31%/23% and eliminates ten Artix-7 BRAM tiles. The extra pipe
-state raises FFs and the schedule grows 20%; ECP5 block throughput improves 7%, while Artix-7
-and UltraScale+ exchange 6%/10% block throughput for the area reduction and stronger clock
-margin. Three ECP5 routes span 72.2/74.7/75.3 MHz; three-strategy Vivado sweeps span
-102.4/102.4/103.1 MHz on Artix-7 and 126.9/151.2/151.2 MHz on UltraScale+. It closes the
-100 MHz objective on both Xilinx profiles but not ECP5, so remains an advisory `PNR_STRESS`
-configuration. The serial decoder remains the default strict sentinel; early parity termination
-reduces the average block time of either architecture.
+Thus the z-parallel option delivers 7.7--8.9x worst-case block throughput, but costs 9--14x
+the LUTs and roughly 17--20x the registers. Relative to the preceding one-register write path,
+the deeper cut adds 16% LUT/17% FF on ECP5 and four percent to the worst-case schedule, but raises
+worst-case block throughput by 30%. Three 100 MHz-constrained ECP5 routes span
+100.8/101.3/103.7 MHz; the refreshed Artix-7 and UltraScale+ routes reach 122.7/190.3 MHz.
+The design now closes 100 MHz on all profiles and is target-closed, but remains in both
+`PNR_STRESS` (capacity) and `PNR_STABILITY` (three-route ECP5 median). The serial decoder remains
+the regular compact sentinel; early parity termination reduces the average block time of either
+architecture.
 
 ## Landing policy
 

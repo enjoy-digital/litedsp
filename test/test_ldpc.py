@@ -229,7 +229,7 @@ class TestLDPC(unittest.TestCase):
 
         dut = LiteDSPLDPCDecoderZParallel(with_csr=False)
         self.assertEqual(dut.parallelism, LDPC_Z)
-        self.assertEqual(dut.cycles_per_iteration, 464)
+        self.assertEqual(dut.cycles_per_iteration, 488)
         self.assertLess(dut.cycles_per_block,
             LiteDSPLDPCDecoder(with_csr=False).cycles_per_block/9)
 

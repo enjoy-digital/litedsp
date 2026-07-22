@@ -36,16 +36,16 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
     The algorithm and quantization are bit-exact with :class:`LiteDSPLDPCDecoder`; the trade-off
     is replicated check-node arithmetic and lane-banked state in exchange for removing the
     factor ``z`` from the per-iteration schedule. With the default code, an iteration takes
-    ``5*E + 2*m_b = 464`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
-    Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 4708 clocks at eight
+    ``5*E + 4*m_b = 488`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
+    Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 4900 clocks at eight
     iterations, excluding handshake stalls (versus 44,500 for the serial architecture).
 
-    The characterized default reaches 74.7/102.4/151.2 MHz on ECP5/Artix-7/Artix UltraScale+,
-    or 15.9/21.8/32.1 thousand worst-case blocks/s. That is 6.3--7.8x the serial core's
-    family-matched block throughput, at 10--12x its LUT count and about 15--18x its register
-    count. The 100 MHz engineering target closes on both Xilinx profiles; ECP5 remains open,
-    so implementation sweeps retain this wide datapath as a capacity/timing stress
-    configuration rather than a compact drop-in replacement.
+    The characterized default reaches 101.3/122.7/190.3 MHz on
+    ECP5/Artix-7/Artix UltraScale+, or 20.7/25.0/38.8 thousand worst-case blocks/s. That is
+    7.7--8.9x the serial core's family-matched block throughput, at 9--14x its LUT count and
+    about 17--20x its register count. The 100 MHz engineering target closes on all three
+    profiles. Its width still makes this a capacity/timing stress configuration rather than a
+    compact drop-in replacement; ECP5 closure is reviewed across three routes.
 
     Parameters
     ----------
@@ -82,7 +82,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         self.z = z
         self.parallelism = z
         self.latency = None
-        self.cycles_per_iteration = 5*sum(degs) + 2*mb
+        self.cycles_per_iteration = 5*sum(degs) + 4*mb
         self.cycles_per_block = (n + max_iters*self.cycles_per_iteration +
             k + 2*(k//z))
         self.sink   = stream.Endpoint([("llrs", llr_bits)])
@@ -218,6 +218,8 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             )
 
         # Build one updated APP block in variable order for the WRITE pass.
+        select_q_pipe = [Signal((q_w, True), name=f"write_q_pipe_{j}") for j in range(z)]
+        select_r_pipe = [Signal((mag_w + 1, True), name=f"write_r_pipe_{j}") for j in range(z)]
         updated = [Signal((app_w, True), name=f"updated_{j}") for j in range(z)]
         packed_checks = []
         for j in range(z):
@@ -235,7 +237,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
                 rsgn.eq(totals[j] ^ (signs[j] >> write_edge)[0]),
                 rnew.eq(Mux(rsgn, -rmag, rmag)),
                 qsel.eq(Array([q_regs[b][j] for b in range(max_deg)])[write_edge]),
-                asum.eq(qsel + rnew),
+                asum.eq(select_q_pipe[j] + select_r_pipe[j]),
                 If(asum > appmax,
                     updated[j].eq(appmax),
                 ).Elif(asum < -appmax,
@@ -244,15 +246,33 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
                     updated[j].eq(asum),
                 ),
             ]
+            self.sync += [select_q_pipe[j].eq(qsel), select_r_pipe[j].eq(rnew)]
             packed_checks.append(Cat(m1n, m2n, min_idx[j], signs[j]))
 
+        # The edge-dependent Q/R selectors, saturated addition, and inverse barrel each get an
+        # explicit register boundary. On ECP5 this cuts the former edge-to-write path (select +
+        # add/clamp + five rotation levels) into three locally placeable pieces. The pipeline
+        # advances continuously; the FSM below supplies three fill clocks per layer.
+        select_shift_pipe = Signal(max=z)
+        select_block_pipe = Signal(max=nb)
+        updated_pipe = [Signal((app_w, True), name=f"updated_pipe_{j}") for j in range(z)]
+        updated_shift_pipe = Signal(max=z)
+        updated_block_pipe = Signal(max=nb)
+        self.sync += [
+            select_shift_pipe.eq(write_shift),
+            select_block_pipe.eq(write_block),
+            *[updated_pipe[j].eq(updated[j]) for j in range(z)],
+            updated_shift_pipe.eq(select_shift_pipe),
+            updated_block_pipe.eq(select_block_pipe),
+        ]
+
         # Return from check-row order to variable order with the inverse cyclic barrel network.
-        inv_stages = [updated]
+        inv_stages = [updated_pipe]
         for bit, amount in enumerate((1, 2, 4, 8, 16)):
             stage_lanes = [Signal((app_w, True), name=f"app_inv_{bit}_{j}") for j in range(z)]
             for j in range(z):
                 self.comb += stage_lanes[j].eq(Mux(
-                    write_shift[bit], inv_stages[-1][(j - amount) % z], inv_stages[-1][j]))
+                    updated_shift_pipe[bit], inv_stages[-1][(j - amount) % z], inv_stages[-1][j]))
             inv_stages.append(stage_lanes)
         write_lanes = inv_stages[-1]
         write_pipe = [Signal((app_w, True), name=f"app_write_pipe_{j}") for j in range(z)]
@@ -261,7 +281,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         # clock while the look-ahead network prepares the next edge; unconditional registers
         # avoid a high-fanout clock-enable mux across all 27 lanes.
         self.sync += [write_pipe[j].eq(write_lanes[j]) for j in range(z)]
-        self.sync += write_block_pipe.eq(write_block)
+        self.sync += write_block_pipe.eq(updated_block_pipe)
         totals_any = Signal()
         self.comb += totals_any.eq(Cat(*totals) != 0)
 
@@ -357,10 +377,18 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
                 NextState("READ_ISSUE"),
             ),
         )
-        # Fill the overlapped write pipe once per layer before committing one edge each clock.
-        # This removes the previous min/select/rotation-to-RAM path at a 12-clock/iteration cost.
+        # Fill select, update, and inverse-rotation stages once per layer, then commit one edge
+        # each clock. This adds 36 fill clocks/iteration versus 12 for the old single boundary.
         fsm.act("WRITE_CAPTURE",
             NextValue(write_edge, 1),
+            NextState("WRITE_UPDATE_CAPTURE"),
+        )
+        fsm.act("WRITE_UPDATE_CAPTURE",
+            NextValue(write_edge, 2),
+            NextState("WRITE_ROTATE_CAPTURE"),
+        )
+        fsm.act("WRITE_ROTATE_CAPTURE",
+            NextValue(write_edge, 3),
             NextState("WRITE"),
         )
         fsm.act("WRITE",
@@ -397,7 +425,9 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
                 ),
             ).Else(
                 NextValue(edge, edge + 1),
-                If(edge < (deg - 2), NextValue(write_edge, write_edge + 1)),
+                # Selector-to-write latency is three clocks. Keep it three edges ahead until
+                # the final value has entered the pipe, then hold it while the tail drains.
+                If(edge < (deg - 4), NextValue(write_edge, write_edge + 1)),
             ),
         )
         fsm.act("OUT_READ",

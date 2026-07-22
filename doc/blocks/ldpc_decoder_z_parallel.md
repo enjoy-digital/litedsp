@@ -11,16 +11,16 @@ latency: variable (data-dependent) · CSR: yes · bypass: no
 The algorithm and quantization are bit-exact with :class:`LiteDSPLDPCDecoder`; the trade-off
 is replicated check-node arithmetic and lane-banked state in exchange for removing the
 factor ``z`` from the per-iteration schedule. With the default code, an iteration takes
-``5*E + 2*m_b = 464`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
-Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 4708 clocks at eight
+``5*E + 4*m_b = 488`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
+Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 4900 clocks at eight
 iterations, excluding handshake stalls (versus 44,500 for the serial architecture).
 
-The characterized default reaches 74.7/102.4/151.2 MHz on ECP5/Artix-7/Artix UltraScale+,
-or 15.9/21.8/32.1 thousand worst-case blocks/s. That is 6.3--7.8x the serial core's
-family-matched block throughput, at 10--12x its LUT count and about 15--18x its register
-count. The 100 MHz engineering target closes on both Xilinx profiles; ECP5 remains open,
-so implementation sweeps retain this wide datapath as a capacity/timing stress
-configuration rather than a compact drop-in replacement.
+The characterized default reaches 101.3/122.7/190.3 MHz on
+ECP5/Artix-7/Artix UltraScale+, or 20.7/25.0/38.8 thousand worst-case blocks/s. That is
+7.7--8.9x the serial core's family-matched block throughput, at 9--14x its LUT count and
+about 17--20x its register count. The 100 MHz engineering target closes on all three
+profiles. Its width still makes this a capacity/timing stress configuration rather than a
+compact drop-in replacement; ECP5 closure is reviewed across three routes.
 
 ## Parameters
 
@@ -75,8 +75,8 @@ Clear the failure counter (write to clear).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 8561 | 2907 | 0 | 0 | 63.5 | 100.0 |
-| xilinx | 3991 | 3124 | 0 | 0 | 87.0 | 100.0 |
-| xilinx_au | 4777 | 3167 | 0 | 0 | 128.5 | 100.0 |
+| ecp5 | 9948 | 3413 | 0 | 0 | 86.1 | 100.0 |
+| xilinx | 4205 | 3629 | 0 | 0 | 104.3 | 100.0 |
+| xilinx_au | 4284 | 3632 | 0 | 0 | 161.7 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

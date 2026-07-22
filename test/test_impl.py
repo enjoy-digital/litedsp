@@ -120,13 +120,14 @@ class TestImplementationBudgets(unittest.TestCase):
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
         self.assertIn("fft_parallel_native_x4", modules.TARGET_CLOSED)
-        self.assertNotIn("ldpc_decoder_z_parallel", modules.TARGET_CLOSED)
+        self.assertIn("ldpc_decoder_z_parallel", modules.TARGET_CLOSED)
 
         self.assertIn("fft_parallel_native_x2", modules.PNR_SUBSET)
         self.assertIn("fft_parallel_native_x2", modules.TARGET_CLOSED)
 
     def test_route_sensitive_closed_targets_use_the_stability_set(self):
-        self.assertEqual(modules.PNR_STABILITY, ["dpd", "fft_parallel_native_x4"])
+        self.assertEqual(modules.PNR_STABILITY,
+            ["dpd", "fft_parallel_native_x4", "ldpc_decoder_z_parallel"])
         for name in modules.PNR_STABILITY:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
@@ -175,14 +176,14 @@ class TestImplementationBudgets(unittest.TestCase):
 
     def test_closed_target_gate_leaves_open_objectives_advisory(self):
         misses = {
-            "ldpc_decoder_z_parallel": ["open objective"],
+            "fft": ["open objective"],
             "ddc": [],
         }
         self.assertFalse(impl_run.targets_fail_gate(misses, gate_closed=True))
         misses["ddc"] = ["closed objective"]
         self.assertTrue(impl_run.targets_fail_gate(misses, gate_closed=True))
         self.assertTrue(impl_run.targets_fail_gate(
-            {"ldpc_decoder_z_parallel": ["open objective"]}, gate_all=True))
+            {"fft": ["open objective"]}, gate_all=True))
 
     def test_update_preserves_measured_fmax_and_gate_floor(self):
         with tempfile.TemporaryDirectory() as tmp:

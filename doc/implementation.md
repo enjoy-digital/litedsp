@@ -58,16 +58,15 @@ reports and report worst/median/best fmax; budget updates use the median complet
 `--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
 nightly job indefinitely.
 The native x4 FFT and z-parallel LDPC decoder remain in `PNR_STRESS`, outside the bounded
-push/PR subset. Nightly CI routes the still-open LDPC design on an independent runner with a long
-timeout. The P=4 FFT now closes its target across three seeds and is gated with the route-sensitive
-stability set; its Xilinx strategy sweeps remain in the stress selection. The FFT's ready-cut x2
+push/PR subset. Both close 100 MHz and are also gated across three ECP5 seeds in the
+route-sensitive stability set; their Xilinx strategy sweeps remain in the stress selection. The FFT's ready-cut x2
 configuration has robust margin in the regular strict subset, while the compact serial LDPC
 decoder remains its regular strict implementation sentinel.
 The classic serial FFT and the older split/folded parallel FFT configurations are retained as
 compatibility and comparison points, so they carry measured regression floors but no 100 MHz
 engineering objective. The folded/interleaved serial variants and native vector FFTs are the
 reviewed timing-oriented architectures; only their targets participate in closure tracking.
-The route-sensitive target-closed DPD and native P=4 FFT configurations are collected in
+The route-sensitive target-closed DPD, native P=4 FFT, and z-parallel LDPC configurations are collected in
 `PNR_STABILITY`. Push/PR CI routes each across seeds 0, 1 and 2 on an independent runner and gates
 its median, avoiding single-placement noise while preserving the strict 100 MHz objective. The
 two-sample pipelined AGC has enough margin to remain in the regular single-route subset.
