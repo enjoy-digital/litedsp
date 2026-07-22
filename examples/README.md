@@ -32,6 +32,7 @@ headless (matplotlib Agg, `savefig` only) and are smoke-checked in CI (`test/tes
 | [AN003 — Spectrum monitor with waterfall](../doc/app_notes/an003_spectrum_monitor.md) | `spectrum_monitor.py` | TimeCore/Timestamper → TimeUntagger → WelchPSD (50% overlap, linear + max-hold) | Timestamped waterfall (absolute sample time), averaged vs max-hold spectra, GNU Radio `udp_source` interop recipe |
 | [AN004 — Chirp pulse-compression radar](../doc/app_notes/an004_chirp_radar.md) | `chirp_radar.py` | Chirp → NumPy target channel → complex matched filter (2 × FIRFilterComplex) → Magnitude | Pulse-compression ranging (exact delay recovery), range resolution vs bandwidth, PSLR gate |
 | [AN005 — CCSDS concatenated-FEC telemetry](../doc/app_notes/an005_ccsds_telemetry.md) | `ccsds_telemetry.py` | dual-basis CCSDS RSEncoder ×I → BlockInterleaver → ConvEncoder(K=7) → QPSK/AWGN + jammer burst → SoftDemapper → soft Viterbi → BlockDeinterleaver → CCSDS RSDecoder | Burst spreading: a burst that is uncorrectable without interleaving is fully corrected at I = 2 (~I× correctable burst); RTL end-to-end recovers the message error-free |
+| [AN006 — ADS-B / Mode-S receiver](../doc/app_notes/an006_adsb_receiver.md) | `adsb_receiver.py` | 2 MHz magnitude → Correlator(8 us preamble) → PPM early/late decision | Exact frame acquisition and zero errors across a noisy 112-bit DF17 frame |
 
 ## Standalone core configs
 

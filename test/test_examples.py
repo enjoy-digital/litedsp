@@ -60,5 +60,8 @@ class TestAppNoteExamples(unittest.TestCase):
         # ~3.5 min locally (staged RTL FEC chain, Viterbi-dominated): extra timeout headroom.
         self._run_example("ccsds_telemetry.py", timeout=900)
 
+    def test_adsb_receiver_smoke(self):     # AN006.
+        self._run_example("adsb_receiver.py")
+
 if __name__ == "__main__":
     unittest.main()
