@@ -170,12 +170,16 @@ def overflow(value, out_width):
 def saturated(value, out_width):
     """Clamp signed ``value`` to the signed ``out_width`` range (symmetric two's-complement).
 
-    See :func:`overflow` for why the low-side compare is written as ``value + half < 0`` and the
-    clamp value as the positive bit pattern ``C(half, out_width)`` (no negative constants).
+    See :func:`overflow` for why the low-side compare is written as ``value + half < 0``.
+    The low clamp *arm* stays the signed constant ``lo``: an unsigned bit-pattern constant
+    would zero-extend (+2^(w-1)) when the result is used in wider arithmetic. Note that the
+    backend emits the arm as ``-N'hX``, which is only sign-safe when the result is assigned to
+    a signal of exactly ``out_width`` bits -- the recommended usage.
     """
     hi   = (1 << (out_width - 1)) - 1
-    half = 1 << (out_width - 1)          # Bit pattern of the most-negative out_width value.
-    return Mux(value > hi, hi, Mux((value + half) < 0, C(half, out_width), value))
+    lo   = -(1 << (out_width - 1))
+    half = 1 << (out_width - 1)
+    return Mux(value > hi, hi, Mux((value + half) < 0, lo, value))
 
 def scaled(value, shift, out_width):
     """Round ``value`` down by ``shift`` bits then saturate to ``out_width``.
