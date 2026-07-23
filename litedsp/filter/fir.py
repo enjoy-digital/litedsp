@@ -351,6 +351,7 @@ class LiteDSPFIRFilterComplex(LiteXModule):
         self.fir_q  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width,
             symmetric=symmetric, shift=shift, architecture=architecture, n_macs=n_macs)
         self.latency = getattr(self.fir_i, "latency", None)
+        self.cycles_per_sample = getattr(self.fir_i, "cycles_per_sample", None)  # 'mac' arch.
 
         self.comb += [
             [self.fir_i.coeffs[i].eq(self.coeffs.values[i]) for i in range(n_taps)],
