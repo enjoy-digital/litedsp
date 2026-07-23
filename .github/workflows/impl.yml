@@ -48,7 +48,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install OSS CAD Suite (Yosys + nextpnr-ecp5)
-        uses: YosysHQ/setup-oss-cad-suite@v3
+        uses: YosysHQ/setup-oss-cad-suite@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}   # Unauthenticated lookups get rate-limited.
           version: "2025-06-25"
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload ECP5 implementation logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ecp5-pnr-reports
           path: |
@@ -92,7 +92,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install OSS CAD Suite (Yosys + nextpnr-ecp5)
-        uses: YosysHQ/setup-oss-cad-suite@v3
+        uses: YosysHQ/setup-oss-cad-suite@v4
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           version: "2025-06-25"
@@ -111,7 +111,7 @@ jobs:
 
       - name: Upload ${{ matrix.module }} stability reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ecp5-stability-${{ matrix.module }}-reports
           path: |

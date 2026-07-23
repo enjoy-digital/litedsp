@@ -33,7 +33,7 @@ jobs:
         run: |
           /tmp/litedsp-wheel-smoke/bin/python -c 'import litedsp; from importlib.metadata import entry_points, version; from importlib.resources import files; assert tuple(map(int, version("litedsp").split("."))) == tuple(map(int, litedsp.__version__.split("."))); assert {"litedsp_gen", "litedsp_flow", "litedsp_gui", "litedsp_cli"} <= {e.name for e in entry_points(group="console_scripts")}; assert files("litedsp.flow").joinpath("examples/ddc.json").is_file()'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -45,7 +45,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
