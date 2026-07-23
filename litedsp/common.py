@@ -161,25 +161,30 @@ def overflow(value, out_width):
     negative constant as ``-N'hX`` (unary minus on an *unsigned* literal); per Verilog rules the
     unsigned operand turns the whole comparison unsigned, inverting the result for positive
     values -- a sim/synth mismatch found on hardware (every positive sample saturated to the
-    most-negative code). ``value + half < 0`` is equivalent and emits sign-safe Verilog.
+    most-negative code). The low-side test uses the two's-complement identity
+    ``value < -half  <=>  ~value > half - 1 = hi`` (``~value = -value - 1``, exact for all
+    inputs): sign-safe, adder-free, and it compares against the *same* ``out_width``-bit
+    constant as the high-side test, so every occurrence of ``value`` elaborates at its natural
+    width and synthesis shares the (often multiplier-bearing) subexpression across the
+    compares and clamp arms instead of duplicating it into a wider context. (A wider constant
+    -- e.g. ``value + half < 0`` or ``~value >= half``, both needing ``out_width + 1`` bits --
+    was measured to duplicate the multipliers on ECP5: +57% LUTs / +6 DSPs on the IIR biquad.)
     """
-    hi   = (1 << (out_width - 1)) - 1
-    half = 1 << (out_width - 1)
-    return (value > hi) | ((value + half) < 0)
+    hi = (1 << (out_width - 1)) - 1
+    return (value > hi) | (~value > hi)
 
 def saturated(value, out_width):
     """Clamp signed ``value`` to the signed ``out_width`` range (symmetric two's-complement).
 
-    See :func:`overflow` for why the low-side compare is written as ``value + half < 0``.
+    See :func:`overflow` for why the low-side compare is written as ``~value > hi``.
     The low clamp *arm* stays the signed constant ``lo``: an unsigned bit-pattern constant
     would zero-extend (+2^(w-1)) when the result is used in wider arithmetic. Note that the
     backend emits the arm as ``-N'hX``, which is only sign-safe when the result is assigned to
     a signal of exactly ``out_width`` bits -- the recommended usage.
     """
-    hi   = (1 << (out_width - 1)) - 1
-    lo   = -(1 << (out_width - 1))
-    half = 1 << (out_width - 1)
-    return Mux(value > hi, hi, Mux((value + half) < 0, lo, value))
+    hi = (1 << (out_width - 1)) - 1
+    lo = -(1 << (out_width - 1))
+    return Mux(value > hi, hi, Mux(~value > hi, lo, value))
 
 def scaled(value, shift, out_width):
     """Round ``value`` down by ``shift`` bits then saturate to ``out_width``.
