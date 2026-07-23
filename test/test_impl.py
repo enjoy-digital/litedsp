@@ -128,7 +128,8 @@ class TestImplementationBudgets(unittest.TestCase):
 
     def test_route_sensitive_closed_targets_use_the_stability_set(self):
         self.assertEqual(modules.PNR_STABILITY,
-            ["dpd", "fft_parallel_native_x4", "ldpc_decoder_z_parallel"])
+            ["dpd", "fft_parallel_native_x4", "ldpc_decoder_lanes_3",
+             "ldpc_decoder_z_parallel"])
         for name in modules.PNR_STABILITY:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
@@ -290,6 +291,7 @@ class TestImplementationBudgets(unittest.TestCase):
              "fft_parallel_native_x4",
              "goertzel_folded", "iir_biquad_folded",
              "pfb_channelizer_folded", "pfb_channelizer_fft", "pfb_channelizer_fft_2x",
+             "ldpc_decoder_lanes_3", "ldpc_decoder_lanes_9",
              "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip",
              "qpsk_receiver_ip", "ldpc_decoder_z_parallel"])
         gated = set(modules.PNR_SUBSET) | set(modules.PNR_STABILITY)

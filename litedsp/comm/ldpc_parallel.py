@@ -4,14 +4,14 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Z-parallel decoder for the 802.11n (648, 324) quasi-cyclic LDPC code.
+"""Lift-parallel decoder for the 802.11n (648, 324) quasi-cyclic LDPC code.
 
 The serial decoder in :mod:`litedsp.comm.ldpc` minimizes area by processing one of the 27
-lifted check rows at a time. This architecture processes all ``z=27`` rows of a base-matrix
-layer together. It retains the same row-layered normalized min-sum arithmetic and compressed
-check messages, but stores APP values and check state in one narrow bank per lifted row. Each
-edge passes through bank read, cyclic rotation/Q, check-update, and write stages; the external
-stream remains one LLR/bit per beat.
+lifted check rows at a time. This architecture processes 3, 9, or all ``z=27`` rows of a
+base-matrix layer together. It retains the same row-layered normalized min-sum arithmetic and
+compressed check messages, but stores APP values and check state in one narrow bank per active
+lane. Each edge passes through bank read, cyclic rotation/Q, check-update, and write stages; the
+external stream remains one LLR/bit per beat.
 """
 
 from functools import reduce
@@ -31,19 +31,19 @@ from litedsp.comm.ldpc import (LDPC_Z, LDPC_MB, LDPC_NB, LDPC_N, LDPC_K,
 
 @ResetInserter()
 class LiteDSPLDPCDecoderZParallel(LiteXModule):
-    """27-row-parallel normalized min-sum LDPC decoder.
+    """Foldable lift-parallel normalized min-sum LDPC decoder.
 
     The algorithm and quantization are bit-exact with :class:`LiteDSPLDPCDecoder`; the trade-off
-    is replicated check-node arithmetic and lane-banked state in exchange for removing the
-    factor ``z`` from the per-iteration schedule. With the default code, an iteration takes
-    ``5*E + 4*m_b = 488`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial core.
-    Load and output remain bit-serial, so worst-case ``cycles_per_block`` is 4900 clocks at eight
-    iterations, excluding handshake stalls (versus 44,500 for the serial architecture).
+    is replicated check-node arithmetic and lane-banked state in exchange for folding the
+    factor ``z`` by ``parallelism``. With all 27 lanes, an iteration takes
+    ``5*E + 4*m_b = 488`` clocks instead of ``z*(2*E + 2*m_b) = 5400`` clocks in the serial
+    core. Nine and three lanes take 1,464 and 4,392 clocks/iteration respectively.
+    Load and output remain bit-serial.
 
-    The characterized default reaches 101.3/122.7/190.3 MHz on
-    ECP5/Artix-7/Artix UltraScale+, or 20.7/25.0/38.8 thousand worst-case blocks/s. That is
-    7.7--8.9x the serial core's family-matched block throughput, at 9--14x its LUT count and
-    about 17--20x its register count. The 100 MHz engineering target closes on all three
+    The characterized 27-lane default reaches 108.2/130.2/189.7 MHz on
+    ECP5/Artix-7/Artix UltraScale+, or 22.1/26.6/38.7 thousand worst-case blocks/s. That is
+    7.6--9.5x the serial core's family-matched block throughput, at 9--15x its LUT count and
+    about 18--21x its register count. The 100 MHz engineering target closes on all three
     profiles. Its width still makes this a capacity/timing stress configuration rather than a
     compact drop-in replacement; ECP5 closure is reviewed across three routes.
 
@@ -53,13 +53,18 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         Signed input LLR width (>= 2; default 4).
     max_iters : int
         Decoding iteration budget per block (1..31; default 8).
+    parallelism : int
+        Lifted rows processed together: 3, 9, or 27 (default 27).
     with_csr : bool
         Add configuration/status CSRs.
     """
-    def __init__(self, llr_bits=4, max_iters=8, with_csr=True):
+    def __init__(self, llr_bits=4, max_iters=8, parallelism=LDPC_Z, with_csr=True):
         check(llr_bits >= 2, "expected llr_bits >= 2")
         check(1 <= max_iters <= 31, "expected max_iters in 1..31")
+        check(parallelism in (3, 9, LDPC_Z), "parallelism must be 3, 9, or 27")
         z, mb, nb = LDPC_Z, LDPC_MB, LDPC_NB
+        lanes   = parallelism
+        groups  = z//lanes
         n, k = LDPC_N, LDPC_K
         layers  = ldpc_layer_edges()
         degs    = [len(layer) for layer in layers]
@@ -80,11 +85,12 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         self.n = n
         self.k = k
         self.z = z
-        self.parallelism = z
+        self.parallelism = lanes
+        self.groups = groups
         self.latency = None
-        self.cycles_per_iteration = 5*sum(degs) + 4*mb
+        self.cycles_per_iteration = groups*(5*sum(degs) + 4*mb)
         self.cycles_per_block = (n + max_iters*self.cycles_per_iteration +
-            k + 2*(k//z))
+            k + 2*(k//lanes))
         self.sink   = stream.Endpoint([("llrs", llr_bits)])
         self.source = stream.Endpoint([("data", 1)])
         self.iterations = Signal(max=max_iters + 1)
@@ -103,14 +109,15 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         # Lane-banked state. The previous 162-bit APP and 540-bit check words inferred wide
         # muxes (and family-dependent BRAM packing) whose routes dominated the clock period.
         # All banks share an address and are read/written together, preserving the algorithm
-        # while giving implementation tools 27 independent narrow memories to place.
-        app_rams = [Memory(app_w, nb, name=f"app_ram_{j}") for j in range(z)]
-        chk_rams = [Memory(chk_w, mb, name=f"chk_ram_{j}") for j in range(z)]
+        # while giving implementation tools independent narrow memories to place.
+        app_rams = [Memory(app_w, nb*groups, name=f"app_ram_{j}") for j in range(lanes)]
+        chk_rams = [Memory(chk_w, mb*groups, name=f"chk_ram_{j}") for j in range(lanes)]
         app_ps   = [ram.get_port(write_capable=True) for ram in app_rams]
         chk_ps   = [ram.get_port(write_capable=True) for ram in chk_rams]
         self.specials += app_rams + chk_rams + app_ps + chk_ps
 
         layer = Signal(max=mb)
+        group = Signal(max=max(2, groups))
         edge  = Signal(max=max_deg + 1)
         deg   = Signal(max=max_deg + 1)
         start = Signal(max=len(flat))
@@ -136,18 +143,18 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         it       = Signal(max=max_iters + 1, reset=1)
         first_it = Signal(reset=1)
         unsat    = Signal()
-        m1       = [Signal(mag_w, reset=qmax, name=f"m1_{j}") for j in range(z)]
-        m2       = [Signal(mag_w, reset=qmax, name=f"m2_{j}") for j in range(z)]
-        min_idx  = [Signal(idx_w, name=f"min_idx_{j}") for j in range(z)]
-        signs    = [Signal(max_deg, name=f"signs_{j}") for j in range(z)]
-        totals   = [Signal(name=f"total_{j}") for j in range(z)]
-        q_regs   = [[Signal((q_w, True), name=f"q_{e}_{j}") for j in range(z)]
+        m1       = [Signal(mag_w, reset=qmax, name=f"m1_{j}") for j in range(lanes)]
+        m2       = [Signal(mag_w, reset=qmax, name=f"m2_{j}") for j in range(lanes)]
+        min_idx  = [Signal(idx_w, name=f"min_idx_{j}") for j in range(lanes)]
+        signs    = [Signal(max_deg, name=f"signs_{j}") for j in range(lanes)]
+        totals   = [Signal(name=f"total_{j}") for j in range(lanes)]
+        q_regs   = [[Signal((q_w, True), name=f"q_{e}_{j}") for j in range(lanes)]
                     for e in range(max_deg)]
 
         # Check-state vector expansion.
         old_m1, old_m2 = [], []
         old_idx, old_signs, old_total = [], [], []
-        for j in range(z):
+        for j in range(lanes):
             om1 = Signal(mag_w)
             om2 = Signal(mag_w)
             oi  = Signal(idx_w)
@@ -166,47 +173,86 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             old_signs.append(os)
             old_total.append(ot)
 
-        # Rotate the selected APP block into check-row order with a logarithmic cyclic barrel
-        # network. A flat Array indexed independently by every lane synthesized as 27 unrelated
-        # 27:1 muxes; the five shared binary rotation levels express the QC structure directly.
-        rot_stages = [[p.dat_r for p in app_ps]]
-        for bit, amount in enumerate((1, 2, 4, 8, 16)):
-            stage_lanes = [Signal((app_w, True), name=f"app_rot_{bit}_{j}") for j in range(z)]
-            for j in range(z):
-                self.comb += stage_lanes[j].eq(Mux(
-                    shift[bit], rot_stages[-1][(j + amount) % z], rot_stages[-1][j]))
-            rot_stages.append(stage_lanes)
-        rotated_app = rot_stages[-1]
-        app_rot = [Signal((app_w, True), name=f"app_rot_pipe_{j}") for j in range(z)]
+        # Folded banking uses lane = lifted-row mod parallelism and group = row//parallelism.
+        # A QC rotation is therefore a lane permutation plus at most one wrapped group offset.
+        # Every physical bank is read exactly once per edge; the 27-lane default retains the
+        # logarithmic barrel that routes better than 27 independent flat selectors.
+        def group_base(value):
+            # Express the only supported constants as shifts/adds so FPGA synthesis cannot
+            # spend a DSP block on address generation.
+            if groups == 9:
+                return (value << 3) + value
+            if groups == 3:
+                return (value << 1) + value
+            return value
 
-        # Form all 27 lane-local Q values.
-        r_old   = [Signal((mag_w + 1, True), name=f"r_old_{j}") for j in range(z)]
-        q_full  = [Signal((q_w, True), name=f"q_full_{j}") for j in range(z)]
-        q_abs   = [Signal(q_w - 1, name=f"q_abs_{j}") for j in range(z)]
-        q_mag   = [Signal(mag_w, name=f"q_mag_{j}") for j in range(z)]
-        q_sign  = [Signal(name=f"q_sign_{j}") for j in range(z)]
-        q_pipe  = [Signal((q_w, True), name=f"q_pipe_{j}") for j in range(z)]
-        qmag_pipe = [Signal(mag_w, name=f"qmag_pipe_{j}") for j in range(z)]
-        qsign_pipe = [Signal(name=f"qsign_pipe_{j}") for j in range(z)]
-        for j in range(z):
+        def wrapped_group(base, offset):
+            offset %= groups
+            if offset == 0:
+                return base
+            return Mux(base >= (groups - offset),
+                base - (groups - offset), base + offset)
+
+        app_read_addr = [Signal(max=nb*groups, name=f"app_read_addr_{b}")
+                         for b in range(lanes)]
+        if lanes == z:
+            self.comb += [address.eq(block) for address in app_read_addr]
+            rot_stages = [[p.dat_r for p in app_ps]]
+            for bit, amount in enumerate((1, 2, 4, 8, 16)):
+                stage_lanes = [Signal((app_w, True), name=f"app_rot_{bit}_{j}")
+                               for j in range(lanes)]
+                for j in range(lanes):
+                    self.comb += stage_lanes[j].eq(Mux(
+                        shift[bit], rot_stages[-1][(j + amount) % z],
+                        rot_stages[-1][j]))
+                rot_stages.append(stage_lanes)
+            rotated_app = rot_stages[-1]
+        else:
+            for bank in range(lanes):
+                cases = {}
+                for shift_value in range(z):
+                    destination_lane = (bank - shift_value) % lanes
+                    offset = (destination_lane + shift_value)//lanes
+                    cases[shift_value] = app_read_addr[bank].eq(
+                        group_base(block) + wrapped_group(group, offset))
+                self.comb += Case(shift, cases)
+            rotated_app = [
+                Array([app_ps[(lane + shift_value) % lanes].dat_r
+                       for shift_value in range(z)])[shift]
+                for lane in range(lanes)
+            ]
+        app_rot = [Signal((app_w, True), name=f"app_rot_pipe_{j}") for j in range(lanes)]
+
+        # Form all lane-local Q values.
+        r_old   = [Signal((mag_w + 1, True), name=f"r_old_{j}") for j in range(lanes)]
+        r_old_pipe = [Signal((mag_w + 1, True), name=f"r_old_pipe_{j}")
+                      for j in range(lanes)]
+        q_full  = [Signal((q_w, True), name=f"q_full_{j}") for j in range(lanes)]
+        q_abs   = [Signal(q_w - 1, name=f"q_abs_{j}") for j in range(lanes)]
+        q_mag   = [Signal(mag_w, name=f"q_mag_{j}") for j in range(lanes)]
+        q_sign  = [Signal(name=f"q_sign_{j}") for j in range(lanes)]
+        q_pipe  = [Signal((q_w, True), name=f"q_pipe_{j}") for j in range(lanes)]
+        qmag_pipe = [Signal(mag_w, name=f"qmag_pipe_{j}") for j in range(lanes)]
+        qsign_pipe = [Signal(name=f"qsign_pipe_{j}") for j in range(lanes)]
+        for j in range(lanes):
             old_mag = Signal(mag_w)
             old_sgn = Signal()
             self.comb += [
                 old_mag.eq(Mux(old_idx[j] == edge, old_m2[j], old_m1[j])),
                 old_sgn.eq(old_total[j] ^ (old_signs[j] >> edge)[0]),
                 r_old[j].eq(Mux(first_it, 0, Mux(old_sgn, -old_mag, old_mag))),
-                q_full[j].eq(app_rot[j] - r_old[j]),
+                q_full[j].eq(app_rot[j] - r_old_pipe[j]),
                 q_sign[j].eq(q_full[j] < 0),
                 q_abs[j].eq(Mux(q_sign[j], -q_full[j], q_full[j])),
                 q_mag[j].eq(Mux(q_abs[j] > qmax, qmax, q_abs[j])),
             ]
 
-        # READ_PROCESS writes one edge vector and updates 27 independent check accumulators.
+        # READ_PROCESS writes one edge vector and updates the active check accumulators.
         q_we = Signal()
         for b in range(max_deg):
-            for j in range(z):
+            for j in range(lanes):
                 self.sync += If(q_we & (edge == b), q_regs[b][j].eq(q_pipe[j]))
-        for j in range(z):
+        for j in range(lanes):
             self.sync += If(q_we,
                 totals[j].eq(totals[j] ^ qsign_pipe[j]),
                 *[If(edge == b, signs[j][b].eq(qsign_pipe[j])) for b in range(max_deg)],
@@ -218,11 +264,11 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             )
 
         # Build one updated APP block in variable order for the WRITE pass.
-        select_q_pipe = [Signal((q_w, True), name=f"write_q_pipe_{j}") for j in range(z)]
-        select_r_pipe = [Signal((mag_w + 1, True), name=f"write_r_pipe_{j}") for j in range(z)]
-        updated = [Signal((app_w, True), name=f"updated_{j}") for j in range(z)]
+        select_q_pipe = [Signal((q_w, True), name=f"write_q_pipe_{j}") for j in range(lanes)]
+        select_r_pipe = [Signal((mag_w + 1, True), name=f"write_r_pipe_{j}") for j in range(lanes)]
+        updated = [Signal((app_w, True), name=f"updated_{j}") for j in range(lanes)]
         packed_checks = []
-        for j in range(z):
+        for j in range(lanes):
             m1n = Signal(mag_w)
             m2n = Signal(mag_w)
             rmag = Signal(mag_w)
@@ -255,33 +301,60 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         # advances continuously; the FSM below supplies three fill clocks per layer.
         select_shift_pipe = Signal(max=z)
         select_block_pipe = Signal(max=nb)
-        updated_pipe = [Signal((app_w, True), name=f"updated_pipe_{j}") for j in range(z)]
+        select_group_pipe = Signal(max=max(2, groups))
+        updated_pipe = [Signal((app_w, True), name=f"updated_pipe_{j}") for j in range(lanes)]
         updated_shift_pipe = Signal(max=z)
         updated_block_pipe = Signal(max=nb)
+        updated_group_pipe = Signal(max=max(2, groups))
         self.sync += [
             select_shift_pipe.eq(write_shift),
             select_block_pipe.eq(write_block),
-            *[updated_pipe[j].eq(updated[j]) for j in range(z)],
+            select_group_pipe.eq(group),
+            *[updated_pipe[j].eq(updated[j]) for j in range(lanes)],
             updated_shift_pipe.eq(select_shift_pipe),
             updated_block_pipe.eq(select_block_pipe),
+            updated_group_pipe.eq(select_group_pipe),
         ]
 
-        # Return from check-row order to variable order with the inverse cyclic barrel network.
-        inv_stages = [updated_pipe]
-        for bit, amount in enumerate((1, 2, 4, 8, 16)):
-            stage_lanes = [Signal((app_w, True), name=f"app_inv_{bit}_{j}") for j in range(z)]
-            for j in range(z):
-                self.comb += stage_lanes[j].eq(Mux(
-                    updated_shift_pipe[bit], inv_stages[-1][(j - amount) % z], inv_stages[-1][j]))
-            inv_stages.append(stage_lanes)
-        write_lanes = inv_stages[-1]
-        write_pipe = [Signal((app_w, True), name=f"app_write_pipe_{j}") for j in range(z)]
-        write_block_pipe = Signal(max=nb)
+        # Return from check-row order to variable order. The full-width architecture uses its
+        # inverse barrel; folded variants use the inverse bank permutation and group offset.
+        write_address = [Signal(max=nb*groups, name=f"app_write_addr_{b}")
+                         for b in range(lanes)]
+        if lanes == z:
+            inv_stages = [updated_pipe]
+            for bit, amount in enumerate((1, 2, 4, 8, 16)):
+                stage_lanes = [Signal((app_w, True), name=f"app_inv_{bit}_{j}")
+                               for j in range(lanes)]
+                for j in range(lanes):
+                    self.comb += stage_lanes[j].eq(Mux(
+                        updated_shift_pipe[bit], inv_stages[-1][(j - amount) % z],
+                        inv_stages[-1][j]))
+                inv_stages.append(stage_lanes)
+            write_lanes = inv_stages[-1]
+            self.comb += [address.eq(updated_block_pipe) for address in write_address]
+        else:
+            write_lanes = []
+            for bank in range(lanes):
+                write_lanes.append(Array([
+                    updated_pipe[(bank - shift_value) % lanes]
+                    for shift_value in range(z)])[updated_shift_pipe])
+                cases = {}
+                for shift_value in range(z):
+                    source_lane = (bank - shift_value) % lanes
+                    offset = (source_lane + shift_value)//lanes
+                    cases[shift_value] = write_address[bank].eq(
+                        group_base(updated_block_pipe) +
+                        wrapped_group(updated_group_pipe, offset))
+                self.comb += Case(updated_shift_pipe, cases)
+        write_pipe = [Signal((app_w, True), name=f"app_write_pipe_{j}")
+                      for j in range(lanes)]
+        write_address_pipe = [Signal(max=nb*groups, name=f"app_write_addr_pipe_{b}")
+                              for b in range(lanes)]
         # The pipe advances continuously. WRITE consumes the value captured on the preceding
         # clock while the look-ahead network prepares the next edge; unconditional registers
-        # avoid a high-fanout clock-enable mux across all 27 lanes.
-        self.sync += [write_pipe[j].eq(write_lanes[j]) for j in range(z)]
-        self.sync += write_block_pipe.eq(updated_block_pipe)
+        # avoid a high-fanout clock-enable mux across all lanes.
+        self.sync += [write_pipe[j].eq(write_lanes[j]) for j in range(lanes)]
+        self.sync += [write_address_pipe[j].eq(write_address[j]) for j in range(lanes)]
         totals_any = Signal()
         self.comb += totals_any.eq(Cat(*totals) != 0)
 
@@ -298,75 +371,79 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             If(self.clear, self.failures.eq(0)),
         ]
 
-        # Bit-serial load packs 27 LLRs into one APP vector word.
-        load_t   = Signal(max=z)
-        load_blk = Signal(max=nb)
-        load_vec = Signal(z*app_w)
+        # Bit-serial load packs one active-lane group into each APP bank word.
+        load_t   = Signal(max=lanes)
+        load_vec = Signal(lanes*app_w)
         llr_ext  = Signal((app_w, True))
-        load_full = Signal(z*app_w)
+        load_full = Signal(lanes*app_w)
         self.comb += [
             llr_ext.eq(Cat(self.sink.llrs,
                 Replicate(self.sink.llrs[-1], app_w - llr_bits))),
             load_full.eq(Cat(load_vec[app_w:], llr_ext)),
         ]
 
-        # Message drain reads one APP vector then emits its 27 hard decisions.
-        out_blk = Signal(max=mb)
-        out_t   = Signal(max=z)
-        out_vec = Signal(z*app_w)
+        # Message drain reads one APP group then emits its hard decisions.
+        out_t   = Signal(max=lanes)
+        out_vec = Signal(lanes*app_w)
+        check_address = Signal(max=mb*groups)
+        load_address  = Signal(max=nb*groups)
+        out_address   = Signal(max=mb*groups)
 
         self.fsm = fsm = FSM(reset_state="LOAD")
         fsm.act("LOAD",
             self.sink.ready.eq(1),
-            *[app_ps[j].adr.eq(load_blk) for j in range(z)],
-            *[app_ps[j].dat_w.eq(load_full[j*app_w:(j + 1)*app_w]) for j in range(z)],
-            *[app_ps[j].we.eq(self.sink.valid & (load_t == (z - 1))) for j in range(z)],
+            *[app_ps[j].adr.eq(load_address) for j in range(lanes)],
+            *[app_ps[j].dat_w.eq(load_full[j*app_w:(j + 1)*app_w]) for j in range(lanes)],
+            *[app_ps[j].we.eq(self.sink.valid & (load_t == (lanes - 1)))
+              for j in range(lanes)],
             If(self.sink.valid,
                 NextValue(load_vec, load_full),
-                If(load_t == (z - 1),
+                If(load_t == (lanes - 1),
                     NextValue(load_t, 0),
-                    If(load_blk == (nb - 1),
-                        NextValue(load_blk, 0),
-                        NextValue(layer, 0), NextValue(edge, 0),
+                    If(load_address == (nb*groups - 1),
+                        NextValue(load_address, 0),
+                        NextValue(check_address, 0),
+                        NextValue(layer, 0), NextValue(group, 0), NextValue(edge, 0),
                         NextState("LAYER_INIT"),
-                    ).Else(NextValue(load_blk, load_blk + 1)),
+                    ).Else(NextValue(load_address, load_address + 1)),
                 ).Else(NextValue(load_t, load_t + 1)),
             ),
         )
         fsm.act("LAYER_INIT",
-            *[p.adr.eq(layer) for p in chk_ps],
-            *[NextValue(m1[j], qmax) for j in range(z)],
-            *[NextValue(m2[j], qmax) for j in range(z)],
-            *[NextValue(min_idx[j], 0) for j in range(z)],
-            *[NextValue(signs[j], 0) for j in range(z)],
-            *[NextValue(totals[j], 0) for j in range(z)],
+            *[p.adr.eq(check_address) for p in chk_ps],
+            *[NextValue(m1[j], qmax) for j in range(lanes)],
+            *[NextValue(m2[j], qmax) for j in range(lanes)],
+            *[NextValue(min_idx[j], 0) for j in range(lanes)],
+            *[NextValue(signs[j], 0) for j in range(lanes)],
+            *[NextValue(totals[j], 0) for j in range(lanes)],
             NextValue(edge, 0),
             NextState("READ_ISSUE"),
         )
         fsm.act("READ_ISSUE",
-            *[p.adr.eq(layer) for p in chk_ps],
-            *[p.adr.eq(block) for p in app_ps],
+            *[p.adr.eq(check_address) for p in chk_ps],
+            *[app_ps[j].adr.eq(app_read_addr[j]) for j in range(lanes)],
             NextState("APP_CAPTURE"),
         )
         fsm.act("APP_CAPTURE",
-            *[p.adr.eq(layer) for p in chk_ps],
-            *[p.adr.eq(block) for p in app_ps],
-            *[NextValue(app_rot[j], rotated_app[j]) for j in range(z)],
+            *[p.adr.eq(check_address) for p in chk_ps],
+            *[app_ps[j].adr.eq(app_read_addr[j]) for j in range(lanes)],
+            *[NextValue(app_rot[j], rotated_app[j]) for j in range(lanes)],
+            *[NextValue(r_old_pipe[j], r_old[j]) for j in range(lanes)],
             NextState("Q_CAPTURE"),
         )
         # Capture the APP/check subtraction and magnitude clamp before the min1/min2 update.
         # These lane-local registers make the minimum recurrence the third and final edge stage.
         fsm.act("Q_CAPTURE",
-            *[p.adr.eq(layer) for p in chk_ps],
-            *[p.adr.eq(block) for p in app_ps],
-            *[NextValue(q_pipe[j], q_full[j]) for j in range(z)],
-            *[NextValue(qmag_pipe[j], q_mag[j]) for j in range(z)],
-            *[NextValue(qsign_pipe[j], q_sign[j]) for j in range(z)],
+            *[p.adr.eq(check_address) for p in chk_ps],
+            *[app_ps[j].adr.eq(app_read_addr[j]) for j in range(lanes)],
+            *[NextValue(q_pipe[j], q_full[j]) for j in range(lanes)],
+            *[NextValue(qmag_pipe[j], q_mag[j]) for j in range(lanes)],
+            *[NextValue(qsign_pipe[j], q_sign[j]) for j in range(lanes)],
             NextState("READ_PROCESS"),
         )
         fsm.act("READ_PROCESS",
-            *[p.adr.eq(layer) for p in chk_ps],
-            *[p.adr.eq(block) for p in app_ps],
+            *[p.adr.eq(check_address) for p in chk_ps],
+            *[app_ps[j].adr.eq(app_read_addr[j]) for j in range(lanes)],
             q_we.eq(1),
             If(edge == (deg - 1),
                 NextValue(edge, 0),
@@ -392,35 +469,44 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             NextState("WRITE"),
         )
         fsm.act("WRITE",
-            *[app_ps[j].adr.eq(write_block_pipe) for j in range(z)],
-            *[app_ps[j].dat_w.eq(write_pipe[j]) for j in range(z)],
-            *[app_ps[j].we.eq(1) for j in range(z)],
+            *[app_ps[j].adr.eq(write_address_pipe[j]) for j in range(lanes)],
+            *[app_ps[j].dat_w.eq(write_pipe[j]) for j in range(lanes)],
+            *[app_ps[j].we.eq(1) for j in range(lanes)],
             If(edge == 0,
-                *[chk_ps[j].adr.eq(layer) for j in range(z)],
-                *[chk_ps[j].dat_w.eq(packed_checks[j]) for j in range(z)],
-                *[chk_ps[j].we.eq(1) for j in range(z)],
+                *[chk_ps[j].adr.eq(check_address) for j in range(lanes)],
+                *[chk_ps[j].dat_w.eq(packed_checks[j]) for j in range(lanes)],
+                *[chk_ps[j].we.eq(1) for j in range(lanes)],
                 If(totals_any, NextValue(unsat, 1)),
             ),
             If(edge == (deg - 1),
                 NextValue(edge, 0),
-                If(layer == (mb - 1),
-                    NextValue(layer, 0),
-                    NextValue(first_it, 0),
-                    If(~unsat & ~totals_any,
-                        blk_ok.eq(1),
-                        NextValue(out_blk, 0),
-                        NextState("OUT_READ"),
-                    ).Elif(it == max_iters,
-                        blk_fail.eq(1),
-                        NextValue(out_blk, 0),
-                        NextState("OUT_READ"),
+                If(group == (groups - 1),
+                    NextValue(group, 0),
+                    If(layer == (mb - 1),
+                        NextValue(layer, 0),
+                        NextValue(first_it, 0),
+                        If(~unsat & ~totals_any,
+                            blk_ok.eq(1),
+                            NextValue(out_address, 0),
+                            NextState("OUT_READ"),
+                        ).Elif(it == max_iters,
+                            blk_fail.eq(1),
+                            NextValue(out_address, 0),
+                            NextState("OUT_READ"),
+                        ).Else(
+                            NextValue(it, it + 1),
+                            NextValue(unsat, 0),
+                            NextValue(check_address, 0),
+                            NextState("LAYER_INIT"),
+                        ),
                     ).Else(
-                        NextValue(it, it + 1),
-                        NextValue(unsat, 0),
+                        NextValue(layer, layer + 1),
+                        NextValue(check_address, check_address + 1),
                         NextState("LAYER_INIT"),
                     ),
                 ).Else(
-                    NextValue(layer, layer + 1),
+                    NextValue(group, group + 1),
+                    NextValue(check_address, check_address + 1),
                     NextState("LAYER_INIT"),
                 ),
             ).Else(
@@ -431,11 +517,11 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
             ),
         )
         fsm.act("OUT_READ",
-            *[p.adr.eq(out_blk) for p in app_ps],
+            *[p.adr.eq(out_address) for p in app_ps],
             NextState("OUT_CAPTURE"),
         )
         fsm.act("OUT_CAPTURE",
-            *[p.adr.eq(out_blk) for p in app_ps],
+            *[p.adr.eq(out_address) for p in app_ps],
             NextValue(out_vec, Cat(*[p.dat_r for p in app_ps])),
             NextValue(out_t, 0),
             NextState("OUT_EMIT"),
@@ -443,19 +529,20 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         fsm.act("OUT_EMIT",
             self.source.valid.eq(1),
             self.source.data.eq(out_vec[app_w - 1]),
-            self.source.first.eq((out_blk == 0) & (out_t == 0)),
-            self.source.last.eq((out_blk == (mb - 1)) & (out_t == (z - 1))),
+            self.source.first.eq((out_address == 0) & (out_t == 0)),
+            self.source.last.eq((out_address == (mb*groups - 1)) &
+                (out_t == (lanes - 1))),
             If(self.source.ready,
-                If(out_t == (z - 1),
+                If(out_t == (lanes - 1),
                     NextValue(out_t, 0),
-                    If(out_blk == (mb - 1),
-                        NextValue(out_blk, 0),
+                    If(out_address == (mb*groups - 1),
+                        NextValue(out_address, 0),
                         NextValue(it, 1),
                         NextValue(first_it, 1),
                         NextValue(unsat, 0),
                         NextState("LOAD"),
                     ).Else(
-                        NextValue(out_blk, out_blk + 1),
+                        NextValue(out_address, out_address + 1),
                         NextState("OUT_READ"),
                     ),
                 ).Else(
@@ -477,7 +564,7 @@ class LiteDSPLDPCDecoderZParallel(LiteXModule):
         ])
         self._architecture = CSRStatus(fields=[
             CSRField("parallelism", size=5, description="Lifted check rows processed together."),
-            CSRField("cycles_per_iteration", size=10,
+            CSRField("cycles_per_iteration", size=13,
                 description="Fixed clocks per full layered iteration."),
         ])
         self._status = CSRStatus(fields=[

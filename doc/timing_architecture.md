@@ -488,29 +488,39 @@ schedule drops from 432 to 424 clocks while its aggregate output/input rate doub
 
 The compact 802.11n decoder updates one lifted check row at a time. Its 44,500-clock worst-case
 block schedule is area-efficient, but simply pipelining the row-layered recurrence would not
-remove the factor `z=27`. `LiteDSPLDPCDecoderZParallel` instead evaluates all 27 lifted rows of
-one base-matrix edge together. APP and compressed check state are split into 27 narrow lane
-banks. A logarithmic cyclic barrel network replaces the flat 27:1 lane selectors, and the edge
-path is staged as bank/rotation capture, lane-local Q capture, then replicated minimum update.
-The inverse write path has distinct edge-select, saturated-update, and inverse-barrel registers;
-after three fill clocks per layer, edge N commits while edge N+3 is prepared. The resulting
-schedule is 488 clocks/iteration and 4,900 clocks for an eight-iteration block, with the same
-quantization and bit-exact normalized-min-sum outcome.
+remove the factor `z=27`. `LiteDSPLDPCDecoderZParallel` now exposes
+`parallelism=3`, `9`, or `27`. Folded variants bank APP and compressed check state by
+`(group, lane)`; each QC rotation becomes a lane permutation plus a wrapped group offset, so
+every physical bank is still accessed exactly once per edge. The 27-lane default retains its
+logarithmic cyclic barrels because those route better than flat 27:1 selectors.
+
+The edge path is staged as bank/rotation/check-state capture, lane-local Q capture, then
+replicated minimum update. Registering the old check contribution with the rotated APP value
+removes the check-RAM-to-Q path without adding a schedule state. The inverse write path has
+distinct edge-select, saturated-update, and inverse-permutation registers; after three fill
+clocks per row group, edge N commits while edge N+3 is prepared. The 3/9/27-lane schedules are
+4,392/1,464/488 clocks per iteration and 36,324/12,756/4,900 clocks for an eight-iteration
+block, with identical quantization and bit-exact normalized-min-sum outcomes.
 
 | Architecture | Worst clocks/block | ECP5 LUT/FF/BRAM/Fmax (kblock/s) | Artix-7 LUT/FF/BRAM/Fmax (kblock/s) | Artix UltraScale+ LUT/FF/BRAM/Fmax (kblock/s) |
 |---|---:|---:|---:|---:|
 | Serial | 44,500 | 693 / 198 / 2 / 103.6 MHz (2.33) | 355 / 178 / 1 / 124.5 MHz (2.80) | 467 / 188 / 0 / 225.6 MHz (5.07) |
-| z-parallel | 4,900 | 9948 / 3413 / 0 / 101.3 MHz (20.67) | 4205 / 3629 / 0 / 122.7 MHz (25.04) | 4284 / 3632 / 0 / 190.3 MHz (38.84) |
+| 3 lanes | 36,324 | 1948 / 563 / 6 / 103.9 MHz (2.86) | 939 / 502 / 3 / 126.4 MHz (3.48) | 1335 / 547 / 0 / 231.9 MHz (6.38) |
+| 9 lanes | 12,756 | 4065 / 1376 / 0 / 98.0 MHz (7.68) | 2337 / 1364 / 0 / 124.8 MHz (9.78) | 2561 / 1423 / 0 / 227.0 MHz (17.80) |
+| 27 lanes | 4,900 | 10331 / 3553 / 0 / 108.2 MHz (22.08) | 4287 / 3768 / 0 / 130.2 MHz (26.57) | 4192 / 3772 / 0 / 189.7 MHz (38.71) |
 
-Thus the z-parallel option delivers 7.7--8.9x worst-case block throughput, but costs 9--14x
-the LUTs and roughly 17--20x the registers. Relative to the preceding one-register write path,
-the deeper cut adds 16% LUT/17% FF on ECP5 and four percent to the worst-case schedule, but raises
-worst-case block throughput by 30%. Three 100 MHz-constrained ECP5 routes span
-100.8/101.3/103.7 MHz; the refreshed Artix-7 and UltraScale+ routes reach 122.7/190.3 MHz.
-The design now closes 100 MHz on all profiles and is target-closed, but remains in both
-`PNR_STRESS` (capacity) and `PNR_STABILITY` (three-route ECP5 median). The serial decoder remains
-the regular compact sentinel; early parity termination reduces the average block time of either
-architecture.
+The 3-lane point is the area-oriented parallel option: it is only 1.2--1.4x faster than serial
+at worst-case iteration count, but the 9-lane point uses 1.9--2.5x its LUTs and 2.4--2.7x its
+FFs. The 9-lane midpoint raises throughput another 2.7--2.8x; on ECP5 it carries a
+distinct 95 MHz engineering target because three 100 MHz-constrained routes span
+97.3/98.0/100.2 MHz. Its Artix targets remain 100 MHz. The 3-lane 100 MHz ECP5 objective is
+reviewed across a three-route 103.9 MHz median (99.9/103.9/106.5 MHz), while 27 lanes reaches
+105.0/108.2/111.8 MHz and closes 130.2/189.7 MHz on the two Xilinx profiles.
+
+All three options are target-closed. The route-sensitive 3- and 27-lane ECP5 endpoints use the
+stability matrix; 27 lanes also remains in `PNR_STRESS` because of capacity. The 9-lane point
+stays in the regular subset under its robust ECP5 target. The serial decoder remains the compact
+sentinel; early parity termination reduces the average block time of every architecture.
 
 ## Landing policy
 

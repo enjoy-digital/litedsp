@@ -233,12 +233,53 @@ class TestLDPC(unittest.TestCase):
         self.assertLess(dut.cycles_per_block,
             LiteDSPLDPCDecoder(with_csr=False).cycles_per_block/9)
 
+    def test_folded_parallel_decoders_match_model(self):
+        # The 3/9-lane options time-multiplex the same lifted-row arithmetic and bank the
+        # 27-row state by (group, lane). A clean codeword terminates after one iteration and
+        # exercises every cyclic bank permutation without making this Pareto sweep expensive.
+        msg = _random_message(81)
+        llr = [7*(1 - 2*b) for b in ldpc_encode_model(msg)]
+        expected_cycles = {3: 4392, 9: 1464, 27: 488}
+        previous_area_proxy = 0
+        previous_cycles = None
+        for parallelism in (3, 9, 27):
+            decoder = lambda **kwargs: LiteDSPLDPCDecoderZParallel(
+                parallelism=parallelism, **kwargs)
+            bits, status = self._decode_blocks([llr], max_iters=1, throttle=0,
+                ready_rate=1, decoder_cls=decoder)
+            self.assertEqual(bits, msg)
+            self.assertEqual(status, [(1, 1, 0)])
+            dut = decoder(llr_bits=4, max_iters=8, with_csr=False)
+            self.assertEqual(dut.cycles_per_iteration, expected_cycles[parallelism])
+            self.assertGreater(dut.parallelism, previous_area_proxy)
+            if previous_cycles is not None:
+                self.assertLess(dut.cycles_per_iteration, previous_cycles)
+            previous_area_proxy = dut.parallelism
+            previous_cycles = dut.cycles_per_iteration
+
+        # A two-iteration vector additionally exercises folded check-message reload and the
+        # APP-minus-old-R update; the clean vector above cannot cover that first_it transition.
+        noisy_msg = _random_message(103)
+        noisy_llr = _awgn_llrs(ldpc_encode_model(noisy_msg), 5.0, seed=303)
+        noisy_bits, noisy_iters, noisy_ok = ldpc_decode_model(noisy_llr, max_iters=2)
+        self.assertEqual((noisy_bits, noisy_iters, noisy_ok), (noisy_msg, 2, True))
+        for parallelism in (3, 9):
+            decoder = lambda **kwargs: LiteDSPLDPCDecoderZParallel(
+                parallelism=parallelism, **kwargs)
+            bits, status = self._decode_blocks([noisy_llr], max_iters=2, throttle=0.1,
+                ready_rate=0.8, decoder_cls=decoder)
+            self.assertEqual(bits, noisy_msg)
+            self.assertEqual(status, [(2, 1, 0)])
+
     # verify-tier: model — invalid parameters rejected with ValueError.
     def test_invalid_params(self):
         for decoder_cls in (LiteDSPLDPCDecoder, LiteDSPLDPCDecoderZParallel):
             for kwargs in ({"llr_bits": 1}, {"max_iters": 0}, {"max_iters": 32}):
                 with self.assertRaises(ValueError):
                     decoder_cls(with_csr=False, **kwargs)
+        for parallelism in (1, 4, 10):
+            with self.assertRaises(ValueError):
+                LiteDSPLDPCDecoderZParallel(parallelism=parallelism, with_csr=False)
 
 if __name__ == "__main__":
     unittest.main()

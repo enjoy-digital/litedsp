@@ -115,7 +115,7 @@
 | [CCSDS RS decoder](ccsds_rs_decoder.md) | `LiteDSPCCSDSRSDecoder` | var | 0 | CCSDS 131.0-B-5 RS(255,223) decoder with dual-basis stream symbols. |
 | [LDPC encoder (802.11n)](ldpc_encoder.md) | `LiteDSPLDPCEncoder` | var | 0 | 802.11n rate-1/2 (648, 324) LDPC encoder: 324 message bits in, 648 codeword bits out. |
 | [LDPC decoder (802.11n)](ldpc_decoder.md) | `LiteDSPLDPCDecoder` | var | 0 | 802.11n rate-1/2 (648, 324) LDPC decoder: 648 LLRs in, 324 corrected bits out. |
-| [LDPC decoder (z-parallel)](ldpc_decoder_z_parallel.md) | `LiteDSPLDPCDecoderZParallel` | var | 0 | 27-row-parallel normalized min-sum LDPC decoder. |
+| [LDPC decoder (z-parallel)](ldpc_decoder_z_parallel.md) | `LiteDSPLDPCDecoderZParallel` | var | 0 | Foldable lift-parallel normalized min-sum LDPC decoder. |
 | [OFDM CP insert](cp_insert.md) | `LiteDSPCPInsert` | var | — | Insert a cyclic prefix: N-sample symbols in, (CP + N)-sample symbols out. |
 | [OFDM CP remove](cp_remove.md) | `LiteDSPCPRemove` | 0 | — | Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out. |
 | [OFDM equalizer (1-tap)](ofdm_equalizer.md) | `LiteDSPOFDMEqualizer` | 2 | 6 | LS channel estimation + divider-free one-tap OFDM equalizer with per-bin CSI. |

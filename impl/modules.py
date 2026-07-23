@@ -395,6 +395,16 @@ def ldpc_decoder_z_parallel():
     d = LiteDSPLDPCDecoderZParallel(llr_bits=4, max_iters=8, with_csr=False)
     return d, {d.iterations, d.parity_ok, d.failures, d.clear} | _eps(d.sink, d.source), 10.0
 
+def ldpc_decoder_lanes_3():
+    d = LiteDSPLDPCDecoderZParallel(
+        llr_bits=4, max_iters=8, parallelism=3, with_csr=False)
+    return d, {d.iterations, d.parity_ok, d.failures, d.clear} | _eps(d.sink, d.source), 10.0
+
+def ldpc_decoder_lanes_9():
+    d = LiteDSPLDPCDecoderZParallel(
+        llr_bits=4, max_iters=8, parallelism=9, with_csr=False)
+    return d, {d.iterations, d.parity_ok, d.failures, d.clear} | _eps(d.sink, d.source), 10.0
+
 def stream_fifo():
     d = LiteDSPStreamFIFO(depth=16, data_width=16, with_csr=False)
     return d, {d.level, d.overflow} | _eps(d.sink, d.source), 8.0
@@ -543,6 +553,8 @@ REGISTRY = {
     "ccsds_rs_encoder": ccsds_rs_encoder, "ccsds_rs_decoder": ccsds_rs_decoder,
     "ldpc_encoder": ldpc_encoder, "ldpc_decoder": ldpc_decoder,
     "ldpc_decoder_z_parallel": ldpc_decoder_z_parallel,
+    "ldpc_decoder_lanes_3": ldpc_decoder_lanes_3,
+    "ldpc_decoder_lanes_9": ldpc_decoder_lanes_9,
     "stream_fifo": stream_fifo, "iq_pack": iq_pack, "iq_unpack": iq_unpack,
     "csr_source": csr_source, "csr_sink": csr_sink, "null_sink": null_sink,
     "pattern_source": pattern_source, "error_counter": error_counter, "framer": framer,
@@ -569,6 +581,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "goertzel_folded", "iir_biquad_folded", "pfb_channelizer_folded",
               "pfb_channelizer_fft",
               "pfb_channelizer_fft_2x",
+              "ldpc_decoder_lanes_9",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip",
               "qpsk_receiver_ip"]
 
@@ -578,7 +591,8 @@ PNR_STRESS = ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
 
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.
-PNR_STABILITY = ["dpd", "fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
+PNR_STABILITY = ["dpd", "fft_parallel_native_x4", "ldpc_decoder_lanes_3",
+                 "ldpc_decoder_z_parallel"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
@@ -591,6 +605,7 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "fft_parallel_native_x4",
                  "goertzel_folded", "iir_biquad_folded",
                  "pfb_channelizer_folded", "pfb_channelizer_fft", "pfb_channelizer_fft_2x",
+                 "ldpc_decoder_lanes_3", "ldpc_decoder_lanes_9",
                  "timing_recovery", "cfr_pipelined", "lms_equalizer_pipelined", "ddc_ip",
                  "qpsk_receiver_ip", "ldpc_decoder_z_parallel"]
 
