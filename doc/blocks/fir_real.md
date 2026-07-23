@@ -24,7 +24,8 @@ arithmetic stages and the valid pipeline drain on every accepted output beat.
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `symmetric` | `False` | bool | Fold mirrored tap pairs before the multiply, halving the multiplier count (DSP blocks) for linear-phase filters. The provided coefficients must actually be symmetric. |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
-| `architecture` | `"classic"` | str | ``"classic"`` uses a combinational balanced reduction after the product registers and has three clocks of latency. ``"pipelined"`` registers every adder-tree level, retaining one-sample-per-clock throughput while adding ``ceil(log2(n_products))`` clocks. Choices: `classic`, `pipelined`. |
+| `architecture` | `"classic"` | str | ``"classic"`` uses a combinational balanced reduction after the product registers and has three clocks of latency. ``"pipelined"`` registers every adder-tree level, retaining one-sample-per-clock throughput while adding ``ceil(log2(n_products))`` clocks. ``"mac"`` computes the convolution serially with ``n_macs`` multiply-accumulate units (~``n_macs`` DSP blocks instead of ``n_taps``): a fully pipelined operand-mux -> product -> accumulate -> pairwise-sum-tree scan taking ``cycles_per_sample`` clocks per input. Intended for decimated streams where a new sample arrives at most every ``cycles_per_sample`` clocks (e.g. after a CIC) -- input arriving faster is backpressured. Sample-exact vs "classic". Choices: `classic`, `pipelined`, `mac`. |
+| `n_macs` | `4` | int | Multiply-accumulate units for the ``"mac"`` architecture (ignored otherwise). |
 
 ## Ports
 

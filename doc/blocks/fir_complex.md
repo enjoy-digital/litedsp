@@ -17,7 +17,8 @@ Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + 
 | `symmetric` | `False` | bool | Fold mirrored tap pairs in both the I and Q FIRs, halving the multiplier count (DSP blocks) for linear-phase filters; the coefficients must actually be symmetric. |
 | `coefficients` | — | none | Coefficient list (signed integers, quantized via litedsp.filter.design). |
 | `shift` | — | none | Output rescale shift (defaults to data_width - 1). |
-| `architecture` | `"classic"` | str | ``"classic"`` uses the three-clock combinational-reduction filters. ``"pipelined"`` registers every adder-tree level while retaining one complex sample per clock. Choices: `classic`, `pipelined`. |
+| `architecture` | `"classic"` | str | ``"classic"`` uses the three-clock combinational-reduction filters. ``"pipelined"`` registers every adder-tree level while retaining one complex sample per clock. Choices: `classic`, `pipelined`, `mac`. |
+| `n_macs` | `4` | int |  |
 
 ## Ports
 
