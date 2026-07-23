@@ -46,8 +46,9 @@ class LiteDSPTimingRecovery(LiteXModule):
         or "gardner" (non-decision-aided, extra midpoint interpolation, needs sps = 2).
     architecture : str
         ``"classic"`` updates the loop directly from the registered timing error.
-        ``"pipelined"`` registers the scaled proportional/integral corrections first,
-        adding one processing clock per output symbol while shortening the feedback path.
+        ``"pipelined"`` registers the completed interpolation sum and the scaled
+        proportional/integral corrections, adding two processing clocks per output symbol
+        while shortening both the Farrow output and feedback paths.
     """
     def __init__(self, data_width=16, sps=2, frac=16, gain_mu=0.1, gain_omega=None, ted="mm",
         with_csr=True, architecture="classic"):
@@ -98,7 +99,7 @@ class LiteDSPTimingRecovery(LiteXModule):
         # clock, so this makes the timing/throughput trade-off explicit without reducing the
         # datapath's accepted-sample rate while it is consuming a window.
         loop_pipeline = int(architecture == "pipelined")
-        SETTLE = 5 + loop_pipeline                       # Interpolator/error + optional loop cut.
+        SETTLE = 5 + 2*loop_pipeline                     # Optional Farrow-output + loop cuts.
         self.settle_cycles = SETTLE
         settle    = Signal(max=SETTLE + 1)
         consuming = Signal()
@@ -122,6 +123,8 @@ class LiteDSPTimingRecovery(LiteXModule):
         # Cubic (Catmull-Rom) interpolation at mu (fractional part) between wr[1], wr[2],
         # registered per multiply stage (valid SETTLE cycles after window/mu are stable).
         mu_f = mu[:frac]
+        mu_s = Signal((frac + 1, True))
+        self.comb += mu_s.eq(mu_f)                       # Explicit signed-positive multiplier input.
         def interp(w):
             a0 = w[1]
             a1 = Signal((data_width + 2, True)); a2 = Signal((data_width + 4, True)); a3 = Signal((data_width + 4, True))
@@ -136,12 +139,32 @@ class LiteDSPTimingRecovery(LiteXModule):
             a3_r = Signal((data_width + 4, True))
             y2 = Signal((data_width + 6, True)); y1 = Signal((data_width + 6, True))
             y  = Signal((data_width, True))
+            # Keep every multiply in an explicitly sized signed signal. Inline products can
+            # otherwise inherit the assignment context's width in generated Verilog even though
+            # Migen simulation evaluates the full expression.
+            p3 = Signal((frac + data_width + 5, True))
+            p2 = Signal((frac + data_width + 7, True))
+            p1 = Signal((frac + data_width + 7, True))
+            y_full = Signal((frac + data_width + 8, True))
+            self.comb += [
+                p3.eq(mu_s*a3_r),
+                p2.eq(mu_s*y2),
+                p1.eq(mu_s*y1),
+                y_full.eq(a0_r*ONE + p1),
+            ]
             self.sync += [
                 a0_r.eq(a0), a1_r.eq(a1), a2_r.eq(a2), a3_r.eq(a3),
-                y2.eq(a2_r + ((mu_f*a3_r) >> frac)),
-                y1.eq(a1_r + ((mu_f*y2) >> frac)),
-                y.eq(scaled(a0_r*ONE + mu_f*y1, frac, data_width)[0]),
+                y2.eq(a2_r + (p3 >> frac)),
+                y1.eq(a1_r + (p2 >> frac)),
             ]
+            if architecture == "classic":
+                self.sync += y.eq(scaled(y_full, frac, data_width)[0])
+            else:
+                y_full_r = Signal.like(y_full)
+                self.sync += [
+                    y_full_r.eq(y_full),
+                    y.eq(scaled(y_full_r, frac, data_width)[0]),
+                ]
             return y
         yr = interp(wr[nw-4:])
         yq = interp(wi[nw-4:])
@@ -163,11 +186,15 @@ class LiteDSPTimingRecovery(LiteXModule):
             # half-symbol point, and feeding that error back makes the loop hunt.
             ymid_r = Signal((data_width, True)); ymid_q = Signal((data_width, True))
             self.comb += [ymid_r.eq(interp(wr[:4])), ymid_q.eq(interp(wi[:4]))]
+            gp_r    = Signal((2*data_width + 1, True))
+            gp_q    = Signal((2*data_width + 1, True))
             g       = Signal((2*data_width + 2, True))
             gs      = Signal((data_width + 8, True))
             nominal = Signal()
             self.comb += [
-                g.eq((last_r - yr)*ymid_r + (last_q - yq)*ymid_q),   # Sign matches the mu += g·e loop.
+                gp_r.eq((last_r - yr)*ymid_r),
+                gp_q.eq((last_q - yq)*ymid_q),
+                g.eq(gp_r + gp_q),   # Sign matches the mu += g·e loop.
                 # Rescale toward the M&M error amplitude (the product is quadratic in the
                 # signal, so the raw >> (dw-1) form is an order of magnitude weaker).
                 gs.eq(g >> (data_width - 5)),
@@ -178,17 +205,23 @@ class LiteDSPTimingRecovery(LiteXModule):
         # ----------------------------------------------------------------
         omega_n = Signal((iw, True))
         mu_n    = Signal((iw + 1, True))
+        go_product = Signal((data_width + 4 + max(1, go_q.bit_length()), True))
+        gm_product = Signal((data_width + 4 + max(1, gm_q.bit_length()), True))
+        self.comb += [
+            go_product.eq(err*go_q),
+            gm_product.eq(err*gm_q),
+        ]
         if architecture == "classic":
             self.comb += [
-                omega_n.eq(omega + ((go_q*err) >> amp_shift)),
-                mu_n.eq(mu + omega + ((gm_q*err) >> amp_shift)),
+                omega_n.eq(omega + (go_product >> amp_shift)),
+                mu_n.eq(mu + omega + (gm_product >> amp_shift)),
             ]
         else:
             omega_correction = Signal((iw, True))
             mu_correction    = Signal((iw + 1, True))
             self.sync += [
-                omega_correction.eq((go_q*err) >> amp_shift),
-                mu_correction.eq((gm_q*err) >> amp_shift),
+                omega_correction.eq(go_product >> amp_shift),
+                mu_correction.eq(gm_product >> amp_shift),
             ]
             self.comb += [
                 omega_n.eq(omega + omega_correction),

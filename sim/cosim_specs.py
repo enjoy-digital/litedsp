@@ -96,6 +96,31 @@ def spec_carrier_loop_qpsk():
 def spec_carrier_loop_qpsk_pipelined():
     return _spec_carrier_loop("qpsk", architecture="pipelined")
 
+def _spec_timing_recovery(ted="mm", architecture="classic"):
+    from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
+    n = 720
+    dut = LiteDSPTimingRecovery(data_width=16, sps=2, gain_mu=0.1, ted=ted,
+        architecture=architecture, with_csr=False)
+    cols = _rand_cols(2, n, lo=-14000, hi=14000,
+        seed=211 + 7*(ted == "gardner"))
+    ref = models.timing_recovery_model(cols[0], cols[1], ted=ted)
+    # Leave a short tail so the generic randomized-ready harness never depends on the exact
+    # end-of-input drain cycle while still checking every adaptive slip in the main sequence.
+    n_out = len(ref[0]) - 2
+    return dut, cols, n_out, lambda c: list(models.timing_recovery_model(c[0], c[1], ted=ted))
+
+def spec_timing_recovery():
+    return _spec_timing_recovery()
+
+def spec_timing_recovery_pipelined():
+    return _spec_timing_recovery(architecture="pipelined")
+
+def spec_timing_recovery_gardner():
+    return _spec_timing_recovery(ted="gardner")
+
+def spec_timing_recovery_gardner_pipelined():
+    return _spec_timing_recovery(ted="gardner", architecture="pipelined")
+
 # Filter -------------------------------------------------------------------------------------------
 
 def spec_fir_real():
@@ -833,6 +858,10 @@ SPECS = {
     "carrier_loop_bpsk": spec_carrier_loop_bpsk,
     "carrier_loop_qpsk": spec_carrier_loop_qpsk,
     "carrier_loop_qpsk_pipelined": spec_carrier_loop_qpsk_pipelined,
+    "timing_recovery": spec_timing_recovery,
+    "timing_recovery_pipelined": spec_timing_recovery_pipelined,
+    "timing_recovery_gardner": spec_timing_recovery_gardner,
+    "timing_recovery_gardner_pipelined": spec_timing_recovery_gardner_pipelined,
     "fir_real":         spec_fir_real,
     "fir_complex":      spec_fir_complex,
     "fir_complex_pipelined": spec_fir_complex_pipelined,
@@ -929,6 +958,9 @@ def check_coverage():
         "carrier_loop_bpsk":         "carrier_loop",
         "carrier_loop_qpsk":         "carrier_loop",
         "carrier_loop_qpsk_pipelined": "carrier_loop",
+        "timing_recovery_pipelined": "timing_recovery",
+        "timing_recovery_gardner": "timing_recovery",
+        "timing_recovery_gardner_pipelined": "timing_recovery",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

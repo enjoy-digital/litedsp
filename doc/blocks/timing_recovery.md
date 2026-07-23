@@ -29,7 +29,7 @@ the symbol midpoint; modulation-agnostic, locks without carrier lock, for ``sps=
 | `gain_mu` | `0.1` | float | Proportional gain on the fractional interpolation phase ``mu`` (quantized to Q.frac). Larger = faster timing acquisition, more jitter. |
 | `gain_omega` | — | none | Integral gain on the samples/symbol estimate ``omega`` (quantized to Q.frac; default gain_mu**2/4, the critically-damped choice). |
 | `ted` | `"mm"` | str | Timing error detector: "mm" (Mueller & Muller, decision-directed, multiplier-free) or "gardner" (non-decision-aided, extra midpoint interpolation, needs sps = 2). |
-| `architecture` | `"classic"` | str | ``"classic"`` updates the loop directly from the registered timing error. ``"pipelined"`` registers the scaled proportional/integral corrections first, adding one processing clock per output symbol while shortening the feedback path. |
+| `architecture` | `"classic"` | str | ``"classic"`` updates the loop directly from the registered timing error. ``"pipelined"`` registers the completed interpolation sum and the scaled proportional/integral corrections, adding two processing clocks per output symbol while shortening both the Farrow output and feedback paths. |
 
 ## Ports
 
@@ -50,8 +50,8 @@ Samples/symbol estimate (Q.frac).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1000 | 412 | 0 | 16 | 93.6 | 100.0 |
-| xilinx | 627 | 259 | 0 | 8 | 103.7 | 100.0 |
-| xilinx_au | 647 | 247 | 0 | 8 | 202.1 | 100.0 |
+| ecp5 | 1430 | 561 | 0 | 18 | 96.4 | 100.0 |
+| xilinx | 762 | 331 | 0 | 8 | 108.0 | 100.0 |
+| xilinx_au | 787 | 331 | 0 | 8 | 201.2 | 100.0 |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

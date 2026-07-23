@@ -96,10 +96,11 @@ a registered timing-recovery loop update.
 Registered NCO operands, mixer products, and rounded derotation cut the former one-cycle
 NCO-LUT/multiply/detector/PI arc while an accepted-sample error queue preserves deterministic
 behavior through bubbles and backpressure. The rounded-derotation boundary keeps the product
-reduction and decision detector on separate timing arcs. Registering the timing loop's scaled
-`omega`/`mu` corrections costs one settling clock per output symbol and separates gain scaling
-from accumulation/clamping. Three-route/strategy medians are 119.8 MHz on ECP5, 135.0 MHz on
-Artix-7, and 238.9 MHz on Artix UltraScale+; the pinned hosted ECP5 route reaches 117.15 MHz.
+reduction and decision detector on separate timing arcs. Registering the timing loop's completed
+Farrow sum and scaled `omega`/`mu` corrections costs two settling clocks per output symbol and
+separates multiplication from scale/saturation and gain scaling from accumulation/clamping.
+Three-route/strategy medians are 117.6 MHz on ECP5, 132.4 MHz on
+Artix-7, and 237.1 MHz on Artix UltraScale+.
 The complete generated receiver therefore
 carries the same strict 100 MHz objective on all three profiles. The one-sample classic loop
 and five-clock classic timing schedule remain the API defaults; latency, area, and acquisition measurements are published in
@@ -157,10 +158,10 @@ and five-clock classic timing schedule remain the API defaults; latency, area, a
 - **Carrier recovery needs sample-domain delayed feedback, not clock-domain retiming.** The QPSK
   receiver's four-sample loop queues completed detector errors until the corresponding accepted
   sample distance has elapsed, so stalls cannot alter its trajectory. The complete generated core
-  rises from 41.7/65.8/126.4 MHz to 119.8/135.0/238.9 MHz on
+  rises from 41.7/65.8/126.4 MHz to 117.6/132.4/237.1 MHz on
   ECP5/Artix-7/Artix UltraScale+ after the carrier and timing-loop cuts. Carrier throughput
   remains one sample/clock; carrier output latency rises from one to three clocks and timing
-  recovery spends one additional settling clock per output symbol.
+  recovery spends two additional settling clocks per output symbol.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,

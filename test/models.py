@@ -85,6 +85,100 @@ def carrier_loop_model(i, q, detector="pll", data_width=16, phase_bits=32,
             integral = loop_wrap(integral + (update >> ki_shift))
     return np.asarray(out_i, np.int64), np.asarray(out_q, np.int64)
 
+# Timing recovery ----------------------------------------------------------------------------------
+
+def timing_recovery_model(i, q, data_width=16, sps=2, frac=16, gain_mu=0.1,
+    gain_omega=None, ted="mm"):
+    """Bit-exact accepted-sample reference for :class:`LiteDSPTimingRecovery`.
+
+    The RTL's classic and pipelined loop-update architectures are numerically identical; the
+    latter spends two extra clocks registering the completed interpolation sum and the
+    already-computed gain corrections. This model
+    therefore advances only on accepted input/output samples and intentionally has no
+    ``architecture`` argument.
+
+    It reproduces the registered Catmull-Rom interpolator, M&M/Gardner error quantization,
+    signed controller widths, omega clamp, fractional-mu wrap, and data-dependent 1/2/3-sample
+    slips. Returned arrays contain every complete output that can be formed from ``i``/``q``.
+    """
+    if ted not in ("mm", "gardner"):
+        raise ValueError("ted must be 'mm' or 'gardner'")
+    if gain_omega is None:
+        gain_omega = gain_mu*gain_mu/4
+    if len(i) != len(q):
+        raise ValueError("i and q must have the same length")
+
+    W          = data_width
+    ONE        = 1 << frac
+    gm_q       = int(round(gain_mu*ONE))
+    go_q       = int(round(gain_omega*ONE))
+    amp_shift  = W - 1
+    omega_mid  = sps*ONE
+    omega_lim  = int(round(0.05*sps*ONE))
+    iw         = frac + 4
+    nw         = 4 if ted == "mm" else 5
+    wrap_iw    = _wrapper(iw)
+    wrap_mu_n  = _wrapper(iw + 1)
+    wrap_err   = _wrapper(W + 3)
+    wrap_a1    = _wrapper(W + 2)
+    wrap_a     = _wrapper(W + 4)
+    wrap_y     = _wrapper(W + 6)
+
+    def interp(w, mu_f):
+        # Width truncations mirror the registered Signals in timing_recovery.py.
+        a0 = int(w[1])
+        a1 = wrap_a1((int(w[2]) - int(w[0])) >> 1)
+        a2 = wrap_a((2*int(w[0]) - 5*int(w[1]) + 4*int(w[2]) - int(w[3])) >> 1)
+        a3 = wrap_a((-int(w[0]) + 3*int(w[1]) - 3*int(w[2]) + int(w[3])) >> 1)
+        y2 = wrap_y(a2 + ((mu_f*a3) >> frac))
+        y1 = wrap_y(a1 + ((mu_f*y2) >> frac))
+        return int(np_scaled(a0*ONE + mu_f*y1, frac, W))
+
+    wr, wi     = [0]*nw, [0]*nw
+    last_r     = last_q = 0
+    mu         = ONE//2
+    omega      = omega_mid
+    nominal    = False
+    pos        = 0
+    need       = nw
+    out_i, out_q = [], []
+
+    xi = [int(v) for v in i]
+    xq = [int(v) for v in q]
+    while pos + need <= len(xi):
+        for _ in range(need):
+            wr = wr[1:] + [_wrapper(W)(xi[pos])]
+            wi = wi[1:] + [_wrapper(W)(xq[pos])]
+            pos += 1
+
+        mu_f = mu & (ONE - 1)
+        yr   = interp(wr[nw - 4:], mu_f)
+        yq   = interp(wi[nw - 4:], mu_f)
+        if ted == "mm":
+            def sgnmul(sign_src, value):
+                return value if sign_src >= 0 else -value
+            err = wrap_err(sgnmul(last_r, yr) + sgnmul(last_q, yq)
+                         - sgnmul(yr, last_r) - sgnmul(yq, last_q))
+        else:
+            ymid_r = interp(wr[:4], mu_f)
+            ymid_q = interp(wi[:4], mu_f)
+            g      = (last_r - yr)*ymid_r + (last_q - yq)*ymid_q
+            gs     = g >> (W - 5)
+            err    = int(np_saturated(gs, W + 3)) if nominal else 0
+
+        omega_n = wrap_iw(omega + ((go_q*err) >> amp_shift))
+        mu_n    = wrap_mu_n(mu + omega + ((gm_q*err) >> amp_shift))
+        omega   = min(omega_mid + omega_lim, max(omega_mid - omega_lim, omega_n))
+        step    = (mu_n & ((1 << (iw + 1)) - 1)) >> frac
+        need    = step if step else 1
+        mu      = mu_n & (ONE - 1)
+        nominal = need == sps
+        last_r, last_q = yr, yq
+        out_i.append(yr)
+        out_q.append(yq)
+
+    return np.asarray(out_i, np.int64), np.asarray(out_q, np.int64)
+
 # Mixer --------------------------------------------------------------------------------------------
 
 def mixer_model(a_i, a_q, b_i, b_q, mode="down", data_width=16, shift=None):

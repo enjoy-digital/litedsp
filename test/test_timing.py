@@ -11,6 +11,7 @@ import numpy as np
 from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
 from litedsp.filter.design        import rrc_coefficients
 
+from test import models
 from test.common import run_stream, column, to_signed
 
 def make_signal(L, sps_hi, sps, offset, seed):
@@ -68,9 +69,13 @@ class TestTimingRecovery(unittest.TestCase):
         classic   = self.run_mm(x, architecture="classic")
         pipelined = self.run_mm(x, architecture="pipelined")
         self.assertTrue(np.array_equal(classic, pipelined))
+        reference = models.timing_recovery_model(
+            np.round(x.real).astype(int), np.round(x.imag).astype(int))
+        model = reference[0] + 1j*reference[1]
+        self.assertTrue(np.array_equal(classic, model[:len(classic)]))
         self.assertEqual(LiteDSPTimingRecovery(with_csr=False).settle_cycles, 5)
         self.assertEqual(LiteDSPTimingRecovery(
-            with_csr=False, architecture="pipelined").settle_cycles, 6)
+            with_csr=False, architecture="pipelined").settle_cycles, 7)
 
     def test_invalid_architecture(self):
         with self.assertRaises(ValueError):

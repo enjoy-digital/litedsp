@@ -23,7 +23,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 | Frame synchronizer (Barker-7) | 79.9 MHz classic; 132.2 MHz pipelined median | matched-filter reduction, input-power/energy update, and normalized-threshold product | five-stage latency-only retiming landed and target-closed |
 | RS decoder (255,223) | 86.5 MHz classic; 124.3 MHz pipelined median | serial GF multipliers, inverse/Forney chain, and Chien reductions | scheduled operand/reduction pipeline landed and target-closed |
 | LMS equalizer (7 taps) | 69.1 MHz classic; 114.0 MHz all-mode pipelined median | FIR rescale, CMA modulus/gradient, and saturated weight recurrence | nine-sample delayed-update option landed and target-closed |
-| QPSK receiver IP | 41.7 MHz classic; 119.8 MHz carrier/timing-loop pipeline median | NCO LUT, four mixer products, decision detector, PI/phase recurrence, and timing-error gain/clamp | accepted-sample delayed carrier plus registered timing corrections landed and target-closed |
+| QPSK receiver IP | 41.7 MHz classic; 117.6 MHz carrier/timing-loop pipeline median | NCO LUT, four mixer products, Farrow scale/saturate, decision detector, PI/phase recurrence, and timing-error gain/clamp | accepted-sample delayed carrier plus registered interpolation/timing corrections landed and target-closed |
 | SDF / iterative / parallel FFT | 58.7 / 73.6 / 56.9 MHz classic; 113.6 folded SDF; 110.5 interleaved x2; 107.6 registered iterative; 122.8/107.7 pipelined native P2/P4 | butterfly result feeds the SDF delay or in-place RAM schedule; vector cascade also propagates ready | folded, interleaved, iterative, and native P2/P4 target-closed |
 | PFB channel transform (M=16/T=8) | 113.2 MHz FFT | polyphase accumulator and FFT memory-read/multiply/write schedule | four-phase FFT option landed and target-closed |
 
@@ -249,25 +249,27 @@ freezes all datapath stages. Consequently arbitrary stream stalls do not shorten
 sample-domain feedback distance.
 
 The generated receiver also selects `architecture="pipelined"` for timing recovery. That option
-registers the gain-scaled `omega`/`mu` corrections before the accumulation and clamp. It adds one
-settling clock per emitted symbol (six rather than five) without changing the accepted-sample
-trajectory, and removes the timing-error multiply from the controller feedback path. The classic
-five-clock settling schedule remains the timing-recovery API default.
+registers the completed Farrow interpolation sum before its final scale/saturation and registers
+the gain-scaled `omega`/`mu` corrections before accumulation and clamp. It adds two settling
+clocks per emitted symbol (seven rather than five) without changing the accepted-sample
+trajectory, and removes both the interpolation multiply and timing-error gain from their
+respective register paths. The classic five-clock settling schedule remains the API default.
 
 The complete AXI-Stream/AXI-Lite QPSK receiver, including timing recovery and hard slicer, measures:
 
 | Architecture/profile | LUT | FF | BRAM | DSP | Raw P&R fmax |
 |---|---:|---:|---:|---:|---:|
-| Pipelined, ECP5-85 (three-route median) | 1676 | 862 | 2 | 20 | 119.8 MHz |
-| Pipelined, Artix-7 `xc7a200t-3` (three-strategy median) | 942 | 562 | 1 | 12 | 135.0 MHz |
-| Pipelined, Artix UltraScale+ `xcau20p-2` (three-strategy median) | 935 | 550 | 1 | 12 | 238.9 MHz |
+| Pipelined, ECP5-85 (three-route median) | 2083 | 1000 | 2 | 22 | 117.6 MHz |
+| Pipelined, Artix-7 `xc7a200t-3` (three-strategy median) | 1085 | 634 | 1 | 12 | 132.4 MHz |
+| Pipelined, Artix UltraScale+ `xcau20p-2` (three-strategy median) | 1083 | 634 | 1 | 12 | 237.1 MHz |
 
 Relative to the classic complete core, ECP5 moves from 2476 LUT / 612 FF / 0 BRAM / 20 DSP to
-1676 / 862 / 2 / 20; the registered NCO boundary lets both tables infer as BRAM. Artix-7 moves
-from 885 LUT / 455 FF / 1 BRAM / 12 DSP to 942 / 562 / 1 / 12. Carrier output latency rises from
+2083 / 1000 / 2 / 22; the registered NCO boundary lets both tables infer as BRAM and the two
+additional DSPs retain the full-width timing-loop products. Artix-7 moves from
+885 LUT / 455 FF / 1 BRAM / 12 DSP to 1085 / 634 / 1 / 12. Carrier output latency rises from
 one to three clocks, carrier-loop delay rises from one to four accepted samples, and peak carrier
-throughput remains one sample per clock. Timing recovery emits one symbol after one additional
-settling clock. On the deterministic QPSK acquisition stimulus used by the regression, classic
+throughput remains one sample per clock. Timing recovery emits one symbol after two additional
+settling clocks. On the deterministic QPSK acquisition stimulus used by the regression, classic
 and pipelined loops lock in 609 and 608 samples respectively and settle at 1.769 and 1.769 mrad RMS
 phase error; these measurements validate the selected gains but do not imply identical dynamics
 for every channel condition.
@@ -276,8 +278,7 @@ The classic architecture remains the API default. The generated receiver sentine
 pipelined option and carries a strict 100 MHz target on all three reference devices. Acceptance
 covers bit-exact delayed-loop modeling, QPSK lock/jitter bounds, timing-recovery architecture
 identity, `first`/`last` propagation, randomized valid/ready stalls, independent Verilator
-co-simulation, and three-route/strategy physical implementation sweeps. The pinned hosted
-OSS-CAD route reaches 117.15 MHz against the strict 100 MHz target.
+co-simulation, and three-route/strategy physical implementation sweeps.
 
 ## AGC
 

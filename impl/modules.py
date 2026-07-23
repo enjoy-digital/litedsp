@@ -310,7 +310,7 @@ def lms_equalizer_pipelined():
     return d, {d.train, d.mode, d.cma_r2, d.dd_level} | _eps(d.sink, d.source), 9.8
 
 def timing_recovery():
-    d = LiteDSPTimingRecovery(data_width=16, with_csr=False)
+    d = LiteDSPTimingRecovery(data_width=16, architecture="pipelined", with_csr=False)
     return d, _eps(d.sink, d.source), 12.0
 
 def fm_demod():

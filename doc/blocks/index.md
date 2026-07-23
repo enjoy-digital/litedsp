@@ -94,7 +94,7 @@
 | [Symbol mapper](symbol_mapper.md) | `LiteDSPSymbolMapper` | 1 | — | Map a QAM symbol index to a constellation I/Q point (inverse of :class:`LiteDSPSlicer`). |
 | [Correlator](correlator.md) | `LiteDSPCorrelator` | 3 | 14 | Sliding correlation of the I/Q stream against a known real ``sequence``. |
 | [Frame sync (preamble)](frame_sync.md) | `LiteDSPFrameSync` | 9 | 23 | Preamble detector + stream aligner: the gateway block for burst receivers. |
-| [Timing recovery (M&M)](timing_recovery.md) | `LiteDSPTimingRecovery` | var | 16 | Symbol timing recovery with an interpolation controller (M&M or Gardner detector). |
+| [Timing recovery (M&M)](timing_recovery.md) | `LiteDSPTimingRecovery` | var | 18 | Symbol timing recovery with an interpolation controller (M&M or Gardner detector). |
 | [Carrier loop (PLL)](carrier_loop.md) | `LiteDSPCarrierLoop` | 1 | — | Carrier recovery: derotate the input with an internal NCO driven by a PI loop. |
 | [Phase detector](phase_detect.md) | `LiteDSPPhaseDetect` | 18 | — | Instantaneous phase ``atan2(Q, I)`` of an I/Q stream (CORDIC vectoring). |
 | [CFO estimator (coarse)](cfo_estimator.md) | `LiteDSPCFOEstimator` | 0 | 4 | Coarse CFO estimator: delay-conjugate-multiply autocorrelation + CORDIC angle. |

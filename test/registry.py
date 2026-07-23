@@ -95,7 +95,7 @@ VSPEC = {
     "symbol_mapper":      _v(),
     "correlator":         _v("fir_complex_model", cosim=True),  # Matched filter = complex FIR.
     "frame_sync":         _v("frame_sync_model", cosim=True),  # CFAR preamble detect + alignment.
-    "timing_recovery":    _v(latency="variable", rate=None),
+    "timing_recovery":    _v("timing_recovery_model", latency="variable", rate=None, cosim=True),
     "carrier_loop":       _v("carrier_loop_model", cosim=True),
     "phase_detect":       _v(),
     "cfo_estimator":      _v("cfo_estimator_model"),     # Delay-conj-multiply + CORDIC angle.
