@@ -59,8 +59,9 @@ class TestCICDecimator(unittest.TestCase):
         self.assertGreater(gi_lo[len(gi_lo)//2:].std(), 10*gi_hi[len(gi_hi)//2:].std())
 
 class TestCICDecimatorRuntime(unittest.TestCase):
-    def run_dec(self, xi, xq, R, N):
-        dut = LiteDSPCICDecimatorRuntime(data_width=16, r_max=8192, n_stages=N, iq=True, with_csr=False)
+    def run_dec(self, xi, xq, R, N, staged=False):
+        dut = LiteDSPCICDecimatorRuntime(data_width=16, r_max=8192, n_stages=N, iq=True,
+            with_csr=False, staged=staged)
         n_out = len(xi)//R
 
         @passive
@@ -86,6 +87,20 @@ class TestCICDecimatorRuntime(unittest.TestCase):
             rq = cic_decimator_model(xq, R, N)[:n_out]
             self.assertTrue(np.array_equal(gi, ri), f"I R={R} N={N}")
             self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N}")
+
+    def test_staged_bit_exact_at_runtime_rates(self):
+        # The staged (timing-friendly) architecture must match the same golden model, modulo
+        # its documented n_stages-input-sample group delay. It requires R >= 2*n_stages + 4
+        # (an output must drain before the next window closes).
+        for R, N in [(12, 4), (16, 4), (32, 3), (64, 4)]:
+            prng = random.Random(R*N + 11)
+            xi = [prng.randint(-2000, 2000) for _ in range(R*40)]
+            xq = [prng.randint(-2000, 2000) for _ in range(R*40)]
+            gi, gq, n_out = self.run_dec(xi, xq, R, N, staged=True)
+            ri = cic_decimator_model([0]*N + xi, R, N)[:n_out]
+            rq = cic_decimator_model([0]*N + xq, R, N)[:n_out]
+            self.assertTrue(np.array_equal(gi, ri), f"I R={R} N={N} staged")
+            self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N} staged")
 
 class TestCICInterpolator(unittest.TestCase):
     def run_int(self, xi, xq, R, N, M=1, staged=False):

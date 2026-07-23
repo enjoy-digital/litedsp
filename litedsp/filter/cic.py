@@ -317,10 +317,21 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
     sets ``rate`` and the matching ``shift = cic_shift(rate, N, M)`` together so the processing gain
     ``(rate*M)**N`` stays normalized. The Hogenauer wrap-around property holds for any
     ``rate <= r_max``. Operates on a real (``iq=False``) or complex (``iq=True``) stream.
+
+    ``staged=False`` retains the one-cycle compatibility architecture (the whole integrator
+    cascade, comb chain and dynamic rescale shift form a single combinational cone -- fine in
+    simulation and at low clocks, but it misses e.g. 125 MHz on a Zynq 7020 by ~18 ns).
+    ``staged=True`` uses the timing-friendly architecture proven on that hardware:
+    register-chained integrators (pure group delay), then comb chain + rescale pipelined at the
+    decimated rate (two cycles per comb stage + bias/shift/saturate cycles, ``2N+3`` cycles per
+    output). It requires ``rate >= 2*n_stages + 4`` so an output drains before the next window
+    closes; the ``sample_ce``/``out_ce`` strobes and the stream interface are identical.
     """
-    def __init__(self, data_width=16, r_max=8192, n_stages=4, diff_delay=1, iq=True, with_csr=True):
+    def __init__(self, data_width=16, r_max=8192, n_stages=4, diff_delay=1, iq=True,
+        with_csr=True, staged=False):
         N, M = n_stages, diff_delay  # Literature names.
         check(r_max >= 2 and N >= 1 and M >= 1, "expected r_max >= 2, n_stages >= 1, diff_delay >= 1")
+        self.staged = staged
         self.data_width = data_width
         self.r_max      = r_max
         self.n_stages, self.diff_delay = N, M
@@ -342,6 +353,12 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
         self.out_ce    = Signal()   # An output sample is emitted this beat.
 
         # # #
+
+        if staged:
+            self._build_staged(fields, N, M, W)
+            if with_csr:
+                self.add_csr()
+            return
 
         # Handshake.
         # ----------
@@ -400,6 +417,115 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
         # ----
         if with_csr:
             self.add_csr()
+
+    def _build_staged(self, fields, N, M, W):
+        """Timing-friendly datapath: register-chained integrators; comb chain + rescale run
+        pipelined at the decimated rate (phase 0 = idle, two cycles per comb stage, then
+        bias-add, shift and saturate cycles). Quasi-static rate/shift decodes are registered
+        (the raw compare/decode cones otherwise miss 125 MHz into the wide DSP registers)."""
+        P_BIAS  = 2*N + 1
+        P_SHIFT = 2*N + 2
+        P_OUT   = 2*N + 3
+        phase     = Signal(max=P_OUT + 1)
+        pipe_idle = Signal()
+        out_free  = Signal()
+        can_out   = Signal()
+        is_out    = Signal(reset=0)
+        xfer      = Signal()
+        decim     = Signal(bits_for(self.r_max))
+
+        rate_m1 = Signal.like(self.rate)
+        bias    = Signal(W)
+        self.sync += [
+            rate_m1.eq(self.rate - 1),
+            bias.eq(Mux(self.shift == 0, 0, (1 << self.shift) >> 1)),
+        ]
+
+        self.comb += [
+            pipe_idle.eq(phase == 0),
+            out_free.eq(~self.source.valid | self.source.ready),
+            # Drop freely between output beats; on an output beat, stall until the previous
+            # output drained through the pipeline (upstream is elastic / free-running).
+            can_out.eq(pipe_idle & out_free),
+            self.sink.ready.eq(Mux(is_out, can_out, 1)),
+            xfer.eq(self.sink.valid & self.sink.ready),
+            self.sample_ce.eq(xfer),
+            self.out_ce.eq(xfer & is_out),
+        ]
+        # is_out registered one window-tick ahead (the compare would otherwise sit in front of
+        # every integrator/comb clock-enable).
+        self.sync += If(xfer,
+            If(is_out,
+                decim.eq(0),
+                is_out.eq(rate_m1 == 0),
+            ).Else(
+                decim.eq(decim + 1),
+                is_out.eq((decim + 1) == rate_m1),
+            ),
+        ).Elif(~is_out & (decim >= rate_m1),
+            # Rate lowered below the current window position: close the window now.
+            is_out.eq(1),
+        )
+
+        stage_k = Signal(max=max(N, 2))  # Comb stage index (odd phases 1, 3, .., 2N-1).
+        odd     = Signal()
+        self.comb += [
+            stage_k.eq((phase - 1)[1:]),
+            odd.eq(phase[0]),
+        ]
+
+        for field in fields:
+            x = getattr(self.sink, field)
+
+            # Integrators: register-chained (one add per stage per xfer; pure delay only).
+            integ = [Signal((W, True)) for _ in range(N)]
+            self.sync += If(xfer,
+                integ[0].eq(integ[0] + x),
+                *[integ[k].eq(integ[k] + integ[k-1]) for k in range(1, N)],
+            )
+
+            # Comb chain (differential delay M), two cycles per stage at the decimated rate:
+            # odd phase = operand fetch + delay-line shift, even phase = the wide subtract.
+            cur     = Signal((W, True))
+            operand = Signal((W, True))
+            combq   = Array([Signal((W, True)) for _ in range(N*M)])
+            self.sync += [
+                If(self.out_ce,
+                    cur.eq(integ[N-1]),
+                ),
+                If(odd & (phase <= 2*N),
+                    operand.eq(combq[stage_k*M + (M-1)]),
+                    *([combq[stage_k*M].eq(cur)] + [
+                        combq[stage_k*M + m].eq(combq[stage_k*M + m - 1]) for m in range(1, M)]),
+                ),
+                If(~odd & (phase != 0) & (phase <= 2*N),
+                    cur.eq(cur - operand),               # y = x - x_delayed.
+                ),
+            ]
+
+            # Rescale (round-half-up + saturate), each on its own cycle.
+            summed  = Signal((W, True))
+            shifted = Signal((W, True))
+            self.sync += [
+                If(phase == P_BIAS,  summed.eq(cur + bias)),
+                If(phase == P_SHIFT, shifted.eq(summed >> self.shift)),
+                If(phase == P_OUT,   getattr(self.source, field).eq(saturated(shifted, self.data_width))),
+            ]
+
+        self.sync += [
+            If(self.out_ce,
+                phase.eq(1),
+            ).Elif((phase != 0) & (phase != P_OUT),
+                phase.eq(phase + 1),
+            ).Elif(phase == P_OUT,
+                phase.eq(0),
+            ),
+            If(phase == P_OUT,
+                self.source.valid.eq(1),
+            ).Elif(self.source.ready,
+                self.source.valid.eq(0),
+            ),
+        ]
 
     def add_csr(self):
         self._rate  = CSRStorage(len(self.rate),  reset=self.rate.reset.value,
