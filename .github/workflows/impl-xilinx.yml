@@ -1,10 +1,18 @@
 name: Implementation (Xilinx / Vivado)
 
-# Vivado cannot run on GitHub-hosted runners. This opt-in workflow targets a Linux self-hosted
-# runner labelled "vivado" with Vivado already licensed and available on PATH.
+# Vivado cannot run on GitHub-hosted runners. This workflow targets a Linux self-hosted runner
+# labelled "vivado" with Vivado already licensed and available on PATH. The weekly run packages
+# and validates both generated IP examples; manual runs additionally execute the full block,
+# strict-target, and route-stress campaigns.
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "23 4 * * 0"
+
+concurrency:
+  group: impl-xilinx-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   artix7:
@@ -29,22 +37,29 @@ jobs:
       - name: Check Vivado installation
         run: vivado -version
 
-      - name: Package and validate the DDC IP on Artix-7
+      - name: Package and validate generated IPs on Artix-7
         run: |
           python3 -m litedsp.gen examples/ddc_core.yml \
             --output-dir "$LITEDSP_IMPL_BUILD/ddc_ip" --vivado-ip --vivado-validate \
             --vivado-part xc7a200tsbg484-3
+          python3 -m litedsp.gen examples/qpsk_receiver_core.yml \
+            --output-dir "$LITEDSP_IMPL_BUILD/qpsk_receiver_ip" --vivado-ip --vivado-validate \
+            --vivado-part xc7a200tsbg484-3
 
       - name: Synthesize all blocks for Artix-7
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx --flow synth --build "$LITEDSP_IMPL_BUILD"
 
       - name: Enforce closed Artix-7 timing targets
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx --flow pnr --target-closed --target-gate --build "$LITEDSP_IMPL_BUILD"
 
       - name: Sweep near-target native FFT routing on Artix-7
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx --flow pnr --module fft_parallel_native_x2 --strategies all --build "$LITEDSP_IMPL_BUILD"
 
       - name: Sweep capacity/timing-stress routing on Artix-7
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx --flow pnr --stress --strategies all --build "$LITEDSP_IMPL_BUILD"
 
       - name: Upload Artix-7 timing reports
@@ -60,6 +75,10 @@ jobs:
             ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/package_ip.log
             ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/validate_ip.log
             ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_validation/utilization.rpt
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_ip/component.xml
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_ip/package_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_ip/validate_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_validation/utilization.rpt
           if-no-files-found: warn
           retention-days: 14
 
@@ -85,22 +104,29 @@ jobs:
       - name: Check Vivado installation
         run: vivado -version
 
-      - name: Package and validate the DDC IP on Artix UltraScale+
+      - name: Package and validate generated IPs on Artix UltraScale+
         run: |
           python3 -m litedsp.gen examples/ddc_core.yml \
             --output-dir "$LITEDSP_IMPL_BUILD/ddc_ip" --vivado-ip --vivado-validate \
             --vivado-part xcau20p-ffvb676-2-e
+          python3 -m litedsp.gen examples/qpsk_receiver_core.yml \
+            --output-dir "$LITEDSP_IMPL_BUILD/qpsk_receiver_ip" --vivado-ip --vivado-validate \
+            --vivado-part xcau20p-ffvb676-2-e
 
       - name: Synthesize all blocks for Artix UltraScale+
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx_au --flow synth --build "$LITEDSP_IMPL_BUILD"
 
       - name: Enforce closed Artix UltraScale+ timing targets
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx_au --flow pnr --target-closed --target-gate --build "$LITEDSP_IMPL_BUILD"
 
       - name: Sweep native FFT routing on Artix UltraScale+
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx_au --flow pnr --module fft_parallel_native_x2 --strategies all --build "$LITEDSP_IMPL_BUILD"
 
       - name: Sweep capacity/timing-stress routing on Artix UltraScale+
+        if: github.event_name == 'workflow_dispatch'
         run: python3 impl/run.py --device xilinx_au --flow pnr --stress --strategies all --build "$LITEDSP_IMPL_BUILD"
 
       - name: Upload Artix UltraScale+ timing reports
@@ -116,5 +142,9 @@ jobs:
             ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/package_ip.log
             ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_ip/validate_ip.log
             ${{ env.LITEDSP_IMPL_BUILD }}/ddc_ip/vivado_validation/utilization.rpt
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_ip/component.xml
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_ip/package_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_ip/validate_ip.log
+            ${{ env.LITEDSP_IMPL_BUILD }}/qpsk_receiver_ip/vivado_validation/utilization.rpt
           if-no-files-found: warn
           retention-days: 14

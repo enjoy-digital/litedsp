@@ -78,8 +78,11 @@ budgeted CI is pinned in the workflows. `TARGET_CLOSED` is the small reviewed su
 already achieved its objective; CI gates those blocks strictly while targets
 for architecture work in progress remain advisory. `.github/workflows/impl-xilinx.yml` provides
 equivalent strict Artix-7 and Artix UltraScale+ jobs on a self-hosted runner labelled `vivado`;
-both also sweep the native x2/x4 FFTs across three timing strategies. The complete generated `ddc_ip`
-integration sentinel is already in the strict target set, so it is not routed a second time.
+weekly runs package both the DDC and QPSK examples as IP-XACT cores, instantiate them in Vivado
+IP Integrator, and synthesize their block-design wrappers on both device families. Manual runs
+add the full block synthesis, strict timing gates, and native x2/x4 FFT strategy sweeps. The
+complete generated `ddc_ip` integration sentinel is already in the strict target set, so it is
+not routed a second time.
 Implementation jobs retain synthesis logs, route logs, and detailed timing reports as artifacts,
 including on failure; the nightly ECP5 job additionally repeats the closest closed targets across
 three nextpnr routes.
