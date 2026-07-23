@@ -9,7 +9,8 @@ import unittest
 
 import numpy as np
 
-from litedsp.filter.fir import LiteDSPFIRFilter, LiteDSPFIRFilterComplex
+from litedsp.filter.fir import (LiteDSPFIRFilter, LiteDSPFIRFilterComplex,
+    LiteDSPFIRCoefficientsPort)
 
 from test.common import run_stream, column, snr_db
 from test.models import fir_model, fir_complex_model
@@ -106,3 +107,81 @@ class TestFIR(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFIRMac(unittest.TestCase):
+    """The serial MAC architecture must be sample-exact vs the classic architecture."""
+
+    def run_mac(self, coeffs, x, n_taps, n_macs, data_width=16):
+        dut = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width, architecture="mac",
+            n_macs=n_macs)
+        for t in range(n_taps):
+            dut.coeffs[t].reset = coeffs[t]
+        samples  = [{"data": int(v)} for v in x]
+        captured = run_stream(dut, samples, len(x), ["data"], ["data"],
+            sink_throttle=0.2, source_ready_rate=0.7)
+        return column(captured, "data", data_width)
+
+    def test_mac_bit_exact(self):
+        n_taps = 63
+        coeffs = design_lowpass(n_taps)
+        prng   = random.Random(5)
+        x      = [prng.randint(-30000, 30000) for _ in range(200)]
+        got    = self.run_mac(coeffs, x, n_taps, n_macs=4)
+        ref    = fir_model(x, coeffs)[:len(got)]
+        self.assertTrue(len(got) >= 150)
+        self.assertTrue(np.array_equal(got, ref))
+
+    def test_mac_odd_units_bit_exact(self):
+        # A non-dividing MAC count (63 taps / 5 units) exercises the zero-padded chunk tail.
+        n_taps = 63
+        coeffs = design_lowpass(n_taps)
+        prng   = random.Random(6)
+        x      = [prng.randint(-30000, 30000) for _ in range(160)]
+        got    = self.run_mac(coeffs, x, n_taps, n_macs=5)
+        ref    = fir_model(x, coeffs)[:len(got)]
+        self.assertTrue(np.array_equal(got, ref))
+
+    def test_mac_complex_bit_exact(self):
+        n_taps = 33
+        coeffs = design_lowpass(n_taps)
+        dut = LiteDSPFIRFilterComplex(n_taps=n_taps, coefficients=coeffs, with_csr=False,
+            architecture="mac", n_macs=4)
+        prng = random.Random(7)
+        xi = [prng.randint(-20000, 20000) for _ in range(128)]
+        xq = [prng.randint(-20000, 20000) for _ in range(128)]
+        samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
+        cap = run_stream(dut, samples, len(xi), ["i", "q"], ["i", "q"],
+            sink_throttle=0.2, source_ready_rate=0.7)
+        gi, gq = column(cap, "i", 16), column(cap, "q", 16)
+        ri, rq = fir_model(xi, coeffs)[:len(gi)], fir_model(xq, coeffs)[:len(gq)]
+        self.assertTrue(np.array_equal(gi, ri))
+        self.assertTrue(np.array_equal(gq, rq))
+
+
+class TestFIRCoefficientsPort(unittest.TestCase):
+    def test_autoincrement_load(self):
+        from migen import run_simulation
+        n_taps = 8
+        taps   = [100*(i + 1)*(1 if i % 2 == 0 else -1) for i in range(n_taps)]
+        dut    = LiteDSPFIRCoefficientsPort(n_taps=n_taps, data_width=16)
+        got    = []
+
+        def gen():
+            yield dut._index.storage.eq(2)     # Load starting at index 2.
+            yield dut._index.re.eq(1)
+            yield
+            yield dut._index.re.eq(0)
+            for t in taps[2:]:
+                yield dut._value.storage.eq(t & 0xffff)
+                yield dut._value.re.eq(1)
+                yield
+            yield dut._value.re.eq(0)
+            yield
+            for i in range(n_taps):
+                got.append((yield dut.values[i]))
+
+        run_simulation(dut, [gen()])
+        self.assertEqual(got[0], (1 << 15) - 1)     # Unit-impulse reset retained.
+        self.assertEqual(got[1], 0)
+        self.assertEqual(got[2:], taps[2:])

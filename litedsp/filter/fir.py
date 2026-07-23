@@ -55,6 +55,45 @@ class LiteDSPFIRCoefficients(LiteXModule):
             self.add_module(name=f"coeff_{i}", module=csr)
             self.comb += self.values[i].eq(csr.storage)
 
+class LiteDSPFIRCoefficientsPort(LiteXModule):
+    """``n_taps`` coefficient registers behind an index/value CSR load port.
+
+    Same ``values`` Array and unit-impulse default as :class:`LiteDSPFIRCoefficients`, but with
+    two CSRs instead of one per tap: for large banks (e.g. 63 taps x several filters) the
+    per-tap CSR bank can make the bus write decode the design's critical path and bloats the
+    register map. ``index`` auto-increments on each ``value`` write, so loading a filter is:
+    write ``index = 0``, then stream the taps in order.
+    """
+    def __init__(self, n_taps=32, data_width=16, coefficients=None, with_csr=True):
+        self.n_taps     = n_taps
+        self.data_width = data_width
+        self.values     = Array([Signal((data_width, True)) for _ in range(n_taps)])
+
+        if coefficients is None:
+            coefficients = [(1 << (data_width-1)) - 1] + [0]*(n_taps-1)  # Unit impulse.
+        check(len(coefficients) == n_taps, "expected len(coefficients) == n_taps")
+        for i in range(n_taps):
+            self.values[i].reset = coefficients[i]
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._index = CSRStorage(bits_for(self.n_taps - 1),
+            description="Coefficient index; auto-increments on each value write.")
+        self._value = CSRStorage(self.data_width,
+            description="Write the indexed FIR coefficient (signed Qm.n).")
+        index = Signal(bits_for(self.n_taps - 1))
+        self.sync += [
+            If(self._index.re,
+                index.eq(self._index.storage),
+            ),
+            If(self._value.re,
+                self.values[index].eq(self._value.storage),
+                index.eq(index + 1),
+            ),
+        ]
+
 # FIR Filter (real) --------------------------------------------------------------------------------
 
 class LiteDSPFIRFilter(LiteXModule):
@@ -77,12 +116,20 @@ class LiteDSPFIRFilter(LiteXModule):
         ``"classic"`` uses a combinational balanced reduction after the product registers and
         has three clocks of latency. ``"pipelined"`` registers every adder-tree level, retaining
         one-sample-per-clock throughput while adding ``ceil(log2(n_products))`` clocks.
+        ``"mac"`` computes the convolution serially with ``n_macs`` multiply-accumulate units
+        (~``n_macs`` DSP blocks instead of ``n_taps``): a fully pipelined operand-mux ->
+        product -> accumulate -> pairwise-sum-tree scan taking ``cycles_per_sample`` clocks per
+        input. Intended for decimated streams where a new sample arrives at most every
+        ``cycles_per_sample`` clocks (e.g. after a CIC) -- input arriving faster is
+        backpressured. Sample-exact vs "classic".
+    n_macs : int
+        Multiply-accumulate units for the ``"mac"`` architecture (ignored otherwise).
     """
     def __init__(self, n_taps=32, data_width=16, symmetric=False, shift=None,
-        architecture="classic"):
+        architecture="classic", n_macs=4):
         check(n_taps > 0, "expected n_taps > 0")
-        check(architecture in ("classic", "pipelined"),
-            "architecture must be 'classic' or 'pipelined'.")
+        check(architecture in ("classic", "pipelined", "mac"),
+            "architecture must be 'classic', 'pipelined' or 'mac'.")
         if shift is None:
             shift = data_width - 1
         self.n_taps     = n_taps
@@ -93,6 +140,12 @@ class LiteDSPFIRFilter(LiteXModule):
         self.coeffs = Array([Signal((data_width, True)) for _ in range(n_taps)])
 
         # # #
+
+        if architecture == "mac":
+            check(not symmetric, "the 'mac' architecture does not support symmetric folding")
+            check(n_macs > 0, "expected n_macs > 0")
+            self._build_mac(n_taps, data_width, shift, n_macs)
+            return
 
         # Handshake: drain when output can accept; consume an input on each drained beat.
         # -------------------------------------------------------------------------------
@@ -169,6 +222,102 @@ class LiteDSPFIRFilter(LiteXModule):
         # -------
         add_bypass(self, output_registered=False)  # Output is comb-driven from the last stage.
 
+    def _build_mac(self, n_taps, data_width, shift, n_macs):
+        """Serial MAC datapath: accept one sample, scan the taps in ``ceil(n_taps/n_macs)``
+        cycles (each MAC owns a contiguous chunk), pairwise-sum the partials one registered
+        level per cycle, rescale, present. ``self.bypass`` passes samples through unfiltered
+        (2 cycles/sample). Proven on hardware (Zynq 7020, 125 MHz)."""
+        self.n_macs = n_macs
+        self.chunk  = chunk = (n_taps + n_macs - 1)//n_macs
+        levels      = (n_macs - 1).bit_length()          # Pairwise sum-tree depth.
+        k_end       = chunk + 2 + levels                 # mux -> product -> accumulate -> tree.
+        self.cycles_per_sample = k_end + 2               # + accept and present cycles.
+        self.bypass = Signal()
+
+        # Sample history: regs[t] = x[k-t] (advances only on accepted inputs).
+        regs = [Signal((data_width, True)) for _ in range(n_taps)]
+        self.sync += If(self.sink.valid & self.sink.ready,
+            regs[0].eq(self.sink.data),
+            *[regs[t].eq(regs[t-1]) for t in range(1, n_taps)],
+        )
+
+        # Zero-padded views so every MAC scans a full fixed-size chunk.
+        n_pad    = chunk*n_macs
+        zero     = Signal((data_width, True))
+        regs_arr = Array(regs              + [zero]*(n_pad - n_taps))
+        coef_arr = Array(list(self.coeffs) + [zero]*(n_pad - n_taps))
+
+        acc_bits = 2*data_width + int(math.ceil(math.log2(n_taps))) + 1
+        k    = Signal(max=k_end + 1)
+        accs = [Signal((acc_bits, True)) for _ in range(n_macs)]
+
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            self.sink.ready.eq(1),
+            If(self.sink.valid,
+                NextValue(k, 0),
+                *[NextValue(acc, 0) for acc in accs],
+                If(self.bypass,
+                    NextState("OUT"),
+                ).Else(
+                    NextState("MAC"),
+                ),
+            ),
+        )
+        # Pipelined MAC scan (operand mux, DSP-mapped product, accumulate each get a cycle).
+        for m, acc in enumerate(accs):
+            mux_d = Signal((data_width, True))
+            mux_c = Signal((data_width, True))
+            prod  = Signal((2*data_width, True))
+            self.sync += If(fsm.ongoing("MAC"),
+                If(k < chunk,
+                    mux_d.eq(regs_arr[m*chunk + k]),
+                    mux_c.eq(coef_arr[m*chunk + k]),
+                ),
+                If((k >= 1) & (k <= chunk),
+                    prod.eq(mux_d * mux_c),
+                ),
+                If((k >= 2) & (k <= chunk + 1),
+                    acc.eq(acc + prod),
+                ),
+            )
+        fsm.act("MAC",
+            If(k == k_end,
+                NextState("OUT"),
+            ).Else(
+                NextValue(k, k + 1),
+            ),
+        )
+
+        # Pairwise partial-sum tree, one registered level per cycle, then rescale.
+        cur   = list(accs)
+        width = acc_bits
+        level = 0
+        while len(cur) > 1:
+            nxt = []
+            for i in range(0, len(cur), 2):
+                node = Signal((width + 1, True))
+                expr = cur[i] if (i + 1 == len(cur)) else (cur[i] + cur[i+1])
+                self.sync += If(fsm.ongoing("MAC") & (k == chunk + 2 + level), node.eq(expr))
+                nxt.append(node)
+            cur    = nxt
+            width += 1
+            level += 1
+        result, _ = scaled(cur[0], shift, data_width)
+        out = Signal((data_width, True))
+        self.sync += [
+            If(fsm.ongoing("MAC") & (k == k_end), out.eq(result)),
+            If(fsm.ongoing("IDLE") & self.sink.valid & self.bypass, out.eq(self.sink.data)),
+        ]
+
+        fsm.act("OUT",
+            self.source.valid.eq(1),
+            If(self.source.ready,
+                NextState("IDLE"),
+            ),
+        )
+        self.comb += self.source.data.eq(out)
+
 # FIR Filter (complex) -----------------------------------------------------------------------------
 
 @ResetInserter()
@@ -185,7 +334,7 @@ class LiteDSPFIRFilterComplex(LiteXModule):
         registers every adder-tree level while retaining one complex sample per clock.
     """
     def __init__(self, n_taps=32, data_width=16, symmetric=False, coefficients=None,
-        shift=None, with_csr=True, architecture="classic"):
+        shift=None, with_csr=True, architecture="classic", n_macs=4):
         check(n_taps > 0, "expected n_taps > 0")
         self.n_taps     = n_taps
         self.data_width = data_width
@@ -198,10 +347,10 @@ class LiteDSPFIRFilterComplex(LiteXModule):
         self.coeffs = LiteDSPFIRCoefficients(n_taps=n_taps, data_width=data_width,
             coefficients=coefficients, with_csr=with_csr)
         self.fir_i  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width,
-            symmetric=symmetric, shift=shift, architecture=architecture)
+            symmetric=symmetric, shift=shift, architecture=architecture, n_macs=n_macs)
         self.fir_q  = LiteDSPFIRFilter(n_taps=n_taps, data_width=data_width,
-            symmetric=symmetric, shift=shift, architecture=architecture)
-        self.latency = self.fir_i.latency
+            symmetric=symmetric, shift=shift, architecture=architecture, n_macs=n_macs)
+        self.latency = getattr(self.fir_i, "latency", None)
 
         self.comb += [
             [self.fir_i.coeffs[i].eq(self.coeffs.values[i]) for i in range(n_taps)],
