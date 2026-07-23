@@ -11,7 +11,14 @@ import json
 import unittest
 import tempfile
 
+import numpy as np
+
+from migen import Signal, passive, run_simulation
+
 from litedsp.gen import parse_config, generate_core
+from litedsp.flow.ipcore import LiteDSPFlowIPCore
+
+from test.common import column, stream_capture, stream_driver
 
 _CONFIG_INLINE = """
 name     : dut_core
@@ -110,6 +117,101 @@ class TestGen(unittest.TestCase):
                 registers = json.load(f)["csr_registers"]
             self.assertIn("carrier_frequency", registers)
             self.assertIn("timing_omega", registers)
+
+
+class TestGeneratedIPTransactions(unittest.TestCase):
+    """Exercise the emitted examples through their AXI-Lite and AXI-Stream interfaces."""
+
+    def _example(self, name):
+        return os.path.join(os.path.dirname(__file__), "..", "examples", name)
+
+    def _generated_ip(self, name, build_dir):
+        config = self._example(name)
+        generate_core(config, output_dir=build_dir)
+        # Verilog conversion consumes a Migen fragment, so elaborate the same parsed
+        # configuration a second time for the behavioral transaction simulation.
+        netlist, core_config = parse_config(config)
+        core_config.pop("name", None)
+        return LiteDSPFlowIPCore(netlist, **core_config)
+
+    def _run_stream(self, ip, samples, n_out, sink_fields, source_fields, controller):
+        configured = Signal()
+        captured   = []
+
+        @passive
+        def configure():
+            yield from controller(ip)
+            yield configured.eq(1)
+
+        @passive
+        def drive_after_config():
+            while not (yield configured):
+                yield
+            yield from stream_driver(ip.chain.sink, samples, sink_fields,
+                seed=401, throttle=0.25)
+
+        run_simulation(ip, [
+            configure(),
+            drive_after_config(),
+            stream_capture(ip.chain.source, captured, n_out, source_fields,
+                seed=409, ready_rate=0.65),
+        ])
+        return captured
+
+    def test_ddc_axi_configuration_and_stream(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ip = self._generated_ip("ddc_core.yml", tmp)
+            registers = json.loads(ip.export_json())["csr_registers"]
+
+            def controller(dut):
+                writes = {
+                    "deci_factor": 2,
+                    "lo_phase_inc": 0x13579bdf,
+                    "lpf_bypass": 1,
+                    "mix_control": 1 << 8,  # Bypass the mixer with its delayed signal input.
+                }
+                for name, value in writes.items():
+                    address = registers[name]["addr"]
+                    self.assertEqual((yield from dut.axil.write(address, value)), 0)
+                    readback, response = (yield from dut.axil.read(address))
+                    self.assertEqual(response, 0)
+                    self.assertEqual(readback, value)
+
+            rng = np.random.RandomState(397)
+            samples = [{"i": int(i), "q": int(q)}
+                for i, q in zip(rng.randint(-20000, 20001, 128),
+                                rng.randint(-20000, 20001, 128))]
+            captured = self._run_stream(ip, samples, len(samples)//2, ["i", "q"], ["i", "q"],
+                controller)
+            np.testing.assert_array_equal(column(captured, "i", 16),
+                [sample["i"] for sample in samples[::2]])
+            np.testing.assert_array_equal(column(captured, "q", 16),
+                [sample["q"] for sample in samples[::2]])
+
+    def test_qpsk_axi_status_and_stream(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ip = self._generated_ip("qpsk_receiver_core.yml", tmp)
+            registers = json.loads(ip.export_json())["csr_registers"]
+
+            def controller(dut):
+                frequency, response = (yield from dut.axil.read(
+                    registers["carrier_frequency"]["addr"]))
+                self.assertEqual(response, 0)
+                self.assertEqual(frequency, 0)
+                omega, response = (yield from dut.axil.read(registers["timing_omega"]["addr"]))
+                self.assertEqual(response, 0)
+                self.assertEqual(omega, 2 << 16)
+
+            # A stationary ideal QPSK point has zero carrier/timing error. It therefore gives
+            # an exact end-to-end check while the randomized valid/ready pattern stresses both
+            # generated stream interfaces and the feedback loops' accepted-sample scheduling.
+            samples = [{"i": 8192, "q": 8192} for _ in range(180)]
+            captured = self._run_stream(ip, samples, 64, ["i", "q"],
+                ["i", "q", "symbol"], controller)
+            self.assertEqual(set(column(captured, "i", 16)), {8192})
+            self.assertEqual(set(column(captured, "q", 16)), {8192})
+            self.assertEqual(set(column(captured, "symbol")), {3})
+
 
 if __name__ == "__main__":
     unittest.main()
