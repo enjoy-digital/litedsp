@@ -135,6 +135,15 @@ class TestParallelFFTBitExact(unittest.TestCase):
             LiteDSPParallelFFT(N=64, n_samples=8, implementation="native", with_csr=False)
         with self.assertRaises(ValueError):
             LiteDSPParallelFFT(N=64, feedback_pipeline=True, with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPParallelFFT(N=64, n_samples=4, implementation="native",
+                feedback_pipeline=True, complex_multiplier="unknown", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPParallelFFT(N=64, n_samples=2, implementation="native",
+                feedback_pipeline=True, complex_multiplier="three", with_csr=False)
+        with self.assertRaises(ValueError):
+            LiteDSPParallelFFT(N=64, n_samples=4, implementation="native",
+                complex_multiplier="three", with_csr=False)
 
 
 class TestNativeParallelFFT(unittest.TestCase):
@@ -156,9 +165,10 @@ class TestNativeParallelFFT(unittest.TestCase):
                 self.assertEqual(got, ref)
 
     def run_native(self, xi, xq, N, n_samples, n_frames, throttle=0.0, ready=1.0,
-        feedback_pipeline=False):
+        feedback_pipeline=False, complex_multiplier="four"):
         dut = LiteDSPParallelFFT(N=N, n_samples=n_samples, implementation="native",
-            feedback_pipeline=feedback_pipeline, with_csr=False)
+            feedback_pipeline=feedback_pipeline, complex_multiplier=complex_multiplier,
+            with_csr=False)
         beats = [{"i": pack_lanes(xi[k:k + n_samples]),
                   "q": pack_lanes(xq[k:k + n_samples])}
                  for k in range(0, len(xi), n_samples)]
@@ -166,13 +176,14 @@ class TestNativeParallelFFT(unittest.TestCase):
             ["i", "q", "first", "last"], sink_throttle=throttle,
             source_ready_rate=ready)
 
-    def check_native(self, N, n_samples, throttle=0.0, ready=1.0, feedback_pipeline=False):
+    def check_native(self, N, n_samples, throttle=0.0, ready=1.0, feedback_pipeline=False,
+        complex_multiplier="four"):
         nfr = 4
         rng  = np.random.RandomState(100*N + n_samples)
         xi   = rng.randint(-25000, 25000, nfr*N)
         xq   = rng.randint(-25000, 25000, nfr*N)
         _, cap = self.run_native(xi, xq, N, n_samples, nfr - 1, throttle, ready,
-            feedback_pipeline=feedback_pipeline)
+            feedback_pipeline=feedback_pipeline, complex_multiplier=complex_multiplier)
         gi, gq = flatten(cap, "i", n_samples), flatten(cap, "q", n_samples)
         for f in range(nfr - 1):
             ri, rq = fft_fixed_model(xi[f*N:(f + 1)*N], xq[f*N:(f + 1)*N])
@@ -199,6 +210,16 @@ class TestNativeParallelFFT(unittest.TestCase):
             for N in [16, 64, 256]:
                 with self.subTest(n_samples=n_samples, N=N):
                     self.check_native(N, n_samples, feedback_pipeline=True)
+
+    # verify-tier: model — the opt-in three-multiply P=4 ranks reconstruct the exact same
+    # full-precision complex product before the established scale/round boundary.
+    def test_three_multiply_bit_identical(self):
+        for N in [16, 64, 256]:
+            with self.subTest(N=N):
+                self.check_native(N, 4, feedback_pipeline=True,
+                    complex_multiplier="three")
+        self.check_native(64, 4, throttle=0.3, ready=0.55, feedback_pipeline=True,
+            complex_multiplier="three")
 
     # verify-tier: model — vector feedback and the lane realigner advance only on transfers.
     def test_backpressure_architecture_matrix(self):

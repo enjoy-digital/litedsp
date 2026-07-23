@@ -781,7 +781,7 @@ def spec_psd():
         False, False, (dut.mode, dut.clear)
 
 def _spec_parallel_fft(n_samples=2, implementation="split", core_architecture="classic",
-    feedback_pipeline=False):
+    feedback_pipeline=False, complex_multiplier="four"):
     from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
     N, n_frames = 16, 4
     rng = np.random.RandomState(73 + n_samples)
@@ -807,7 +807,8 @@ def _spec_parallel_fft(n_samples=2, implementation="split", core_architecture="c
     out_first = [int(k % beats == 0) for k in range(n_out)]
     out_last  = [int(k % beats == beats - 1) for k in range(n_out)]
     dut = LiteDSPParallelFFT(N=N, n_samples=n_samples, implementation=implementation,
-        core_architecture=core_architecture, feedback_pipeline=feedback_pipeline, with_csr=False)
+        core_architecture=core_architecture, feedback_pipeline=feedback_pipeline,
+        complex_multiplier=complex_multiplier, with_csr=False)
     return dut, [in_i, in_q, first, last], n_out, \
         lambda c: [ref_i, ref_q, out_first, out_last], True, True
 
@@ -822,6 +823,10 @@ def spec_parallel_fft_native_x2():
 
 def spec_parallel_fft_native_x4():
     return _spec_parallel_fft(4, implementation="native", feedback_pipeline=True)
+
+def spec_parallel_fft_native_x4_dsp():
+    return _spec_parallel_fft(4, implementation="native", feedback_pipeline=True,
+        complex_multiplier="three")
 
 def spec_welch():
     from litedsp.analysis.welch import LiteDSPWelchPSD
@@ -932,6 +937,7 @@ SPECS = {
     "parallel_fft_folded":    spec_parallel_fft_folded,
     "parallel_fft_native_x2": spec_parallel_fft_native_x2,
     "parallel_fft_native_x4": spec_parallel_fft_native_x4,
+    "parallel_fft_native_x4_dsp": spec_parallel_fft_native_x4_dsp,
     "welch":            spec_welch,
     "conjugate":        spec_conjugate,
     "swap_iq":          spec_swap_iq,
@@ -968,6 +974,7 @@ def check_coverage():
         "parallel_fft_folded":       "parallel_fft",
         "parallel_fft_native_x2":    "parallel_fft",
         "parallel_fft_native_x4":    "parallel_fft",
+        "parallel_fft_native_x4_dsp": "parallel_fft",
         "pfb_channelizer_fft":       "pfb_channelizer",
         "pfb_channelizer_2x":        "pfb_channelizer",
         "pfb_channelizer_fft_2x":    "pfb_channelizer",

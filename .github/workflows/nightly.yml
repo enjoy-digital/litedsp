@@ -253,7 +253,7 @@ jobs:
       fail-fast: false
       matrix:
         # Native P=4 FFT closure is checked by the three-seed stability job above.
-        module: [ldpc_decoder_z_parallel]
+        module: [fft_parallel_native_x4_dsp, ldpc_decoder_z_parallel]
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_nightly_${{ matrix.module }}
     steps:
@@ -280,7 +280,7 @@ jobs:
       - name: Route ${{ matrix.module }} with the stress timeout
         run: |
           python3 impl/run.py --device ecp5 --flow pnr --module "${{ matrix.module }}" \
-            --pnr-timeout 5400 --build "$LITEDSP_IMPL_BUILD"
+            --target-gate --pnr-timeout 5400 --build "$LITEDSP_IMPL_BUILD"
 
       - name: Upload ${{ matrix.module }} implementation logs
         if: always()

@@ -512,6 +512,11 @@ def fft_parallel_native_x4():
         feedback_pipeline=True, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def fft_parallel_native_x4_dsp():
+    d = LiteDSPParallelFFT(N=256, n_samples=4, data_width=16, implementation="native",
+        feedback_pipeline=True, complex_multiplier="three", with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 def ddc_ip():
     """Complete generated DDC IP: AXI-Stream datapath plus AXI-Lite CSR bridge."""
     config = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -580,6 +585,7 @@ REGISTRY = {
     "fft_parallel_x2_folded": fft_parallel_x2_folded,
     "fft_parallel_native_x2": fft_parallel_native_x2,
     "fft_parallel_native_x4": fft_parallel_native_x4,
+    "fft_parallel_native_x4_dsp": fft_parallel_native_x4_dsp,
 }
 
 # Subset for the slower full place-&-route flows.
@@ -600,7 +606,8 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
 
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives these wide
 # configurations an independent runner and a longer timeout so they cannot starve the sentinels.
-PNR_STRESS = ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
+PNR_STRESS = ["fft_parallel_native_x4", "fft_parallel_native_x4_dsp",
+              "ldpc_decoder_z_parallel"]
 
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.

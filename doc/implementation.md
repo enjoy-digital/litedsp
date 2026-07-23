@@ -57,11 +57,13 @@ default, Explore, and high-net-delay/HigherDelayCost timing algorithms. Both ret
 reports and report worst/median/best fmax; budget updates use the median completed route.
 `--pnr-timeout` bounds each nextpnr/Vivado invocation so a capacity-cliff design cannot stall a
 nightly job indefinitely.
-The native x4 FFT and z-parallel LDPC decoder remain in `PNR_STRESS`, outside the bounded
-push/PR subset. Both close 100 MHz and are also gated across three ECP5 seeds in the
-route-sensitive stability set; their Xilinx strategy sweeps remain in the stress selection. The FFT's ready-cut x2
-configuration has robust margin in the regular strict subset, while the compact serial LDPC
-decoder remains its regular strict implementation sentinel.
+The native x4 FFT (portable and DSP-saving variants) and z-parallel LDPC decoder remain in
+`PNR_STRESS`, outside the bounded push/PR subset. The portable FFT and LDPC decoder close
+100 MHz and are gated across three ECP5 seeds in the route-sensitive stability set. The
+three-multiply FFT is independently target-gated by the nightly stress matrix; its Xilinx
+strategy sweeps remain in the stress selection because the DSP trade-off is family-dependent.
+The FFT's ready-cut x2 configuration has robust margin in the regular strict subset, while the
+compact serial LDPC decoder remains its regular strict implementation sentinel.
 The classic serial FFT and the older split/folded parallel FFT configurations are retained as
 compatibility and comparison points, so they carry measured regression floors but no 100 MHz
 engineering objective. The folded/interleaved serial variants and native vector FFTs are the

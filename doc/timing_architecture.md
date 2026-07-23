@@ -444,7 +444,8 @@ boundary is retained and randomized backpressure remains bit exact:
 | Native FFT (N=256, pipelined) | Latency | ECP5 LUT/FF/DSP/Fmax | Artix-7 LUT/FF/DSP/Fmax | Artix UltraScale+ LUT/FF/DSP/Fmax |
 |---|---:|---:|---:|---:|
 | P=2 | 144 clocks | 9835 / 5287 / 52 / 122.8 MHz | 2947 / 2954 / 52 / 111.4 MHz | 2865 / 2954 / 52 / 193.5 MHz |
-| P=4 | 79 clocks | 16021 / 8982 / 94 / 107.7 MHz | 4905 / 5023 / 95 / 110.3 MHz | 4825 / 5020 / 95 / 195.3 MHz |
+| P=4, four multiply | 79 clocks | 16021 / 8982 / 94 / 107.7 MHz | 4905 / 5023 / 95 / 110.3 MHz | 4825 / 5020 / 95 / 195.3 MHz |
+| P=4, three multiply | 79 clocks | 15079 / 8382 / 74 / 110.5 MHz | 6161 / 5365 / 115 / 109.1 MHz | 6003 / 5354 / 75 / 193.2 MHz |
 
 Three ECP5 routes of P=2 reach 120.7/122.8/123.7 MHz worst/median/best. Dedicated three-strategy
 Vivado sweeps reach 111.4/111.4/111.6 MHz on Artix-7 and 191.9/193.5/193.5 MHz on Artix
@@ -458,6 +459,17 @@ no latency or throughput cost. Three ECP5 routes now span 103.9/107.7/110.9 MHz 
 target. Three-strategy Vivado sweeps reach 110.3/110.3/110.4 MHz on Artix-7 and
 195.3/195.3/195.4 MHz on Artix UltraScale+. CI retains P=4 in the isolated stress set for its
 94-DSP ECP5 capacity while gating its three-seed median through `PNR_STABILITY`.
+
+P=4 also exposes `complex_multiplier="three"` with `feedback_pipeline=True`. Each eligible rank
+uses the exact Gauss identity `k1=c(a+b)`, `k2=a(d-c)`, `k3=b(c+d)` and reconstructs
+`real=k1-k3`, `imag=k1+k2` at full precision before the unchanged scale/round boundary. Latency,
+one-beat initiation interval, framing and backpressure behavior are identical. ECP5 drops 20 DSP,
+600 FF and 942 post-route LUT while reaching 103.9/110.5/110.9 MHz across three seeds.
+UltraScale+ drops 20 DSP at the cost of 1178 LUT and 334 FF and reaches
+193.2/193.2/202.2 MHz. Artix-7 DSP48E1 inference instead rises by 20 DSP and 1256 LUT, despite
+closing at 109.1 MHz, so the portable four-multiply default remains recommended there. The
+three-multiply implementation is an explicit family/resource choice, registered as
+`fft_parallel_native_x4_dsp` and independently exercised by the nightly stress flow.
 
 The compatibility architecture remains available with `feedback_pipeline=False`. Relative to
 its 63.0 MHz ECP5 and 82.4 MHz Artix-7 P=2 results, the target-closed option costs seven clocks,

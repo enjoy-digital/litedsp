@@ -50,8 +50,9 @@ implementation's branch FIFOs/serializers/duplicated cores, and remains bit-iden
 the serial FFT on the flattened lane stream. ``feedback_pipeline=True`` registers the
 butterfly difference and real twiddle products in ranks with at least two packed feedback
 addresses; a same-address forwarding path preserves the recurrence while retaining one beat
-per clock. Both implementations use the serial FFT's ``scaling="scaled"`` arithmetic
-(1/2 per stage, 1/N overall).
+per clock. Native P=4 additionally offers ``complex_multiplier="three"`` as an explicit
+DSP-for-LUT trade-off. Both implementations use the serial FFT's ``scaling="scaled"``
+arithmetic (1/2 per stage, 1/N overall).
 
 ## Parameters
 
@@ -64,6 +65,7 @@ per clock. Both implementations use the serial FFT's ``scaling="scaled"`` arithm
 | `core_architecture` | `"classic"` | str | ``"classic"`` for sustained two-sample/cycle throughput, or ``"folded"`` for a registered timing-oriented split path with one-sample/cycle average throughput. Choices: `classic`, `folded`. |
 | `implementation` | `"split"` | str | ``"split"`` (compatibility default) or the scalable ``"native"`` vector-SDF engine. Choices: `split`, `native`. |
 | `feedback_pipeline` | `False` | bool | Pipeline the native feedback multiplier with same-address forwarding. Adds one clock to each eligible rank without reducing the P-sample-per-clock initiation rate. |
+| `complex_multiplier` | `"four"` | str | Native P=4 multiplier architecture. ``"four"`` is the portable default; ``"three"`` uses exact Gauss arithmetic to exchange LUT adders for fewer multiplier registers and DSPs on ECP5 and UltraScale+. It requires ``feedback_pipeline=True``. |
 
 ## Ports
 

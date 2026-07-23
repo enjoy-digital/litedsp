@@ -217,13 +217,14 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
     """Two-cycle vector SDF stage with a hazard-bypassed feedback write.
 
     This variant is used only when the packed feedback memory has at least two addresses
-    (``D > P``). It captures the butterfly difference before the DSPs, registers all four real
-    twiddle products, then completes the complex add/round/write on the following edge. A read
-    that meets the finishing write to the same packed address is forwarded explicitly. The stage
-    therefore retains a one-beat initiation interval and the exact serial rounding boundaries.
-    Shorter late ranks keep the original within-beat recurrence network.
+    (``D > P``). It captures the butterfly difference before the DSPs, registers the selected
+    four-product or exact three-product complex multiply, then completes add/round/write on the
+    following edge. A read that meets the finishing write to the same packed address is forwarded
+    explicitly. The stage therefore retains a one-beat initiation interval and the exact serial
+    rounding boundaries. Shorter late ranks keep the original within-beat recurrence network.
     """
-    def __init__(self, N, stage, n_samples=2, data_width=16, twiddle_width=16):
+    def __init__(self, N, stage, n_samples=2, data_width=16, twiddle_width=16,
+        three_multiply=False):
         D     = N >> (stage + 1)
         dbits = D.bit_length() - 1
         pbits = n_samples.bit_length() - 1
@@ -276,10 +277,35 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
         sum_i1 = [Signal((data_width + 1, True)) for _ in range(n_samples)]
         sum_q1 = [Signal((data_width + 1, True)) for _ in range(n_samples)]
         term_width = data_width + twiddle_width + 1
-        prod_rr1 = [Signal((term_width, True)) for _ in range(n_samples)]
-        prod_ii1 = [Signal((term_width, True)) for _ in range(n_samples)]
-        prod_ri1 = [Signal((term_width, True)) for _ in range(n_samples)]
-        prod_ir1 = [Signal((term_width, True)) for _ in range(n_samples)]
+        # The opt-in P=4 DSP-saving rank uses the exact three-real-multiply identity
+        #
+        #   k1 = c(a + b), k2 = a(d - c), k3 = b(c + d)
+        #   (a + jb)(c + jd) = (k1 - k3) + j(k1 + k2)
+        #
+        # to reduce DSP demand without changing the fixed-point result.  Keep the P=2
+        # datapath unchanged: its smaller routing footprint benefits less from trading a
+        # multiplier for three pre-adders.  All products and the reconstruction
+        # expression remain full precision; scaling still occurs only after the complex
+        # result has been reconstructed, at the same arithmetic boundary as before.
+        check(not three_multiply or n_samples == 4,
+            "three-multiply complex arithmetic requires n_samples=4")
+        if three_multiply:
+            sum_ab0 = [Signal((data_width + 2, True)) for _ in range(n_samples)]
+            diff_dc0 = [Signal((twiddle_width + 1, True)) for _ in range(n_samples)]
+            sum_cd0 = [Signal((twiddle_width + 1, True)) for _ in range(n_samples)]
+            prod_k1 = [Signal((term_width + 1, True)) for _ in range(n_samples)]
+            prod_k2 = [Signal((term_width + 1, True)) for _ in range(n_samples)]
+            prod_k3 = [Signal((term_width + 1, True)) for _ in range(n_samples)]
+            self.comb += [
+                *[sum_ab0[k].eq(diff_i0[k] + diff_q0[k]) for k in range(n_samples)],
+                *[diff_dc0[k].eq(ti0[k] - tr0[k]) for k in range(n_samples)],
+                *[sum_cd0[k].eq(tr0[k] + ti0[k]) for k in range(n_samples)],
+            ]
+        else:
+            prod_rr1 = [Signal((term_width, True)) for _ in range(n_samples)]
+            prod_ii1 = [Signal((term_width, True)) for _ in range(n_samples)]
+            prod_ri1 = [Signal((term_width, True)) for _ in range(n_samples)]
+            prod_ir1 = [Signal((term_width, True)) for _ in range(n_samples)]
 
         # Finish arithmetic is combinational from registered products. It feeds both the
         # memory write and the same-address forwarding mux used by a simultaneous capture.
@@ -287,12 +313,20 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
         store_word_q = Signal(n_samples*data_width)
         finish_i, finish_q = [], []
         for k in range(n_samples):
-            prod_i = Signal((term_width + 1, True))
-            prod_q = Signal((term_width + 1, True))
-            self.comb += [
-                prod_i.eq(prod_rr1[k] - prod_ii1[k]),
-                prod_q.eq(prod_ri1[k] + prod_ir1[k]),
-            ]
+            if three_multiply:
+                prod_i = Signal((term_width + 2, True))
+                prod_q = Signal((term_width + 2, True))
+                self.comb += [
+                    prod_i.eq(prod_k1[k] - prod_k3[k]),
+                    prod_q.eq(prod_k1[k] + prod_k2[k]),
+                ]
+            else:
+                prod_i = Signal((term_width + 1, True))
+                prod_q = Signal((term_width + 1, True))
+                self.comb += [
+                    prod_i.eq(prod_rr1[k] - prod_ii1[k]),
+                    prod_q.eq(prod_ri1[k] + prod_ir1[k]),
+                ]
             diff_i, _ = scaled(prod_i, twiddle_width, data_width)
             diff_q, _ = scaled(prod_q, twiddle_width, data_width)
             sum_i, _  = scaled(sum_i1[k], 1, data_width)
@@ -359,6 +393,20 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
               for k in range(n_samples)],
         ]
 
+        if three_multiply:
+            product_updates = [
+                *[prod_k1[k].eq(sum_ab0[k]*tr0[k]) for k in range(n_samples)],
+                *[prod_k2[k].eq(diff_i0[k]*diff_dc0[k]) for k in range(n_samples)],
+                *[prod_k3[k].eq(diff_q0[k]*sum_cd0[k]) for k in range(n_samples)],
+            ]
+        else:
+            product_updates = [
+                *[prod_rr1[k].eq(diff_i0[k]*tr0[k]) for k in range(n_samples)],
+                *[prod_ii1[k].eq(diff_q0[k]*ti0[k]) for k in range(n_samples)],
+                *[prod_ri1[k].eq(diff_i0[k]*ti0[k]) for k in range(n_samples)],
+                *[prod_ir1[k].eq(diff_q0[k]*tr0[k]) for k in range(n_samples)],
+            ]
+
         self.sync += If(adv,
             valid0.eq(self.sink.valid),
             valid1.eq(valid0),
@@ -385,10 +433,7 @@ class _LiteDSPFFTVectorPipelinedStage(LiteXModule):
                 *[fq1[k].eq(fq0[k]) for k in range(n_samples)],
                 *[sum_i1[k].eq(sum_i0[k]) for k in range(n_samples)],
                 *[sum_q1[k].eq(sum_q0[k]) for k in range(n_samples)],
-                *[prod_rr1[k].eq(diff_i0[k]*tr0[k]) for k in range(n_samples)],
-                *[prod_ii1[k].eq(diff_q0[k]*ti0[k]) for k in range(n_samples)],
-                *[prod_ri1[k].eq(diff_i0[k]*ti0[k]) for k in range(n_samples)],
-                *[prod_ir1[k].eq(diff_q0[k]*tr0[k]) for k in range(n_samples)],
+                *product_updates,
             ),
         )
 
@@ -592,16 +637,21 @@ class _LiteDSPFFTVectorCommutatedStage(LiteXModule):
 class LiteDSPNativeParallelFFT(LiteXModule):
     """Native vector-SDF FFT with a sustained P=2 or P=4 samples/clock."""
     def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
-        feedback_pipeline=False, with_csr=True):
+        feedback_pipeline=False, complex_multiplier="four", with_csr=True):
         check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
         check(n_samples in (2, 4), "native n_samples must be 2 or 4.")
         check(N >= 2*n_samples, "N must be at least twice n_samples.")
+        check(complex_multiplier in ("four", "three"),
+            "complex_multiplier must be 'four' or 'three'.")
+        check(complex_multiplier == "four" or (n_samples == 4 and feedback_pipeline),
+            "three-multiply arithmetic requires pipelined native P=4.")
         self.N          = N
         self.n_samples  = n_samples
         self.data_width = data_width
         self.core_architecture         = "native"
         self.implementation            = "native"
         self.feedback_pipeline         = feedback_pipeline
+        self.complex_multiplier        = complex_multiplier
         self.peak_samples_per_cycle    = n_samples
         self.average_samples_per_cycle = n_samples
         self.sink   = stream.Endpoint(iq_layout(data_width, n_samples))
@@ -620,7 +670,10 @@ class LiteDSPNativeParallelFFT(LiteXModule):
                 cls = _LiteDSPFFTVectorCommutatedStage
             else:
                 cls = _LiteDSPFFTVectorStage
-            s = cls(N, stage, n_samples, data_width, twiddle_width)
+            stage_kwargs = {}
+            if cls is _LiteDSPFFTVectorPipelinedStage:
+                stage_kwargs["three_multiply"] = (complex_multiplier == "three")
+            s = cls(N, stage, n_samples, data_width, twiddle_width, **stage_kwargs)
             setattr(self.submodules, f"stage{stage}", s)
             stages.append(s)
         self.comb += self.sink.connect(stages[0].sink)
@@ -739,8 +792,9 @@ class LiteDSPParallelFFT(LiteXModule):
     the serial FFT on the flattened lane stream. ``feedback_pipeline=True`` registers the
     butterfly difference and real twiddle products in ranks with at least two packed feedback
     addresses; a same-address forwarding path preserves the recurrence while retaining one beat
-    per clock. Both implementations use the serial FFT's ``scaling="scaled"`` arithmetic
-    (1/2 per stage, 1/N overall).
+    per clock. Native P=4 additionally offers ``complex_multiplier="three"`` as an explicit
+    DSP-for-LUT trade-off. Both implementations use the serial FFT's ``scaling="scaled"``
+    arithmetic (1/2 per stage, 1/N overall).
 
     Parameters
     ----------
@@ -758,22 +812,28 @@ class LiteDSPParallelFFT(LiteXModule):
     feedback_pipeline : bool
         Pipeline the native feedback multiplier with same-address forwarding. Adds one clock to
         each eligible rank without reducing the P-sample-per-clock initiation rate.
+    complex_multiplier : str
+        Native P=4 multiplier architecture. ``"four"`` is the portable default; ``"three"``
+        uses exact Gauss arithmetic to exchange LUT adders for fewer multiplier registers and
+        DSPs on ECP5 and UltraScale+. It requires ``feedback_pipeline=True``.
     """
     def __init__(self, N=64, n_samples=2, data_width=16, twiddle_width=16,
         core_architecture="classic", implementation="split", feedback_pipeline=False,
-        with_csr=True):
+        complex_multiplier="four", with_csr=True):
         check(N >= 8 and (N & (N - 1)) == 0, "N must be a power of two >= 8.")
         check(implementation in ("split", "native"),
             "implementation must be 'split' or 'native'.")
         if implementation == "native":
             self.native = LiteDSPNativeParallelFFT(N, n_samples, data_width, twiddle_width,
-                feedback_pipeline=feedback_pipeline, with_csr=with_csr)
+                feedback_pipeline=feedback_pipeline, complex_multiplier=complex_multiplier,
+                with_csr=with_csr)
             self.N          = self.native.N
             self.n_samples  = self.native.n_samples
             self.data_width = self.native.data_width
             self.core_architecture         = self.native.core_architecture
             self.implementation            = implementation
             self.feedback_pipeline         = self.native.feedback_pipeline
+            self.complex_multiplier        = self.native.complex_multiplier
             self.peak_samples_per_cycle    = self.native.peak_samples_per_cycle
             self.average_samples_per_cycle = self.native.average_samples_per_cycle
             self.latency = self.native.latency
@@ -781,6 +841,8 @@ class LiteDSPParallelFFT(LiteXModule):
             self.source  = self.native.source
             return
         check(not feedback_pipeline, "feedback_pipeline is supported only by native FFTs.")
+        check(complex_multiplier == "four",
+            "complex_multiplier is supported only by pipelined native P=4 FFTs.")
         check(n_samples == 2, "split n_samples must be 2; use implementation='native' for P=4.")
         check(core_architecture in ("classic", "folded"),
             "core_architecture must be 'classic' or 'folded'.")
