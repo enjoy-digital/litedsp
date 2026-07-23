@@ -155,16 +155,27 @@ def rounded(value, shift):
     return (value + (1 << (shift - 1))) >> shift
 
 def overflow(value, out_width):
-    """Expression that is 1 when signed ``value`` does not fit in ``out_width`` bits."""
-    hi =  (1 << (out_width - 1)) - 1
-    lo = -(1 << (out_width - 1))
-    return (value > hi) | (value < lo)
+    """Expression that is 1 when signed ``value`` does not fit in ``out_width`` bits.
+
+    NOTE: deliberately no negative constants in comparisons. The LiteX Verilog backend emits a
+    negative constant as ``-N'hX`` (unary minus on an *unsigned* literal); per Verilog rules the
+    unsigned operand turns the whole comparison unsigned, inverting the result for positive
+    values -- a sim/synth mismatch found on hardware (every positive sample saturated to the
+    most-negative code). ``value + half < 0`` is equivalent and emits sign-safe Verilog.
+    """
+    hi   = (1 << (out_width - 1)) - 1
+    half = 1 << (out_width - 1)
+    return (value > hi) | ((value + half) < 0)
 
 def saturated(value, out_width):
-    """Clamp signed ``value`` to the signed ``out_width`` range (symmetric two's-complement)."""
-    hi =  (1 << (out_width - 1)) - 1
-    lo = -(1 << (out_width - 1))
-    return Mux(value > hi, hi, Mux(value < lo, lo, value))
+    """Clamp signed ``value`` to the signed ``out_width`` range (symmetric two's-complement).
+
+    See :func:`overflow` for why the low-side compare is written as ``value + half < 0`` and the
+    clamp value as the positive bit pattern ``C(half, out_width)`` (no negative constants).
+    """
+    hi   = (1 << (out_width - 1)) - 1
+    half = 1 << (out_width - 1)          # Bit pattern of the most-negative out_width value.
+    return Mux(value > hi, hi, Mux((value + half) < 0, C(half, out_width), value))
 
 def scaled(value, shift, out_width):
     """Round ``value`` down by ``shift`` bits then saturate to ``out_width``.
