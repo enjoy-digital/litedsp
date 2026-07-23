@@ -444,21 +444,27 @@ def spec_diff_decoder():
     cols = _rand_cols(1, n, lo=0, hi=M - 1)
     return dut, cols, n - 4, lambda c: [models.diff_decode_model(c[0], M)]
 
-def spec_viterbi_decoder():
+def _spec_viterbi_decoder(acs_parallelism=None):
     from litedsp.comm.viterbi import LiteDSPViterbiDecoder
     n, prng = 448, random.Random(19)
     dut  = LiteDSPViterbiDecoder(with_csr=False, decision_memory=True,
-        normalize_interval=16)
+        normalize_interval=16, acs_parallelism=acs_parallelism)
     data = _conv_symbols([prng.randint(0, 1) for _ in range(n)])
     for pos in range(73, n - 16, 29):
         data[pos] ^= 1 << ((pos // 29) & 1)                      # Exercise alternate survivors.
     return dut, [data], n - dut.traceback - 8, lambda c: [models.viterbi_model(c[0])]
 
-def spec_viterbi_decoder_soft():
+def spec_viterbi_decoder():
+    return _spec_viterbi_decoder()
+
+def spec_viterbi_decoder_acs32():
+    return _spec_viterbi_decoder(acs_parallelism=32)
+
+def _spec_viterbi_decoder_soft(acs_parallelism=None):
     from litedsp.comm.viterbi import LiteDSPViterbiDecoder
     n, llr_bits, prng = 384, 4, random.Random(20)
     dut = LiteDSPViterbiDecoder(llr_bits=llr_bits, with_csr=False,
-        decision_memory=True, normalize_interval=16)
+        decision_memory=True, normalize_interval=16, acs_parallelism=acs_parallelism)
     syms = _conv_symbols([prng.randint(0, 1) for _ in range(n)])
     llrs = []
     for pos, sym in enumerate(syms):
@@ -475,6 +481,12 @@ def spec_viterbi_decoder_soft():
     words = models.pack_llrs(llrs, llr_bits)
     return dut, [words], n - dut.traceback - 8, \
         lambda c: [models.viterbi_model(c[0], llr_bits=llr_bits)]
+
+def spec_viterbi_decoder_soft():
+    return _spec_viterbi_decoder_soft()
+
+def spec_viterbi_decoder_soft_acs32():
+    return _spec_viterbi_decoder_soft(acs_parallelism=32)
 
 def spec_puncturer():
     from litedsp.comm.puncture import LiteDSPPuncturer, PUNCTURE_3_4
@@ -893,6 +905,8 @@ SPECS = {
     "diff_decoder":     spec_diff_decoder,
     "viterbi_decoder":      spec_viterbi_decoder,
     "viterbi_decoder_soft": spec_viterbi_decoder_soft,
+    "viterbi_decoder_acs32": spec_viterbi_decoder_acs32,
+    "viterbi_decoder_soft_acs32": spec_viterbi_decoder_soft_acs32,
     "puncturer":        spec_puncturer,
     "depuncturer":      spec_depuncturer,
     "block_interleaver": spec_block_interleaver,
@@ -949,6 +963,8 @@ def check_coverage():
         "frame_sync_pipelined":       "frame_sync",
         "rs_decoder_pipelined":       "rs_decoder",
         "viterbi_decoder_soft":      "viterbi_decoder",
+        "viterbi_decoder_acs32":     "viterbi_decoder",
+        "viterbi_decoder_soft_acs32": "viterbi_decoder",
         "parallel_fft_folded":       "parallel_fft",
         "parallel_fft_native_x2":    "parallel_fft",
         "parallel_fft_native_x4":    "parallel_fft",

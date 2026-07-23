@@ -155,14 +155,23 @@ class TestViterbi(unittest.TestCase):
         n_out = len(bits) - traceback - 4
         got = self._decode(syms, n_out, constraint=constraint, polys=polys,
             traceback=traceback, decision_memory=True, normalize_interval=4)
+        folded = self._decode(syms, n_out, constraint=constraint, polys=polys,
+            traceback=traceback, decision_memory=True, normalize_interval=4,
+            acs_parallelism=2)
         ref = viterbi_model(syms, constraint=constraint, polys=polys,
             traceback=traceback)[:n_out]
         self.assertEqual(got, ref)
+        self.assertEqual(folded, ref)
         dut = LiteDSPViterbiDecoder(constraint=constraint, polys=polys, traceback=traceback,
             with_csr=False, decision_memory=True, normalize_interval=4)
         self.assertIsNone(dut.latency)
         self.assertEqual(dut.traceback_cycles, 2*(traceback - 1))
         self.assertEqual(dut.cycles_per_output, 2*traceback + 2)
+        folded_dut = LiteDSPViterbiDecoder(constraint=constraint, polys=polys,
+            traceback=traceback, with_csr=False, decision_memory=True,
+            normalize_interval=4, acs_parallelism=2)
+        self.assertEqual(folded_dut.acs_phases, 2)
+        self.assertEqual(folded_dut.cycles_per_output, 2*traceback + 4)
 
     def test_soft_decision_memory_matches_model(self):
         rng  = np.random.default_rng(32)
@@ -171,7 +180,18 @@ class TestViterbi(unittest.TestCase):
         n_out = len(bits) - 56 - 4
         got = self._decode(words, n_out, llr_bits=4, decision_memory=True,
             normalize_interval=16)
+        folded = self._decode(words, n_out, llr_bits=4, decision_memory=True,
+            normalize_interval=16, acs_parallelism=32)
         self.assertEqual(got, viterbi_model(words, llr_bits=4)[:n_out])
+        self.assertEqual(folded, got)
+
+    def test_invalid_acs_parallelism(self):
+        with self.assertRaises(ValueError):
+            LiteDSPViterbiDecoder(
+                with_csr=False, decision_memory=True, acs_parallelism=31)
+        with self.assertRaises(ValueError):
+            LiteDSPViterbiDecoder(
+                with_csr=False, decision_memory=False, acs_parallelism=32)
 
     # verify-tier: model — soft-decision BER gain over hard-decision (model-based sweep;
     # the RTL is anchored to the model by test_soft_noisy_rtl_matches_model). Measured with

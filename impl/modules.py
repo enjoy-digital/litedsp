@@ -357,6 +357,16 @@ def viterbi_decoder_soft():
         normalize_interval=16)                               # Soft-decision, 4-bit LLRs.
     return d, _eps(d.sink, d.source), 10.0
 
+def viterbi_decoder_acs32():
+    d = LiteDSPViterbiDecoder(with_csr=False, decision_memory=True,
+        normalize_interval=16, acs_parallelism=32)            # Two-phase 32-ACS schedule.
+    return d, _eps(d.sink, d.source), 10.0
+
+def viterbi_decoder_soft_acs32():
+    d = LiteDSPViterbiDecoder(llr_bits=4, with_csr=False, decision_memory=True,
+        normalize_interval=16, acs_parallelism=32)
+    return d, _eps(d.sink, d.source), 10.0
+
 def block_interleaver():
     d = LiteDSPBlockInterleaver(rows=5, cols=255, width=8, with_csr=False)   # CCSDS I=5.
     return d, {d.filled} | _eps(d.sink, d.source), 8.0
@@ -548,6 +558,8 @@ REGISTRY = {
     "soft_demapper": soft_demapper, "ofdm_equalizer": ofdm_equalizer,
     "puncturer": puncturer, "depuncturer": depuncturer,
     "viterbi_decoder": viterbi_decoder, "viterbi_decoder_soft": viterbi_decoder_soft,
+    "viterbi_decoder_acs32": viterbi_decoder_acs32,
+    "viterbi_decoder_soft_acs32": viterbi_decoder_soft_acs32,
     "block_interleaver": block_interleaver, "block_deinterleaver": block_deinterleaver,
     "rs_encoder": rs_encoder, "rs_decoder": rs_decoder,
     "ccsds_rs_encoder": ccsds_rs_encoder, "ccsds_rs_decoder": ccsds_rs_decoder,
@@ -574,6 +586,7 @@ REGISTRY = {
 PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "ddc",
               "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
+              "viterbi_decoder_acs32",
               "rs_decoder", "ccsds_rs_decoder",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",
               "fft_folded", "fft_interleaved_x2", "fft_parallel_x2",
@@ -592,7 +605,7 @@ PNR_STRESS = ["fft_parallel_native_x4", "ldpc_decoder_z_parallel"]
 # Marginal target-closed paths whose reviewed result is the median of three routes. Keeping these
 # out of the single-route subset prevents one unlucky placement from reopening a closed target.
 PNR_STABILITY = ["dpd", "fft_parallel_native_x4", "ldpc_decoder_lanes_3",
-                 "ldpc_decoder_z_parallel"]
+                 "ldpc_decoder_z_parallel", "viterbi_decoder_soft_acs32"]
 
 # Blocks whose reviewed engineering target is already closed and therefore strict in CI.
 # Other explicit targets remain visible objectives until their architecture work lands.
@@ -600,6 +613,7 @@ TARGET_CLOSED = ["dpd", "ddc", "duc", "channelizer", "frame_sync", "resampler_fa
                  "rs_decoder", "ccsds_rs_decoder",
                  "cic_decimator", "cic_interpolator", "agc", "fft_iter",
                  "viterbi_decoder", "viterbi_decoder_soft",
+                 "viterbi_decoder_acs32", "viterbi_decoder_soft_acs32",
                  "cic_parallel_x2", "cic_parallel_x4",
                  "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
                  "fft_parallel_native_x4",

@@ -12,7 +12,7 @@ Current values are the checked-in raw P&R measurements, not the 85% regression f
 
 | Family/configuration | Current ECP5 | Recurrence that limits timing | First implementation to evaluate |
 |---|---:|---|---|
-| Viterbi hard / soft | 47.4 / 46.5 MHz classic; 106.0 / 110.8 MHz folded | ACS metric update followed by the global-min tree and normalization | folded option landed and target-closed |
+| Viterbi hard / soft | 47.4 / 46.5 MHz classic; 106.0 / 110.8 MHz RAM survivor; 104.3 / 85.5 MHz 32-ACS ECP5 median | ACS metric update followed by the global-min tree and normalization | RAM survivor and selectable 32-ACS options landed with explicit throughput/area targets |
 | AGC | 49.6 MHz classic; 133.9 MHz two-sample pipeline | gain multiply, output magnitude, error and gain integration in one accepted-sample step | two-sample option landed and target-closed |
 | CIC decimator / interpolator | 80.0 / 69.7 MHz classic; 364.4 / 243.5 MHz staged | cascaded integrator/comb arithmetic must update coherent state | staged option landed and target-closed |
 | CIC parallel x2 / x4 | 279.5 / 204.2 MHz staged | vector integrators use registered logarithmic-depth lane-prefix scans | both options landed and target-closed |
@@ -46,10 +46,31 @@ normalization, traceback, and output backpressure; the architecture therefore pr
 and clock rate over coded-symbol throughput. Hard and soft outputs remain bit-exact against the
 same golden model.
 
-On ECP5, the hard/soft configurations reach 106.0/110.8 MHz with 6634/6848 LUT, 864 FF, and two
-BRAMs, versus 47.4/46.5 MHz and 11053/11942 LUT, 3945 FF, and no BRAM for register exchange. On
-Artix-7 they reach 106.6/105.4 MHz with 4171/3440 LUT, 802 FF, and one BRAM. Both device families
-are target-closed at 100 MHz; register exchange remains the compatibility default.
+`acs_parallelism=32` reuses 32 ACS units across the lower and upper destination-state halves.
+All old metrics remain unchanged while both halves are captured; a separate commit clock updates
+the 64 metrics and writes the packed survivor row atomically. This preserves tie behavior and the
+exact traceback trajectory. It adds two control clocks to the steady output schedule
+(`cycles_per_output` 114 -> 116). During initial traceback warm-up, when no output traceback is
+yet performed, the accepted-symbol interval changes from three to five clocks. The external
+ready/valid handshake exposes both gaps directly.
+
+| Decision-RAM architecture | ECP5 LUT/FF/BRAM/Fmax | Artix-7 LUT/FF/BRAM/Fmax | Artix UltraScale+ LUT/FF/BRAM/Fmax |
+|---|---:|---:|---:|
+| Hard, 64 ACS | 6634 / 864 / 2 / 106.0 MHz | 4171 / 802 / 1 / 106.6 MHz | 4257 / 805 / 0 / 225.7 MHz |
+| Hard, 32 ACS | 5324 / 1571 / 2 / 104.3 MHz | 3375 / 1527 / 1 / 105.2 MHz | 4140 / 1530 / 0 / 213.2 MHz |
+| Soft, 64 ACS | 6848 / 864 / 2 / 110.8 MHz | 3440 / 802 / 1 / 105.4 MHz | 4770 / 805 / 0 / 213.1 MHz |
+| Soft, 32 ACS | 5554 / 1577 / 2 / 85.5 MHz | 3382 / 1532 / 1 / 109.4 MHz | 4040 / 1530 / 0 / 179.1 MHz |
+
+The holding registers make this a LUT/throughput trade rather than a universal area reduction:
+hard folding saves about 20% LUT on ECP5/Artix-7 but almost doubles FFs; soft folding saves 19%
+on ECP5 and 15% on UltraScale+ but little on Artix-7, again with roughly twice the FF count.
+Hard steady decoded throughput changes by 3--7% across the three profiles. Soft changes from
+0.97/0.92/1.87 to 0.74/0.94/1.54 Mbit/s on ECP5/Artix-7/UltraScale+.
+
+The hard fold carries a 100 MHz target on all profiles. The soft fold closes 100 MHz on both
+Xilinx profiles; ECP5 carries a distinct 80 MHz objective reviewed across a three-route
+85.5 MHz median (77.8/85.5/86.3 MHz). Register exchange remains the compatibility default and
+the 64-ACS decision-RAM implementation remains the recommended timing/FF choice.
 
 Trade-offs:
 
@@ -58,9 +79,9 @@ Trade-offs:
   register.
 - Less-frequent normalization removes the global-min tree from the per-symbol feedback path at
   the cost of wider metric adders and a proof that the selected interval cannot overflow.
-- A folded 32-ACS implementation remains a lower-area fallback: it
-  uses two clocks per symbol and roughly halves ACS logic. It is not the default because it
-  reduces coded-symbol throughput.
+- The 32-ACS option reduces instantiated ACS arithmetic, but the atomic two-phase update needs a
+  complete next-metric/decision holding row; consult the measured LUT/FF table rather than
+  assuming a 2x whole-core area saving.
 - A deeply pipelined one-symbol-per-clock design requires two or more independent metric
   contexts (interleaved framed codewords); state memory and control scale with the context count.
 

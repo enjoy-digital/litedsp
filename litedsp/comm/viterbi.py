@@ -18,7 +18,8 @@ With ``llr_bits`` set, the sink takes packed signed LLRs (the
 LSB-first slots) and the Hamming branch metric is replaced by the standard max-log metric from
 LLRs — only the branch metrics change, the ACS/survivor machinery is shared.  An optional
 decision-memory architecture replaces register exchange with packed RAM survivor decisions,
-registered best-state reduction, and folded traceback for lower area and higher Fmax.
+registered best-state reduction, and folded traceback for lower area and higher Fmax. It can
+also fold the 64-state ACS into two 32-unit phases.
 """
 
 from migen import *
@@ -74,7 +75,7 @@ def _min_tree(pairs, comb):
 
 
 def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
-                                   metric_width, normalize_interval):
+                                   metric_width, normalize_interval, acs_parallelism):
     """Build a RAM-survivor decoder with folded synchronous traceback.
 
     ACS accepts one symbol, two registered BEST stages capture the minimum state, optional
@@ -84,18 +85,25 @@ def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
     n_states = 1 << (constraint - 1)
     n_bits   = len(polys)
     state_bits = constraint - 1
+    folded = acs_parallelism < n_states
     bm_max = n_bits if llr_bits is None else n_bits*(1 << (llr_bits - 1))
     big = 1 << (metric_width - 2)
 
     metrics = [Signal(metric_width, reset=(0 if s == 0 else big),
                name=f"metric{s}") for s in range(n_states)]
+    input_width = n_bits if llr_bits is None else n_bits*llr_bits
+    input_r = Signal(input_width)
+    received = Signal(input_width)
+    use_registered_input = Signal()
+    sink_payload = dut.sink.data if llr_bits is None else dut.sink.llrs
+    dut.comb += received.eq(Mux(use_registered_input, input_r, sink_payload))
 
     # Branch metrics for each possible encoder output symbol.
     bm = {}
     if llr_bits is None:
         for sym in range(1 << n_bits):
             branch = Signal(max=n_bits + 1, name=f"bm{sym}")
-            dut.comb += branch.eq(sum((dut.sink.data ^ sym)[k] for k in range(n_bits)))
+            dut.comb += branch.eq(sum((received ^ sym)[k] for k in range(n_bits)))
             bm[sym] = branch
     else:
         sgns, abss = [], []
@@ -103,7 +111,7 @@ def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
             llr = Signal((llr_bits, True), name=f"llr{j}")
             ab  = Signal(llr_bits, name=f"llr_abs{j}")
             dut.comb += [
-                llr.eq(dut.sink.llrs[j*llr_bits:(j + 1)*llr_bits]),
+                llr.eq(received[j*llr_bits:(j + 1)*llr_bits]),
                 ab.eq(Mux(llr < 0, -llr, llr)),
             ]
             sgns.append(llr[-1])
@@ -114,21 +122,61 @@ def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
                 Mux(sgns[j] ^ ((sym >> j) & 1), abss[j], 0) for j in range(n_bits)))
             bm[sym] = branch
 
-    # Fully parallel ACS, ending directly at the metric registers and one packed decision row.
-    preds, new_ms, choices = _transitions(constraint, polys), [], []
-    for s in range(n_states):
-        (p0, e0), (p1, e1) = preds[s]
-        m0, m1 = Signal(metric_width + 1), Signal(metric_width + 1)
-        choice = Signal(name=f"decision{s}")
-        metric = Signal(metric_width + 1, name=f"metric_next{s}")
-        dut.comb += [
-            m0.eq(metrics[p0] + bm[e0]),
-            m1.eq(metrics[p1] + bm[e1]),
-            choice.eq(m1 < m0),
-            metric.eq(Mux(choice, m1, m0)),
-        ]
-        new_ms.append(metric)
-        choices.append(choice)
+    # ACS. The default has one unit per state. The half-parallel option reuses one unit for
+    # state ``lane`` and ``lane + n_states/2`` on successive clocks, keeping all old metrics
+    # unchanged until both halves and their survivor decisions have been captured.
+    preds = _transitions(constraint, polys)
+    if not folded:
+        new_ms, choices = [], []
+        for s in range(n_states):
+            (p0, e0), (p1, e1) = preds[s]
+            m0, m1 = Signal(metric_width + 1), Signal(metric_width + 1)
+            choice = Signal(name=f"decision{s}")
+            metric = Signal(metric_width + 1, name=f"metric_next{s}")
+            dut.comb += [
+                m0.eq(metrics[p0] + bm[e0]),
+                m1.eq(metrics[p1] + bm[e1]),
+                choice.eq(m1 < m0),
+                metric.eq(Mux(choice, m1, m0)),
+            ]
+            new_ms.append(metric)
+            choices.append(choice)
+        pending_metrics = None
+        pending_choices = None
+        phase_metrics = None
+        phase_choices = None
+        phase_high = None
+    else:
+        pending_metrics = [Signal(metric_width, name=f"metric_pending{s}")
+                           for s in range(n_states)]
+        pending_choices = [Signal(name=f"decision_pending{s}") for s in range(n_states)]
+        phase_metrics, phase_choices = [], []
+        phase_high = Signal()
+        half = n_states//2
+        for lane in range(half):
+            (lo_p0, lo_e0), (lo_p1, lo_e1) = preds[lane]
+            (hi_p0, hi_e0), (hi_p1, hi_e1) = preds[lane + half]
+            p0_metric = Signal(metric_width)
+            p1_metric = Signal(metric_width)
+            bm0 = Signal(max=bm_max + 1)
+            bm1 = Signal(max=bm_max + 1)
+            m0, m1 = Signal(metric_width + 1), Signal(metric_width + 1)
+            choice = Signal(name=f"decision_lane{lane}")
+            metric = Signal(metric_width + 1, name=f"metric_next_lane{lane}")
+            dut.comb += [
+                p0_metric.eq(Mux(phase_high, metrics[hi_p0], metrics[lo_p0])),
+                p1_metric.eq(Mux(phase_high, metrics[hi_p1], metrics[lo_p1])),
+                bm0.eq(Mux(phase_high, bm[hi_e0], bm[lo_e0])),
+                bm1.eq(Mux(phase_high, bm[hi_e1], bm[lo_e1])),
+                m0.eq(p0_metric + bm0),
+                m1.eq(p1_metric + bm1),
+                choice.eq(m1 < m0),
+                metric.eq(Mux(choice, m1, m0)),
+            ]
+            phase_metrics.append(metric)
+            phase_choices.append(choice)
+        new_ms = None
+        choices = pending_choices
 
     decisions = Memory(n_states, traceback, name="survivor_decisions")
     decision_wr = decisions.get_port(write_capable=True)
@@ -178,15 +226,40 @@ def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
     dut.fsm = fsm = FSM(reset_state="ACS")
     acs = fsm.ongoing("ACS")
     xfer = Signal()
+    commit = fsm.ongoing("ACS_COMMIT") if folded else xfer
     dut.comb += [
         dut.sink.ready.eq(acs),
         xfer.eq(dut.sink.valid & dut.sink.ready),
         decision_wr.adr.eq(write_ptr),
         decision_wr.dat_w.eq(Cat(*choices)),
-        decision_wr.we.eq(xfer),
+        decision_wr.we.eq(commit),
+        use_registered_input.eq(~acs if folded else 0),
     ]
-    dut.sync += If(xfer,
-        *[metrics[s].eq(new_ms[s]) for s in range(n_states)],
+    if folded:
+        acs_high = fsm.ongoing("ACS_HIGH")
+        dut.comb += phase_high.eq(acs_high)
+        half = n_states//2
+        dut.sync += [
+            If(xfer,
+                input_r.eq(sink_payload),
+                *[pending_metrics[lane].eq(phase_metrics[lane]) for lane in range(half)],
+                *[pending_choices[lane].eq(phase_choices[lane]) for lane in range(half)],
+            ),
+            If(acs_high,
+                *[pending_metrics[lane + half].eq(phase_metrics[lane])
+                  for lane in range(half)],
+                *[pending_choices[lane + half].eq(phase_choices[lane])
+                  for lane in range(half)],
+            ),
+            If(commit,
+                *[metrics[s].eq(pending_metrics[s]) for s in range(n_states)],
+            ),
+        ]
+    else:
+        dut.sync += If(xfer,
+            *[metrics[s].eq(new_ms[s]) for s in range(n_states)],
+        )
+    dut.sync += If(commit,
         trace_ptr.eq(write_ptr),
         If(write_ptr == traceback - 1, write_ptr.eq(0)).Else(write_ptr.eq(write_ptr + 1)),
         If(norm_count == normalize_interval - 1,
@@ -197,9 +270,20 @@ def _build_decision_memory_decoder(dut, constraint, polys, traceback, llr_bits,
         If(warmup != 0, warmup.eq(warmup - 1)),
     )
 
-    fsm.act("ACS",
-        If(dut.sink.valid, NextState("BEST_GROUP")),
-    )
+    if folded:
+        fsm.act("ACS",
+            If(dut.sink.valid, NextState("ACS_HIGH")),
+        )
+        fsm.act("ACS_HIGH",
+            NextState("ACS_COMMIT"),
+        )
+        fsm.act("ACS_COMMIT",
+            NextState("BEST_GROUP"),
+        )
+    else:
+        fsm.act("ACS",
+            If(dut.sink.valid, NextState("BEST_GROUP")),
+        )
     fsm.act("BEST_GROUP",
         *[NextValue(group_metric_rs[g], group_metrics[g]) for g in range(len(group_metrics))],
         *[NextValue(group_state_rs[g], group_states[g]) for g in range(len(group_states))],
@@ -293,15 +377,26 @@ class LiteDSPViterbiDecoder(LiteXModule):
         minimum and subtract are isolated in separate FSM states rather than the ACS feedback path.
         Nominal ``cycles_per_output`` excludes the one additional normalization clock every
         ``normalize_interval`` accepted symbols and any downstream backpressure.
+    acs_parallelism : int
+        Number of add-compare-select units in decision-memory mode. Defaults to all
+        ``2**(K-1)`` states; half that count evaluates the trellis in two phases and reduces
+        ACS area at the cost of two additional control clocks per accepted symbol/output.
     """
     def __init__(self, constraint=7, polys=(0o171, 0o133), traceback=None, llr_bits=None,
-        metric_width=None, with_csr=True, decision_memory=False, normalize_interval=16):
+        metric_width=None, with_csr=True, decision_memory=False, normalize_interval=16,
+        acs_parallelism=None):
         n_states  = 1 << (constraint - 1)
         n_bits    = len(polys)
+        if acs_parallelism is None:
+            acs_parallelism = n_states
         traceback = traceback or 8*constraint
         check(traceback >= 2, "expected traceback >= 2")
         check(isinstance(decision_memory, bool), "expected decision_memory to be a bool")
         check(normalize_interval >= 1, "expected normalize_interval >= 1")
+        check(acs_parallelism in (n_states//2, n_states),
+            "acs_parallelism must be the full or half state count")
+        check(decision_memory or acs_parallelism == n_states,
+            "folded ACS requires decision_memory=True")
         if llr_bits is not None:
             check(llr_bits >= 2, "expected llr_bits >= 2 (or None for hard-decision input)")
         # Max branch metric: n mismatches (hard) or n full-scale |LLR|s (soft, |llr| <=
@@ -324,8 +419,11 @@ class LiteDSPViterbiDecoder(LiteXModule):
         self.llr_bits   = llr_bits
         self.decision_memory   = decision_memory
         self.normalize_interval = normalize_interval
+        self.acs_parallelism = acs_parallelism
+        self.acs_phases = n_states//acs_parallelism
         self.traceback_cycles = 2*(traceback - 1) if decision_memory else 0
-        self.cycles_per_output = (2*traceback + 2) if decision_memory else 1
+        self.cycles_per_output = ((2*traceback + 2 + 2*(self.acs_phases - 1))
+            if decision_memory else 1)
         self.latency = None if decision_memory else 1
         if llr_bits is None:
             self.sink = stream.Endpoint([("data", n_bits)])
@@ -337,7 +435,7 @@ class LiteDSPViterbiDecoder(LiteXModule):
 
         if decision_memory:
             _build_decision_memory_decoder(self, constraint, polys, traceback, llr_bits,
-                metric_width, normalize_interval)
+                metric_width, normalize_interval, acs_parallelism)
             if with_csr:
                 self.add_csr()
             return
@@ -435,6 +533,10 @@ class LiteDSPViterbiDecoder(LiteXModule):
             CSRField("llr_bits",   size=8,  description="Soft-input LLR width (0 = hard-decision input)."),
             CSRField("decision_memory", size=1,
                 description="One for folded RAM-survivor traceback; zero for register exchange."),
+            CSRField("acs_parallelism", size=16,
+                description="Number of state ACS units evaluated per trellis phase."),
+            CSRField("acs_phases", size=8,
+                description="Clocks used to evaluate all state metrics."),
             CSRField("normalize_interval", size=16,
                 description="Accepted symbols between metric normalization cycles."),
             CSRField("cycles_per_output", size=16,
@@ -445,6 +547,8 @@ class LiteDSPViterbiDecoder(LiteXModule):
             self._config.fields.traceback.eq(self.traceback),
             self._config.fields.llr_bits.eq(self.llr_bits or 0),
             self._config.fields.decision_memory.eq(self.decision_memory),
+            self._config.fields.acs_parallelism.eq(self.acs_parallelism),
+            self._config.fields.acs_phases.eq(self.acs_phases),
             self._config.fields.normalize_interval.eq(self.normalize_interval),
             self._config.fields.cycles_per_output.eq(self.cycles_per_output),
         ]

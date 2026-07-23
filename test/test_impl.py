@@ -129,7 +129,7 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_route_sensitive_closed_targets_use_the_stability_set(self):
         self.assertEqual(modules.PNR_STABILITY,
             ["dpd", "fft_parallel_native_x4", "ldpc_decoder_lanes_3",
-             "ldpc_decoder_z_parallel"])
+             "ldpc_decoder_z_parallel", "viterbi_decoder_soft_acs32"])
         for name in modules.PNR_STABILITY:
             self.assertIn(name, modules.REGISTRY)
             self.assertNotIn(name, modules.PNR_SUBSET)
@@ -286,6 +286,7 @@ class TestImplementationBudgets(unittest.TestCase):
              "rs_decoder", "ccsds_rs_decoder",
              "cic_decimator", "cic_interpolator", "agc", "fft_iter",
              "viterbi_decoder", "viterbi_decoder_soft",
+             "viterbi_decoder_acs32", "viterbi_decoder_soft_acs32",
              "cic_parallel_x2", "cic_parallel_x4",
              "fft_folded", "fft_interleaved_x2", "fft_parallel_native_x2",
              "fft_parallel_native_x4",

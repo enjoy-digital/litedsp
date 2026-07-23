@@ -81,7 +81,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [dpd, fft_parallel_native_x4, ldpc_decoder_lanes_3, ldpc_decoder_z_parallel]
+        module: [dpd, fft_parallel_native_x4, ldpc_decoder_lanes_3, ldpc_decoder_z_parallel, viterbi_decoder_soft_acs32]
     env:
       LITEDSP_IMPL_BUILD: /tmp/litedsp_impl_${{ github.run_id }}_ecp5_${{ matrix.module }}
     steps:
