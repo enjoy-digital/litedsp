@@ -91,15 +91,18 @@ When a new device profile is first characterized, it inherits the module's revie
 target from an existing profile; its measured resource baseline and 85% timing floor remain fully
 device-specific.
 
-The QPSK receiver sentinel selects an explicit four-sample delayed carrier-loop architecture.
+The QPSK receiver sentinel selects an explicit four-sample delayed carrier-loop architecture and
+a registered timing-recovery loop update.
 Registered NCO operands, mixer products, and rounded derotation cut the former one-cycle
 NCO-LUT/multiply/detector/PI arc while an accepted-sample error queue preserves deterministic
 behavior through bubbles and backpressure. The rounded-derotation boundary keeps the product
-reduction and decision detector on separate timing arcs. Three-route/strategy medians are
-109.0 MHz on ECP5, 129.7 MHz on Artix-7, and 245.9 MHz on Artix UltraScale+, so the complete
-generated receiver now
+reduction and decision detector on separate timing arcs. Registering the timing loop's scaled
+`omega`/`mu` corrections costs one settling clock per output symbol and separates gain scaling
+from accumulation/clamping. Three-route/strategy medians are 119.8 MHz on ECP5, 135.0 MHz on
+Artix-7, and 238.9 MHz on Artix UltraScale+; the pinned hosted ECP5 route reaches 117.15 MHz.
+The complete generated receiver therefore
 carries the same strict 100 MHz objective on all three profiles. The one-sample classic loop
-remains the API default; latency, area, and acquisition measurements are published in
+and five-clock classic timing schedule remain the API defaults; latency, area, and acquisition measurements are published in
 [`timing_architecture.md`](timing_architecture.md).
 
 ## Findings (what implementation testing caught)
@@ -154,8 +157,10 @@ remains the API default; latency, area, and acquisition measurements are publish
 - **Carrier recovery needs sample-domain delayed feedback, not clock-domain retiming.** The QPSK
   receiver's four-sample loop queues completed detector errors until the corresponding accepted
   sample distance has elapsed, so stalls cannot alter its trajectory. The complete generated core
-  rises from 41.7/65.8/126.4 MHz to 109.0/129.7/245.9 MHz on ECP5/Artix-7/Artix UltraScale+ while
-  retaining one sample/clock throughput; output latency rises from one to three clocks.
+  rises from 41.7/65.8/126.4 MHz to 119.8/135.0/238.9 MHz on
+  ECP5/Artix-7/Artix UltraScale+ after the carrier and timing-loop cuts. Carrier throughput
+  remains one sample/clock; carrier output latency rises from one to three clocks and timing
+  recovery spends one additional settling clock per output symbol.
 - **fmax is dominated by long combinational and feedback paths.** Feed-forward blocks can often
   accept latency-only retiming; recursive blocks require an architecture-specific change so the
   numerical recurrence is preserved. Folded/registered options now close the reviewed Viterbi,

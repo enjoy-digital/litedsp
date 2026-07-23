@@ -81,7 +81,7 @@ def main():
     print(f"\nGenerated chain Verilog: {path}")
     assert os.path.exists(path)
     print("  PASS: chain assembled with AXI-Stream ports; CSR map aggregated via get_csrs()")
-    print("  Next (Part C Phase 2): wrap in SoCMini+Builder for the AXI-Lite<->CSR bridge + headers")
+    print("  Complete AXI-Lite IP + headers: litedsp_gen examples/ddc_core.yml --output-dir build")
 
 if __name__ == "__main__":
     main()
