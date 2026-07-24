@@ -157,34 +157,33 @@ def rounded(value, shift):
 def overflow(value, out_width):
     """Expression that is 1 when signed ``value`` does not fit in ``out_width`` bits.
 
-    NOTE: deliberately no negative constants in comparisons. The LiteX Verilog backend emits a
-    negative constant as ``-N'hX`` (unary minus on an *unsigned* literal); per Verilog rules the
-    unsigned operand turns the whole comparison unsigned, inverting the result for positive
-    values -- a sim/synth mismatch found on hardware (every positive sample saturated to the
-    most-negative code). The low-side test uses the two's-complement identity
-    ``value < -half  <=>  ~value > half - 1 = hi`` (``~value = -value - 1``, exact for all
-    inputs): sign-safe, adder-free, and it compares against the *same* ``out_width``-bit
-    constant as the high-side test, so every occurrence of ``value`` elaborates at its natural
-    width and synthesis shares the (often multiplier-bearing) subexpression across the
-    compares and clamp arms instead of duplicating it into a wider context. (A wider constant
-    -- e.g. ``value + half < 0`` or ``~value >= half``, both needing ``out_width + 1`` bits --
-    was measured to duplicate the multipliers on ECP5: +57% LUTs / +6 DSPs on the IIR biquad.)
+    NOTE: the low-side compare uses the negative constant ``lo`` directly. This requires a
+    Verilog backend that emits negative signed constants as genuinely *signed* expressions:
+    Migen's does (bit-pattern literal), and LiteX does since commit c0478217d ("gen/fhdl: emit
+    negative signed constants as $signed(N'h<pattern>)"). Older LiteX emitted ``-N'hX`` (unary
+    minus on an *unsigned*
+    literal), which per Verilog rules turns the whole comparison unsigned, inverting the
+    result for positive values -- a sim/synth mismatch found on hardware (every positive
+    sample saturated to the most-negative code). Do not "fix" this here by rewriting the
+    compare: sign-safe rewrites cost real area because every copy of ``value`` must elaborate
+    at its natural width for synthesis to share the (often multiplier-bearing) subexpression
+    -- ``value + half < 0`` widens the context one bit and duplicated the multipliers on ECP5
+    (+57% LUTs / +6 DSPs on the IIR biquad), and ``~value > hi`` keeps the sharing but its
+    inverters inflated small comparator-heavy blocks by ~20% LUTs on ECP5.
     """
     hi = (1 << (out_width - 1)) - 1
-    return (value > hi) | (~value > hi)
+    lo = -(1 << (out_width - 1))
+    return (value > hi) | (value < lo)
 
 def saturated(value, out_width):
     """Clamp signed ``value`` to the signed ``out_width`` range (symmetric two's-complement).
 
-    See :func:`overflow` for why the low-side compare is written as ``~value > hi``.
-    The low clamp *arm* stays the signed constant ``lo``: an unsigned bit-pattern constant
-    would zero-extend (+2^(w-1)) when the result is used in wider arithmetic. Note that the
-    backend emits the arm as ``-N'hX``, which is only sign-safe when the result is assigned to
-    a signal of exactly ``out_width`` bits -- the recommended usage.
+    See :func:`overflow` for the backend requirement on the ``value < lo`` compare and the
+    ``lo`` clamp arm (both need negative signed constants emitted as signed expressions).
     """
     hi = (1 << (out_width - 1)) - 1
     lo = -(1 << (out_width - 1))
-    return Mux(value > hi, hi, Mux(~value > hi, lo, value))
+    return Mux(value > hi, hi, Mux(value < lo, lo, value))
 
 def scaled(value, shift, out_width):
     """Round ``value`` down by ``shift`` bits then saturate to ``out_width``.
