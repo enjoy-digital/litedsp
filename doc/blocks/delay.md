@@ -16,7 +16,7 @@ preserved. ``depth = 0`` is a passthrough.
 
 | Parameter | Default | Type | Description |
 |---|---|---|---|
-| `depth` | `1` | int | Delay in samples (>= 0; 0 = pure passthrough). Costs one payload register stage (payload width + 1 flip-flops) per unit of delay. |
+| `depth` | `1` | int | Delay in samples (>= 0; 0 = pure passthrough). Costs one register stage per payload field (payload width + 1 flip-flops) per unit of delay. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `layout` | — | none | Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc). |
 

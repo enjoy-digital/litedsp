@@ -25,8 +25,8 @@ class LiteDSPDelay(LiteXModule):
     Parameters
     ----------
     depth : int
-        Delay in samples (>= 0; 0 = pure passthrough). Costs one payload register stage
-        (payload width + 1 flip-flops) per unit of delay.
+        Delay in samples (>= 0; 0 = pure passthrough). Costs one register stage per payload
+        field (payload width + 1 flip-flops) per unit of delay.
     layout : list
         Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc).
     """
@@ -56,20 +56,23 @@ class LiteDSPDelay(LiteXModule):
         # ---------------
         # Data and valid shift together, so input bubbles travel through and reappear at the
         # output with the sample alignment unchanged.
-        p_pipe = [Signal(len(self.sink.payload)) for _ in range(depth)]  # Raw payload bits.
+        # One register chain per payload field (the netlist the closed timing targets of the
+        # DDC/DUC cores were recorded against; a single concatenated pipe perturbs synthesis).
+        fields = [name for name, *_ in layout]
+        pipes  = {name: [Signal(shape) for _ in range(depth)] for name, shape, *_ in layout}
         v_pipe = Signal(depth)
         # depth == 1 shifts valid alone (an empty v_pipe[:-1] slice emits illegal Verilog —
         # found by the full-registry Verilator lint sweep).
         v_next = self.sink.valid if depth == 1 else Cat(self.sink.valid, v_pipe[:-1])
         self.sync += If(adv,
-            p_pipe[0].eq(self.sink.payload.raw_bits()),
+            *[pipes[name][0].eq(getattr(self.sink, name)) for name in fields],
             v_pipe.eq(v_next),
-            *[p_pipe[k].eq(p_pipe[k - 1]) for k in range(1, depth)],
+            *[pipes[name][k].eq(pipes[name][k - 1]) for name in fields for k in range(1, depth)],
         )
 
         # Output.
         # -------
         self.comb += [
             self.source.valid.eq(v_pipe[-1]),
-            self.source.payload.raw_bits().eq(p_pipe[-1]),
+            *[getattr(self.source, name).eq(pipes[name][-1]) for name in fields],
         ]
