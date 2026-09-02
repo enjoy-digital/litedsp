@@ -155,6 +155,8 @@ VSPEC = {
     "overcurrent_trip":   _v("overcurrent_trip_model", cosim=True),
     "quadrature_decoder": _v("quadrature_decoder_model", latency="n/a", rate=None),  # Pin-driven.
     "hall_decoder":       _v("hall_sector_model", latency="n/a", rate=None),
+    "angle_tracker":      _v("angle_tracker_model", cosim=True),
+    "smo_observer":       _v("smo_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

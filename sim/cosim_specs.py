@@ -1024,6 +1024,27 @@ def spec_overcurrent_trip():
     return dut, cols, n - 4, lambda c: list(models.overcurrent_trip_model(c[0], c[1], c[2],
         20000)[:3])
 
+def spec_angle_tracker():
+    from litedsp.motor.observer import LiteDSPAngleTracker
+    n    = 300
+    dut  = LiteDSPAngleTracker(angle_width=16, with_csr=False)
+    cols = _rand_cols(1, n, lo=-32768, hi=32767)                      # sink(angle).
+    kp   = [4 if k < 150 else 3 for k in range(n)]
+    ki   = [10 if k < 150 else 8 for k in range(n)]
+    return dut, cols + [kp, ki], n - 4, \
+        lambda c: [models.angle_tracker_model(c[0], np.array(c[1]), np.array(c[2]))[0]], \
+        False, False, (dut.kp_shift, dut.ki_shift)
+
+def spec_smo_observer():
+    from litedsp.motor.observer import LiteDSPSMObserver
+    n     = 300
+    gains = dict(g_v=1365, g_r=68, k_sm=9830, lpf_shift=3)
+    dut   = LiteDSPSMObserver(data_width=16, angle_width=16, with_csr=False)
+    for k, v in gains.items():
+        getattr(dut, k).reset = v
+    cols = _rand_cols(4, n, lo=-20000, hi=20000)                      # sink_i(i,q), sink_v(i,q).
+    return dut, cols, n - 4, lambda c: [models.smo_model(c[0], c[1], c[2], c[3], **gains)]
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1119,6 +1140,8 @@ SPECS = {
     "bitstream_decimator": spec_bitstream_decimator,
     "sigma_delta_filter": spec_sigma_delta_filter,
     "overcurrent_trip": spec_overcurrent_trip,
+    "angle_tracker":    spec_angle_tracker,
+    "smo_observer":     spec_smo_observer,
 }
 
 # Known failures -----------------------------------------------------------------------------------

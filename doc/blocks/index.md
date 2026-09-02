@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-133 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+135 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -182,5 +182,7 @@
 | [3-phase PWM](pwm.md) | `LiteDSPPWM` | var | 1 | Center-aligned three-phase PWM with dead time, fault latch and ADC trigger (sink-only). |
 | [Sigma-delta current sense](sigma_delta_filter.md) | `LiteDSPSigmaDeltaFilter` | 1 | 0 | Isolated sigma-delta current sense: per-phase sinc^N demodulators + fast trip path. |
 | [Over-current trip](overcurrent_trip.md) | `LiteDSPOvercurrentTrip` | 0 | 0 | Window comparator on a three-phase stream: combinational passthrough + sticky trip. |
-| [Quadrature encoder](quadrature_decoder.md) | `LiteDSPQuadratureDecoder` | var | — | Incremental encoder (A/B/Z) interface: position, direction, speed and electrical angle. |
-| [Hall sensor decoder](hall_decoder.md) | `LiteDSPHallDecoder` | var | — | Three 120-degree Hall sensors -> sector, direction, speed and (interpolated) angle. |
+| [Quadrature encoder](quadrature_decoder.md) | `LiteDSPQuadratureDecoder` | var | 2 | Incremental encoder (A/B/Z) interface: position, direction, speed and electrical angle. |
+| [Hall sensor decoder](hall_decoder.md) | `LiteDSPHallDecoder` | var | 0 | Three 120-degree Hall sensors -> sector, direction, speed and (interpolated) angle. |
+| [Angle tracker (PLL)](angle_tracker.md) | `LiteDSPAngleTracker` | 1 | — | Type-II tracking loop on an angle stream: filtered angle + speed (angle PLL). |
+| [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 18 | — | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |

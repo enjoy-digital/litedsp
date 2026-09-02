@@ -3000,6 +3000,20 @@
       }
     }
   },
+  "hall_decoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 187,
+      "lut": 379,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 187,
+        "lut": 379
+      }
+    }
+  },
   "histogram": {
     "ecp5": {
       "bram": 0,
@@ -4949,6 +4963,20 @@
         "dsp": 12,
         "ff": 634,
         "lut": 1119
+      }
+    }
+  },
+  "quadrature_decoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 140,
+      "lut": 568,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 140,
+        "lut": 568
       }
     }
   },

@@ -2278,3 +2278,66 @@ def hall_sector_model(codes, invert=False):
                 sector    = new
         out[k] = (sector, direction, error)
     return out[:, 0], out[:, 1], out[:, 2]
+
+# Motor Control: Observers -------------------------------------------------------------------------
+
+def angle_tracker_model(angles, kp_shift=4, ki_shift=10, angle_width=16, frac_bits=14):
+    """Bit-exact reference for litedsp.motor.observer.LiteDSPAngleTracker.
+
+    Per accepted sample: the output is the current estimate ``theta >> frac``; then the wrapped
+    error ``e = angle - (theta >> frac)`` updates ``theta += integral + (e_frac >> kp)`` and
+    ``integral += e_frac >> ki`` (``e_frac = e << frac``, all wrapping at the RTL widths).
+    Returns ``(angles_out, speeds)``; shifts may be per-sample arrays.
+    """
+    n     = len(angles)
+    W     = angle_width + frac_bits + 2
+    wrap  = _wrapper(W)
+    wa    = _wrapper(angle_width)
+    mask  = (1 << (angle_width + frac_bits)) - 1
+    kp, ki = _per_sample(kp_shift, n), _per_sample(ki_shift, n)
+    theta = integral = 0
+    out, speeds = np.zeros(n, np.int64), np.zeros(n, np.int64)
+    for k, a in enumerate(np.asarray(angles, np.int64)):
+        out[k]   = wa(theta >> frac_bits)
+        err      = wa(int(a) - (theta >> frac_bits))
+        e_frac   = wrap(err << frac_bits)
+        loop_out = wrap(integral + (e_frac >> int(kp[k])))
+        theta    = (theta + loop_out) & mask
+        integral = wrap(integral + (e_frac >> int(ki[k])))
+        speeds[k] = integral
+    return out, speeds
+
+def smo_model(i_a, i_b, v_a, v_b, g_v, g_r, k_sm, lpf_shift=3, data_width=16, angle_width=16,
+    gain_width=16, gain_frac=12, stages=None):
+    """Bit-exact reference for litedsp.motor.observer.LiteDSPSMObserver: raw back-EMF angle
+    per accepted (i, v) pair (the state advances per pair; the CORDIC sees the updated EMF)."""
+    IW, EW = data_width + 2, data_width + 1
+    ih, emf = [0, 0], [0, 0]
+    out = np.zeros(len(i_a), np.int64)
+    for k, (ia, ib, va, vb) in enumerate(zip(i_a, i_b, v_a, v_b)):
+        emf_n, ih_n = [0, 0], [0, 0]
+        for ax, (i, v) in enumerate(((int(ia), int(va)), (int(ib), int(vb)))):
+            err    = ih[ax] - i
+            z      = -int(k_sm) if err < 0 else int(k_sm)
+            emf_n[ax] = emf[ax] + ((z - emf[ax]) >> lpf_shift)
+            d      = v - emf[ax] - z
+            upd    = d*int(g_v) - ih[ax]*int(g_r)
+            ih_n[ax] = int(np_saturated(np.int64(ih[ax] + int(np_rounded(np.int64(upd), gain_frac))), IW))
+        out[k] = cordic_vectoring_model(emf_n[1], -emf_n[0], EW, angle_width, stages)
+        ih, emf = ih_n, emf_n
+    return out
+
+def pmsm_steady_state(omega_pu, iq_pu, r_pu=0.05, l_pu=0.3, psi_pu=0.6, n=2000, wb_ts=0.1,
+    id_pu=0.0, data_width=16, theta0=0.0):
+    """Float per-unit PMSM at constant speed (test stimulus): returns Q1.(N-1) integer arrays
+    ``(i_alpha, i_beta, v_alpha, v_beta, theta)`` with ``theta`` the true electrical angle in
+    angle units of a 16-bit turn. ``wb_ts = w_b*Ts`` sets the angle step per sample."""
+    fs    = (1 << (data_width - 1)) - 1
+    theta = theta0 + omega_pu*wb_ts*np.arange(n)
+    v_d   = r_pu*id_pu - omega_pu*l_pu*iq_pu
+    v_q   = r_pu*iq_pu + omega_pu*l_pu*id_pu + omega_pu*psi_pu
+    i_ab  = (id_pu + 1j*iq_pu)*np.exp(1j*theta)
+    v_ab  = (v_d + 1j*v_q)*np.exp(1j*theta)
+    q     = lambda x: np.clip(np.round(x*fs), -fs, fs).astype(np.int64)
+    return (q(i_ab.real), q(i_ab.imag), q(v_ab.real), q(v_ab.imag),
+            np.round(theta/(2*np.pi)*(1 << 16)).astype(np.int64))

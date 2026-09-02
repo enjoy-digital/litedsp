@@ -74,6 +74,9 @@ SPECIFIC = [
     ("quadrature_decoder", {"filter_length": 0}),
     ("hall_decoder",    {"timer_width": 4}),               # >= 8 required.
     ("hall_decoder",    {"interpolate": "yes"}),           # Bool required.
+    ("angle_tracker",   {"kp_shift": 32}),
+    ("angle_tracker",   {"frac_bits": -1}),
+    ("smo_observer",    {"gain_frac": 16}),
 ]
 
 class TestParams(unittest.TestCase):
