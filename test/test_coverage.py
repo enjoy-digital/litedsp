@@ -19,6 +19,10 @@ class TestCoverageWaivers(unittest.TestCase):
             "fir_interpolator_pipelined",
             "ldpc_decoder", "ldpc_decoder_z_parallel", "pfb_channelizer_fft",
             "pfb_channelizer_fft_2x",
+            # Motor / audio composites: nested reset arms, hard-wired mixer modes, internal
+            # bypass paths and the limiter's peak-only sidechain (see the waiver reasons).
+            "sincos_cordic", "park", "inverse_park", "dq_controller", "bitstream_decimator",
+            "sigma_delta_filter", "smo_observer", "foc", "reverb", "compressor_limiter",
         })
         self.assertGreaterEqual(len(waivers["ldpc_decoder"]["semantic_checks"]), 5)
 
