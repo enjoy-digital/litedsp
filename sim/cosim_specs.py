@@ -1110,6 +1110,22 @@ def spec_dither():
 def spec_dither_ef2():
     return _spec_dither("ef2")
 
+def spec_audio_eq():
+    from litedsp.audio.eq      import LiteDSPAudioEQ
+    from litedsp.audio.design  import rbj_biquad
+    from litedsp.filter.design import biquad_sos_quantize
+    n    = 120
+    rows = [rbj_biquad("lowshelf", 80, 6.0, sample_rate=48000),
+            rbj_biquad("peaking", 1000, -4.0, 1.5, sample_rate=48000),
+            rbj_biquad("highshelf", 8000, 3.0, sample_rate=48000)]
+    secs = biquad_sos_quantize(rows, 32, 28)[0]
+    dut  = LiteDSPAudioEQ(data_width=24, n_bands=3, n_channels=2, sections=secs, with_csr=False)
+    cols = _tdm_cols(n, 2, lo=-(1 << 22), hi=(1 << 22))
+    mask = [0b111 if k < 160 else 0b101 for k in range(2*n)]
+    return dut, cols + [mask], 2*n - 4, \
+        lambda c: [models.audio_eq_model(c[0], c[1], secs, band_enable=np.array(c[2])),
+                   np.array(c[1])], False, False, (dut.band_enable,)
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1212,6 +1228,7 @@ SPECS = {
     "stereo_matrix":    spec_stereo_matrix,
     "dither":           spec_dither,
     "dither_ef2":       spec_dither_ef2,
+    "audio_eq":         spec_audio_eq,
 }
 
 # Known failures -----------------------------------------------------------------------------------

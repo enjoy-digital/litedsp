@@ -90,6 +90,7 @@ from litedsp.motor.resolver       import LiteDSPResolverDigital
 from litedsp.motor.foc            import LiteDSPFOC
 from litedsp.audio.level          import LiteDSPVolume, LiteDSPStereoMatrix
 from litedsp.audio.dither         import LiteDSPDither
+from litedsp.audio.eq             import LiteDSPAudioEQ
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -672,6 +673,11 @@ def dither():
     return d, {d.dither_enable, d.shaping_enable, d.bypass, d.clear_sat, d.sat} | \
            _eps(d.sink, d.source), 10.0
 
+def audio_eq():
+    d = LiteDSPAudioEQ(data_width=24, n_bands=3, n_channels=2, with_csr=False)
+    return d, {d.band_enable, d.bypass, d.coeff_index, d.coeff_value, d.coeff_we, d.coeff_commit,
+               d.commit_pending, d.clear_sat, d.sat} | _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -732,7 +738,7 @@ REGISTRY = {
     "overcurrent_trip": overcurrent_trip, "quadrature_decoder": quadrature_decoder,
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
     "resolver": resolver, "foc": foc,
-    "volume": volume, "stereo_matrix": stereo_matrix, "dither": dither,
+    "volume": volume, "stereo_matrix": stereo_matrix, "dither": dither, "audio_eq": audio_eq,
 }
 
 # Subset for the slower full place-&-route flows.
@@ -749,7 +755,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "pfb_channelizer_fft_2x",
               "ldpc_decoder_lanes_9",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip",
-              "qpsk_receiver_ip", "foc"]
+              "qpsk_receiver_ip", "foc", "audio_eq"]
 
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives these wide
 # configurations an independent runner and a longer timeout so they cannot starve the sentinels.

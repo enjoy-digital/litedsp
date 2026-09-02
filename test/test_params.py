@@ -86,6 +86,9 @@ SPECIFIC = [
     ("dither",          {"out_width": 24}),                # < data_width.
     ("dither",          {"shaping": "ef3"}),
     ("dither",          {"seed": 0}),
+    ("audio_eq",        {"frac_bits": 40}),                # < coeff_width.
+    ("audio_eq",        {"error_feedback": 3}),
+    ("audio_eq",        {"n_bands": 0}),
 ]
 
 class TestParams(unittest.TestCase):
