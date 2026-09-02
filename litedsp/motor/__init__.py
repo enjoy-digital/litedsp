@@ -21,6 +21,7 @@ Per-unit conventions (shared by every block, the golden models and the PMSM exam
 """
 
 from litedsp.motor.encoder    import LiteDSPQuadratureDecoder, LiteDSPHallDecoder
+from litedsp.motor.foc        import LiteDSPFOC
 from litedsp.motor.limiter    import LiteDSPSlewLimiter
 from litedsp.motor.observer   import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.pi         import LiteDSPPIController, LiteDSPDQController

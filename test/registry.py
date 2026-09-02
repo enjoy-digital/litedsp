@@ -158,6 +158,7 @@ VSPEC = {
     "angle_tracker":      _v("angle_tracker_model", cosim=True),
     "smo_observer":       _v("smo_model", cosim=True),
     "resolver":           _v("resolver_model", rate=None),     # Two sources: no generic cosim.
+    "foc":                _v("foc_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-136 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+137 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -186,4 +186,5 @@
 | [Hall sensor decoder](hall_decoder.md) | `LiteDSPHallDecoder` | var | 0 | Three 120-degree Hall sensors -> sector, direction, speed and (interpolated) angle. |
 | [Angle tracker (PLL)](angle_tracker.md) | `LiteDSPAngleTracker` | 1 | 0 | Type-II tracking loop on an angle stream: filtered angle + speed (angle PLL). |
 | [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 18 | 4 | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |
-| [Resolver-to-digital](resolver.md) | `LiteDSPResolverDigital` | 20 | — | Resolver-to-digital converter: excitation output, synchronous demodulation, tracking loop. |
+| [Resolver-to-digital](resolver.md) | `LiteDSPResolverDigital` | 20 | 5 | Resolver-to-digital converter: excitation output, synchronous demodulation, tracking loop. |
+| [FOC current controller](foc.md) | `LiteDSPFOC` | 9 | — | Field-oriented current control: phase currents + rotor angle -> three-phase duties. |

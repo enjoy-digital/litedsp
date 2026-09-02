@@ -87,6 +87,7 @@ from litedsp.motor.sense          import LiteDSPSigmaDeltaFilter, LiteDSPOvercur
 from litedsp.motor.encoder        import LiteDSPQuadratureDecoder, LiteDSPHallDecoder
 from litedsp.motor.observer       import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.resolver       import LiteDSPResolverDigital
+from litedsp.motor.foc            import LiteDSPFOC
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -639,6 +640,13 @@ def resolver():
     return d, {d.phase_offset, d.kp_shift, d.ki_shift, d.speed, d.raw_angle, d.raw_mag} | \
            _eps(d.sink, d.source, d.source_exc), 10.0
 
+def foc():
+    d = LiteDSPFOC(data_width=16, angle_width=16, with_csr=False)
+    dq = d.dq
+    return d, {dq.setpoint_d, dq.setpoint_q, dq.kp_d, dq.ki_d, dq.kp_q, dq.ki_q, dq.limit,
+               dq.voltage_d, dq.voltage_q, dq.open_loop, dq.clear, dq.clear_sat, dq.saturated,
+               d.svpwm.injection, d.speed} | _eps(d.sink, d.sink_angle, d.source), 10.0
+
 def pwm():
     d = LiteDSPPWM(data_width=16, period_width=16, dead_time_width=8, with_csr=False)
     return d, {d.pwm_h, d.pwm_l, d.trigger, d.fault, d.period, d.dead_time, d.enable,
@@ -704,7 +712,7 @@ REGISTRY = {
     "bitstream_decimator": bitstream_decimator, "sigma_delta_filter": sigma_delta_filter,
     "overcurrent_trip": overcurrent_trip, "quadrature_decoder": quadrature_decoder,
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
-    "resolver": resolver,
+    "resolver": resolver, "foc": foc,
 }
 
 # Subset for the slower full place-&-route flows.
@@ -721,7 +729,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "pfb_channelizer_fft_2x",
               "ldpc_decoder_lanes_9",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip",
-              "qpsk_receiver_ip"]
+              "qpsk_receiver_ip", "foc"]
 
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives these wide
 # configurations an independent runner and a longer timeout so they cannot starve the sentinels.

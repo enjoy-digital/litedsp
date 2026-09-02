@@ -1045,6 +1045,18 @@ def spec_smo_observer():
     cols = _rand_cols(4, n, lo=-20000, hi=20000)                      # sink_i(i,q), sink_v(i,q).
     return dut, cols, n - 4, lambda c: [models.smo_model(c[0], c[1], c[2], c[3], **gains)]
 
+def spec_foc():
+    from litedsp.motor.foc import LiteDSPFOC
+    n     = 300
+    gains = dict(kp_d=int(0.8*4096), ki_d=int(0.1*4096), kp_q=int(1.2*4096), ki_q=int(0.15*4096))
+    dut   = LiteDSPFOC(data_width=16, angle_width=16, with_csr=False)
+    dut.dq.setpoint_d.reset, dut.dq.setpoint_q.reset, dut.dq.limit.reset = 0, 8000, 20000
+    for k, v in gains.items():
+        getattr(dut.dq, k).reset = v
+    cols = _rand_cols(3, n, lo=-20000, hi=20000) + _rand_cols(1, n, lo=-32768, hi=32767, seed=2)
+    return dut, cols, n - 4, lambda c: list(models.foc_model(c[0], c[1], c[2], c[3], 0, 8000,
+        limit=20000, **gains))                                        # sink(a,b,c), sink_angle.
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1142,6 +1154,7 @@ SPECS = {
     "overcurrent_trip": spec_overcurrent_trip,
     "angle_tracker":    spec_angle_tracker,
     "smo_observer":     spec_smo_observer,
+    "foc":              spec_foc,
 }
 
 # Known failures -----------------------------------------------------------------------------------

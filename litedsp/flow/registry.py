@@ -114,6 +114,7 @@ from litedsp.motor.sense           import LiteDSPSigmaDeltaFilter, LiteDSPOvercu
 from litedsp.motor.encoder         import LiteDSPQuadratureDecoder, LiteDSPHallDecoder
 from litedsp.motor.observer        import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.resolver        import LiteDSPResolverDigital
+from litedsp.motor.foc             import LiteDSPFOC
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -267,6 +268,7 @@ ENTRIES = [
     ("angle_tracker",      LiteDSPAngleTracker,          {},                                     "motor",      "Angle tracker (PLL)",   None),
     ("smo_observer",       LiteDSPSMObserver,            {},                                     "motor",      "Sliding-mode observer", None),
     ("resolver",           LiteDSPResolverDigital,       {},                                     "motor",      "Resolver-to-digital",   None),
+    ("foc",                LiteDSPFOC,                   {},                                     "motor",      "FOC current controller", {"anti_windup": ["conditional", "clamp", "none"]}),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

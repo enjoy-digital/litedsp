@@ -2382,3 +2382,21 @@ def resolver_stimulus(theta, decimation=32, delay=0, amplitude=0.8, data_width=1
     ref   = np.sin(2*np.pi*((k - delay) % D)/D)
     q     = lambda x: np.clip(np.round(x*scale), -scale, scale).astype(np.int64)
     return q(amplitude*np.sin(theta)*ref), q(amplitude*np.cos(theta)*ref)
+
+# Motor Control: FOC -------------------------------------------------------------------------------
+
+def foc_model(a, b, c, angle, setpoint_d, setpoint_q, kp_d, ki_d, kp_q, ki_q, limit=None,
+    data_width=16, angle_width=16, lut_depth=1024, three_wire=False, gain_width=16,
+    gain_frac=12, anti_windup="conditional", open_loop=0, voltage_d=0, voltage_q=0,
+    decoupling=False, speed=0, l_pu=0, psi_pu=0):
+    """Bit-exact reference for litedsp.motor.foc.LiteDSPFOC: the composed block models
+    (Clarke -> Park -> d/q controller -> inverse Park -> SVPWM), sample-aligned. Returns the
+    (a, b, c) duties."""
+    alpha, beta = clarke_model(a, b, c, data_width, three_wire)
+    cos, sin    = sincos_model(angle, data_width, angle_width, lut_depth)
+    i_d, i_q    = mixer_model(alpha, beta, cos, sin, mode="down", data_width=data_width)
+    v_d, v_q    = dq_controller_model(i_d, i_q, setpoint_d, setpoint_q, kp_d, ki_d, kp_q, ki_q,
+        limit, data_width, gain_width, gain_frac, anti_windup, open_loop, voltage_d, voltage_q,
+        decoupling, speed, l_pu, psi_pu)
+    v_a, v_b    = mixer_model(v_d, v_q, cos, sin, mode="up", data_width=data_width)
+    return svpwm_model(v_a, v_b, 1, data_width)

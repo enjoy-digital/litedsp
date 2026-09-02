@@ -78,6 +78,8 @@ SPECIFIC = [
     ("angle_tracker",   {"frac_bits": -1}),
     ("smo_observer",    {"gain_frac": 16}),
     ("resolver",        {"decimation": 2}),                # Excitation period >= 4 samples.
+    ("foc",             {"anti_windup": "x"}),
+    ("foc",             {"lut_depth": 1000}),
 ]
 
 class TestParams(unittest.TestCase):
