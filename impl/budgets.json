@@ -70,6 +70,20 @@
       }
     }
   },
+  "angle_ramp": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 33,
+      "lut": 33,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 33,
+        "lut": 33
+      }
+    }
+  },
   "block_deinterleaver": {
     "ecp5": {
       "bram": 2,
@@ -791,6 +805,20 @@
       }
     }
   },
+  "clarke": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 35,
+      "lut": 187,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 35,
+        "lut": 187
+      }
+    }
+  },
   "combine": {
     "ecp5": {
       "bram": 0,
@@ -858,8 +886,8 @@
       "synth": {
         "bram": 0,
         "dsp": 2,
-        "ff": 907,
-        "lut": 1943
+        "ff": 931,
+        "lut": 2049
       }
     },
     "xilinx": {
@@ -906,8 +934,8 @@
       "synth": {
         "bram": 0,
         "dsp": 1,
-        "ff": 849,
-        "lut": 1839
+        "ff": 862,
+        "lut": 1892
       }
     },
     "xilinx": {
@@ -3115,6 +3143,34 @@
       }
     }
   },
+  "inverse_clarke": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 51,
+      "lut": 228,
+      "synth": {
+        "bram": 0,
+        "dsp": 1,
+        "ff": 51,
+        "lut": 228
+      }
+    }
+  },
+  "inverse_park": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 189,
+      "lut": 820,
+      "synth": {
+        "bram": 0,
+        "dsp": 4,
+        "ff": 189,
+        "lut": 820
+      }
+    }
+  },
   "iq_pack": {
     "ecp5": {
       "bram": 0,
@@ -3729,8 +3785,8 @@
       "synth": {
         "bram": 0,
         "dsp": 1,
-        "ff": 601,
-        "lut": 1618
+        "ff": 614,
+        "lut": 1674
       }
     },
     "xilinx": {
@@ -4150,7 +4206,7 @@
         "bram": 0,
         "dsp": 0,
         "ff": 52,
-        "lut": 663
+        "lut": 651
       }
     },
     "xilinx": {
@@ -4271,6 +4327,20 @@
         "dsp": 6,
         "ff": 68,
         "lut": 284
+      }
+    }
+  },
+  "park": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 189,
+      "lut": 784,
+      "synth": {
+        "bram": 0,
+        "dsp": 4,
+        "ff": 189,
+        "lut": 784
       }
     }
   },
@@ -5152,6 +5222,34 @@
         "dsp": 0,
         "ff": 33,
         "lut": 60
+      }
+    }
+  },
+  "sincos": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 23,
+      "lut": 614,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 23,
+        "lut": 614
+      }
+    }
+  },
+  "sincos_cordic": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 883,
+      "lut": 1824,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 883,
+        "lut": 1824
       }
     }
   },
