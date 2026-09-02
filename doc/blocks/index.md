@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-158 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+160 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -212,5 +212,7 @@
 | [Peak meter](peak_meter.md) | `LiteDSPPeakMeter` | 0 | — | Per-channel peak / hold / clip meter on a TDM stream (zero-latency passthrough tap). |
 | [Loudness (BS.1770)](loudness.md) | `LiteDSPLoudness` | 0 | 8 | ITU-R BS.1770 loudness front-end: K-weighting + per-hop weighted sum of squares (zero-latency |
 | [Sigma-delta modulator](sigma_delta_mod.md) | `LiteDSPSigmaDeltaModulator` | 1 | — | Error-feedback sigma-delta modulator: ``real_layout`` samples to a 1-bit stream at |
-| [PDM DAC](sigma_delta_dac.md) | `LiteDSPSigmaDeltaDAC` | var | — | PDM DAC: a TDM (or mono) sink feeding one :class:`LiteDSPSigmaDeltaModulator` per channel, |
+| [PDM DAC](sigma_delta_dac.md) | `LiteDSPSigmaDeltaDAC` | var | 0 | PDM DAC: a TDM (or mono) sink feeding one :class:`LiteDSPSigmaDeltaModulator` per channel, |
 | [PDM receiver](pdm_rx.md) | `LiteDSPPDMReceiver` | var | 0 | PDM microphone receiver: :class:`LiteDSPBitstreamInterface` (``mclk`` out at ``sys_clk / |
+| [I2S receiver](i2s_rx.md) | `LiteDSPI2SReceiver` | var | — | Serial audio receiver (I2S, left/right-justified, TDM) to a channel-tagged TDM stream. |
+| [I2S transmitter](i2s_tx.md) | `LiteDSPI2STransmitter` | var | 0 | Channel-tagged TDM stream to serial audio (I2S, left/right-justified, TDM); the mirror of |

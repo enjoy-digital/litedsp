@@ -2774,3 +2774,31 @@ def pdm_receiver_model(bits, decimation=64, n_stages=4, data_width=24, with_dc_b
             y = fir_model(y, comp_coefficients, data_width)
         outs.append(np.asarray(y, np.int64))
     return tdm_mux_model(outs)
+
+def i2s_params(fmt, sample_width, slot_width):
+    """``(msb_pos, polarity)`` of a serial audio format (see litedsp.audio.i2s)."""
+    return {"i2s": (1, 0), "left_justified": (0, 1), "right_justified": (slot_width - sample_width, 1),
+            "tdm": (1, None)}[fmt]
+
+def i2s_frame_model(frames, fmt="i2s", sample_width=24, slot_width=32, n_channels=2):
+    """Reference for litedsp.audio.i2s.LiteDSPI2STransmitter: ``frames`` is a list of
+    ``n_channels``-word lists (signed ``sample_width``-bit integers); returns the ``(sdata,
+    lrck)`` bit lists, one entry per BCLK period (the levels sampled on the rising edge)."""
+    msb_pos, pol = i2s_params(fmt, sample_width, slot_width)
+    words = [int(w) for frame in frames for w in frame]
+    sdata, lrck = [], []
+    prev = None
+    for i, w in enumerate(words):
+        slot = i % n_channels
+        for pos in range(slot_width):
+            k, k_prev = pos - msb_pos, pos + slot_width - msb_pos
+            if 0 <= k < sample_width:
+                b = (w >> (sample_width - 1 - k)) & 1
+            elif k < 0 and prev is not None and k_prev < sample_width:
+                b = (prev >> (sample_width - 1 - k_prev)) & 1
+            else:
+                b = 0
+            sdata.append(b)
+            lrck.append(int(pos == 0 and slot == 0) if pol is None else int((slot == 0) == bool(pol)))
+        prev = w
+    return sdata, lrck

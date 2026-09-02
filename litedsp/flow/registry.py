@@ -123,6 +123,7 @@ from litedsp.audio.dynamics        import LiteDSPCompressor
 from litedsp.audio.effects         import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 from litedsp.audio.meter           import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm             import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
+from litedsp.audio.i2s             import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -299,6 +300,8 @@ ENTRIES = [
     ("sigma_delta_mod",    LiteDSPSigmaDeltaModulator,   {},                                     "audio",      "Sigma-delta modulator", {"order": [1, 2]}),
     ("sigma_delta_dac",    LiteDSPSigmaDeltaDAC,         {},                                     "audio",      "PDM DAC",               None),
     ("pdm_rx",             LiteDSPPDMReceiver,           {},                                     "audio",      "PDM receiver",          None),
+    ("i2s_rx",             LiteDSPI2SReceiver,           {},                                     "audio",      "I2S receiver",          {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["slave", "master"]}),
+    ("i2s_tx",             LiteDSPI2STransmitter,        {},                                     "audio",      "I2S transmitter",       {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["master", "slave"]}),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

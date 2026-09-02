@@ -96,6 +96,7 @@ from litedsp.audio.dynamics       import LiteDSPCompressor
 from litedsp.audio.effects        import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
+from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -759,6 +760,14 @@ def pdm_rx():
     d = LiteDSPPDMReceiver(data_width=24, n_channels=2, with_csr=False)
     return d, {d.mclk, d.mdat, d.overrun, d.clear} | _eps(d.source), 10.0
 
+def i2s_rx():
+    d = LiteDSPI2SReceiver(data_width=24, with_csr=False)
+    return d, {d.bclk, d.lrck, d.sdata, d.enable, d.clear, d.overrun} | _eps(d.source), 10.0
+
+def i2s_tx():
+    d = LiteDSPI2STransmitter(data_width=24, with_csr=False)
+    return d, {d.bclk, d.lrck, d.sdata, d.enable, d.clear, d.underrun} | _eps(d.sink), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -825,6 +834,7 @@ REGISTRY = {
     "lfo": lfo, "delay_line": delay_line, "chorus": chorus, "wet_dry_mix": wet_dry_mix,
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
+    "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
 }
 
 # Subset for the slower full place-&-route flows.

@@ -3174,6 +3174,20 @@
       }
     }
   },
+  "i2s_tx": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 111,
+      "lut": 109,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 111,
+        "lut": 109
+      }
+    }
+  },
   "iir_biquad": {
     "ecp5": {
       "bram": 0,
@@ -5544,6 +5558,20 @@
         "dsp": 0,
         "ff": 33,
         "lut": 60
+      }
+    }
+  },
+  "sigma_delta_dac": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 176,
+      "lut": 492,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 176,
+        "lut": 492
       }
     }
   },

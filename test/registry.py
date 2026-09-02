@@ -180,6 +180,8 @@ VSPEC = {
     "sigma_delta_mod":    _v("sigma_delta_model", rate=(64, 1), cosim=True),
     "sigma_delta_dac":    _v("sigma_delta_model", latency="n/a", rate=None),   # Sink-only (pins).
     "pdm_rx":             _v("pdm_receiver_model", latency="n/a", rate=None),  # Source-only (pins).
+    "i2s_rx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level source.
+    "i2s_tx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level sink.
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

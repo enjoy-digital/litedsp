@@ -103,6 +103,9 @@ SPECIFIC = [
     ("sigma_delta_mod", {"order": 3}),
     ("sigma_delta_dac", {"clk_div": 3}),
     ("pdm_rx",          {"n_channels": 3, "dual_edge": True}),
+    ("i2s_rx",          {"fmt": "bad"}),
+    ("i2s_rx",          {"slot_width": 20}),
+    ("i2s_tx",          {"bclk_div": 3}),
 ]
 
 class TestParams(unittest.TestCase):

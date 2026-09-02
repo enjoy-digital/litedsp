@@ -46,6 +46,7 @@ EXCLUDED = {
     "compressor", "limiter", "noise_gate",   # Serial engine; cycles_per_sample pinned in test_dynamics.
     "delay_line", "chorus", "lfo", "reverb", # Serial engines / source; pinned in test_effects.
     "sigma_delta_mod", "sigma_delta_dac", "pdm_rx",   # Rate changer / pin-level sink and source.
+    "i2s_rx", "i2s_tx",                                # Pin-level serial audio.
 }
 
 def _build(spec):

@@ -24,5 +24,6 @@ from litedsp.audio.dynamics import LiteDSPCompressor
 from litedsp.audio.effects  import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 from litedsp.audio.meter    import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm      import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
+from litedsp.audio.i2s      import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.audio.eq     import LiteDSPAudioEQ
 from litedsp.audio.level  import LiteDSPVolume, LiteDSPStereoMatrix
