@@ -43,6 +43,7 @@ EXCLUDED = {
     "bitstream_decimator",  # Rate changer (runtime rate); pinned in test_bitstream.
     "stereo_matrix",        # Serial two-beat engine; cycles_per_frame pinned in test_audio_level.
     "exp2",                 # Unsigned in/out widths differ; latency pinned in test_logdb.
+    "compressor", "limiter", "noise_gate",   # Serial engine; cycles_per_sample pinned in test_dynamics.
 }
 
 def _build(spec):

@@ -2543,3 +2543,53 @@ def audio_eq_model(x, channel, sections, n_channels=2, data_width=24, frac_bits=
             v = y
         out[k] = v
     return out
+
+# Audio: Dynamics ----------------------------------------------------------------------------------
+
+def compressor_model(x, channel, threshold, slope_above, slope_below, attack, release, gr_max,
+    makeup=0, detector=0, rms_shift=6, stereo_link=0, n_channels=2, data_width=24, lookahead=0):
+    """Bit-exact reference for litedsp.audio.dynamics.LiteDSPCompressor.
+
+    Per accepted beat (channel c): mean square ``sq[c] += (x*x - sq[c]) >> rms_shift``; level
+    ``L`` (Q.8 log2 re FS) from the LUT log2 of ``|x| << DW`` (peak) or ``sq`` (rms, halved);
+    stereo link uses the previous frame's maximum level and one smoother; ``gr = clamp(slope*
+    |L - thr| >> 16, gr_max)`` on the matching side; ``gr_s += ((gr << 16) - gr_s)*alpha >>
+    16`` (Q7.24, clamped); ``g = clip(makeup - (gr_s >> 16))`` -> exp2 -> Q5.19 gain; output
+    ``sat(round(x_delayed*gain / 2**19))`` with ``x_delayed`` the same channel ``lookahead``
+    frames earlier. Returns ``(y, gr)``.
+    """
+    DW = data_width
+    x  = np.asarray(x, np.int64)
+    n  = len(x)
+    ch = _per_sample(channel, n)
+    L_OFF_PK, L_OFF_RMS = (2*DW - 1)*256, (DW - 1)*256
+    sq, gr_s = [0]*n_channels, [0]*n_channels
+    L_max, L_link = -(1 << 15), -(1 << 15)
+    out, grs = np.zeros(n, np.int64), np.zeros(n, np.int64)
+    for k in range(n):
+        c   = int(ch[k])
+        xv  = int(x[k])
+        xd  = int(x[k - lookahead*n_channels]) if k >= lookahead*n_channels else 0
+        mag = abs(xv)
+        sq[c] = max(0, sq[c] + ((xv*xv - sq[c]) >> rms_shift))
+        lin = sq[c] if detector else (mag << DW)
+        lg  = int(log2_model([lin], 2*DW, 8, lut=True)[0])
+        L   = ((lg >> 1) - L_OFF_RMS) if detector else (lg - L_OFF_PK)
+        L_use = L_link if stereo_link else L
+        if L > L_max:
+            L_max = L
+        if c == n_channels - 1:
+            L_link, L_max = max(L, L_max), -(1 << 15)
+        over  = L_use - int(threshold)
+        slope = int(slope_below) if over < 0 else int(slope_above)
+        gr    = min((slope*abs(over)) >> 16, int(gr_max))
+        s     = 0 if stereo_link else c
+        tgt   = gr << 16
+        alpha = int(attack) if tgt > gr_s[s] else int(release)
+        gr_s[s] = max(0, min((1 << 31) - 1, gr_s[s] + (((tgt - gr_s[s])*alpha) >> 16)))
+        g_log = int(makeup) - (gr_s[s] >> 16)
+        g_log = max(-47*256, min(4*256, g_log))
+        gain  = int(exp2_model([g_log], 16, 8, 19, 24)[0])
+        out[k] = np_scaled(np.int64(xd*gain), 19, DW)
+        grs[k] = gr
+    return out, grs

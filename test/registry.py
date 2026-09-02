@@ -165,6 +165,9 @@ VSPEC = {
     "dither":             _v("dither_model", cosim=True),
     "audio_eq":           _v("audio_eq_model", cosim=True),
     "exp2":               _v("exp2_model", cosim=True),
+    "compressor":         _v("compressor_model", cosim=True),
+    "limiter":            _v("compressor_model"),               # Same class (preset); cosim variant.
+    "noise_gate":         _v("compressor_model"),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

@@ -1140,6 +1140,32 @@ def spec_exp2():
     cols = _rand_cols(1, n, lo=-47*256, hi=47*256)
     return dut, cols, n - 4, lambda c: [models.exp2_model(c[0])]
 
+def _spec_compressor(preset, lookahead=0, **ctrl):
+    from litedsp.audio.dynamics import LiteDSPCompressor, PRESET_VALUES
+    n    = 120
+    dut  = LiteDSPCompressor(data_width=24, n_channels=2, lookahead=lookahead, preset=preset,
+        with_csr=False)
+    for k, v in ctrl.items():
+        getattr(dut, k).reset = v
+    thr, sa, sb, att, rel, grm = PRESET_VALUES[preset]
+    prng = random.Random(3)
+    data, chn = [], []
+    for k in range(n):
+        level = [0.01, 0.1, 0.5, 1.0][(k//30) % 4]
+        for c in range(2):
+            data.append(int(prng.randint(-(1 << 23) + 1, (1 << 23) - 1)*level)); chn.append(c)
+    return dut, [data, chn], 2*n - 4, lambda c: [models.compressor_model(c[0], c[1], thr, sa, sb,
+        att, rel, grm, lookahead=lookahead, **ctrl)[0], np.array(c[1])]
+
+def spec_compressor():
+    return _spec_compressor("compressor")
+
+def spec_compressor_limiter():
+    return _spec_compressor("limiter", lookahead=8)
+
+def spec_compressor_gate():
+    return _spec_compressor("gate", detector=1, stereo_link=1, rms_shift=4)
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1245,6 +1271,9 @@ SPECS = {
     "audio_eq":         spec_audio_eq,
     "log2_lut":         spec_log2_lut,
     "exp2":             spec_exp2,
+    "compressor":       spec_compressor,
+    "compressor_limiter": spec_compressor_limiter,
+    "compressor_gate":  spec_compressor_gate,
 }
 
 # Known failures -----------------------------------------------------------------------------------
@@ -1292,6 +1321,8 @@ def check_coverage():
         "dq_controller_decoupling":  "dq_controller",
         "dither_ef2":                "dither",
         "log2_lut":                  "log2",
+        "compressor_limiter":        "compressor",
+        "compressor_gate":           "compressor",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

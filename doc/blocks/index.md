@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-142 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+145 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -75,7 +75,7 @@
 | [Envelope detector](envelope.md) | `LiteDSPEnvelopeDetector` | 2 | — | Envelope follower on |I+jQ| with separate attack/release time constants. |
 | [Log2](log2.md) | `LiteDSPLog2` | 1 | — | Fixed-point base-2 logarithm of an unsigned input (priority-encoder + mantissa). |
 | [Log power (dB)](log_power.md) | `LiteDSPLogPower` | 2 | — | Power-to-dB: ``10*log10(x) = 3.0103 * log2(x)`` (x is a power value, unsigned). |
-| [Exp2 (antilog)](exp2.md) | `LiteDSPExp2` | 2 | — | Fixed-point ``2**v`` of a signed log2-domain value (ROM mantissa + integer shift). |
+| [Exp2 (antilog)](exp2.md) | `LiteDSPExp2` | 2 | 0 | Fixed-point ``2**v`` of a signed log2-domain value (ROM mantissa + integer shift). |
 
 ## Impairment Correction (`correction/`)
 
@@ -198,3 +198,6 @@
 | [Stereo matrix (M/S, pan)](stereo_matrix.md) | `LiteDSPStereoMatrix` | 4 | 2 | 2x2 matrix on a stereo TDM stream: ``L' = a*L + b*R``, ``R' = c*L + d*R``. |
 | [Dither / requantizer](dither.md) | `LiteDSPDither` | 1 | 0 | Word-length reduction with TPDF dither and optional error-feedback noise shaping. |
 | [Parametric EQ](audio_eq.md) | `LiteDSPAudioEQ` | 25 | 4 | Multi-band, multi-channel parametric equalizer: a time-multiplexed biquad engine. |
+| [Compressor](compressor.md) | `LiteDSPCompressor` | 15 | — | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
+| [Limiter (lookahead)](limiter.md) | `LiteDSPCompressor` | 15 | — | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
+| [Noise gate / expander](noise_gate.md) | `LiteDSPCompressor` | 15 | — | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |

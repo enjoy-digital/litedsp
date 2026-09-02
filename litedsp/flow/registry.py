@@ -119,6 +119,7 @@ from litedsp.audio.level           import LiteDSPVolume, LiteDSPStereoMatrix
 from litedsp.audio.dither          import LiteDSPDither
 from litedsp.audio.eq              import LiteDSPAudioEQ
 from litedsp.level.logdb           import LiteDSPExp2
+from litedsp.audio.dynamics        import LiteDSPCompressor
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -279,6 +280,9 @@ ENTRIES = [
     ("stereo_matrix",      LiteDSPStereoMatrix,          {},                                     "audio",      "Stereo matrix (M/S, pan)", None),
     ("dither",             LiteDSPDither,                {},                                     "audio",      "Dither / requantizer",  {"shaping": ["none", "ef1", "ef2"]}),
     ("audio_eq",           LiteDSPAudioEQ,               {},                                     "audio",      "Parametric EQ",         None),
+    ("compressor",         LiteDSPCompressor,            {},                                     "audio",      "Compressor",            {"preset": ["compressor", "limiter", "gate"]}),
+    ("limiter",            LiteDSPCompressor,            {"preset": "limiter", "lookahead": 32}, "audio",      "Limiter (lookahead)",   {"preset": ["compressor", "limiter", "gate"]}),
+    ("noise_gate",         LiteDSPCompressor,            {"preset": "gate"},                     "audio",      "Noise gate / expander", {"preset": ["compressor", "limiter", "gate"]}),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

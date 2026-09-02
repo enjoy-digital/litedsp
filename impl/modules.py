@@ -92,6 +92,7 @@ from litedsp.audio.level          import LiteDSPVolume, LiteDSPStereoMatrix
 from litedsp.audio.dither         import LiteDSPDither
 from litedsp.audio.eq             import LiteDSPAudioEQ
 from litedsp.level.logdb          import LiteDSPLog2, LiteDSPExp2
+from litedsp.audio.dynamics       import LiteDSPCompressor
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -687,6 +688,19 @@ def exp2():
     d = LiteDSPExp2(with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
 
+def _compressor_ios(d):
+    return {d.threshold, d.slope_above, d.slope_below, d.attack, d.release, d.gr_max, d.makeup,
+            d.detector, d.rms_shift, d.stereo_link, d.bypass, d.clear_sat, d.sat,
+            d.gain_reduction} | _eps(d.sink, d.source)
+
+def compressor():
+    d = LiteDSPCompressor(data_width=24, n_channels=2, with_csr=False)
+    return d, _compressor_ios(d), 10.0
+
+def limiter():
+    d = LiteDSPCompressor(data_width=24, n_channels=2, lookahead=32, preset="limiter", with_csr=False)
+    return d, _compressor_ios(d), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -748,7 +762,7 @@ REGISTRY = {
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
     "resolver": resolver, "foc": foc,
     "volume": volume, "stereo_matrix": stereo_matrix, "dither": dither, "audio_eq": audio_eq,
-    "log2_lut": log2_lut, "exp2": exp2,
+    "log2_lut": log2_lut, "exp2": exp2, "compressor": compressor, "limiter": limiter,
 }
 
 # Subset for the slower full place-&-route flows.
@@ -765,7 +779,7 @@ PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "pfb_channelizer_fft_2x",
               "ldpc_decoder_lanes_9",
               "cfr_pipelined", "lms_equalizer_pipelined", "timing_recovery", "agc", "ddc_ip",
-              "qpsk_receiver_ip", "foc", "audio_eq"]
+              "qpsk_receiver_ip", "foc", "audio_eq", "compressor"]
 
 # Capacity-cliff routes kept out of the bounded push/PR matrix. Nightly CI gives these wide
 # configurations an independent runner and a longer timeout so they cannot starve the sentinels.

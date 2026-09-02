@@ -66,7 +66,8 @@ class TestConstructorSpace(unittest.TestCase):
               "cic_decimator", "cic_interpolator", "iir_biquad", "gain", "clipper",
               "dc_offset", "delay", "combine", "split", "window", "goertzel", "diff_encoder",
               "clarke", "sincos", "park", "pi_controller", "slew_limiter", "svpwm", "pwm",
-              "bitstream_decimator", "angle_tracker", "foc", "volume", "dither", "audio_eq"]
+              "bitstream_decimator", "angle_tracker", "foc", "volume", "dither", "audio_eq",
+              "compressor"]
 
     def test_sampled_constructors_elaborate(self):
         from migen.fhdl.verilog import convert

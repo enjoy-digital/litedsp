@@ -91,6 +91,8 @@ SPECIFIC = [
     ("audio_eq",        {"n_bands": 0}),
     ("exp2",            {"frac_bits": 16}),                # < in_width.
     ("exp2",            {"out_width": 20}),                # > out_frac.
+    ("compressor",      {"preset": "expander"}),
+    ("compressor",      {"lookahead": -1}),
 ]
 
 class TestParams(unittest.TestCase):
