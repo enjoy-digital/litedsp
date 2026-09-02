@@ -61,8 +61,8 @@ class TestAppNoteExamples(unittest.TestCase):
         self._run_example("foc_pmsm.py", timeout=900)
 
     def test_audio_processor_smoke(self):   # AN010.
-        # Three passes (EQ + dither, dynamics, I2S transport), ~70 k cycles at ~120 cycles/s.
-        self._run_example("audio_processor.py", timeout=1200)
+        # Three passes (EQ + dither, dynamics, I2S transport), ~70 k cycles, ~3 min locally.
+        self._run_example("audio_processor.py", timeout=900)
 
     def test_ccsds_telemetry_smoke(self):   # AN005.
         # ~3.5 min locally (staged RTL FEC chain, Viterbi-dominated): extra timeout headroom.
