@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-150 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+152 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -205,4 +205,6 @@
 | [Delay line (echo)](delay_line.md) | `LiteDSPDelayLine` | 7 | 2 | Feedback delay line with damping, wet/dry mix and optional modulated fractional delay. |
 | [Chorus / flanger](chorus.md) | `LiteDSPDelayLine` | 9 | 2 | Feedback delay line with damping, wet/dry mix and optional modulated fractional delay. |
 | [Wet/dry mix](wet_dry_mix.md) | `LiteDSPWetDryMix` | 1 | — | Two-input gain mix on TDM streams: ``y = dry*sink_dry + wet*sink_wet`` (signed Q1.15 gains). |
-| [Reverb](reverb.md) | `LiteDSPReverb` | 1 | — | Schroeder / Freeverb-style reverb: parallel damped feedback combs, series allpasses, mix. |
+| [Reverb](reverb.md) | `LiteDSPReverb` | 1 | 16 | Schroeder / Freeverb-style reverb: parallel damped feedback combs, series allpasses, mix. |
+| [Peak meter](peak_meter.md) | `LiteDSPPeakMeter` | 0 | — | Per-channel peak / hold / clip meter on a TDM stream (zero-latency passthrough tap). |
+| [Loudness (BS.1770)](loudness.md) | `LiteDSPLoudness` | 0 | — | ITU-R BS.1770 loudness front-end: K-weighting + per-hop weighted sum of squares (zero-latency |

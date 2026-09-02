@@ -2690,3 +2690,47 @@ def reverb_model(x, channel, room_size, damping, allpass_gain, wet, dry, comb_de
             wet=(1 << coeff_frac) - 1, dry=-int(allpass_gain), n_channels=n_channels,
             max_delay=d + spread + 2, coeff_frac=coeff_frac, data_width=data_width)
     return wet_dry_mix_model(x, r, wet, dry, coeff_frac, data_width)
+
+def peak_meter_model(x, channel, n_channels=2, decay_shift=12, clip_threshold=None, data_width=24):
+    """Bit-exact reference for litedsp.audio.meter.LiteDSPPeakMeter: per accepted beat of
+    channel c, ``peak = max(|x|, peak - max(peak >> decay_shift, 1))`` (floored at 0), ``hold =
+    max(hold, |x|)``, ``|x| >= clip_threshold`` counts a clip (saturating 16-bit) and sets the
+    sticky flag. Returns ``(peak_after_beat, hold_after_beat, clip_count, clip)`` with per-beat
+    arrays for the beat's channel and final per-channel lists."""
+    x   = np.asarray(x, np.int64)
+    n   = len(x)
+    ch  = _per_sample(channel, n)
+    ds  = _per_sample(decay_shift, n)
+    thr = (1 << (data_width - 1)) - 1 if clip_threshold is None else int(clip_threshold)
+    peak, hold, count, clip = [0]*n_channels, [0]*n_channels, [0]*n_channels, [0]*n_channels
+    out_p, out_h = np.zeros(n, np.int64), np.zeros(n, np.int64)
+    for k in range(n):
+        c, m = int(ch[k]), abs(int(x[k]))
+        fall = max(peak[c] >> int(ds[k]), 1)
+        dec  = peak[c] - fall if peak[c] > fall else 0
+        peak[c] = max(m, dec)
+        hold[c] = max(hold[c], m)
+        if m >= thr:
+            clip[c]  = 1
+            count[c] = min(count[c] + 1, 0xffff)
+        out_p[k], out_h[k] = peak[c], hold[c]
+    return out_p, out_h, count, clip
+
+def loudness_model(x, channel, sections, n_channels=2, hop_samples=64, channel_weights=None,
+    data_width=24, frac_bits=28):
+    """Bit-exact reference for litedsp.audio.meter.LiteDSPLoudness: K-weighting through
+    ``audio_eq_model`` (error feedback 1), ``term = (y*y*w[c]) >> 14`` (weights Q2.14, default
+    1.0), summed over ``hop_samples*n_channels`` beats. Returns the list of completed hop sums."""
+    x  = np.asarray(x, np.int64)
+    n  = len(x)
+    ch = _per_sample(channel, n)
+    w  = [1 << 14]*n_channels if channel_weights is None else [int(v) for v in channel_weights]
+    y  = audio_eq_model(x, ch, sections, n_channels, data_width, frac_bits, error_feedback=1)
+    hop_beats = hop_samples*n_channels
+    hops, acc = [], 0
+    for k in range(n):
+        acc += (int(y[k])*int(y[k])*w[int(ch[k])]) >> 14
+        if (k + 1) % hop_beats == 0:
+            hops.append(acc)
+            acc = 0
+    return hops

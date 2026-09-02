@@ -121,6 +121,7 @@ from litedsp.audio.eq              import LiteDSPAudioEQ
 from litedsp.level.logdb           import LiteDSPExp2
 from litedsp.audio.dynamics        import LiteDSPCompressor
 from litedsp.audio.effects         import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
+from litedsp.audio.meter           import LiteDSPPeakMeter, LiteDSPLoudness
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -289,6 +290,8 @@ ENTRIES = [
     ("chorus",             LiteDSPDelayLine,             {"modulation": True, "max_delay": 512}, "audio",      "Chorus / flanger",      None),
     ("wet_dry_mix",        LiteDSPWetDryMix,             {},                                     "audio",      "Wet/dry mix",           None),
     ("reverb",             LiteDSPReverb,                {},                                     "audio",      "Reverb",                None),
+    ("peak_meter",         LiteDSPPeakMeter,             {},                                     "audio",      "Peak meter",            None),
+    ("loudness",           LiteDSPLoudness,              {},                                     "audio",      "Loudness (BS.1770)",    None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

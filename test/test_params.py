@@ -98,6 +98,8 @@ SPECIFIC = [
     ("delay_line",      {"coeff_frac": 16}),
     ("reverb",          {"comb_delays": ()}),
     ("reverb",          {"allpass_delays": (2,)}),
+    ("peak_meter",      {"decay_shift": 16}),
+    ("loudness",        {"hop_samples": 0}),
 ]
 
 class TestParams(unittest.TestCase):

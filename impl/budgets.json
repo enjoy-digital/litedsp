@@ -3928,6 +3928,20 @@
       }
     }
   },
+  "loudness": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 8,
+      "ff": 426,
+      "lut": 950,
+      "synth": {
+        "bram": 0,
+        "dsp": 8,
+        "ff": 426,
+        "lut": 950
+      }
+    }
+  },
   "magnitude": {
     "ecp5": {
       "bram": 0,

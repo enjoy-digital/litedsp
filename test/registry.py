@@ -174,6 +174,8 @@ VSPEC = {
                                                                # frame: not generic-TB co-simulable.
     "wet_dry_mix":        _v("wet_dry_mix_model", cosim=True),
     "reverb":             _v("reverb_model", cosim=True),       # Cosim spec uses short delays.
+    "peak_meter":         _v("peak_meter_model"),               # CSR read-back meters: passthrough
+    "loudness":           _v("loudness_model"),                 # taps, measurements not on the stream.
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),
