@@ -2119,3 +2119,75 @@ def pwm_model(duties, period, dead_time, n_cycles, data_width=16, enable=1, faul
         count, up, mul_busy, mul_idx = count_n, up_n, mul_busy_n, mul_idx_n
         prod, prod_valid, prod_idx = prod_n, prod_valid_n, prod_idx_n
     return (np.array(out_h), np.array(out_l), np.array(out_t), np.array(out_r))
+
+# Bitstream (Sigma-Delta / PDM) Decimator ----------------------------------------------------------
+
+def bitstream_align(r_max, n_stages, diff_delay, data_width):
+    """Static alignment shift of LiteDSPBitstreamDecimator (mirrors litedsp.filter.bitstream)."""
+    return max(0, (data_width - 1) - _cic_growth(r_max, n_stages, diff_delay))
+
+def bitstream_shift(rate, n_stages, diff_delay, data_width, r_max=None):
+    """Rescale shift of LiteDSPBitstreamDecimator at ``rate`` (mirrors litedsp.filter.bitstream)."""
+    if r_max is None:
+        r_max = rate
+    gain_bits = n_stages*math.log2(rate*diff_delay)
+    return max(0, int(round(gain_bits)) - (data_width - 1)
+        + bitstream_align(r_max, n_stages, diff_delay, data_width))
+
+def bitstream_decimator_model(bits, rate, n_stages=4, diff_delay=1, data_width=24, shift=None,
+    r_max=None, staged=False):
+    """Bit-exact reference for litedsp.filter.bitstream.LiteDSPBitstreamDecimator.
+
+    ``bits`` are modulator bits (1 -> +1, 0 -> -1); the sinc^N core is the runtime CIC model
+    with 2-bit-input register sizing (``2 + growth(r_max)``), followed by the block's static
+    alignment shift and saturation. Default ``shift``: the block's reset value for ``rate``.
+    ``staged`` models the register-chained architecture's ``n_stages``-sample group delay
+    (zeros in the +1/-1 domain, as for LiteDSPCICDecimatorRuntime).
+    """
+    if r_max is None:
+        r_max = rate
+    if shift is None:
+        shift = bitstream_shift(rate, n_stages, diff_delay, data_width, r_max)
+    align = bitstream_align(r_max, n_stages, diff_delay, data_width)
+    x = np.where(np.asarray(bits, np.int64) != 0, 1, -1)
+    if staged:
+        x = np.concatenate([np.zeros(n_stages, np.int64), x])
+    y = cic_decimator_model(x, rate, n_stages, diff_delay, data_width, shift=shift,
+        wrap_width=2 + _cic_growth(r_max, n_stages, diff_delay))
+    return np_saturated(y*(1 << align), data_width)
+
+def sigma_delta_stimulus(x, order=2):
+    """Float 2nd-order sigma-delta modulator (test stimulus, not a gateware model): x in
+    (-1, 1) at the bit rate -> bits (1 = +1)."""
+    e1 = e2 = 0.0
+    out = np.zeros(len(x), np.int64)
+    for k, v in enumerate(np.asarray(x, float)):
+        u = v + (2*e1 - e2 if order == 2 else e1)
+        y = 1.0 if u >= 0 else -1.0
+        e2, e1 = e1, u - y
+        out[k] = int(y > 0)
+    return out
+
+# Motor Control: Sensing ---------------------------------------------------------------------------
+
+def sigma_delta_filter_model(bits_channels, rate, threshold, data_width=16, n_stages=3,
+    r_max=256, fast_decimation=16, shift=None):
+    """Bit-exact reference for litedsp.motor.sense.LiteDSPSigmaDeltaFilter.
+
+    Returns ``(outputs, trips)``: per-channel control-path sample arrays and per-channel
+    booleans telling whether the fast path (fixed ``fast_decimation`` sinc^N) ever exceeded
+    ``threshold`` in magnitude.
+    """
+    outputs, trips = [], []
+    for bits in bits_channels:
+        outputs.append(bitstream_decimator_model(bits, rate, n_stages, 1, data_width, shift, r_max))
+        fast = bitstream_decimator_model(bits, fast_decimation, n_stages, 1, data_width)
+        trips.append(bool(np.any(np.abs(fast) > threshold)))
+    return outputs, trips
+
+def overcurrent_trip_model(a, b, c, threshold):
+    """Reference for litedsp.motor.sense.LiteDSPOvercurrentTrip: passthrough + sticky trip
+    after each sample (``fault[k]`` = tripped by sample k or earlier)."""
+    a, b, c = (np.asarray(v, np.int64) for v in (a, b, c))
+    over  = (np.abs(a) > threshold) | (np.abs(b) > threshold) | (np.abs(c) > threshold)
+    return a, b, c, np.cumsum(over) > 0

@@ -40,6 +40,7 @@ EXCLUDED = {
     "fir_interpolator", "cic_decimator", "cic_interpolator", "halfband_dec", "halfband_int",
     "pulse_shaper", "downsampler", "upsampler", "iq_pack", "iq_unpack", "energy_detector",
     "cp_remove",  # Rate changer (drops the cyclic prefix); alignment pinned in test_ofdm.
+    "bitstream_decimator",  # Rate changer (runtime rate); pinned in test_bitstream.
 }
 
 def _build(spec):

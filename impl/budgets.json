@@ -4839,6 +4839,20 @@
       }
     }
   },
+  "pwm": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 223,
+      "lut": 310,
+      "synth": {
+        "bram": 0,
+        "dsp": 1,
+        "ff": 223,
+        "lut": 310
+      }
+    }
+  },
   "qpsk_receiver_ip": {
     "ecp5": {
       "bram": 2,
@@ -5450,6 +5464,20 @@
         "dsp": 0,
         "ff": 14,
         "lut": 36
+      }
+    }
+  },
+  "svpwm": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 181,
+      "lut": 611,
+      "synth": {
+        "bram": 0,
+        "dsp": 1,
+        "ff": 181,
+        "lut": 611
       }
     }
   },

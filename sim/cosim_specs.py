@@ -999,6 +999,31 @@ def spec_svpwm():
         lambda c: list(models.svpwm_model(c[0], c[1], np.array(c[2]))), False, False, \
         (dut.injection,)
 
+def spec_bitstream_decimator():
+    from litedsp.filter.bitstream import LiteDSPBitstreamDecimator
+    R, n_out = 64, 40
+    dut  = LiteDSPBitstreamDecimator(data_width=24, decimation=R, n_stages=4, with_csr=False)
+    cols = _rand_cols(1, R*n_out, lo=0, hi=1)                          # sink(data): bits.
+    return dut, cols, n_out - 4, lambda c: [models.bitstream_decimator_model(c[0], R, 4,
+        data_width=24)]
+
+def spec_sigma_delta_filter():
+    from litedsp.motor.sense import LiteDSPSigmaDeltaFilter
+    R, n_out = 64, 40
+    dut  = LiteDSPSigmaDeltaFilter(data_width=16, n_channels=3, decimation=R, n_stages=3,
+        r_max=256, with_csr=False)
+    cols = _rand_cols(3, R*n_out, lo=0, hi=1)                          # sinks[0..2](data).
+    return dut, cols, n_out - 4, lambda c: list(models.sigma_delta_filter_model(
+        [c[0], c[1], c[2]], R, 32767, r_max=256)[0])
+
+def spec_overcurrent_trip():
+    from litedsp.motor.sense import LiteDSPOvercurrentTrip
+    n    = 300
+    dut  = LiteDSPOvercurrentTrip(data_width=16, with_csr=False)
+    cols = _rand_cols(3, n, lo=-30000, hi=30000)                       # sink(a, b, c).
+    return dut, cols, n - 4, lambda c: list(models.overcurrent_trip_model(c[0], c[1], c[2],
+        20000)[:3])
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1091,6 +1116,9 @@ SPECS = {
     "dq_controller_decoupling": spec_dq_controller_decoupling,
     "slew_limiter":     spec_slew_limiter,
     "svpwm":            spec_svpwm,
+    "bitstream_decimator": spec_bitstream_decimator,
+    "sigma_delta_filter": spec_sigma_delta_filter,
+    "overcurrent_trip": spec_overcurrent_trip,
 }
 
 # Known failures -----------------------------------------------------------------------------------

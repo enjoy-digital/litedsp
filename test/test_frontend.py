@@ -8,11 +8,11 @@
 
 import unittest
 
-from migen import run_simulation
+from migen import run_simulation, passive
 
 from litex.gen import LiteXModule
 
-from litedsp.frontend.converter import LiteDSPADCInterface, LiteDSPDACInterface
+from litedsp.frontend.converter import LiteDSPADCInterface, LiteDSPDACInterface, LiteDSPBitstreamInterface
 from litedsp.frontend.packet    import LiteDSPIQPacketizer, LiteDSPIQDepacketizer
 
 from test.common import stream_driver, stream_capture
@@ -141,3 +141,72 @@ class TestUDP(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+# Bitstream interface ------------------------------------------------------------------------------
+
+class TestBitstreamInterface(unittest.TestCase):
+    def run_iface(self, patterns, clock_div=8, dual_edge=False, ready_rate=1.0, n_bits=64):
+        """Drive modulator-like data (launched on mclk edges) and capture every 1-bit source."""
+        n_lines = len(patterns)
+        dut = LiteDSPBitstreamInterface(clock_div=clock_div,
+            n_channels=2*n_lines if dual_edge else n_lines, dual_edge=dual_edge)
+        caps = [[] for _ in dut.sources]
+        flags = []
+
+        def modulator():
+            # A modulator launches its bit right after the mclk rising edge (and, for a dual-edge
+            # stereo microphone, the second channel after the falling edge).
+            prev, idx = 0, [0]*n_lines
+            for _ in range(clock_div*(n_bits + 4)):
+                clk = (yield dut.mclk)
+                if clk != prev:
+                    for line in range(n_lines):
+                        edge_bits = patterns[line]
+                        if dual_edge:
+                            bit = edge_bits[idx[line] % len(edge_bits)]
+                            idx[line] += 1
+                        elif clk:                            # Rising edge only.
+                            bit = edge_bits[idx[line] % len(edge_bits)]
+                            idx[line] += 1
+                        else:
+                            continue
+                        cur = (yield dut.mdat)
+                        yield dut.mdat.eq((cur & ~(1 << line)) | (bit << line))
+                prev = clk
+                yield
+
+        @passive
+        def watch():
+            while True:
+                flags.append((yield dut.overrun))
+                yield
+
+        gens = [modulator(), watch()] + [stream_capture(src, cap, n_bits, ["data"],
+            ready_rate=ready_rate) for src, cap in zip(dut.sources, caps)]
+        run_simulation(dut, gens)
+        return flags[-1], [[c["data"] for c in cap] for cap in caps]
+
+    def test_single_edge_sequence(self):
+        pattern = [1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0]
+        overrun, caps = self.run_iface([pattern])
+        # The stream reproduces the pattern (from wherever the capture started), no overrun.
+        self.assertIn("".join(map(str, pattern*2)), "".join(map(str, caps[0])))
+        self.assertEqual(overrun, 0)
+
+    def test_overrun_flag(self):
+        # A consumer slower than the bit rate loses bits and latches the sticky overrun flag.
+        overrun, _ = self.run_iface([[1, 0, 1, 1]], clock_div=4, ready_rate=0.1, n_bits=8)
+        self.assertEqual(overrun, 1)
+
+    def test_dual_edge_two_channels(self):
+        pattern = [1, 0, 0, 1, 1, 1, 0, 1]                 # L, R, L, R, ... on one line.
+        _, caps = self.run_iface([pattern], dual_edge=True)
+        left, right = pattern[0::2], pattern[1::2]
+        for got, ref in ((caps[0], left), (caps[1], right)):
+            self.assertIn("".join(map(str, ref*3)), "".join(map(str, got)))
+
+    def test_invalid(self):
+        for kwargs in ({"clock_div": 3}, {"clock_div": 6, "n_channels": 3, "dual_edge": True},
+                       {"n_channels": 0}):
+            with self.assertRaises(ValueError, msg=str(kwargs)):
+                LiteDSPBitstreamInterface(**kwargs)

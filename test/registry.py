@@ -150,6 +150,9 @@ VSPEC = {
     "slew_limiter":       _v("slew_limiter_model", cosim=True),
     "svpwm":              _v("svpwm_model", cosim=True),
     "pwm":                _v("pwm_model", latency="n/a", rate=None),   # Sink-only, pin outputs.
+    "bitstream_decimator": _v("bitstream_decimator_model", rate=None, cosim=True),  # Runtime rate.
+    "sigma_delta_filter": _v("sigma_delta_filter_model", rate=None, cosim=True),
+    "overcurrent_trip":   _v("overcurrent_trip_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

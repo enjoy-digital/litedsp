@@ -4,11 +4,12 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Filters: FIR (direct/symmetric/polyphase), CIC, halfband, IIR biquad, Hilbert,
-pulse shaping, resamplers and equalizer. Coefficient design helpers live in
+"""Filters: FIR (direct/symmetric/polyphase), CIC, 1-bit bitstream (sigma-delta/PDM) decimator,
+halfband, IIR biquad, Hilbert, pulse shaping, resamplers and equalizer. Coefficient design helpers live in
 :mod:`litedsp.filter.design` (NumPy, not re-exported here)."""
 
 from litedsp.filter.arb_resampler  import LiteDSPArbResampler
+from litedsp.filter.bitstream      import LiteDSPBitstreamDecimator
 from litedsp.filter.cic            import LiteDSPCICDecimator, LiteDSPCICDecimatorRuntime, LiteDSPCICInterpolator
 from litedsp.filter.cic_parallel   import LiteDSPParallelCICDecimator
 from litedsp.filter.dc_blocker     import LiteDSPDCBlocker

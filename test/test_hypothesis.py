@@ -65,7 +65,8 @@ class TestConstructorSpace(unittest.TestCase):
     BLOCKS = ["nco", "mixer", "fir_real", "fir_complex", "fir_decimator", "fir_interpolator",
               "cic_decimator", "cic_interpolator", "iir_biquad", "gain", "clipper",
               "dc_offset", "delay", "combine", "split", "window", "goertzel", "diff_encoder",
-              "clarke", "sincos", "park", "pi_controller", "slew_limiter", "svpwm", "pwm"]
+              "clarke", "sincos", "park", "pi_controller", "slew_limiter", "svpwm", "pwm",
+              "bitstream_decimator"]
 
     def test_sampled_constructors_elaborate(self):
         from migen.fhdl.verilog import convert

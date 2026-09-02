@@ -83,6 +83,8 @@ from litedsp.motor.pi             import LiteDSPPIController, LiteDSPDQControlle
 from litedsp.motor.limiter        import LiteDSPSlewLimiter
 from litedsp.motor.svpwm          import LiteDSPSVPWM
 from litedsp.motor.pwm            import LiteDSPPWM
+from litedsp.motor.sense          import LiteDSPSigmaDeltaFilter, LiteDSPOvercurrentTrip
+from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
 
@@ -596,6 +598,19 @@ def svpwm():
     d = LiteDSPSVPWM(data_width=16, with_csr=False)
     return d, {d.injection} | _eps(d.sink, d.source), 10.0
 
+def bitstream_decimator():
+    d = LiteDSPBitstreamDecimator(data_width=24, decimation=64, n_stages=4, with_csr=False)
+    return d, {d.rate, d.shift} | _eps(d.sink, d.source), 10.0
+
+def sigma_delta_filter():
+    d = LiteDSPSigmaDeltaFilter(data_width=16, with_csr=False)
+    return d, {d.rate, d.shift, d.threshold, d.clear, d.overcurrent} | set(d.fast_value) | \
+           _eps(d.source, *d.sinks), 10.0
+
+def overcurrent_trip():
+    d = LiteDSPOvercurrentTrip(data_width=16, with_csr=False)
+    return d, {d.threshold, d.clear, d.fault, d.phase, d.count} | _eps(d.sink, d.source), 10.0
+
 def pwm():
     d = LiteDSPPWM(data_width=16, period_width=16, dead_time_width=8, with_csr=False)
     return d, {d.pwm_h, d.pwm_l, d.trigger, d.fault, d.period, d.dead_time, d.enable,
@@ -658,6 +673,8 @@ REGISTRY = {
     "inverse_park": inverse_park, "pi_controller": pi_controller,
     "dq_controller": dq_controller, "dq_controller_decoupling": dq_controller_decoupling,
     "slew_limiter": slew_limiter, "svpwm": svpwm, "pwm": pwm,
+    "bitstream_decimator": bitstream_decimator, "sigma_delta_filter": sigma_delta_filter,
+    "overcurrent_trip": overcurrent_trip,
 }
 
 # Subset for the slower full place-&-route flows.

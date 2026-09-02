@@ -67,6 +67,10 @@ SPECIFIC = [
     ("svpwm",           {"injection": "third_harmonic"}),
     ("pwm",             {"period_width": 3}),              # >= 4 required.
     ("pwm",             {"dead_time_width": 0}),
+    ("bitstream_decimator", {"decimation": 1}),
+    ("bitstream_decimator", {"r_max": 8}),                 # r_max >= decimation.
+    ("sigma_delta_filter", {"n_channels": 2}),             # 1 or 3 phases.
+    ("sigma_delta_filter", {"fast_decimation": 1}),
 ]
 
 class TestParams(unittest.TestCase):

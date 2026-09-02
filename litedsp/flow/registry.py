@@ -28,6 +28,7 @@ from litedsp.filter.fir_poly       import LiteDSPFIRDecimator, LiteDSPFIRInterpo
 from litedsp.filter.cic            import LiteDSPCICDecimator, LiteDSPCICInterpolator
 from litedsp.filter.halfband       import LiteDSPHalfbandDecimator, LiteDSPHalfbandInterpolator
 from litedsp.filter.hilbert        import LiteDSPHilbert
+from litedsp.filter.bitstream      import LiteDSPBitstreamDecimator
 from litedsp.filter.iir_biquad     import LiteDSPIIRBiquad, LiteDSPIIRBiquadCascade
 from litedsp.filter.dc_blocker     import LiteDSPDCBlocker
 from litedsp.filter.moving_average import LiteDSPMovingAverage
@@ -109,6 +110,7 @@ from litedsp.motor.pi              import LiteDSPPIController, LiteDSPDQControll
 from litedsp.motor.limiter         import LiteDSPSlewLimiter
 from litedsp.motor.svpwm           import LiteDSPSVPWM
 from litedsp.motor.pwm             import LiteDSPPWM
+from litedsp.motor.sense           import LiteDSPSigmaDeltaFilter, LiteDSPOvercurrentTrip
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -129,6 +131,7 @@ ENTRIES = [
     ("channelizer",        LiteDSPChannelizer,           {"n_channels": 4, "decimation": 4},     "mixing",     "Channelizer",           {"method": ["cic", "fir"], "fir_architecture": ["classic", "pipelined"]}),
     ("pfb_channelizer",    LiteDSPPFBChannelizer,        {"n_channels": 4, "taps_per_channel": 8, "architecture": "auto"}, "mixing", "PFB channelizer (scalable)", {"architecture": ["auto", "classic", "folded", "fft"]}),
     # filter ---------------------------------------------------------------------------------------
+    ("bitstream_decimator", LiteDSPBitstreamDecimator,   {},                                     "filter",     "Bitstream (sigma-delta/PDM) decimator", None),
     ("fir_real",           LiteDSPFIRFilter,             {"n_taps": 32},                         "filter",     "FIR (real)",            {"architecture": ["classic", "pipelined", "mac"]}),
     ("fir_complex",        LiteDSPFIRFilterComplex,      {"n_taps": 32},                         "filter",     "FIR (complex)",         {"architecture": ["classic", "pipelined", "mac"]}),
     ("fir_decimator",      LiteDSPFIRDecimator,          {"n_taps": 32, "decimation": 8},                 "filter",     "FIR decimator",         None),
@@ -254,6 +257,8 @@ ENTRIES = [
     ("slew_limiter",       LiteDSPSlewLimiter,           {},                                     "motor",      "Slew limiter",          None),
     ("svpwm",              LiteDSPSVPWM,                 {},                                     "motor",      "SVPWM modulator",       {"injection": ["minmax", "none"]}),
     ("pwm",                LiteDSPPWM,                   {},                                     "motor",      "3-phase PWM",           None),
+    ("sigma_delta_filter", LiteDSPSigmaDeltaFilter,      {},                                     "motor",      "Sigma-delta current sense", None),
+    ("overcurrent_trip",   LiteDSPOvercurrentTrip,       {},                                     "motor",      "Over-current trip",     None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

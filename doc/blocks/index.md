@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-128 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+131 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -27,6 +27,7 @@
 
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
+| [Bitstream (sigma-delta/PDM) decimator](bitstream_decimator.md) | `LiteDSPBitstreamDecimator` | 1 | — | 1-bit sigma-delta / PDM bitstream -> PCM samples through a runtime-rate sinc^N decimator. |
 | [FIR (real)](fir_real.md) | `LiteDSPFIRFilter` | 3 | — | Pipelined single-rate real FIR filter with stream I/O and round+saturate output. |
 | [FIR (complex)](fir_complex.md) | `LiteDSPFIRFilterComplex` | 3 | 2 | Complex FIR: identical real FIRs on I and Q, shared coefficients, with bypass + CSR. |
 | [FIR decimator](fir_decimator.md) | `LiteDSPFIRDecimator` | 33 | 2 | Decimate-by-R complex FIR with a single time-shared MAC per I/Q. |
@@ -177,5 +178,7 @@
 | [PI controller](pi_controller.md) | `LiteDSPPIController` | 1 | 2 | PI regulator on a real stream: ``u = clamp(kp*e + integral + feedforward, +/-limit)``. |
 | [d/q current controller](dq_controller.md) | `LiteDSPDQController` | 1 | 4 | Two lock-stepped PI regulators on a d/q current vector -> d/q voltage command. |
 | [Slew limiter](slew_limiter.md) | `LiteDSPSlewLimiter` | 1 | 0 | Rate limiter for references (speed/torque ramps): ``y += clamp(x - y, +/-rate)``. |
-| [SVPWM modulator](svpwm.md) | `LiteDSPSVPWM` | 3 | — | Space-vector modulator: alpha/beta voltage vector -> three signed phase duties. |
-| [3-phase PWM](pwm.md) | `LiteDSPPWM` | var | — | Center-aligned three-phase PWM with dead time, fault latch and ADC trigger (sink-only). |
+| [SVPWM modulator](svpwm.md) | `LiteDSPSVPWM` | 3 | 1 | Space-vector modulator: alpha/beta voltage vector -> three signed phase duties. |
+| [3-phase PWM](pwm.md) | `LiteDSPPWM` | var | 1 | Center-aligned three-phase PWM with dead time, fault latch and ADC trigger (sink-only). |
+| [Sigma-delta current sense](sigma_delta_filter.md) | `LiteDSPSigmaDeltaFilter` | 1 | — | Isolated sigma-delta current sense: per-phase sinc^N demodulators + fast trip path. |
+| [Over-current trip](overcurrent_trip.md) | `LiteDSPOvercurrentTrip` | 0 | — | Window comparator on a three-phase stream: combinational passthrough + sticky trip. |
