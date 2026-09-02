@@ -342,9 +342,13 @@ def pass_i2s_loop(results):
 # Plot ---------------------------------------------------------------------------------------------
 
 def plot(plot_dir, r):
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("[plot] matplotlib not installed, skipping the figure")
+        return
     os.makedirs(plot_dir, exist_ok=True)
     fig, ax = plt.subplots(1, 3, figsize=(14, 4))
     f = np.logspace(math.log10(20), math.log10(20000), 400)
