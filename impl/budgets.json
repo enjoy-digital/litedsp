@@ -1472,6 +1472,34 @@
       }
     }
   },
+  "dq_controller": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 98,
+      "lut": 925,
+      "synth": {
+        "bram": 0,
+        "dsp": 4,
+        "ff": 98,
+        "lut": 925
+      }
+    }
+  },
+  "dq_controller_decoupling": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 10,
+      "ff": 165,
+      "lut": 1191,
+      "synth": {
+        "bram": 0,
+        "dsp": 10,
+        "ff": 165,
+        "lut": 1191
+      }
+    }
+  },
   "duc": {
     "ecp5": {
       "bram": 2,
@@ -4653,6 +4681,20 @@
       }
     }
   },
+  "pi_controller": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 50,
+      "lut": 438,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 50,
+        "lut": 438
+      }
+    }
+  },
   "power": {
     "ecp5": {
       "bram": 0,
@@ -5250,6 +5292,20 @@
         "dsp": 2,
         "ff": 883,
         "lut": 1824
+      }
+    }
+  },
+  "slew_limiter": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 35,
+      "lut": 141,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 35,
+        "lut": 141
       }
     }
   },

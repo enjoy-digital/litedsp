@@ -989,6 +989,16 @@ def spec_slew_limiter():
     return dut, cols + [rate], n - 4, \
         lambda c: [models.slew_limiter_model(c[0], np.array(c[1]))], False, False, (dut.rate,)
 
+def spec_svpwm():
+    from litedsp.motor.svpwm import LiteDSPSVPWM
+    n    = 300
+    dut  = LiteDSPSVPWM(data_width=16, with_csr=False)
+    cols = _rand_cols(2, n, lo=-32000, hi=32000)                      # sink(i, q).
+    injection = [int(not (100 <= k < 200)) for k in range(n)]
+    return dut, cols + [injection], n - 4, \
+        lambda c: list(models.svpwm_model(c[0], c[1], np.array(c[2]))), False, False, \
+        (dut.injection,)
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1080,6 +1090,7 @@ SPECS = {
     "dq_controller":    spec_dq_controller,
     "dq_controller_decoupling": spec_dq_controller_decoupling,
     "slew_limiter":     spec_slew_limiter,
+    "svpwm":            spec_svpwm,
 }
 
 # Known failures -----------------------------------------------------------------------------------

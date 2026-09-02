@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-126 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+128 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -174,6 +174,8 @@
 | [Angle ramp](angle_ramp.md) | `LiteDSPAngleRamp` | var | 0 | Free-running electrical-angle source: a phase accumulator emitting an angle stream. |
 | [Park (ab -> dq)](park.md) | `LiteDSPPark` | 2 | 4 | Park transform: stationary alpha/beta + rotor angle -> rotating d/q. |
 | [Inverse Park](inverse_park.md) | `LiteDSPInversePark` | 2 | 4 | Inverse Park transform: rotating d/q + rotor angle -> stationary alpha/beta. |
-| [PI controller](pi_controller.md) | `LiteDSPPIController` | 1 | — | PI regulator on a real stream: ``u = clamp(kp*e + integral + feedforward, +/-limit)``. |
-| [d/q current controller](dq_controller.md) | `LiteDSPDQController` | 1 | — | Two lock-stepped PI regulators on a d/q current vector -> d/q voltage command. |
-| [Slew limiter](slew_limiter.md) | `LiteDSPSlewLimiter` | 1 | — | Rate limiter for references (speed/torque ramps): ``y += clamp(x - y, +/-rate)``. |
+| [PI controller](pi_controller.md) | `LiteDSPPIController` | 1 | 2 | PI regulator on a real stream: ``u = clamp(kp*e + integral + feedforward, +/-limit)``. |
+| [d/q current controller](dq_controller.md) | `LiteDSPDQController` | 1 | 4 | Two lock-stepped PI regulators on a d/q current vector -> d/q voltage command. |
+| [Slew limiter](slew_limiter.md) | `LiteDSPSlewLimiter` | 1 | 0 | Rate limiter for references (speed/torque ramps): ``y += clamp(x - y, +/-rate)``. |
+| [SVPWM modulator](svpwm.md) | `LiteDSPSVPWM` | 3 | — | Space-vector modulator: alpha/beta voltage vector -> three signed phase duties. |
+| [3-phase PWM](pwm.md) | `LiteDSPPWM` | var | — | Center-aligned three-phase PWM with dead time, fault latch and ADC trigger (sink-only). |

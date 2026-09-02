@@ -107,6 +107,8 @@ from litedsp.motor.transforms      import (LiteDSPClarke, LiteDSPInverseClarke, 
     LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)
 from litedsp.motor.pi              import LiteDSPPIController, LiteDSPDQController
 from litedsp.motor.limiter         import LiteDSPSlewLimiter
+from litedsp.motor.svpwm           import LiteDSPSVPWM
+from litedsp.motor.pwm             import LiteDSPPWM
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -250,6 +252,8 @@ ENTRIES = [
     ("pi_controller",      LiteDSPPIController,          {},                                     "motor",      "PI controller",         {"anti_windup": ["conditional", "clamp", "none"]}),
     ("dq_controller",      LiteDSPDQController,          {},                                     "motor",      "d/q current controller", {"anti_windup": ["conditional", "clamp", "none"]}),
     ("slew_limiter",       LiteDSPSlewLimiter,           {},                                     "motor",      "Slew limiter",          None),
+    ("svpwm",              LiteDSPSVPWM,                 {},                                     "motor",      "SVPWM modulator",       {"injection": ["minmax", "none"]}),
+    ("pwm",                LiteDSPPWM,                   {},                                     "motor",      "3-phase PWM",           None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

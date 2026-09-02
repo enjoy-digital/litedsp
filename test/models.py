@@ -2032,3 +2032,90 @@ def slew_limiter_model(x, rate, data_width=16):
         y     += max(-int(rate[k]), min(int(rate[k]), delta))
         out[k] = y
     return out
+
+# Motor Control: Modulation ------------------------------------------------------------------------
+
+def svpwm_model(alpha, beta, injection=1, data_width=16):
+    """Bit-exact reference for litedsp.motor.svpwm.LiteDSPSVPWM. Returns (a, b, c) duties."""
+    alpha, beta = np.asarray(alpha, np.int64), np.asarray(beta, np.int64)
+    inj  = _per_sample(injection, len(alpha))
+    kb   = beta*CLARKE_C_SQ3_2
+    half = alpha*(1 << 14)
+    a1   = alpha
+    b1   = np_rounded(kb - half, 15)                 # data_width + 2 bits, no saturation.
+    c1   = np_rounded(-kb - half, 15)
+    mx   = np.maximum(np.maximum(a1, b1), c1)
+    mn   = np.minimum(np.minimum(a1, b1), c1)
+    v0   = np.where(inj != 0, np_rounded(-(mx + mn), 1), 0)
+    return tuple(np_saturated(x + v0, data_width) for x in (a1, b1, c1))
+
+def pwm_model(duties, period, dead_time, n_cycles, data_width=16, enable=1, fault=None,
+    trigger_count=0, trigger_direction=0):
+    """Cycle-exact reference for litedsp.motor.pwm.LiteDSPPWM.
+
+    ``duties`` is the list of ``(a, b, c)`` samples offered back-to-back (the driver always
+    holds a valid sample, so one is accepted at every carrier valley; the last one repeats).
+    ``fault`` is an optional per-cycle array. Returns per-cycle arrays ``(pwm_h, pwm_l,
+    trigger, ready)`` with the gate signals as 3-bit integers (bit k = phase k), mirroring the
+    RTL registers from reset (cycle 0 = reset values).
+    """
+    offset  = 1 << (data_width - 1)
+    fault   = np.zeros(n_cycles, np.int64) if fault is None else np.asarray(fault)
+    # Registers (reset values).
+    count, up = 0, 1                                           # Counting up from reset.
+    duty_u    = [offset, offset, offset]
+    mul_busy, mul_idx, prod, prod_valid, prod_idx = 0, 0, 0, 0, 0
+    cmp_shadow, cmp = [0, 0, 0], [0, 0, 0]
+    raw_r, raw_prev, dt_cnt = [0]*3, [0]*3, [0]*3
+    pwm_h, pwm_l, trigger, fault_latched = [0]*3, [0]*3, 0, 0
+    k_sample = 0
+    out_h, out_l, out_t, out_r = [], [], [], []
+    for cyc in range(n_cycles):
+        # Registered outputs visible this cycle + combinational ready.
+        valley = count == 0 and not up
+        out_h.append(sum(pwm_h[k] << k for k in range(3)))
+        out_l.append(sum(pwm_l[k] << k for k in range(3)))
+        out_t.append(trigger)
+        out_r.append(int(valley))
+        # Combinational.
+        sample = duties[min(k_sample, len(duties) - 1)]
+        accept = valley
+        raw    = [int(count < cmp[k]) for k in range(3)]
+        active = int(enable and not fault_latched)
+        edge   = [int(raw_r[k] != raw_prev[k]) for k in range(3)]
+        dt_nxt = [dead_time if edge[k] else (dt_cnt[k] - 1 if dt_cnt[k] else 0) for k in range(3)]
+        # Next state (the trigger below still sees the pre-update `up`).
+        up_cur = up
+        if up:
+            if count >= period:
+                up_n, count_n = 0, count - 1
+            else:
+                up_n, count_n = up, count + 1
+        else:
+            if valley:
+                up_n, count_n = 1, 1
+            else:
+                up_n, count_n = up, count - 1
+        prod_n, prod_valid_n, prod_idx_n = period*duty_u[mul_idx], mul_busy, mul_idx
+        if valley:
+            cmp = list(cmp_shadow)                                 # Old shadow (same edge).
+        if prod_valid:
+            cmp_shadow[prod_idx] = int(np_rounded(np.int64(prod), data_width))
+        if accept:
+            duty_u   = [int(sample[k]) + offset for k in range(3)]
+            k_sample += 1
+        if accept:
+            mul_busy_n, mul_idx_n = 1, 0
+        elif mul_busy:
+            mul_busy_n, mul_idx_n = (0, mul_idx) if mul_idx == 2 else (1, mul_idx + 1)
+        else:
+            mul_busy_n, mul_idx_n = 0, mul_idx
+        pwm_h   = [int(raw_r[k] and active and dt_nxt[k] == 0) for k in range(3)]
+        pwm_l   = [int((not raw_r[k]) and active and dt_nxt[k] == 0) for k in range(3)]
+        trigger = int(count == trigger_count and up_cur == trigger_direction)
+        raw_prev, raw_r, dt_cnt = list(raw_r), list(raw), list(dt_nxt)
+        if fault[cyc]:
+            fault_latched = 1
+        count, up, mul_busy, mul_idx = count_n, up_n, mul_busy_n, mul_idx_n
+        prod, prod_valid, prod_idx = prod_n, prod_valid_n, prod_idx_n
+    return (np.array(out_h), np.array(out_l), np.array(out_t), np.array(out_r))

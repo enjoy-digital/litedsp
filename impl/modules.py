@@ -81,6 +81,8 @@ from litedsp.motor.transforms     import (LiteDSPClarke, LiteDSPInverseClarke, L
     LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)
 from litedsp.motor.pi             import LiteDSPPIController, LiteDSPDQController
 from litedsp.motor.limiter        import LiteDSPSlewLimiter
+from litedsp.motor.svpwm          import LiteDSPSVPWM
+from litedsp.motor.pwm            import LiteDSPPWM
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
 
@@ -590,6 +592,16 @@ def slew_limiter():
     d = LiteDSPSlewLimiter(data_width=16, with_csr=False)
     return d, {d.rate, d.bypass} | _eps(d.sink, d.source), 10.0
 
+def svpwm():
+    d = LiteDSPSVPWM(data_width=16, with_csr=False)
+    return d, {d.injection} | _eps(d.sink, d.source), 10.0
+
+def pwm():
+    d = LiteDSPPWM(data_width=16, period_width=16, dead_time_width=8, with_csr=False)
+    return d, {d.pwm_h, d.pwm_l, d.trigger, d.fault, d.period, d.dead_time, d.enable,
+               d.fault_clear, d.missed_clear, d.trigger_count, d.trigger_direction,
+               d.fault_latched, d.missed} | _eps(d.sink), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -645,7 +657,7 @@ REGISTRY = {
     "sincos_cordic": sincos_cordic, "angle_ramp": angle_ramp, "park": park,
     "inverse_park": inverse_park, "pi_controller": pi_controller,
     "dq_controller": dq_controller, "dq_controller_decoupling": dq_controller_decoupling,
-    "slew_limiter": slew_limiter,
+    "slew_limiter": slew_limiter, "svpwm": svpwm, "pwm": pwm,
 }
 
 # Subset for the slower full place-&-route flows.

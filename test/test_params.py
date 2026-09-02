@@ -64,6 +64,9 @@ SPECIFIC = [
     ("pi_controller",   {"anti_windup": "hold"}),
     ("pi_controller",   {"gain_frac": 16}),                # gain_frac < gain_width.
     ("dq_controller",   {"decoupling": "yes"}),            # Bool required.
+    ("svpwm",           {"injection": "third_harmonic"}),
+    ("pwm",             {"period_width": 3}),              # >= 4 required.
+    ("pwm",             {"dead_time_width": 0}),
 ]
 
 class TestParams(unittest.TestCase):
