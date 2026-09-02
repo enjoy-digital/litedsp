@@ -1166,6 +1166,23 @@ def spec_compressor_limiter():
 def spec_compressor_gate():
     return _spec_compressor("gate", detector=1, stereo_link=1, rms_shift=4)
 
+def spec_lfo():
+    from litedsp.audio.effects import LiteDSPLFO
+    n, inc = 256, 0x0345_6789
+    dut = LiteDSPLFO(with_csr=False)
+    dut.phase_inc.reset, dut.shape.reset, dut.amplitude.reset = inc, 1, 20000
+    return dut, [], n, lambda c: [models.lfo_model(inc, n, 1, 20000)]
+
+def spec_delay_line():
+    from litedsp.audio.effects import LiteDSPDelayLine
+    n    = 100
+    dut  = LiteDSPDelayLine(data_width=24, n_channels=2, max_delay=64, with_csr=False)
+    dut.delay.reset, dut.feedback.reset, dut.damping.reset = 9, 19660, 8000
+    dut.wet.reset, dut.dry.reset = 22937, 13107
+    cols = _tdm_cols(n, 2, lo=-(1 << 22), hi=(1 << 22))
+    return dut, cols, 2*n - 4, lambda c: [models.delay_line_model(c[0], c[1], 9, feedback=19660,
+        damping=8000, wet=22937, dry=13107, max_delay=64), np.array(c[1])]
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1274,6 +1291,8 @@ SPECS = {
     "compressor":       spec_compressor,
     "compressor_limiter": spec_compressor_limiter,
     "compressor_gate":  spec_compressor_gate,
+    "lfo":              spec_lfo,
+    "delay_line":       spec_delay_line,
 }
 
 # Known failures -----------------------------------------------------------------------------------

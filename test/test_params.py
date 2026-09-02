@@ -93,6 +93,9 @@ SPECIFIC = [
     ("exp2",            {"out_width": 20}),                # > out_frac.
     ("compressor",      {"preset": "expander"}),
     ("compressor",      {"lookahead": -1}),
+    ("lfo",             {"lut_depth": 100}),
+    ("delay_line",      {"max_delay": 2}),
+    ("delay_line",      {"coeff_frac": 16}),
 ]
 
 class TestParams(unittest.TestCase):

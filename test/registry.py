@@ -168,6 +168,10 @@ VSPEC = {
     "compressor":         _v("compressor_model", cosim=True),
     "limiter":            _v("compressor_model"),               # Same class (preset); cosim variant.
     "noise_gate":         _v("compressor_model"),
+    "lfo":                _v("lfo_model", latency="n/a", rate=None, cosim=True),
+    "delay_line":         _v("delay_line_model", cosim=True),
+    "chorus":             _v("delay_line_model"),               # Modulation sink consumed once per
+                                                               # frame: not generic-TB co-simulable.
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

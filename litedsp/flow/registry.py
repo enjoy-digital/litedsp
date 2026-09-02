@@ -120,6 +120,7 @@ from litedsp.audio.dither          import LiteDSPDither
 from litedsp.audio.eq              import LiteDSPAudioEQ
 from litedsp.level.logdb           import LiteDSPExp2
 from litedsp.audio.dynamics        import LiteDSPCompressor
+from litedsp.audio.effects         import LiteDSPLFO, LiteDSPDelayLine
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -283,6 +284,9 @@ ENTRIES = [
     ("compressor",         LiteDSPCompressor,            {},                                     "audio",      "Compressor",            {"preset": ["compressor", "limiter", "gate"]}),
     ("limiter",            LiteDSPCompressor,            {"preset": "limiter", "lookahead": 32}, "audio",      "Limiter (lookahead)",   {"preset": ["compressor", "limiter", "gate"]}),
     ("noise_gate",         LiteDSPCompressor,            {"preset": "gate"},                     "audio",      "Noise gate / expander", {"preset": ["compressor", "limiter", "gate"]}),
+    ("lfo",                LiteDSPLFO,                   {},                                     "audio",      "LFO",                   None),
+    ("delay_line",         LiteDSPDelayLine,             {},                                     "audio",      "Delay line (echo)",     None),
+    ("chorus",             LiteDSPDelayLine,             {"modulation": True, "max_delay": 512}, "audio",      "Chorus / flanger",      None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

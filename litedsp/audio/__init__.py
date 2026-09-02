@@ -21,5 +21,6 @@ Conventions (see ``doc/audio.md``):
 
 from litedsp.audio.dither   import LiteDSPDither
 from litedsp.audio.dynamics import LiteDSPCompressor
+from litedsp.audio.effects  import LiteDSPLFO, LiteDSPDelayLine
 from litedsp.audio.eq     import LiteDSPAudioEQ
 from litedsp.audio.level  import LiteDSPVolume, LiteDSPStereoMatrix

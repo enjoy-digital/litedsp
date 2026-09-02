@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-145 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+148 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -198,6 +198,9 @@
 | [Stereo matrix (M/S, pan)](stereo_matrix.md) | `LiteDSPStereoMatrix` | 4 | 2 | 2x2 matrix on a stereo TDM stream: ``L' = a*L + b*R``, ``R' = c*L + d*R``. |
 | [Dither / requantizer](dither.md) | `LiteDSPDither` | 1 | 0 | Word-length reduction with TPDF dither and optional error-feedback noise shaping. |
 | [Parametric EQ](audio_eq.md) | `LiteDSPAudioEQ` | 25 | 4 | Multi-band, multi-channel parametric equalizer: a time-multiplexed biquad engine. |
-| [Compressor](compressor.md) | `LiteDSPCompressor` | 15 | — | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
-| [Limiter (lookahead)](limiter.md) | `LiteDSPCompressor` | 15 | — | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
+| [Compressor](compressor.md) | `LiteDSPCompressor` | 15 | 5 | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
+| [Limiter (lookahead)](limiter.md) | `LiteDSPCompressor` | 15 | 5 | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
 | [Noise gate / expander](noise_gate.md) | `LiteDSPCompressor` | 15 | — | Dynamics processor (compressor, limiter, expander/gate) with a log-domain gain computer. |
+| [LFO](lfo.md) | `LiteDSPLFO` | 1 | — | Low-frequency oscillator: sine (quarter-wave ROM), triangle, saw or square, with amplitude. |
+| [Delay line (echo)](delay_line.md) | `LiteDSPDelayLine` | 7 | — | Feedback delay line with damping, wet/dry mix and optional modulated fractional delay. |
+| [Chorus / flanger](chorus.md) | `LiteDSPDelayLine` | 9 | — | Feedback delay line with damping, wet/dry mix and optional modulated fractional delay. |

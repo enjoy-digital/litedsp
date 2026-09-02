@@ -2593,3 +2593,72 @@ def compressor_model(x, channel, threshold, slope_above, slope_below, attack, re
         out[k] = np_scaled(np.int64(xd*gain), 19, DW)
         grs[k] = gr
     return out, grs
+
+# Audio: Effects -----------------------------------------------------------------------------------
+
+def lfo_model(phase_inc, n, shape=0, amplitude=None, phase_bits=32, data_width=16, lut_depth=256):
+    """Bit-exact reference for litedsp.audio.effects.LiteDSPLFO: n samples of the shape
+    (0 sine, 1 triangle, 2 saw, 3 square) at the Q1.15 amplitude."""
+    DW = data_width
+    FS = (1 << (DW - 1)) - 1
+    if amplitude is None:
+        amplitude = FS
+    addr_bits = int(round(np.log2(lut_depth)))
+    _, sin_t  = nco_lut(lut_depth, DW)
+    mask, wrap = (1 << phase_bits) - 1, _wrapper(DW)
+    phase, out = 0, np.zeros(n, np.int64)
+    for k in range(n):
+        phase = (phase + phase_inc) & mask
+        saw   = wrap(phase >> (phase_bits - DW))
+        if shape == 0:
+            v = int(sin_t[phase >> (phase_bits - addr_bits)])
+        elif shape == 1:
+            v = int(np_saturated(np.int64(2*abs(saw) - (1 << (DW - 1))), DW))
+        elif shape == 2:
+            v = saw
+        else:
+            v = -FS if saw < 0 else FS
+        out[k] = np_scaled(np.int64(v*amplitude), DW - 1, DW)
+    return out
+
+def delay_line_model(x, channel, delay, feedback=0, damping=0, wet=1 << 14, dry=1 << 14,
+    mod=None, mod_depth=0, n_channels=2, max_delay=64, coeff_frac=15, mod_frac=8,
+    modulation=False, data_width=24):
+    """Bit-exact reference for litedsp.audio.effects.LiteDSPDelayLine.
+
+    ``mod`` is the per-frame modulation sample list (consumed at each channel-0 beat when
+    ``modulation``). Per beat: integer/fractional delay (clamped to 1..max_delay-2 frames),
+    reads d0/d1 one frame apart with linear interpolation, damping one-pole, feedback write
+    ``sat(x + feedback*filt)``, mix ``round((dry*x + wet*d) / 2**coeff_frac)`` saturated.
+    """
+    DW, CF, MF = data_width, coeff_frac, mod_frac
+    depth = 1
+    while depth < max_delay:
+        depth *= 2
+    x  = np.asarray(x, np.int64)
+    n  = len(x)
+    ch = _per_sample(channel, n)
+    buf  = [[0]*n_channels for _ in range(depth)]
+    filt = [0]*n_channels
+    ptr, mod_idx, mod_cur = 0, 0, 0
+    out = np.zeros(n, np.int64)
+    for k in range(n):
+        c, xv = int(ch[k]), int(x[k])
+        if modulation and c == 0:
+            mod_cur, mod_idx = int(mod[mod_idx]), mod_idx + 1
+        if modulation:
+            d_full = (int(delay) << MF) + ((int(mod_depth)*mod_cur) >> (15 - MF))
+            d_full = max(1 << MF, min((max_delay - 2) << MF, d_full))
+            d_int, frac = d_full >> MF, d_full & ((1 << MF) - 1)
+        else:
+            d_int, frac = max(1, min(max_delay - 2, int(delay))), 0
+        d0 = buf[(ptr - d_int) % depth][c]
+        d1 = buf[(ptr - d_int - 1) % depth][c]
+        d  = int(np_saturated(np.int64(d0 + (((d1 - d0)*frac) >> MF)), DW)) if modulation else d0
+        filt_n  = int(np_saturated(np.int64(filt[c] + (((d - filt[c])*((1 << 15) - int(damping))) >> 15)), DW))
+        filt[c] = filt_n
+        buf[ptr][c] = int(np_saturated(np.int64(xv + ((filt_n*int(feedback)) >> CF)), DW))
+        out[k] = np_scaled(np.int64(xv*int(dry) + d*int(wet)), CF, DW)
+        if c == n_channels - 1:
+            ptr = (ptr + 1) % depth
+    return out
