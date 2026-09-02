@@ -21,6 +21,7 @@ from test.common import run_stream, column
 BYPASS_BLOCKS = [
     "gain", "fir_real", "fir_complex", "cfr", "clipper", "saturate", "dc_offset", "iq_balance",
     "dc_blocker", "moving_average", "iir_biquad", "notch", "comb_filter", "allpass", "dpd",
+    "slew_limiter",
 ]
 
 class TestBypass(unittest.TestCase):

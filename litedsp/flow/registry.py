@@ -105,6 +105,8 @@ from litedsp.stream.framing        import LiteDSPStreamFramer, LiteDSPStreamDefr
 from litedsp.stream.timestamp      import LiteDSPTimestamper, LiteDSPTimeUntagger
 from litedsp.motor.transforms      import (LiteDSPClarke, LiteDSPInverseClarke, LiteDSPSinCos,
     LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)
+from litedsp.motor.pi              import LiteDSPPIController, LiteDSPDQController
+from litedsp.motor.limiter         import LiteDSPSlewLimiter
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -245,6 +247,9 @@ ENTRIES = [
     ("angle_ramp",         LiteDSPAngleRamp,             {},                                     "motor",      "Angle ramp",            None),
     ("park",               LiteDSPPark,                  {},                                     "motor",      "Park (ab -> dq)",       {"method": ["rom", "cordic"]}),
     ("inverse_park",       LiteDSPInversePark,           {},                                     "motor",      "Inverse Park",          {"method": ["rom", "cordic"]}),
+    ("pi_controller",      LiteDSPPIController,          {},                                     "motor",      "PI controller",         {"anti_windup": ["conditional", "clamp", "none"]}),
+    ("dq_controller",      LiteDSPDQController,          {},                                     "motor",      "d/q current controller", {"anti_windup": ["conditional", "clamp", "none"]}),
+    ("slew_limiter",       LiteDSPSlewLimiter,           {},                                     "motor",      "Slew limiter",          None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

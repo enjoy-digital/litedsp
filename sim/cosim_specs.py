@@ -933,6 +933,62 @@ def spec_inverse_park():
     from litedsp.motor.transforms import LiteDSPInversePark
     return _spec_park(LiteDSPInversePark, models.inverse_park_model)
 
+def spec_pi_controller():
+    from litedsp.motor.pi import LiteDSPPIController
+    n    = 300
+    dut  = LiteDSPPIController(data_width=16, with_csr=False)
+    cols = _rand_cols(1, n, lo=-30000, hi=30000)                      # sink(data).
+    # Per-sample controls: a setpoint step, gains and a limit low enough to clamp, then a
+    # short open-loop window (clamped feedforward = 0 with the integrator held).
+    setpoint  = [4000 if k < 150 else -9000 for k in range(n)]
+    kp        = [int(1.5*4096)]*n
+    ki        = [int(0.2*4096)]*n
+    limit     = [12000]*n
+    open_loop = [int(200 <= k < 230) for k in range(n)]
+    ctrl = [setpoint, kp, ki, limit, open_loop]
+    return dut, cols + ctrl, n - 4, \
+        lambda c: [models.pi_controller_model(c[0], np.array(c[1]), np.array(c[2]),
+            np.array(c[3]), np.array(c[4]), open_loop=np.array(c[5]))], \
+        False, False, (dut.setpoint, dut.kp, dut.ki, dut.limit, dut.open_loop)
+
+def spec_pi_controller_ref():
+    from litedsp.motor.pi import LiteDSPPIController
+    n    = 300
+    dut  = LiteDSPPIController(data_width=16, setpoint_stream=True, anti_windup="clamp",
+        with_csr=False)
+    dut.kp.reset, dut.ki.reset, dut.limit.reset = int(0.7*4096), int(0.05*4096), 20000
+    cols = _rand_cols(2, n, lo=-30000, hi=30000)                      # sink(data), sink_ref(data).
+    return dut, cols, n - 4, lambda c: [models.pi_controller_model(c[0], np.array(c[1]),
+        int(0.7*4096), int(0.05*4096), 20000, anti_windup="clamp")]
+
+def _spec_dq_controller(decoupling):
+    from litedsp.motor.pi import LiteDSPDQController
+    n     = 300
+    dut   = LiteDSPDQController(data_width=16, decoupling=decoupling, with_csr=False)
+    gains = dict(kp_d=int(0.8*4096), ki_d=int(0.1*4096), kp_q=int(1.2*4096), ki_q=int(0.15*4096))
+    dut.setpoint_d.reset, dut.setpoint_q.reset, dut.limit.reset = -2000, 9000, 20000
+    for k, v in gains.items():
+        getattr(dut, k).reset = v
+    dut.speed.reset, dut.l_pu.reset, dut.psi_pu.reset = 12000, 5000, 20000
+    cols = _rand_cols(2, n, lo=-30000, hi=30000)                      # sink(i, q).
+    return dut, cols, n - 4, lambda c: list(models.dq_controller_model(c[0], c[1], -2000, 9000,
+        limit=20000, decoupling=decoupling, speed=12000, l_pu=5000, psi_pu=20000, **gains))
+
+def spec_dq_controller():
+    return _spec_dq_controller(False)
+
+def spec_dq_controller_decoupling():
+    return _spec_dq_controller(True)
+
+def spec_slew_limiter():
+    from litedsp.motor.limiter import LiteDSPSlewLimiter
+    n    = 300
+    dut  = LiteDSPSlewLimiter(data_width=16, with_csr=False)
+    cols = _rand_cols(1, n, lo=-30000, hi=30000)
+    rate = [500 if k < 150 else 6000 for k in range(n)]
+    return dut, cols + [rate], n - 4, \
+        lambda c: [models.slew_limiter_model(c[0], np.array(c[1]))], False, False, (dut.rate,)
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1019,6 +1075,11 @@ SPECS = {
     "angle_ramp":       spec_angle_ramp,
     "park":             spec_park,
     "inverse_park":     spec_inverse_park,
+    "pi_controller":    spec_pi_controller,
+    "pi_controller_ref": spec_pi_controller_ref,
+    "dq_controller":    spec_dq_controller,
+    "dq_controller_decoupling": spec_dq_controller_decoupling,
+    "slew_limiter":     spec_slew_limiter,
 }
 
 # Known failures -----------------------------------------------------------------------------------
@@ -1062,6 +1123,8 @@ def check_coverage():
         "timing_recovery_gardner_pipelined": "timing_recovery",
         "clarke_three_wire":         "clarke",
         "sincos_cordic":             "sincos",
+        "pi_controller_ref":         "pi_controller",
+        "dq_controller_decoupling":  "dq_controller",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

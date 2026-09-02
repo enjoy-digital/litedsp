@@ -61,6 +61,9 @@ SPECIFIC = [
     ("sincos",          {"lut_depth": 1000}),              # Power of two >= 8 required.
     ("sincos",          {"lut_depth": 1 << 17}),           # log2(depth) <= angle_width.
     ("angle_ramp",      {"phase_bits": 8}),                # phase_bits >= angle_width.
+    ("pi_controller",   {"anti_windup": "hold"}),
+    ("pi_controller",   {"gain_frac": 16}),                # gain_frac < gain_width.
+    ("dq_controller",   {"decoupling": "yes"}),            # Bool required.
 ]
 
 class TestParams(unittest.TestCase):

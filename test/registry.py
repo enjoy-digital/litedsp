@@ -145,6 +145,9 @@ VSPEC = {
     "angle_ramp":         _v("angle_ramp_model", latency="n/a", rate=None, cosim=True),
     "park":               _v("park_model", cosim=True),
     "inverse_park":       _v("inverse_park_model", cosim=True),
+    "pi_controller":      _v("pi_controller_model", cosim=True),
+    "dq_controller":      _v("dq_controller_model", cosim=True),
+    "slew_limiter":       _v("slew_limiter_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

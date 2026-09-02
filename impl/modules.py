@@ -79,6 +79,8 @@ from litedsp.comm.ldpc            import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
 from litedsp.comm.ldpc_parallel   import LiteDSPLDPCDecoderZParallel
 from litedsp.motor.transforms     import (LiteDSPClarke, LiteDSPInverseClarke, LiteDSPSinCos,
     LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)
+from litedsp.motor.pi             import LiteDSPPIController, LiteDSPDQController
+from litedsp.motor.limiter        import LiteDSPSlewLimiter
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
 
@@ -567,6 +569,27 @@ def inverse_park():
     d = LiteDSPInversePark(data_width=16, angle_width=16, with_csr=False)
     return d, _eps(d.sink, d.sink_angle, d.source), 10.0
 
+def pi_controller():
+    d = LiteDSPPIController(data_width=16, with_csr=False)
+    return d, {d.setpoint, d.kp, d.ki, d.limit, d.feedforward, d.open_loop, d.clear, d.clear_sat,
+               d.integral, d.saturated} | _eps(d.sink, d.source), 10.0
+
+def dq_controller():
+    d = LiteDSPDQController(data_width=16, with_csr=False)
+    return d, {d.setpoint_d, d.setpoint_q, d.kp_d, d.ki_d, d.kp_q, d.ki_q, d.limit, d.voltage_d,
+               d.voltage_q, d.open_loop, d.clear, d.clear_sat, d.saturated} | \
+           _eps(d.sink, d.source), 10.0
+
+def dq_controller_decoupling():
+    d = LiteDSPDQController(data_width=16, decoupling=True, with_csr=False)
+    return d, {d.setpoint_d, d.setpoint_q, d.kp_d, d.ki_d, d.kp_q, d.ki_q, d.limit, d.voltage_d,
+               d.voltage_q, d.open_loop, d.clear, d.clear_sat, d.saturated, d.speed, d.l_pu,
+               d.psi_pu} | _eps(d.sink, d.source), 10.0
+
+def slew_limiter():
+    d = LiteDSPSlewLimiter(data_width=16, with_csr=False)
+    return d, {d.rate, d.bypass} | _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -620,7 +643,9 @@ REGISTRY = {
     "fft_parallel_native_x4_dsp": fft_parallel_native_x4_dsp,
     "clarke": clarke, "inverse_clarke": inverse_clarke, "sincos": sincos,
     "sincos_cordic": sincos_cordic, "angle_ramp": angle_ramp, "park": park,
-    "inverse_park": inverse_park,
+    "inverse_park": inverse_park, "pi_controller": pi_controller,
+    "dq_controller": dq_controller, "dq_controller_decoupling": dq_controller_decoupling,
+    "slew_limiter": slew_limiter,
 }
 
 # Subset for the slower full place-&-route flows.

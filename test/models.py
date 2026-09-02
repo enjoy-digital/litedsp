@@ -1942,3 +1942,93 @@ def inverse_park_model(d, q, angle, data_width=16, angle_width=16, lut_depth=102
     """Bit-exact reference for litedsp.motor.transforms.LiteDSPInversePark: (d, q, theta) -> (alpha, beta)."""
     cos, sin = sincos_model(angle, data_width, angle_width, lut_depth, method, stages)
     return mixer_model(d, q, cos, sin, mode="up", data_width=data_width)
+
+# Motor Control: Regulators ------------------------------------------------------------------------
+
+def _per_sample(v, n):
+    """Broadcast a scalar control to ``n`` samples, or pass a per-sample array through."""
+    v = np.asarray(v, np.int64)
+    return np.full(n, int(v), np.int64) if v.ndim == 0 else v[:n]
+
+def pi_controller_model(y, setpoint, kp, ki, limit=None, feedforward=0, data_width=16,
+    gain_width=16, gain_frac=12, anti_windup="conditional", open_loop=0, clear=0):
+    """Bit-exact reference for litedsp.motor.transforms.pi.LiteDSPPIController.
+
+    Controls may be scalars or per-sample arrays (the RTL samples them with each accepted
+    measurement). Per sample: ``e = setpoint - y``; ``u = clamp(round((kp*e + integral +
+    (ff << gain_frac)) / 2**gain_frac), +/-limit)`` using the *old* integral; then
+    ``integral = clamp(integral + ki*e, +/-(limit << gain_frac))`` unless conditional
+    anti-windup holds it (output clamped in the direction of the error). ``anti_windup="none"``
+    wraps the integrator at its ``data_width + gain_frac + 2``-bit width. ``open_loop`` outputs
+    the clamped feedforward and zeroes the integrator. Returns the command array.
+    """
+    y  = np.asarray(y, np.int64)
+    n  = len(y)
+    if limit is None:
+        limit = (1 << (data_width - 1)) - 1
+    sp, kp, ki, lim = (_per_sample(v, n) for v in (setpoint, kp, ki, limit))
+    ff, ol, cl      = (_per_sample(v, n) for v in (feedforward, open_loop, clear))
+    acc_width = data_width + gain_frac + 2
+    wrap      = _wrapper(acc_width)
+    integral  = 0
+    out       = np.zeros(n, np.int64)
+    for k in range(n):
+        e       = int(sp[k]) - int(y[k])
+        u_full  = int(kp[k])*e + integral + (int(ff[k]) << gain_frac)
+        u_r     = int(np_rounded(np.int64(u_full), gain_frac))
+        u_sel   = int(ff[k]) if ol[k] else u_r
+        sat_hi, sat_lo = u_sel > lim[k], u_sel < -lim[k]
+        out[k]  = lim[k] if sat_hi else (-lim[k] if sat_lo else u_sel)
+        acc_sum = integral + int(ki[k])*e
+        lim_acc = int(lim[k]) << gain_frac
+        if anti_windup == "none":
+            acc_nxt = wrap(acc_sum)
+        else:
+            acc_nxt = max(-lim_acc, min(lim_acc, acc_sum))
+        hold = anti_windup == "conditional" and ((sat_hi and e > 0) or (sat_lo and e < 0))
+        if cl[k] or ol[k]:
+            integral = 0
+        elif not hold:
+            integral = acc_nxt
+    return out
+
+def dq_decoupling_model(i_d, i_q, speed, l_pu, psi_pu, data_width=16):
+    """Bit-exact decoupling feed-forward of LiteDSPDQController: (ff_d, ff_q) per sample."""
+    shift = data_width - 1
+    i_d, i_q = np.asarray(i_d, np.int64), np.asarray(i_q, np.int64)
+    n   = len(i_d)
+    w, l, psi = (_per_sample(v, n) for v in (speed, l_pu, psi_pu))
+    t_d  = np_scaled(l*i_d, shift, data_width)
+    t_q  = np_scaled(l*i_q, shift, data_width)
+    flux = np_saturated(t_d + psi, data_width)
+    ff_d = -np_scaled(w*t_q, shift, data_width)
+    ff_q = np_scaled(w*flux, shift, data_width)
+    return ff_d, ff_q
+
+def dq_controller_model(i_d, i_q, setpoint_d, setpoint_q, kp_d, ki_d, kp_q, ki_q, limit=None,
+    data_width=16, gain_width=16, gain_frac=12, anti_windup="conditional", open_loop=0,
+    voltage_d=0, voltage_q=0, decoupling=False, speed=0, l_pu=0, psi_pu=0):
+    """Bit-exact reference for LiteDSPDQController: two PI regulators (+ decoupling). Returns (v_d, v_q)."""
+    n = len(i_d)
+    if decoupling:
+        ff_d, ff_q = dq_decoupling_model(i_d, i_q, speed, l_pu, psi_pu, data_width)
+    else:
+        ff_d, ff_q = np.zeros(n, np.int64), np.zeros(n, np.int64)
+    ol = _per_sample(open_loop, n)
+    ff_d = np.where(ol, _per_sample(voltage_d, n), ff_d)
+    ff_q = np.where(ol, _per_sample(voltage_q, n), ff_q)
+    kw = dict(limit=limit, data_width=data_width, gain_width=gain_width, gain_frac=gain_frac,
+        anti_windup=anti_windup, open_loop=ol)
+    return (pi_controller_model(i_d, setpoint_d, kp_d, ki_d, feedforward=ff_d, **kw),
+            pi_controller_model(i_q, setpoint_q, kp_q, ki_q, feedforward=ff_q, **kw))
+
+def slew_limiter_model(x, rate, data_width=16):
+    """Bit-exact reference for litedsp.motor.limiter.LiteDSPSlewLimiter (state = last output)."""
+    x    = np.asarray(x, np.int64)
+    rate = _per_sample(rate, len(x))
+    y, out = 0, np.zeros(len(x), np.int64)
+    for k in range(len(x)):
+        delta  = int(x[k]) - y
+        y     += max(-int(rate[k]), min(int(rate[k]), delta))
+        out[k] = y
+    return out

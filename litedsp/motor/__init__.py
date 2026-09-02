@@ -20,5 +20,7 @@ Per-unit conventions (shared by every block, the golden models and the PMSM exam
   constants (``R``, ``L``, ``psi``) follow the same scale.
 """
 
+from litedsp.motor.limiter    import LiteDSPSlewLimiter
+from litedsp.motor.pi         import LiteDSPPIController, LiteDSPDQController
 from litedsp.motor.transforms import (LiteDSPClarke, LiteDSPInverseClarke, LiteDSPSinCos,
     LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)

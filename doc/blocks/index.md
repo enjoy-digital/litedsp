@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-123 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+126 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -168,9 +168,12 @@
 
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
-| [Clarke (abc -> ab)](clarke.md) | `LiteDSPClarke` | 1 | — | Clarke transform: three-phase a/b/c -> stationary alpha/beta (amplitude-invariant). |
-| [Inverse Clarke](inverse_clarke.md) | `LiteDSPInverseClarke` | 1 | — | Inverse Clarke transform: stationary alpha/beta -> three-phase a/b/c. |
-| [Sin/Cos (angle)](sincos.md) | `LiteDSPSinCos` | 1 | — | Angle stream -> ``(cos, sin)`` unit vector on ``iq_layout`` (i = cos, q = sin). |
-| [Angle ramp](angle_ramp.md) | `LiteDSPAngleRamp` | var | — | Free-running electrical-angle source: a phase accumulator emitting an angle stream. |
-| [Park (ab -> dq)](park.md) | `LiteDSPPark` | 2 | — | Park transform: stationary alpha/beta + rotor angle -> rotating d/q. |
-| [Inverse Park](inverse_park.md) | `LiteDSPInversePark` | 2 | — | Inverse Park transform: rotating d/q + rotor angle -> stationary alpha/beta. |
+| [Clarke (abc -> ab)](clarke.md) | `LiteDSPClarke` | 1 | 2 | Clarke transform: three-phase a/b/c -> stationary alpha/beta (amplitude-invariant). |
+| [Inverse Clarke](inverse_clarke.md) | `LiteDSPInverseClarke` | 1 | 1 | Inverse Clarke transform: stationary alpha/beta -> three-phase a/b/c. |
+| [Sin/Cos (angle)](sincos.md) | `LiteDSPSinCos` | 1 | 0 | Angle stream -> ``(cos, sin)`` unit vector on ``iq_layout`` (i = cos, q = sin). |
+| [Angle ramp](angle_ramp.md) | `LiteDSPAngleRamp` | var | 0 | Free-running electrical-angle source: a phase accumulator emitting an angle stream. |
+| [Park (ab -> dq)](park.md) | `LiteDSPPark` | 2 | 4 | Park transform: stationary alpha/beta + rotor angle -> rotating d/q. |
+| [Inverse Park](inverse_park.md) | `LiteDSPInversePark` | 2 | 4 | Inverse Park transform: rotating d/q + rotor angle -> stationary alpha/beta. |
+| [PI controller](pi_controller.md) | `LiteDSPPIController` | 1 | — | PI regulator on a real stream: ``u = clamp(kp*e + integral + feedforward, +/-limit)``. |
+| [d/q current controller](dq_controller.md) | `LiteDSPDQController` | 1 | — | Two lock-stepped PI regulators on a d/q current vector -> d/q voltage command. |
+| [Slew limiter](slew_limiter.md) | `LiteDSPSlewLimiter` | 1 | — | Rate limiter for references (speed/torque ramps): ``y += clamp(x - y, +/-rate)``. |
