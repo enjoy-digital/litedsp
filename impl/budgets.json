@@ -563,6 +563,20 @@
       }
     }
   },
+  "chorus": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 254,
+      "lut": 2431,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 254,
+        "lut": 2431
+      }
+    }
+  },
   "cic_decimator": {
     "ecp5": {
       "bram": 0,
@@ -906,6 +920,20 @@
         "dsp": 0,
         "ff": 33,
         "lut": 139
+      }
+    }
+  },
+  "compressor": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 5,
+      "ff": 390,
+      "lut": 2639,
+      "synth": {
+        "bram": 1,
+        "dsp": 5,
+        "ff": 390,
+        "lut": 2639
       }
     }
   },
@@ -1395,6 +1423,20 @@
       }
     }
   },
+  "delay_line": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 236,
+      "lut": 13118,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 236,
+        "lut": 13118
+      }
+    }
+  },
   "depuncturer": {
     "ecp5": {
       "bram": 0,
@@ -1672,6 +1714,20 @@
         "dsp": 0,
         "ff": 64,
         "lut": 17
+      }
+    }
+  },
+  "exp2": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 43,
+      "lut": 452,
+      "synth": {
+        "bram": 1,
+        "dsp": 0,
+        "ff": 43,
+        "lut": 452
       }
     }
   },
@@ -3711,6 +3767,34 @@
       }
     }
   },
+  "lfo": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 1,
+      "ff": 58,
+      "lut": 318,
+      "synth": {
+        "bram": 0,
+        "dsp": 1,
+        "ff": 58,
+        "lut": 318
+      }
+    }
+  },
+  "limiter": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 5,
+      "ff": 397,
+      "lut": 2790,
+      "synth": {
+        "bram": 2,
+        "dsp": 5,
+        "ff": 397,
+        "lut": 2790
+      }
+    }
+  },
   "lms_equalizer": {
     "ecp5": {
       "bram": 0,
@@ -3827,6 +3911,20 @@
         "dsp": 63,
         "ff": 4386,
         "lut": 2218
+      }
+    }
+  },
+  "log2_lut": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 29,
+      "lut": 555,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 29,
+        "lut": 555
       }
     }
   },

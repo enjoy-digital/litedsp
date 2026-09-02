@@ -93,7 +93,7 @@ from litedsp.audio.dither         import LiteDSPDither
 from litedsp.audio.eq             import LiteDSPAudioEQ
 from litedsp.level.logdb          import LiteDSPLog2, LiteDSPExp2
 from litedsp.audio.dynamics       import LiteDSPCompressor
-from litedsp.audio.effects        import LiteDSPLFO, LiteDSPDelayLine
+from litedsp.audio.effects        import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -716,6 +716,14 @@ def chorus():
     return d, {d.delay, d.feedback, d.damping, d.wet, d.dry, d.mod_depth, d.bypass, d.clear_sat,
                d.sat} | _eps(d.sink, d.sink_mod, d.source), 10.0
 
+def wet_dry_mix():
+    d = LiteDSPWetDryMix(data_width=24, with_csr=False)
+    return d, {d.wet, d.dry, d.clear_sat, d.sat} | _eps(d.sink_dry, d.sink_wet, d.source), 10.0
+
+def reverb():
+    d = LiteDSPReverb(data_width=24, n_channels=2, with_csr=False)
+    return d, {d.room_size, d.damping, d.allpass_gain, d.wet, d.dry} | _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -778,7 +786,8 @@ REGISTRY = {
     "resolver": resolver, "foc": foc,
     "volume": volume, "stereo_matrix": stereo_matrix, "dither": dither, "audio_eq": audio_eq,
     "log2_lut": log2_lut, "exp2": exp2, "compressor": compressor, "limiter": limiter,
-    "lfo": lfo, "delay_line": delay_line, "chorus": chorus,
+    "lfo": lfo, "delay_line": delay_line, "chorus": chorus, "wet_dry_mix": wet_dry_mix,
+    "reverb": reverb,
 }
 
 # Subset for the slower full place-&-route flows.

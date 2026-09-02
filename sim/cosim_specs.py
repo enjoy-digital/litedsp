@@ -1183,6 +1183,25 @@ def spec_delay_line():
     return dut, cols, 2*n - 4, lambda c: [models.delay_line_model(c[0], c[1], 9, feedback=19660,
         damping=8000, wet=22937, dry=13107, max_delay=64), np.array(c[1])]
 
+def spec_wet_dry_mix():
+    from litedsp.audio.effects import LiteDSPWetDryMix
+    n    = 150
+    dut  = LiteDSPWetDryMix(data_width=24, with_csr=False)
+    dut.wet.reset, dut.dry.reset = 20000, -9000
+    cols = _tdm_cols(n, 2) + _tdm_cols(n, 2, seed=5)                 # sink_dry(data, ch), sink_wet.
+    return dut, cols, 2*n - 4, lambda c: [models.wet_dry_mix_model(c[0], c[2], 20000, -9000),
+                                          np.array(c[1])]
+
+def spec_reverb():
+    from litedsp.audio.effects import LiteDSPReverb
+    n    = 120
+    kw   = dict(comb_delays=(37, 41, 43, 47), allpass_delays=(23, 19), stereo_spread=5)
+    dut  = LiteDSPReverb(data_width=24, n_channels=2, with_csr=False, **kw)
+    cols = _tdm_cols(n, 2, lo=-(1 << 21), hi=(1 << 21))
+    return dut, cols, 2*n - 4, lambda c: [models.reverb_model(c[0], c[1],
+        dut.room_size.reset.value, dut.damping.reset.value, dut.allpass_gain.reset.value,
+        dut.wet.reset.value, dut.dry.reset.value, **kw), np.array(c[1])]
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1293,6 +1312,8 @@ SPECS = {
     "compressor_gate":  spec_compressor_gate,
     "lfo":              spec_lfo,
     "delay_line":       spec_delay_line,
+    "wet_dry_mix":      spec_wet_dry_mix,
+    "reverb":           spec_reverb,
 }
 
 # Known failures -----------------------------------------------------------------------------------

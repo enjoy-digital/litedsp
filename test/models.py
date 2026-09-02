@@ -2638,6 +2638,7 @@ def delay_line_model(x, channel, delay, feedback=0, damping=0, wet=1 << 14, dry=
     x  = np.asarray(x, np.int64)
     n  = len(x)
     ch = _per_sample(channel, n)
+    dl = _per_sample(delay, n)
     buf  = [[0]*n_channels for _ in range(depth)]
     filt = [0]*n_channels
     ptr, mod_idx, mod_cur = 0, 0, 0
@@ -2647,11 +2648,11 @@ def delay_line_model(x, channel, delay, feedback=0, damping=0, wet=1 << 14, dry=
         if modulation and c == 0:
             mod_cur, mod_idx = int(mod[mod_idx]), mod_idx + 1
         if modulation:
-            d_full = (int(delay) << MF) + ((int(mod_depth)*mod_cur) >> (15 - MF))
+            d_full = (int(dl[k]) << MF) + ((int(mod_depth)*mod_cur) >> (15 - MF))
             d_full = max(1 << MF, min((max_delay - 2) << MF, d_full))
             d_int, frac = d_full >> MF, d_full & ((1 << MF) - 1)
         else:
-            d_int, frac = max(1, min(max_delay - 2, int(delay))), 0
+            d_int, frac = max(1, min(max_delay - 2, int(dl[k]))), 0
         d0 = buf[(ptr - d_int) % depth][c]
         d1 = buf[(ptr - d_int - 1) % depth][c]
         d  = int(np_saturated(np.int64(d0 + (((d1 - d0)*frac) >> MF)), DW)) if modulation else d0
@@ -2662,3 +2663,30 @@ def delay_line_model(x, channel, delay, feedback=0, damping=0, wet=1 << 14, dry=
         if c == n_channels - 1:
             ptr = (ptr + 1) % depth
     return out
+
+def wet_dry_mix_model(dry_x, wet_x, wet, dry, coeff_frac=15, data_width=24):
+    """Bit-exact reference for litedsp.audio.effects.LiteDSPWetDryMix."""
+    return np_scaled(np.asarray(dry_x, np.int64)*int(dry) + np.asarray(wet_x, np.int64)*int(wet),
+        coeff_frac, data_width)
+
+def reverb_model(x, channel, room_size, damping, allpass_gain, wet, dry, comb_delays,
+    allpass_delays, stereo_spread=23, n_channels=2, coeff_frac=15, data_width=24):
+    """Bit-exact reference for litedsp.audio.effects.LiteDSPReverb: parallel combs (delay
+    lines with wet 1/n, feedback = room_size, damping) summed with saturation, series
+    allpasses (feedback g, dry -g, wet 1), wet/dry mix with the input."""
+    x  = np.asarray(x, np.int64)
+    n  = len(x)
+    ch = _per_sample(channel, n)
+    spread = stereo_spread*(n_channels - 1)
+    n_combs = len(comb_delays)
+    acc = np.zeros(n, np.int64)
+    for d in comb_delays:
+        acc += delay_line_model(x, ch, d + ch*stereo_spread, feedback=room_size, damping=damping,
+            wet=(1 << coeff_frac)//n_combs, dry=0, n_channels=n_channels, max_delay=d + spread + 2,
+            coeff_frac=coeff_frac, data_width=data_width)
+    r = np_saturated(acc, data_width)
+    for d in allpass_delays:
+        r = delay_line_model(r, ch, d + ch*stereo_spread, feedback=allpass_gain, damping=0,
+            wet=(1 << coeff_frac) - 1, dry=-int(allpass_gain), n_channels=n_channels,
+            max_delay=d + spread + 2, coeff_frac=coeff_frac, data_width=data_width)
+    return wet_dry_mix_model(x, r, wet, dry, coeff_frac, data_width)

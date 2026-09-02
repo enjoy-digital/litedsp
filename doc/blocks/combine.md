@@ -19,7 +19,7 @@ together (synchronous join); output appears after a fixed 1-cycle latency.
 |---|---|---|---|
 | `n_channels` | `2` | int | Number of input streams summed (>= 1). Adds ceil(log2(n_channels)) accumulator guard bits before saturation; all inputs must present a sample for any to transfer. |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
-| `layout` | — | none | Payload layout (default ``iq_layout(data_width)``): every signed payload field is summed (``real_layout``/``abc_layout`` work too); unsigned tags (TDM ``channel``) are rejected because a sum of tagged beats has no meaning. |
+| `layout` | — | none | Payload layout (default ``iq_layout(data_width)``): every signed payload field is summed (``real_layout``/``abc_layout`` work too); unsigned tag fields (the TDM ``channel``) are carried from ``sinks[0]`` (all inputs must run in lockstep). |
 
 ## Ports
 

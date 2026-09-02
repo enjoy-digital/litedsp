@@ -11,10 +11,10 @@ import numpy as np
 
 from migen import *
 
-from litedsp.audio.effects import LiteDSPLFO, LiteDSPDelayLine
+from litedsp.audio.effects import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 
 from test.common import run_stream, stream_driver, stream_capture, column
-from test.models import lfo_model, delay_line_model
+from test.models import lfo_model, delay_line_model, wet_dry_mix_model, reverb_model
 
 FS24, FS16 = (1 << 23) - 1, (1 << 15) - 1
 
@@ -127,6 +127,73 @@ class TestDelayLine(unittest.TestCase):
         for kwargs in ({"max_delay": 2}, {"coeff_frac": 16}, {"mod_frac": 0}, {"modulation": 1}):
             with self.assertRaises(ValueError, msg=str(kwargs)):
                 LiteDSPDelayLine(with_csr=False, **kwargs)
+
+class TestWetDryMix(unittest.TestCase):
+    # verify-tier: model — sample-aligned join of two TDM streams, one rounding.
+    def test_bit_exact(self):
+        prng = random.Random(4)
+        n = 120
+        a = [{"data": prng.randint(-FS24, FS24), "channel": k % 2} for k in range(n)]
+        b = [{"data": prng.randint(-FS24, FS24), "channel": k % 2} for k in range(n)]
+        dut = LiteDSPWetDryMix(data_width=24, with_csr=False)
+        dut.wet.reset, dut.dry.reset = 20000, -9000
+        captured = []
+        run_simulation(dut, [
+            stream_driver(dut.sink_dry, a, ["data", "channel"], seed=1, throttle=0.2),
+            stream_driver(dut.sink_wet, b, ["data", "channel"], seed=2, throttle=0.3),
+            stream_capture(dut.source, captured, n, ["data", "channel"], seed=3, ready_rate=0.7),
+        ])
+        ref = wet_dry_mix_model([x["data"] for x in a], [x["data"] for x in b], 20000, -9000)
+        self.assertTrue(np.array_equal(column(captured, "data", 24), ref))
+        self.assertEqual(dut.latency, 1)
+
+class TestReverb(unittest.TestCase):
+    SHORT = dict(comb_delays=(37, 41, 43, 47), allpass_delays=(23, 19), stereo_spread=5)
+
+    def run_reverb(self, dut, beats, throttle=0.2, ready_rate=0.7):
+        cap = run_stream(dut, beats, len(beats), ["data", "channel"], ["data", "channel"],
+            sink_throttle=throttle, source_ready_rate=ready_rate)
+        return column(cap, "data", 24)
+
+    # verify-tier: model — the composite is the composition of the delay-line models (combs
+    # with the per-channel spread, saturated sum, allpasses) and the mix; bit-exact under
+    # backpressure with short delays.
+    def test_bit_exact(self):
+        prng  = random.Random(5)
+        beats = tdm([[prng.randint(-FS24//4, FS24//4) for _ in range(120)] for _ in range(2)])
+        dut   = LiteDSPReverb(data_width=24, n_channels=2, with_csr=False, **self.SHORT)
+        got   = self.run_reverb(dut, beats)
+        ref   = reverb_model([b["data"] for b in beats], [b["channel"] for b in beats],
+            dut.room_size.reset.value, dut.damping.reset.value, dut.allpass_gain.reset.value,
+            dut.wet.reset.value, dut.dry.reset.value, **self.SHORT)
+        self.assertTrue(np.array_equal(got, ref))
+
+    # verify-tier: bound — decay: the impulse-response energy after frame 200 grows with
+    # room_size (0.5 -> 0.9); wet = 0 / dry = 1 is a passthrough within 1 LSB; the L and R
+    # tails differ (stereo spread).
+    def test_decay_passthrough_spread(self):
+        n = 400
+        impulse = tdm([[1 << 20] + [0]*(n - 1), [1 << 20] + [0]*(n - 1)])
+        tails = {}
+        for room in (0.5, 0.9):
+            dut = LiteDSPReverb(data_width=24, n_channels=2, with_csr=False, **self.SHORT)
+            dut.room_size.reset, dut.wet.reset, dut.dry.reset = int(room*32767), 32767, 0
+            y = self.run_reverb(dut, impulse, throttle=0.0, ready_rate=1.0).astype(float)
+            tails[room] = float(np.sum(y[2*200:]**2))
+            if room == 0.9:
+                self.assertFalse(np.array_equal(y[0::2], y[1::2]))       # L != R.
+        self.assertGreater(tails[0.9], 10*tails[0.5])
+        dut = LiteDSPReverb(data_width=24, n_channels=2, with_csr=False, **self.SHORT)
+        dut.wet.reset, dut.dry.reset = 0, 32767
+        prng  = random.Random(6)
+        beats = tdm([[prng.randint(-1000, 1000) for _ in range(40)] for _ in range(2)])
+        y = self.run_reverb(dut, beats)
+        self.assertLessEqual(np.max(np.abs(y - np.array([b["data"] for b in beats]))), 1)
+
+    def test_invalid(self):
+        for kwargs in ({"comb_delays": ()}, {"allpass_delays": (2,)}):
+            with self.assertRaises(ValueError, msg=str(kwargs)):
+                LiteDSPReverb(with_csr=False, **kwargs)
 
 if __name__ == "__main__":
     unittest.main()

@@ -36,16 +36,17 @@ class LiteDSPCombine(LiteXModule):
         guard bits before saturation; all inputs must present a sample for any to transfer.
     layout : list
         Payload layout (default ``iq_layout(data_width)``): every signed payload field is
-        summed (``real_layout``/``abc_layout`` work too); unsigned tags (TDM ``channel``) are
-        rejected because a sum of tagged beats has no meaning.
+        summed (``real_layout``/``abc_layout`` work too); unsigned tag fields (the TDM
+        ``channel``) are carried from ``sinks[0]`` (all inputs must run in lockstep).
     """
     def __init__(self, n_channels=2, data_width=16, with_csr=True, layout=None):
         check(n_channels >= 1, "expected n_channels >= 1")
         if layout is None:
             layout = iq_layout(data_width)
         fields = [(name, shape) for name, shape, *_ in layout]
-        check(all(isinstance(s, tuple) and s[1] for _, s in fields),
-            "expected a layout of signed sample fields (no tags such as 'channel')")
+        tags   = [name for name, s in fields if not (isinstance(s, tuple) and s[1])]
+        fields = [(name, s) for name, s in fields if isinstance(s, tuple) and s[1]]
+        check(fields, "expected at least one signed sample field")
         self.n_channels = n_channels
         self.data_width = data_width
         self.latency    = 1
@@ -76,6 +77,8 @@ class LiteDSPCombine(LiteXModule):
             self.comb += acc.eq(reduce(lambda a, b: a + b,
                 [Mux(self.enable[k], getattr(self.sinks[k], name), 0) for k in range(n_channels)]))
             self.sync += If(advance, getattr(self.source, name).eq(saturated(acc, width)))
+        for name in tags:
+            self.sync += If(advance, getattr(self.source, name).eq(getattr(self.sinks[0], name)))
         self.sync += If(advance, self.source.valid.eq(all_valid))
 
         # CSR.

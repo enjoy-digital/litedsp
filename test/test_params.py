@@ -96,6 +96,8 @@ SPECIFIC = [
     ("lfo",             {"lut_depth": 100}),
     ("delay_line",      {"max_delay": 2}),
     ("delay_line",      {"coeff_frac": 16}),
+    ("reverb",          {"comb_delays": ()}),
+    ("reverb",          {"allpass_delays": (2,)}),
 ]
 
 class TestParams(unittest.TestCase):

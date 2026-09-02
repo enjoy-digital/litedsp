@@ -47,7 +47,11 @@ Output amplitude (signed Q1.15, 1.0 = full scale).
 
 ## FPGA Resources
 
-Not characterized yet (no `impl/budgets.json` entry).
+| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
+|---|---|---|---|---|---|---|
+| ecp5 | 318 | 58 | 0 | 1 | — | — |
+
+Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 
 ## Verification
 

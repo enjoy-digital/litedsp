@@ -235,19 +235,23 @@ class LiteDSPDelayLine(LiteXModule):
         y, ovf = scaled(acc, CF, DW)
 
         self.fsm = fsm = FSM(reset_state="IDLE")
+        # ``sink.ready`` never depends on ``sink.valid`` (only on the modulation join), so the
+        # engine can sit behind an atomic split (the reverb fans one stream out to its combs).
         mod_needed = Signal()                                              # Channel-0 beat: join mod.
+        can_accept = Signal()
         accept     = Signal()
         if modulation:
             self.comb += [
                 mod_needed.eq(tdm_channel(self.sink) == 0),
-                accept.eq(self.sink.valid & (~mod_needed | self.sink_mod.valid)),
+                can_accept.eq(~mod_needed | self.sink_mod.valid),
                 self.sink_mod.ready.eq(fsm.ongoing("IDLE") & ~self.bypass & self.sink.valid & mod_needed),
             ]
         else:
-            self.comb += accept.eq(self.sink.valid)
+            self.comb += can_accept.eq(1)
+        self.comb += accept.eq(self.sink.valid & can_accept)
         fsm.act("IDLE",
             If(~self.bypass,
-                self.sink.ready.eq(accept),
+                self.sink.ready.eq(can_accept),
                 If(accept,
                     NextValue(x, self.sink.data),
                     NextValue(ch, tdm_channel(self.sink)),
@@ -366,3 +370,209 @@ class LiteDSPDelayLine(LiteXModule):
             self._mod_depth = CSRStorage(len(self.mod_depth), name="mod_depth",
                 description="Modulation depth in frames (delay += mod * mod_depth).")
             self.comb += self.mod_depth.eq(self._mod_depth.storage)
+
+# Wet/Dry Mix --------------------------------------------------------------------------------------
+
+@ResetInserter()
+class LiteDSPWetDryMix(LiteXModule):
+    """Two-input gain mix on TDM streams: ``y = dry*sink_dry + wet*sink_wet`` (signed Q1.15 gains).
+
+    Both sinks are consumed together (sample-aligned join; put a
+    :class:`~litedsp.stream.fifo.LiteDSPStreamFIFO` on the dry branch to absorb a wet
+    branch's pipeline fill). One rounding + saturation, sticky ``sat``, latency 1, two
+    multipliers.
+    """
+    def __init__(self, data_width=24, n_channels=2, coeff_frac=15, with_csr=True):
+        check(n_channels >= 1, "expected n_channels >= 1")
+        check(1 <= coeff_frac <= 15, "expected 1 <= coeff_frac <= 15")
+        check(data_width >= 8, "expected data_width >= 8")
+        check(0 < coeff_frac <= 15, "expected 0 < coeff_frac <= 15")
+        self.data_width = data_width
+        self.n_channels = n_channels
+        self.coeff_frac = coeff_frac
+        self.latency    = 1
+        self.sink_dry = stream.Endpoint(tdm_layout(data_width, n_channels))
+        self.sink_wet = stream.Endpoint(tdm_layout(data_width, n_channels))
+        self.source   = stream.Endpoint(tdm_layout(data_width, n_channels))
+        self.wet = Signal((16, True), reset=1 << (coeff_frac - 1))
+        self.dry = Signal((16, True), reset=1 << (coeff_frac - 1))
+        self.clear_sat = Signal()
+        self.sat       = Signal()
+
+        # # #
+
+        adv  = Signal()
+        xfer = Signal()
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            self.sink_dry.ready.eq(adv & self.sink_wet.valid),
+            self.sink_wet.ready.eq(adv & self.sink_dry.valid),
+            xfer.eq(adv & self.sink_dry.valid & self.sink_wet.valid),
+        ]
+        p_dry = Signal((data_width + 17, True))
+        p_wet = Signal((data_width + 17, True))
+        acc   = Signal((data_width + 18, True))
+        self.comb += [
+            p_dry.eq(self.sink_dry.data*self.dry),
+            p_wet.eq(self.sink_wet.data*self.wet),
+            acc.eq(p_dry + p_wet),
+        ]
+        y, ovf = scaled(acc, coeff_frac, data_width)
+        self.sync += If(adv,
+            self.source.data.eq(y),
+            self.source.valid.eq(xfer),
+            self.source.first.eq(self.sink_dry.first),
+            self.source.last.eq(self.sink_dry.last),
+        )
+        if n_channels > 1:
+            self.sync += If(adv, self.source.channel.eq(self.sink_dry.channel))
+        self.sync += If(self.clear_sat, self.sat.eq(0)).Elif(xfer & ovf, self.sat.eq(1))
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._wet = CSRStorage(16, reset=self.wet.reset.value, name="wet", description="Wet gain (signed Q1.15).")
+        self._dry = CSRStorage(16, reset=self.dry.reset.value, name="dry", description="Dry gain (signed Q1.15).")
+        self._control = CSRStorage(fields=[
+            CSRField("clear_sat", size=1, offset=0, pulse=True, description="Clear the saturation flag."),
+        ])
+        self._status = CSRStatus(fields=[
+            CSRField("saturation", size=1, description="Output saturated since the last clear."),
+        ])
+        self.comb += [
+            self.wet.eq(self._wet.storage), self.dry.eq(self._dry.storage),
+            self.clear_sat.eq(self._control.fields.clear_sat),
+            self._status.fields.saturation.eq(self.sat),
+        ]
+
+# Reverb -------------------------------------------------------------------------------------------
+
+REVERB_COMBS    = (1116, 1188, 1277, 1356)
+REVERB_ALLPASS  = (556, 441)
+
+class LiteDSPReverb(LiteXModule):
+    """Schroeder / Freeverb-style reverb: parallel damped feedback combs, series allpasses, mix.
+
+    The input fans out to ``len(comb_delays)`` :class:`LiteDSPDelayLine` combs (``feedback =
+    room_size``, ``damping``, wet ``1/n_combs`` / dry 0), whose outputs are summed and passed
+    through ``len(allpass_delays)`` series Schroeder allpasses (delay
+    lines with ``feedback = g``, ``dry = -g``, ``wet = 1``), then mixed with the dry signal by
+    :class:`LiteDSPWetDryMix` (``wet``/``dry`` controls). Channel ``c`` of the TDM stream adds
+    ``c*stereo_spread`` frames to every delay for a decorrelated stereo tail. All delays are
+    per channel in one buffer per line. ``room_size``, ``damping``, ``allpass_gain``, ``wet``,
+    ``dry`` are runtime controls; the composite's ``latency`` is the beat-aligned mix latency
+    (the comb/allpass engines add no sample delay).
+
+    Parameters
+    ----------
+    comb_delays : tuple
+        Comb delays in frames (Freeverb's first four at 44.1 kHz by default).
+    allpass_delays : tuple
+        Allpass delays in frames.
+    stereo_spread : int
+        Extra frames per channel index.
+    """
+    def __init__(self, data_width=24, n_channels=2, comb_delays=REVERB_COMBS,
+        allpass_delays=REVERB_ALLPASS, stereo_spread=23, coeff_frac=15, with_csr=True):
+        check(len(comb_delays) >= 1, "expected at least one comb")
+        check(len(allpass_delays) >= 1, "expected at least one allpass")
+        check(all(d >= 4 for d in comb_delays) and all(d >= 4 for d in allpass_delays),
+            "expected delays >= 4 frames")
+        self.data_width = data_width
+        self.n_channels = n_channels
+        self.comb_delays    = tuple(comb_delays)
+        self.allpass_delays = tuple(allpass_delays)
+        self.stereo_spread  = stereo_spread
+        self.sink   = stream.Endpoint(tdm_layout(data_width, n_channels))
+        self.source = stream.Endpoint(tdm_layout(data_width, n_channels))
+        self.room_size    = Signal((16, True), reset=int(0.84*32767))     # Comb feedback.
+        self.damping      = Signal(15, reset=int(0.2*32767))               # Comb damping.
+        self.allpass_gain = Signal((16, True), reset=int(0.5*32767))
+        self.wet          = Signal((16, True), reset=int(0.3*32767))
+        self.dry          = Signal((16, True), reset=int(0.7*32767))
+
+        # # #
+
+        from litedsp.stream.split   import LiteDSPSplit
+        from litedsp.stream.combine import LiteDSPCombine
+        from litedsp.stream.fifo    import LiteDSPStreamFIFO
+        layout  = tdm_layout(data_width, n_channels)
+        n_combs = len(comb_delays)
+        spread  = stereo_spread*(n_channels - 1)
+
+        # Fan-out: dry path (elastic) and the comb bank.
+        # ----------------------------------------------
+        self.split = LiteDSPSplit(n=n_combs + 1, layout=layout)
+        self.dry_fifo = LiteDSPStreamFIFO(depth=64, data_width=data_width, layout=layout, with_csr=False)
+        self.comb += [self.sink.connect(self.split.sink), self.split.sources[0].connect(self.dry_fifo.sink)]
+        self.combs = []
+        for k, d in enumerate(comb_delays):
+            comb = LiteDSPDelayLine(data_width=data_width, n_channels=n_channels,
+                max_delay=d + spread + 2, coeff_frac=coeff_frac, with_csr=False)
+            comb.delay.reset = d
+            comb.wet.reset, comb.dry.reset = (1 << coeff_frac)//n_combs, 0
+            self.add_module(name=f"comb{k}", module=comb)
+            self.comb += [
+                comb.feedback.eq(self.room_size), comb.damping.eq(self.damping),
+                self.split.sources[k + 1].connect(comb.sink),
+            ]
+            self.combs.append(comb)
+        # Per-channel spread: the delay control is shared; the spread is applied by the
+        # engines through the channel index of each beat (delay + c*stereo_spread).
+        for comb in self.combs:
+            comb_delay = Signal.like(comb.delay)
+            self.comb += [
+                comb_delay.eq(comb.delay.reset.value + tdm_channel(comb.sink)*stereo_spread),
+                comb.delay.eq(comb_delay),
+            ]
+
+        # Sum of the combs (tag from the first), allpass chain, mix.
+        # ---------------------------------------------------------
+        self.sum = LiteDSPCombine(n_channels=n_combs, data_width=data_width, layout=layout,
+            with_csr=False)
+        self.comb += [comb.source.connect(self.sum.sinks[k]) for k, comb in enumerate(self.combs)]
+        last = self.sum.source
+        self.allpasses = []
+        for k, d in enumerate(allpass_delays):
+            ap = LiteDSPDelayLine(data_width=data_width, n_channels=n_channels,
+                max_delay=d + spread + 2, coeff_frac=coeff_frac, with_csr=False)
+            ap.wet.reset = (1 << coeff_frac) - 1
+            self.add_module(name=f"allpass{k}", module=ap)
+            ap_delay = Signal.like(ap.delay)
+            self.comb += [
+                ap.feedback.eq(self.allpass_gain), ap.dry.eq(-self.allpass_gain), ap.damping.eq(0),
+                ap_delay.eq(d + tdm_channel(ap.sink)*stereo_spread), ap.delay.eq(ap_delay),
+                last.connect(ap.sink),
+            ]
+            self.allpasses.append(ap)
+            last = ap.source
+        self.mix = LiteDSPWetDryMix(data_width=data_width, n_channels=n_channels,
+            coeff_frac=coeff_frac, with_csr=False)
+        self.comb += [
+            self.mix.wet.eq(self.wet), self.mix.dry.eq(self.dry),
+            self.dry_fifo.source.connect(self.mix.sink_dry),
+            last.connect(self.mix.sink_wet),
+            self.mix.source.connect(self.source),
+        ]
+        self.latency = self.mix.latency
+
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._room_size    = CSRStorage(16, reset=self.room_size.reset.value, name="room_size",
+            description="Comb feedback (signed Q1.15): decay time.")
+        self._damping      = CSRStorage(15, reset=self.damping.reset.value, name="damping",
+            description="Comb feedback low-pass (Q0.15): high-frequency decay.")
+        self._allpass_gain = CSRStorage(16, reset=self.allpass_gain.reset.value, name="allpass_gain",
+            description="Allpass diffusion gain (signed Q1.15).")
+        self._wet = CSRStorage(16, reset=self.wet.reset.value, name="wet", description="Wet gain (signed Q1.15).")
+        self._dry = CSRStorage(16, reset=self.dry.reset.value, name="dry", description="Dry gain (signed Q1.15).")
+        self.comb += [
+            self.room_size.eq(self._room_size.storage),
+            self.damping.eq(self._damping.storage),
+            self.allpass_gain.eq(self._allpass_gain.storage),
+            self.wet.eq(self._wet.storage),
+            self.dry.eq(self._dry.storage),
+        ]

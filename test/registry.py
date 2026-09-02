@@ -172,6 +172,8 @@ VSPEC = {
     "delay_line":         _v("delay_line_model", cosim=True),
     "chorus":             _v("delay_line_model"),               # Modulation sink consumed once per
                                                                # frame: not generic-TB co-simulable.
+    "wet_dry_mix":        _v("wet_dry_mix_model", cosim=True),
+    "reverb":             _v("reverb_model", cosim=True),       # Cosim spec uses short delays.
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),
