@@ -84,6 +84,20 @@
       }
     }
   },
+  "angle_tracker": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 97,
+      "lut": 677,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 97,
+        "lut": 677
+      }
+    }
+  },
   "bitstream_decimator": {
     "ecp5": {
       "bram": 0,
@@ -5390,6 +5404,20 @@
         "dsp": 0,
         "ff": 35,
         "lut": 141
+      }
+    }
+  },
+  "smo_observer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 856,
+      "lut": 2775,
+      "synth": {
+        "bram": 0,
+        "dsp": 4,
+        "ff": 856,
+        "lut": 2775
       }
     }
   },

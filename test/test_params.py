@@ -77,6 +77,7 @@ SPECIFIC = [
     ("angle_tracker",   {"kp_shift": 32}),
     ("angle_tracker",   {"frac_bits": -1}),
     ("smo_observer",    {"gain_frac": 16}),
+    ("resolver",        {"decimation": 2}),                # Excitation period >= 4 samples.
 ]
 
 class TestParams(unittest.TestCase):

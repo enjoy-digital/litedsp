@@ -157,6 +157,7 @@ VSPEC = {
     "hall_decoder":       _v("hall_sector_model", latency="n/a", rate=None),
     "angle_tracker":      _v("angle_tracker_model", cosim=True),
     "smo_observer":       _v("smo_model", cosim=True),
+    "resolver":           _v("resolver_model", rate=None),     # Two sources: no generic cosim.
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

@@ -2341,3 +2341,44 @@ def pmsm_steady_state(omega_pu, iq_pu, r_pu=0.05, l_pu=0.3, psi_pu=0.6, n=2000, 
     q     = lambda x: np.clip(np.round(x*fs), -fs, fs).astype(np.int64)
     return (q(i_ab.real), q(i_ab.imag), q(v_ab.real), q(v_ab.imag),
             np.round(theta/(2*np.pi)*(1 << 16)).astype(np.int64))
+
+# Motor Control: Resolver ----------------------------------------------------------------------------
+
+def resolver_model(sin_in, cos_in, decimation=32, phase_offset=0, data_width=16, angle_width=16,
+    kp_shift=3, ki_shift=8, frac_bits=14, stages=None):
+    """Bit-exact reference for litedsp.motor.resolver.LiteDSPResolverDigital.
+
+    Returns ``(exc, raw_angles, angles)``: the excitation sample per accepted input, the
+    demodulated angle per excitation period (CORDIC at the accumulator width) and the tracked
+    angle stream (one per period).
+    """
+    D     = decimation
+    scale = (1 << (data_width - 1)) - 1
+    ref   = np.round(np.sin(2*np.pi*np.arange(D)/D)*scale).astype(np.int64)
+    AW    = 2*data_width + int(math.ceil(math.log2(D)))
+    if stages is None:
+        stages = angle_width
+    exc, raw = [], []
+    acc_s = acc_c = 0
+    for k, (s, c) in enumerate(zip(np.asarray(sin_in, np.int64), np.asarray(cos_in, np.int64))):
+        phase = k % D
+        exc.append(int(ref[phase]))
+        dem   = int(ref[(phase + phase_offset) % D])
+        acc_s += int(s)*dem
+        acc_c += int(c)*dem
+        if phase == D - 1:
+            raw.append(cordic_vectoring_model(acc_c, acc_s, AW - 1, angle_width, stages))
+            acc_s = acc_c = 0
+    angles, _ = angle_tracker_model(raw, kp_shift, ki_shift, angle_width, frac_bits)
+    return np.array(exc, np.int64), np.array(raw, np.int64), angles
+
+def resolver_stimulus(theta, decimation=32, delay=0, amplitude=0.8, data_width=16):
+    """Float resolver windings (test stimulus): ``sin(theta)*ref`` / ``cos(theta)*ref`` with the
+    excitation carrier delayed by ``delay`` samples (analog loop delay); theta in radians per
+    sample. Returns Q1.(N-1) integer (sin_in, cos_in)."""
+    D     = decimation
+    scale = (1 << (data_width - 1)) - 1
+    k     = np.arange(len(theta))
+    ref   = np.sin(2*np.pi*((k - delay) % D)/D)
+    q     = lambda x: np.clip(np.round(x*scale), -scale, scale).astype(np.int64)
+    return q(amplitude*np.sin(theta)*ref), q(amplitude*np.cos(theta)*ref)

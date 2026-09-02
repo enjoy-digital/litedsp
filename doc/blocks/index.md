@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-135 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+136 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -184,5 +184,6 @@
 | [Over-current trip](overcurrent_trip.md) | `LiteDSPOvercurrentTrip` | 0 | 0 | Window comparator on a three-phase stream: combinational passthrough + sticky trip. |
 | [Quadrature encoder](quadrature_decoder.md) | `LiteDSPQuadratureDecoder` | var | 2 | Incremental encoder (A/B/Z) interface: position, direction, speed and electrical angle. |
 | [Hall sensor decoder](hall_decoder.md) | `LiteDSPHallDecoder` | var | 0 | Three 120-degree Hall sensors -> sector, direction, speed and (interpolated) angle. |
-| [Angle tracker (PLL)](angle_tracker.md) | `LiteDSPAngleTracker` | 1 | — | Type-II tracking loop on an angle stream: filtered angle + speed (angle PLL). |
-| [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 18 | — | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |
+| [Angle tracker (PLL)](angle_tracker.md) | `LiteDSPAngleTracker` | 1 | 0 | Type-II tracking loop on an angle stream: filtered angle + speed (angle PLL). |
+| [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 18 | 4 | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |
+| [Resolver-to-digital](resolver.md) | `LiteDSPResolverDigital` | 20 | — | Resolver-to-digital converter: excitation output, synchronous demodulation, tracking loop. |

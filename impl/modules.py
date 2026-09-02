@@ -86,6 +86,7 @@ from litedsp.motor.pwm            import LiteDSPPWM
 from litedsp.motor.sense          import LiteDSPSigmaDeltaFilter, LiteDSPOvercurrentTrip
 from litedsp.motor.encoder        import LiteDSPQuadratureDecoder, LiteDSPHallDecoder
 from litedsp.motor.observer       import LiteDSPAngleTracker, LiteDSPSMObserver
+from litedsp.motor.resolver       import LiteDSPResolverDigital
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -633,6 +634,11 @@ def smo_observer():
     return d, {d.g_v, d.g_r, d.k_sm, d.lpf_shift, d.clear, d.emf_alpha, d.emf_beta} | \
            _eps(d.sink_i, d.sink_v, d.source), 10.0
 
+def resolver():
+    d = LiteDSPResolverDigital(data_width=16, angle_width=16, with_csr=False)
+    return d, {d.phase_offset, d.kp_shift, d.ki_shift, d.speed, d.raw_angle, d.raw_mag} | \
+           _eps(d.sink, d.source, d.source_exc), 10.0
+
 def pwm():
     d = LiteDSPPWM(data_width=16, period_width=16, dead_time_width=8, with_csr=False)
     return d, {d.pwm_h, d.pwm_l, d.trigger, d.fault, d.period, d.dead_time, d.enable,
@@ -698,6 +704,7 @@ REGISTRY = {
     "bitstream_decimator": bitstream_decimator, "sigma_delta_filter": sigma_delta_filter,
     "overcurrent_trip": overcurrent_trip, "quadrature_decoder": quadrature_decoder,
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
+    "resolver": resolver,
 }
 
 # Subset for the slower full place-&-route flows.

@@ -8,6 +8,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 |---|---|---|---|
 | `agc` | 390/126/0/4/113.8/100.0 | 231/126/0/2/114.7/100.0 | 203/122/0/2/246.6/100.0 |
 | `angle_ramp` | 33/33/0/0/- | - | - |
+| `angle_tracker` | 677/97/0/0/- | - | - |
 | `bitstream_decimator` | 677/240/0/0/- | - | - |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- | 86/55/1/0/- |
@@ -112,6 +113,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `sincos` | 614/23/0/0/- | - | - |
 | `sincos_cordic` | 1824/883/0/2/- | - | - |
 | `slew_limiter` | 141/35/0/0/- | - | - |
+| `smo_observer` | 2775/856/0/4/- | - | - |
 | `soft_demapper` | 211/44/0/2/87.3 | 46/10/0/2/- | 47/10/0/2/- |
 | `stats` | 273/186/0/2/114.2 | 92/114/0/3/- | 92/114/0/3/- |
 | `stream_fifo` | 32/14/0/0/231.8 | 40/14/0/0/- | 36/14/0/0/- |

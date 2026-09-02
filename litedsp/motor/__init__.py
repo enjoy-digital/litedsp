@@ -25,6 +25,7 @@ from litedsp.motor.limiter    import LiteDSPSlewLimiter
 from litedsp.motor.observer   import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.pi         import LiteDSPPIController, LiteDSPDQController
 from litedsp.motor.pwm        import LiteDSPPWM
+from litedsp.motor.resolver   import LiteDSPResolverDigital
 from litedsp.motor.sense      import LiteDSPSigmaDeltaFilter, LiteDSPOvercurrentTrip
 from litedsp.motor.svpwm      import LiteDSPSVPWM
 from litedsp.motor.transforms import (LiteDSPClarke, LiteDSPInverseClarke, LiteDSPSinCos,
