@@ -103,6 +103,8 @@ from litedsp.stream.adapt          import LiteDSPIQPack, LiteDSPIQUnpack, LiteDS
 from litedsp.stream.csr_io         import LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPNullSink
 from litedsp.stream.framing        import LiteDSPStreamFramer, LiteDSPStreamDeframer
 from litedsp.stream.timestamp      import LiteDSPTimestamper, LiteDSPTimeUntagger
+from litedsp.motor.transforms      import (LiteDSPClarke, LiteDSPInverseClarke, LiteDSPSinCos,
+    LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -236,6 +238,13 @@ ENTRIES = [
     # LiteDSPTimeCore is CSR-only (no stream ports), so it lives outside the palette.
     ("timestamper",        LiteDSPTimestamper,           {},                                     "stream",     "Timestamper",           None),
     ("time_untagger",      LiteDSPTimeUntagger,          {},                                     "stream",     "Time untagger",         None),
+    # motor ----------------------------------------------------------------------------------------
+    ("clarke",             LiteDSPClarke,                {},                                     "motor",      "Clarke (abc -> ab)",    None),
+    ("inverse_clarke",     LiteDSPInverseClarke,         {},                                     "motor",      "Inverse Clarke",        None),
+    ("sincos",             LiteDSPSinCos,                {},                                     "motor",      "Sin/Cos (angle)",       {"method": ["rom", "cordic"]}),
+    ("angle_ramp",         LiteDSPAngleRamp,             {},                                     "motor",      "Angle ramp",            None),
+    ("park",               LiteDSPPark,                  {},                                     "motor",      "Park (ab -> dq)",       {"method": ["rom", "cordic"]}),
+    ("inverse_park",       LiteDSPInversePark,           {},                                     "motor",      "Inverse Park",          {"method": ["rom", "cordic"]}),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

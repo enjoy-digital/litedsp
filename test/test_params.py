@@ -56,6 +56,11 @@ SPECIFIC = [
     ("rs_encoder",      {"n": 254}),                       # n fixed at 255 over GF(2^8).
     ("rs_encoder",      {"k": 222}),                       # Odd n - k.
     ("rs_decoder",      {"k": 221}),                       # t = 17 > 16.
+    ("clarke",          {"three_wire": "yes"}),            # Bool required.
+    ("sincos",          {"method": "table"}),
+    ("sincos",          {"lut_depth": 1000}),              # Power of two >= 8 required.
+    ("sincos",          {"lut_depth": 1 << 17}),           # log2(depth) <= angle_width.
+    ("angle_ramp",      {"phase_bits": 8}),                # phase_bits >= angle_width.
 ]
 
 class TestParams(unittest.TestCase):

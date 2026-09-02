@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-117 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+123 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -143,11 +143,11 @@
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
 | [Combine (sum)](combine.md) | `LiteDSPCombine` | 1 | 0 | Sum ``n_channels`` complex I/Q streams into one, with per-channel enable and saturation. |
-| [Split (fan-out)](split.md) | `LiteDSPSplit` | 0 | — | Fan-out one I/Q stream to ``n`` identical sources (all consumed together). |
-| [Delay](delay.md) | `LiteDSPDelay` | 1 | — | Delay an I/Q stream by ``depth`` cycles (data and valid travel together). |
+| [Split (fan-out)](split.md) | `LiteDSPSplit` | 0 | — | Fan-out one stream to ``n`` identical sources (all consumed together). |
+| [Delay](delay.md) | `LiteDSPDelay` | 1 | — | Delay a stream by ``depth`` cycles (payload and valid travel together). |
 | [Skid buffer](skid_buffer.md) | `LiteDSPSkidBuffer` | 0 | — | Elastic timing-slack buffer for an I/Q stream (registers both valid and ready paths). |
-| [Channel mux](channel_mux.md) | `LiteDSPChannelMux` | 0 | — | Route one of ``n`` I/Q sinks to a single source, selected by ``sel`` (runtime). |
-| [Channel demux](channel_demux.md) | `LiteDSPChannelDemux` | 0 | — | Route a single I/Q sink to one of ``n`` sources, selected by ``sel`` (runtime). |
+| [Channel mux](channel_mux.md) | `LiteDSPChannelMux` | 0 | — | Route one of ``n`` sinks to a single source, selected by ``sel`` (runtime). |
+| [Channel demux](channel_demux.md) | `LiteDSPChannelDemux` | 0 | — | Route a single sink to one of ``n`` sources, selected by ``sel`` (runtime). |
 | [Capture (scope)](capture.md) | `LiteDSPCapture` | var | — | Scope-like capture: on a trigger, record ``depth`` I/Q samples to RAM, then stream them out. |
 | [Conjugate](conjugate.md) | `LiteDSPConjugate` | 0 | — | Complex conjugate: ``q -> -q``. |
 | [Swap I/Q](swap_iq.md) | `LiteDSPSwapIQ` | 0 | — | Swap I and Q (a +/-90 deg rotation / spectrum mirror). |
@@ -163,3 +163,14 @@
 | [Deframer](deframer.md) | `LiteDSPStreamDeframer` | 0 | — | Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each frame. |
 | [Timestamper](timestamper.md) | `LiteDSPTimestamper` | 0 | — | Tag the I/Q stream with its ingress time (``timestamp``/``stream_id`` params, latency 0). |
 | [Time untagger](time_untagger.md) | `LiteDSPTimeUntagger` | 0 | — | Strip the ``timestamp``/``stream_id`` params: tagged I/Q -> plain I/Q (latency 0). |
+
+## Motor Control (`motor/`)
+
+| Block | Class | Latency | DSP | Description |
+|---|---|---|---|---|
+| [Clarke (abc -> ab)](clarke.md) | `LiteDSPClarke` | 1 | — | Clarke transform: three-phase a/b/c -> stationary alpha/beta (amplitude-invariant). |
+| [Inverse Clarke](inverse_clarke.md) | `LiteDSPInverseClarke` | 1 | — | Inverse Clarke transform: stationary alpha/beta -> three-phase a/b/c. |
+| [Sin/Cos (angle)](sincos.md) | `LiteDSPSinCos` | 1 | — | Angle stream -> ``(cos, sin)`` unit vector on ``iq_layout`` (i = cos, q = sin). |
+| [Angle ramp](angle_ramp.md) | `LiteDSPAngleRamp` | var | — | Free-running electrical-angle source: a phase accumulator emitting an angle stream. |
+| [Park (ab -> dq)](park.md) | `LiteDSPPark` | 2 | — | Park transform: stationary alpha/beta + rotor angle -> rotating d/q. |
+| [Inverse Park](inverse_park.md) | `LiteDSPInversePark` | 2 | — | Inverse Park transform: rotating d/q + rotor angle -> stationary alpha/beta. |

@@ -1850,3 +1850,95 @@ def ldpc_decode_model(llrs, llr_bits=4, max_iters=8):
         if all_sat:
             return [int(b) for b in (app[:LDPC_K] < 0).astype(np.uint8)], it, True
     return [int(b) for b in (app[:LDPC_K] < 0).astype(np.uint8)], max_iters, False
+
+# Motor Control: Reference-Frame Transforms --------------------------------------------------------
+
+CLARKE_C_1_3   = int(round((1/3)*(1 << 15)))             # Q1.15 transform constants (as RTL).
+CLARKE_C_1_SQ3 = int(round((1/math.sqrt(3))*(1 << 15)))
+CLARKE_C_SQ3_2 = int(round((math.sqrt(3)/2)*(1 << 15)))
+
+def clarke_model(a, b, c, data_width=16, three_wire=False):
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPClarke. Returns (alpha, beta)."""
+    a, b, c = (np.asarray(v, np.int64) for v in (a, b, c))
+    if three_wire:
+        alpha = np.array(a, np.int64)
+        beta  = np_scaled((a + 2*b)*CLARKE_C_1_SQ3, 15, data_width)
+    else:
+        alpha = np_scaled((2*a - b - c)*CLARKE_C_1_3, 15, data_width)
+        beta  = np_scaled((b - c)*CLARKE_C_1_SQ3, 15, data_width)
+    return alpha, beta
+
+def inverse_clarke_model(alpha, beta, data_width=16):
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPInverseClarke. Returns (a, b, c)."""
+    alpha, beta = np.asarray(alpha, np.int64), np.asarray(beta, np.int64)
+    kb   = beta*CLARKE_C_SQ3_2                # sqrt(3)/2 * beta, Q.15 domain.
+    half = alpha*(1 << 14)                    # alpha/2, Q.15 domain.
+    return (np.array(alpha, np.int64),
+            np_scaled(kb - half, 15, data_width),
+            np_scaled(-kb - half, 15, data_width))
+
+def cordic_rotation_model(x, y, z, data_width=16, angle_width=16, stages=None):
+    """Bit-exact reference for litedsp.generation.cordic.LiteDSPCORDIC rotation (one vector).
+
+    Mirrors :func:`cordic_vectoring_model` for the rotation mode: pre-rotation by pi when
+    |z| > pi/2, per-stage floor shifts, the angle_width-quantized atan LUT, and the final
+    Q1.15 1/K gain compensation with round + saturate. Returns ``(x, y)``.
+    """
+    if stages is None:
+        stages = data_width
+    W, Wz = data_width + 2, angle_width + 2
+    PI    = 1 << (angle_width - 1)
+    atan  = [int(round(math.atan(2.0**(-i))/(2*math.pi)*(1 << angle_width))) for i in range(stages)]
+    gain  = 1.0
+    for i in range(stages):
+        gain *= math.sqrt(1 + 2.0**(-2*i))
+    kinv  = int(round((1/gain)*((1 << 15) - 1)))
+    wx, wz, wa = _wrapper(W), _wrapper(Wz), _wrapper(angle_width)
+    x, y, z = int(x), int(y), wa(int(z))
+    # Pre-rotation into the convergence region (|z| > pi/2 -> rotate by pi first).
+    flip = ((z >> (angle_width - 1)) & 1) ^ ((z >> (angle_width - 2)) & 1)
+    if flip:
+        x, y, z = -x, -y, wa(z + PI)
+    x, y, z = wx(x), wx(y), wz(z)
+    # Iterations (d = sign(z): drive z -> 0).
+    for i in range(stages):
+        sh_x, sh_y = x >> i, y >> i
+        if z >= 0:
+            x, y, z = wx(x - sh_y), wx(y + sh_x), wz(z - atan[i])
+        else:
+            x, y, z = wx(x + sh_y), wx(y - sh_x), wz(z + atan[i])
+    return (int(np_scaled(np.int64(x*kinv), 15, data_width)),
+            int(np_scaled(np.int64(y*kinv), 15, data_width)))
+
+def sincos_model(angle, data_width=16, angle_width=16, lut_depth=1024, method="rom", stages=None):
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPSinCos. Returns (cos, sin)."""
+    angle = np.asarray(angle, np.int64)
+    if method == "rom":
+        addr_bits    = int(round(np.log2(lut_depth)))
+        cos_t, sin_t = nco_lut(lut_depth, data_width)
+        addr = (angle & ((1 << angle_width) - 1)) >> (angle_width - addr_bits)
+        return cos_t[addr], sin_t[addr]
+    scale = (1 << (data_width - 1)) - 1
+    out   = [cordic_rotation_model(scale, 0, int(z), data_width, angle_width, stages) for z in angle]
+    return (np.array([o[0] for o in out], np.int64), np.array([o[1] for o in out], np.int64))
+
+def angle_ramp_model(phase_inc, n, angle_width=16, phase_bits=32):
+    """Reference for litedsp.motor.transforms.LiteDSPAngleRamp: n signed angles."""
+    mask, wrap = (1 << phase_bits) - 1, _wrapper(angle_width)
+    phase, out = 0, []
+    for _ in range(n):
+        phase = (phase + phase_inc) & mask
+        out.append(wrap(phase >> (phase_bits - angle_width)))
+    return np.array(out, np.int64)
+
+def park_model(alpha, beta, angle, data_width=16, angle_width=16, lut_depth=1024, method="rom",
+    stages=None):
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPPark: (alpha, beta, theta) -> (d, q)."""
+    cos, sin = sincos_model(angle, data_width, angle_width, lut_depth, method, stages)
+    return mixer_model(alpha, beta, cos, sin, mode="down", data_width=data_width)
+
+def inverse_park_model(d, q, angle, data_width=16, angle_width=16, lut_depth=1024, method="rom",
+    stages=None):
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPInversePark: (d, q, theta) -> (alpha, beta)."""
+    cos, sin = sincos_model(angle, data_width, angle_width, lut_depth, method, stages)
+    return mixer_model(d, q, cos, sin, mode="up", data_width=data_width)

@@ -23,7 +23,7 @@ Building block for carrier/timing loops. Output is the angle in signed phase uni
 | Port | Direction | Layout |
 |---|---|---|
 | `sink` | sink | iq |
-| `source` | source | raw |
+| `source` | source | angle |
 
 Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 

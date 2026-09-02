@@ -64,7 +64,8 @@ class TestConstructorSpace(unittest.TestCase):
     # profile keeps this < 1 min).
     BLOCKS = ["nco", "mixer", "fir_real", "fir_complex", "fir_decimator", "fir_interpolator",
               "cic_decimator", "cic_interpolator", "iir_biquad", "gain", "clipper",
-              "dc_offset", "delay", "combine", "split", "window", "goertzel", "diff_encoder"]
+              "dc_offset", "delay", "combine", "split", "window", "goertzel", "diff_encoder",
+              "clarke", "sincos", "park"]
 
     def test_sampled_constructors_elaborate(self):
         from migen.fhdl.verilog import convert

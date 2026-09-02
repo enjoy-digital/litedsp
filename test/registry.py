@@ -32,7 +32,7 @@ def _v(model=None, latency="check", rate=(1, 1), cosim=False):
 VSPEC = {
     # generation (sources: no input -> latency n/a; rate = outputs only).
     "nco":                _v("nco_model",              latency="n/a", rate=None, cosim=True),
-    "cordic_rot":         _v(latency="check"),
+    "cordic_rot":         _v("cordic_rotation_model", cosim=True),   # Model shared with sincos.
     "cordic_vec":         _v(latency="check"),
     "chirp":              _v(latency="n/a", rate=None),
     "noise_source":       _v(latency="n/a", rate=None),
@@ -137,6 +137,14 @@ VSPEC = {
     "histogram":          _v(latency="variable", rate=None),
     "energy_detector":    _v(),
     "error_counter":      _v(latency="n/a", rate=None),        # Sink-only (CSR results).
+    # motor (transforms are 1:1 maps; Park joins two sinks, so its cycle latency is pinned
+    # in test_transforms rather than by the generic single-sink check).
+    "clarke":             _v("clarke_model", cosim=True),
+    "inverse_clarke":     _v("inverse_clarke_model", cosim=True),
+    "sincos":             _v("sincos_model", cosim=True),
+    "angle_ramp":         _v("angle_ramp_model", latency="n/a", rate=None, cosim=True),
+    "park":               _v("park_model", cosim=True),
+    "inverse_park":       _v("inverse_park_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

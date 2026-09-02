@@ -77,6 +77,8 @@ from litedsp.comm.rs              import (
 )
 from litedsp.comm.ldpc            import LiteDSPLDPCEncoder, LiteDSPLDPCDecoder
 from litedsp.comm.ldpc_parallel   import LiteDSPLDPCDecoderZParallel
+from litedsp.motor.transforms     import (LiteDSPClarke, LiteDSPInverseClarke, LiteDSPSinCos,
+    LiteDSPAngleRamp, LiteDSPPark, LiteDSPInversePark)
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
 
@@ -535,6 +537,36 @@ def qpsk_receiver_ip():
     d = LiteDSPFlowIPCore(nl, **core_config)
     return d, d.io_signals(), nl.clock_ns
 
+# Motor control.
+# --------------
+def clarke():
+    d = LiteDSPClarke(data_width=16, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def inverse_clarke():
+    d = LiteDSPInverseClarke(data_width=16, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def sincos():
+    d = LiteDSPSinCos(data_width=16, angle_width=16, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def sincos_cordic():
+    d = LiteDSPSinCos(data_width=16, angle_width=16, method="cordic", with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def angle_ramp():
+    d = LiteDSPAngleRamp(angle_width=16, phase_bits=32, with_csr=False)
+    return d, {d.phase_inc} | _eps(d.source), 10.0
+
+def park():
+    d = LiteDSPPark(data_width=16, angle_width=16, with_csr=False)
+    return d, _eps(d.sink, d.sink_angle, d.source), 10.0
+
+def inverse_park():
+    d = LiteDSPInversePark(data_width=16, angle_width=16, with_csr=False)
+    return d, _eps(d.sink, d.sink_angle, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -586,6 +618,9 @@ REGISTRY = {
     "fft_parallel_native_x2": fft_parallel_native_x2,
     "fft_parallel_native_x4": fft_parallel_native_x4,
     "fft_parallel_native_x4_dsp": fft_parallel_native_x4_dsp,
+    "clarke": clarke, "inverse_clarke": inverse_clarke, "sincos": sincos,
+    "sincos_cordic": sincos_cordic, "angle_ramp": angle_ramp, "park": park,
+    "inverse_park": inverse_park,
 }
 
 # Subset for the slower full place-&-route flows.

@@ -6,7 +6,7 @@ latency: 0 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Route a single I/Q sink to one of ``n`` sources, selected by ``sel`` (runtime).
+Route a single sink to one of ``n`` sources, selected by ``sel`` (runtime).
 
 ## Parameters
 
@@ -14,6 +14,7 @@ Route a single I/Q sink to one of ``n`` sources, selected by ``sel`` (runtime).
 |---|---|---|---|
 | `n` | `2` | int | Number of selectable output channels (sources). Sizes the ``sel`` signal/CSR; unselected sources see valid held low (no data is duplicated to them). |
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
+| `layout` | — | none | Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc). |
 
 ## Ports
 

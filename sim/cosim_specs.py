@@ -55,6 +55,16 @@ def spec_nco():
     dut.phase_inc.reset = phase_inc
     return dut, [], n, lambda c: list(models.nco_model(phase_inc, n))
 
+def spec_cordic_rot():
+    from litedsp.generation.cordic import LiteDSPCORDIC
+    n    = 300
+    dut  = LiteDSPCORDIC(data_width=16, angle_width=16, mode="rotation", with_csr=False)
+    cols = _rand_cols(2, n, lo=-20000, hi=20000) + _rand_cols(1, n, lo=-32768, hi=32767, seed=2)
+    def model(c):                                                     # sink(x, y, z).
+        out = [models.cordic_rotation_model(x, y, z) for x, y, z in zip(c[0], c[1], c[2])]
+        return [np.array([o[0] for o in out]), np.array([o[1] for o in out])]
+    return dut, cols, n - 4, model
+
 # Mixing -------------------------------------------------------------------------------------------
 
 def spec_mixer():
@@ -866,10 +876,68 @@ def spec_combine():
     cols = _rand_cols(4, n)                                        # sinks[0](i,q), sinks[1](i,q).
     return dut, cols, n - 4, lambda c: list(models.combine_model([c[0], c[2]], [c[1], c[3]]))
 
+# Motor Control ------------------------------------------------------------------------------------
+
+def spec_clarke():
+    from litedsp.motor.transforms import LiteDSPClarke
+    n    = 300
+    dut  = LiteDSPClarke(data_width=16, with_csr=False)
+    cols = _rand_cols(3, n, lo=-30000, hi=30000)                      # sink(a, b, c).
+    return dut, cols, n - 4, lambda c: list(models.clarke_model(c[0], c[1], c[2]))
+
+def spec_clarke_three_wire():
+    from litedsp.motor.transforms import LiteDSPClarke
+    n    = 300
+    dut  = LiteDSPClarke(data_width=16, three_wire=True, with_csr=False)
+    cols = _rand_cols(3, n, lo=-30000, hi=30000)
+    return dut, cols, n - 4, lambda c: list(models.clarke_model(c[0], c[1], c[2], three_wire=True))
+
+def spec_inverse_clarke():
+    from litedsp.motor.transforms import LiteDSPInverseClarke
+    n    = 300
+    dut  = LiteDSPInverseClarke(data_width=16, with_csr=False)
+    cols = _rand_cols(2, n, lo=-30000, hi=30000)                      # sink(i, q).
+    return dut, cols, n - 4, lambda c: list(models.inverse_clarke_model(c[0], c[1]))
+
+def _spec_sincos(method):
+    from litedsp.motor.transforms import LiteDSPSinCos
+    n    = 300
+    dut  = LiteDSPSinCos(data_width=16, angle_width=16, method=method, with_csr=False)
+    cols = _rand_cols(1, n, lo=-32768, hi=32767)                      # sink(angle).
+    return dut, cols, n - 4, lambda c: list(models.sincos_model(c[0], method=method))
+
+def spec_sincos():
+    return _spec_sincos("rom")
+
+def spec_sincos_cordic():
+    return _spec_sincos("cordic")
+
+def spec_angle_ramp():
+    from litedsp.motor.transforms import LiteDSPAngleRamp
+    n, phase_inc = 256, 0x0123_4567
+    dut = LiteDSPAngleRamp(angle_width=16, phase_bits=32, with_csr=False)
+    dut.phase_inc.reset = phase_inc
+    return dut, [], n, lambda c: [models.angle_ramp_model(phase_inc, n)]
+
+def _spec_park(cls, model):
+    n    = 300
+    dut  = cls(data_width=16, angle_width=16, with_csr=False)
+    cols = _rand_cols(2, n, lo=-30000, hi=30000) + _rand_cols(1, n, lo=-32768, hi=32767, seed=2)
+    return dut, cols, n - 4, lambda c: list(model(c[0], c[1], c[2]))   # sink(i,q), sink_angle.
+
+def spec_park():
+    from litedsp.motor.transforms import LiteDSPPark
+    return _spec_park(LiteDSPPark, models.park_model)
+
+def spec_inverse_park():
+    from litedsp.motor.transforms import LiteDSPInversePark
+    return _spec_park(LiteDSPInversePark, models.inverse_park_model)
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
     "nco":              spec_nco,
+    "cordic_rot":       spec_cordic_rot,
     "mixer":            spec_mixer,
     "carrier_loop":     spec_carrier_loop,
     "carrier_loop_bpsk": spec_carrier_loop_bpsk,
@@ -943,6 +1011,14 @@ SPECS = {
     "swap_iq":          spec_swap_iq,
     "negate":           spec_negate,
     "combine":          spec_combine,
+    "clarke":           spec_clarke,
+    "clarke_three_wire": spec_clarke_three_wire,
+    "inverse_clarke":   spec_inverse_clarke,
+    "sincos":           spec_sincos,
+    "sincos_cordic":    spec_sincos_cordic,
+    "angle_ramp":       spec_angle_ramp,
+    "park":             spec_park,
+    "inverse_park":     spec_inverse_park,
 }
 
 # Known failures -----------------------------------------------------------------------------------
@@ -984,6 +1060,8 @@ def check_coverage():
         "timing_recovery_pipelined": "timing_recovery",
         "timing_recovery_gardner": "timing_recovery",
         "timing_recovery_gardner_pipelined": "timing_recovery",
+        "clarke_three_wire":         "clarke",
+        "sincos_cordic":             "sincos",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

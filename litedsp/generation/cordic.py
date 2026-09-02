@@ -128,12 +128,20 @@ class LiteDSPCORDIC(LiteXModule):
 
         # Output: gain-compensate (rotation/magnitude) and register.
         # ----------------------------------------------------------
+        # The 1/K products live in explicitly sized Signals: Verilog sizes an inline product
+        # to its assignment context and would truncate it to the output width (caught by the
+        # Verilator co-simulation of the motor-control sin/cos block; see litedsp/level/gain.py).
+        PW  = W + 16                                       # W-bit value times a Q1.15 constant.
+        px  = Signal((PW, True))
+        self.comb += px.eq(x[stages]*kinv)
         if mode == "rotation":
-            cx, _ = scaled(x[stages]*kinv, 15, data_width)
-            cy, _ = scaled(y[stages]*kinv, 15, data_width)
+            py = Signal((PW, True))
+            self.comb += py.eq(y[stages]*kinv)
+            cx, _ = scaled(px, 15, data_width)
+            cy, _ = scaled(py, 15, data_width)
             self.sync += If(adv, self.source.x.eq(cx), self.source.y.eq(cy))
         else:
-            cmag, _ = scaled(x[stages]*kinv, 15, data_width + 1)
+            cmag, _ = scaled(px, 15, data_width + 1)
             self.sync += If(adv, self.source.mag.eq(cmag), self.source.angle.eq(z[stages]))
 
         valid_pipe = Signal(self.latency)
