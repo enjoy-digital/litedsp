@@ -35,8 +35,9 @@ generating the Verilog RTL that you will use as a standard core (see the Generat
 tooling below).
 
 It is meant both as a ready-to-use library for RF processing on FPGA (mixers, NCO, filters,
-rate conversion, gain/AGC, power, corrections, analysis) and as a clean base to customize
-from for client-specific requirements.
+rate conversion, gain/AGC, power, corrections, analysis), motor control (field-oriented
+control, PWM, sensor interfaces, observers) and as a clean base to customize from for
+client-specific requirements.
 
 [> Features
 -----------
@@ -69,7 +70,8 @@ from for client-specific requirements.
 | `comm/`         | `LiteDSPFMDemod`, `LiteDSPAMDemod`, `LiteDSPPhaseDetect`, `LiteDSPSlicer`, `LiteDSPSymbolMapper`, `LiteDSPDifferentialEncoder`/`Decoder`, `LiteDSPScrambler`/`LiteDSPDescrambler`, `LiteDSPCRC`, `LiteDSPConvEncoder`, `LiteDSPViterbiDecoder` (hard/soft-decision, LLR input), `LiteDSPPuncturer`/`LiteDSPDepuncturer` (DVB-S rate puncturing), `LiteDSPRSEncoder`/`LiteDSPRSDecoder` (Reed-Solomon RS(255,k) over GF(2^8), t up to 16, full Berlekamp-Massey/Chien/Forney decoder), `LiteDSPBlockInterleaver`/`LiteDSPBlockDeinterleaver` (CCSDS-style depth-I byte interleaving, ping-pong buffered), `LiteDSPLDPCEncoder`/`LiteDSPLDPCDecoder` (IEEE 802.11n rate-1/2 n=648 QC-LDPC: back-substitution encoder, row-layered normalized min-sum decoder with early termination), `LiteDSPCorrelator`, `LiteDSPFrameSync` (CFAR preamble detect + frame alignment), `LiteDSPCFOEstimator` (coarse CFO, delay-conjugate-multiply + CORDIC), `LiteDSPPLL`/`LiteDSPCostas`, `LiteDSPTimingRecovery` (M&M or Gardner TED), `LiteDSPCPInsert`/`LiteDSPCPRemove` (OFDM cyclic prefix), `LiteDSPOFDMEqualizer` (OFDM LS channel estimation + divider-free one-tap equalization, per-bin CSI) |
 | `analysis/`     | `LiteDSPWindow`, `LiteDSPFFT` (radix-2 SDF, `inverse=`), `LiteDSPFFTIter`, `LiteDSPPSD`, `LiteDSPWelchPSD`, `LiteDSPMagnitude` (approx/CORDIC), `LiteDSPGoertzel`, `LiteDSPStats`, `LiteDSPHistogram`, `LiteDSPPeakBin`, `LiteDSPEnergyDetector`, `LiteDSPFrequencyEstimator`, `LiteDSPErrorCounter` (SER/BER) |
 | `stream/`       | `LiteDSPCombine`, `LiteDSPSplit`, `LiteDSPDelay`, `LiteDSPChannelMux`/`LiteDSPChannelDemux`, `LiteDSPConjugate`/`LiteDSPSwapIQ`/`LiteDSPNegate`/`LiteDSPIQAdd`, offset-binary converters, `LiteDSPIQClockDomainCrossing`, `LiteDSPSkidBuffer`, `LiteDSPStreamFIFO`, `LiteDSPIQPack`/`LiteDSPIQUnpack`, `LiteDSPCapture` (scope, CSR or memory-mapped readout), `LiteDSPCSRSource`/`LiteDSPCSRSink`/`LiteDSPCSRReader`/`LiteDSPNullSink`, `LiteDSPStreamFramer`/`LiteDSPStreamDeframer` (`tlast`), `LiteDSPTimeCore`/`LiteDSPTimestamper`/`LiteDSPTimeUntagger` (timestamped streams, see `doc/timestamps.md`), `LiteDSPDMACapture`/`LiteDSPDMAReplay` (Wishbone or LiteDRAM DMA) |
-| `frontend/`     | `LiteDSPADCInterface`/`LiteDSPDACInterface` (raw converter words), `LiteDSPIQPacketizer`/`LiteDSPIQDepacketizer` (framed host-link words, LitePCIe-ready, optional timestamp header), `LiteDSPUDPIQStreamer`/`LiteDSPUDPIQReceiver` (I/Q packets over LiteEth UDP) |
+| `frontend/`     | `LiteDSPADCInterface`/`LiteDSPDACInterface` (raw converter words), `LiteDSPBitstreamInterface` (sigma-delta / PDM modulator clock + data pins), `LiteDSPIQPacketizer`/`LiteDSPIQDepacketizer` (framed host-link words, LitePCIe-ready, optional timestamp header), `LiteDSPUDPIQStreamer`/`LiteDSPUDPIQReceiver` (I/Q packets over LiteEth UDP) |
+| `motor/`        | `LiteDSPClarke`/`LiteDSPInverseClarke`, `LiteDSPPark`/`LiteDSPInversePark` (complex-mixer rotation), `LiteDSPSinCos`, `LiteDSPAngleRamp`, `LiteDSPPIController` (anti-windup, feed-forward, setpoint stream), `LiteDSPDQController` (d/q current loops, decoupling), `LiteDSPSlewLimiter`, `LiteDSPSVPWM` (min/max injection), `LiteDSPPWM` (center-aligned 3-phase, dead time, fault latch, ADC trigger), `LiteDSPQuadratureDecoder`, `LiteDSPHallDecoder` (interpolated), `LiteDSPSigmaDeltaFilter` (sinc³ current sense + fast over-current path), `LiteDSPOvercurrentTrip`, `LiteDSPAngleTracker` (type-II angle PLL), `LiteDSPSMObserver` (sensorless sliding-mode back-EMF), `LiteDSPResolverDigital`, `LiteDSPFOC` composite; shared `LiteDSPBitstreamDecimator` in `filter/`. See `doc/motor_control.md` |
 | parallel (*)    | `LiteDSPParallelNCO`, `LiteDSPParallelMixer`, `LiteDSPParallelFIRFilter`/`LiteDSPParallelFIRFilterComplex`, `LiteDSPParallelCICDecimator`, `LiteDSPParallelFFT` (radix-2 DIF split, 2 samples/clk), `LiteDSPParallelDDC` composite + `LiteDSPIQSerialToParallel`/`LiteDSPIQParallelToSerial` adapters |
 | misc            | `LiteDSPISqrt` (`numeric.py`), `LiteDSPPILoop` (`control.py`)                 |
 
@@ -131,6 +133,7 @@ Assembled-chain demos live in `examples/`.
 | `doc/interfaces.md`       | The block contract: streaming, control, conventions checklist |
 | `doc/fixed_point.md`      | Qm.n conventions, rounding/saturation rules                 |
 | `doc/timestamps.md`       | Timestamped streams: edge tagging, latency back-computation, packet header |
+| `doc/motor_control.md`    | Motor-control family: per-unit conventions, PWM-paced loop, bring-up, protection |
 | `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |
 | `doc/flow.md`             | Netlist format, flow/GUI usage, IP core generation          |
 | `doc/resources.md`        | Per-block LUT/FF/BRAM/DSP + fmax table (generated)          |

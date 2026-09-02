@@ -29,7 +29,8 @@ class LiteDSPAngleTracker(LiteXModule):
     controls) whose output advances the internal angle ``theta`` (``angle_width + frac_bits``
     bits): ``theta += (e >> kp_shift) + integral`` and ``integral += e >> ki_shift`` (error in the
     ``frac_bits`` domain). The emitted angle is the estimate *for the accepted sample*
-    (``theta`` before its update, like the carrier loop's NCO phase): a constant-speed input is
+    (``theta`` before its update, like the carrier loop's NCO phase) plus ``angle_offset``
+    (sensor alignment / observer lag compensation): a constant-speed input is
     tracked with zero steady-state error; the integrator is the ``speed`` (angle units per
     sample, Q.``frac_bits``), so the raw noisy angle from an encoder, Hall decoder or observer
     becomes a smooth estimate (``theta + speed`` predicts the next sample). Latency 1.
@@ -58,6 +59,7 @@ class LiteDSPAngleTracker(LiteXModule):
         self.source = stream.Endpoint(angle_layout(angle_width))      # Tracked angle.
         self.kp_shift = Signal(5, reset=kp_shift)
         self.ki_shift = Signal(5, reset=ki_shift)
+        self.angle_offset = Signal(angle_width)                       # Added to the output.
         self.speed    = Signal((W, True))                             # Integrator (Q.frac_bits).
         self.error    = Signal((angle_width, True))                   # Last phase error.
 
@@ -92,7 +94,7 @@ class LiteDSPAngleTracker(LiteXModule):
         # Output.
         # -------
         self.sync += If(adv,
-            self.source.angle.eq(theta[frac_bits:]),
+            self.source.angle.eq(theta[frac_bits:] + self.angle_offset),
             self.source.valid.eq(self.sink.valid),
             self.source.first.eq(self.sink.first),
             self.source.last.eq(self.sink.last),
@@ -110,12 +112,15 @@ class LiteDSPAngleTracker(LiteXModule):
             CSRField("ki_shift", size=5, offset=8, reset=self.ki_shift.reset.value,
                 description="Integral shift (larger = slower)."),
         ])
+        self._angle_offset = CSRStorage(self.angle_width, name="angle_offset",
+            description="Offset added to the tracked angle (alignment / lag compensation).")
         self._speed = CSRStatus(self.loop_width, name="speed",
             description="Tracked speed: angle units per sample, Q.frac_bits.")
         self._error = CSRStatus(self.angle_width, name="error", description="Last phase error.")
         self.comb += [
             self.kp_shift.eq(self._gains.fields.kp_shift),
             self.ki_shift.eq(self._gains.fields.ki_shift),
+            self.angle_offset.eq(self._angle_offset.storage),
             self._speed.status.eq(self.speed),
             self._error.status.eq(self.error),
         ]

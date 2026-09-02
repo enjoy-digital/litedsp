@@ -56,6 +56,10 @@ class TestAppNoteExamples(unittest.TestCase):
     def test_chirp_radar_smoke(self):       # AN004.
         self._run_example("chirp_radar.py")
 
+    def test_foc_pmsm_smoke(self):          # AN009.
+        # Three closed-loop variants (ideal / encoder / sensorless) on the RTL FOC + PWM.
+        self._run_example("foc_pmsm.py", timeout=900)
+
     def test_ccsds_telemetry_smoke(self):   # AN005.
         # ~3.5 min locally (staged RTL FEC chain, Viterbi-dominated): extra timeout headroom.
         self._run_example("ccsds_telemetry.py", timeout=900)

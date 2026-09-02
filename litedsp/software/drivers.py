@@ -422,6 +422,120 @@ def make_driver(spec):
     GenericDriver.__doc__      = (spec.doc or spec.key) + " (generic reflected driver)."
     return GenericDriver
 
+# Motor control ------------------------------------------------------------------------------------
+
+class FOCDriver(Driver):
+    """FOC current controller: per-unit setpoints/gains/limit, bring-up vector, mode, status."""
+    regs       = ("dq_setpoint_d", "dq_setpoint_q", "dq_kp_d", "dq_ki_d", "dq_kp_q", "dq_ki_q",
+                  "dq_limit", "dq_voltage_d", "dq_voltage_q", "dq_control", "dq_status")
+    data_width = 16
+    gain_frac  = 12
+
+    def _pu(self, x):
+        fs = (1 << (self.data_width - 1)) - 1
+        return int(round(max(-1.0, min(1.0, x))*fs)) & ((1 << self.data_width) - 1)
+
+    def _gain(self, g):
+        return int(round(g*(1 << self.gain_frac))) & 0xFFFF
+
+    def set_setpoints(self, i_d, i_q):
+        """Current setpoints in per-unit (1.0 = base current)."""
+        self.dq_setpoint_d.write(self._pu(i_d))
+        self.dq_setpoint_q.write(self._pu(i_q))
+
+    def set_gains(self, kp, ki, axis="dq"):
+        """PI gains (float, 1.0 = 2**gain_frac) for the d, q or both axes."""
+        if "d" in axis:
+            self.dq_kp_d.write(self._gain(kp)); self.dq_ki_d.write(self._gain(ki))
+        if "q" in axis:
+            self.dq_kp_q.write(self._gain(kp)); self.dq_ki_q.write(self._gain(ki))
+
+    def set_limit(self, v_max):
+        """Voltage magnitude limit per axis (per-unit of V_dc/2)."""
+        self.dq_limit.write(self._pu(abs(v_max)))
+
+    def set_open_loop(self, enable, v_d=0.0, v_q=0.0):
+        """Bring-up mode: apply the (v_d, v_q) vector directly, integrators held at zero."""
+        self.dq_voltage_d.write(self._pu(v_d))
+        self.dq_voltage_q.write(self._pu(v_q))
+        self.dq_control.write((self.dq_control.read() & ~0b1) | int(bool(enable)))
+
+    def clear(self):
+        self.dq_control.write(self.dq_control.read() | (1 << 1) | (1 << 2))   # Pulse fields.
+
+    @property
+    def saturated(self):
+        return self.dq_status.read() & 0b11
+
+class PWMDriver(Driver):
+    """Three-phase PWM: frequency / dead time in seconds, enable, fault handling, trigger."""
+    regs = ("period", "dead_time", "control", "trigger", "status")
+
+    def set_frequency(self, f_pwm):
+        """PWM frequency in Hz (carrier half period = clk / (2 f_pwm) cycles)."""
+        assert self.clk_freq is not None, "clk_freq required to set the frequency in Hz"
+        self.period.write(int(round(self.clk_freq/(2*f_pwm))))
+
+    def set_dead_time(self, seconds):
+        assert self.clk_freq is not None, "clk_freq required to set the dead time in seconds"
+        self.dead_time.write(int(round(seconds*self.clk_freq)))
+
+    def enable(self, on=True):
+        self.control.write((self.control.read() & ~0b1) | int(bool(on)))
+
+    def clear_fault(self):
+        self.control.write(self.control.read() | (1 << 1))
+
+    def set_trigger(self, count, direction=0):
+        """ADC trigger point: carrier value and slope (0: down/valley, 1: up/peak)."""
+        self.trigger.write((count & 0xFFFF) | ((direction & 1) << 16))
+
+    @property
+    def fault(self):
+        return bool(self.status.read() & 0b1)
+
+class QuadratureDecoderDriver(Driver):
+    """Incremental encoder: geometry setup and position / speed readback."""
+    regs = ("counts_per_rev", "pole_pairs", "angle_scale", "angle_offset", "window", "control",
+            "position", "speed", "status")
+    angle_width, scale_frac = 16, 16
+
+    def configure(self, counts_per_rev, pole_pairs, window_cycles=1 << 16, invert=False,
+        index_enable=True):
+        self.counts_per_rev.write(counts_per_rev)
+        self.pole_pairs.write(pole_pairs)
+        self.angle_scale.write(round((1 << (self.angle_width + self.scale_frac))/counts_per_rev))
+        self.window.write(window_cycles)
+        self.control.write(int(invert) | (int(index_enable) << 1))
+        self._cpr, self._window = counts_per_rev, window_cycles
+
+    def get_position(self):
+        return self.position.read()
+
+    def get_speed_rpm(self):
+        """Mechanical speed in rpm from the windowed count (needs clk_freq and configure())."""
+        assert self.clk_freq is not None, "clk_freq required for rpm"
+        counts = to_signed(self.speed.read(), 16)
+        return counts/self._cpr*(self.clk_freq/self._window)*60.0
+
+class AngleTrackerDriver(Driver):
+    """Angle tracker: loop shifts from a bandwidth in samples, offset, speed readback."""
+    regs = ("gains", "angle_offset", "speed", "error")
+
+    def set_offset_degrees(self, degrees, angle_width=16):
+        """Alignment / lag-compensation offset added to the tracked angle."""
+        self.angle_offset.write(int(round(degrees/360.0*(1 << angle_width))) & ((1 << angle_width) - 1))
+
+    def set_bandwidth(self, samples):
+        """Set kp/ki shifts for a lock time of ~samples (kp = log2(samples/6)/2, ki = kp + ...)."""
+        import math
+        ki_minus_kp = max(1, min(15, int(round(math.log2(max(6, samples)/6)))))
+        kp = max(1, min(15, 3))
+        self.gains.write(kp | ((kp + ki_minus_kp) << 8))
+
+    def get_speed_raw(self):
+        return self.speed.read()
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -437,13 +551,18 @@ TYPED = {
     "mixer":    MixerDriver,
     "carrier_loop": PLLDriver,
     "dpd":      DPDDriver,
+    "foc":      FOCDriver,
+    "pwm":      PWMDriver,
+    "quadrature_decoder": QuadratureDecoderDriver,
+    "angle_tracker": AngleTrackerDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
 
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
-           TimeCoreDriver, DPDDriver]
+           TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
+           AngleTrackerDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

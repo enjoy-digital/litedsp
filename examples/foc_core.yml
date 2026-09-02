@@ -1,0 +1,26 @@
+# LiteDSP standalone core: PMSM field-oriented current controller (AN009).
+#
+#   litedsp_gen examples/foc_core.yml
+#
+# AXI-Stream inputs: measured phase currents (abc) and the rotor electrical angle; AXI-Stream
+# output: three-phase duties for a PWM generator (LiteDSPPWM is a sink with gate-signal pins, so
+# it is instantiated next to the core rather than inside the stream chain). The controller's
+# setpoints, gains, limit and open-loop bring-up vector are AXI-Lite registers.
+
+# Core ---------------------------------------------------------------------
+name     : foc_core
+csr_base : 0x0
+
+# Flow ---------------------------------------------------------------------
+flow:
+  name       : foc
+  data_width : 16
+  clock_ns   : 10.0
+  inputs     : [{id: i_abc, layout: abc}, {id: angle, layout: angle}]
+  outputs    : [{id: duty,  layout: abc}]
+  blocks:
+    - {id: foc, type: foc, params: {}}
+  connections:
+    - {from: i_abc,      to: foc.sink}
+    - {from: angle,      to: foc.sink_angle}
+    - {from: foc.source, to: duty}

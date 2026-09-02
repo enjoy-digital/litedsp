@@ -2482,3 +2482,41 @@ def dither_model(x, channel, out_width=16, n_channels=2, shaping="none", seed=0x
         out[k] = q << shift
         r0, r1 = xorshift32(r0), xorshift32(r1)
     return out
+
+# Audio: Equalizer ---------------------------------------------------------------------------------
+
+def audio_eq_model(x, channel, sections, n_channels=2, data_width=24, frac_bits=28,
+    error_feedback=1, band_enable=None):
+    """Bit-exact reference for litedsp.audio.eq.LiteDSPAudioEQ.
+
+    Per accepted beat of channel c, the ``sections`` (dicts ``b0, b1, b2, a1, a2`` in
+    Q.frac_bits) run in cascade with per-(channel, band) DF1 state: ``acc = fb + b0*x + b1*x1
+    + b2*x2 - a1*y1 - a2*y2`` (``fb`` = e1 or 2e1 - e2), ``y = sat(round(acc / 2**frac))``,
+    ``e = acc - round(acc)*2**frac``; a disabled band passes its input through and refreshes
+    its history with it. ``band_enable`` may be a per-beat array of masks. Returns the output.
+    """
+    x       = np.asarray(x, np.int64)
+    n       = len(x)
+    n_bands = len(sections)
+    channel = _per_sample(channel, n)
+    mask    = _per_sample((1 << n_bands) - 1 if band_enable is None else band_enable, n)
+    st      = {(c, b): dict(x1=0, x2=0, y1=0, y2=0, e1=0, e2=0)
+               for c in range(n_channels) for b in range(n_bands)}
+    out     = np.zeros(n, np.int64)
+    for k in range(n):
+        c = int(channel[k])
+        v = int(x[k])
+        for b, s in enumerate(sections):
+            q = st[(c, b)]
+            if (int(mask[k]) >> b) & 1:
+                fb  = q["e1"] if error_feedback == 1 else (2*q["e1"] - q["e2"] if error_feedback == 2 else 0)
+                acc = fb + s["b0"]*v + s["b1"]*q["x1"] + s["b2"]*q["x2"] - s["a1"]*q["y1"] - s["a2"]*q["y2"]
+                y_r = int(np_rounded(np.int64(acc), frac_bits))
+                y   = int(np_saturated(np.int64(y_r), data_width))
+                e   = acc - (y_r << frac_bits)
+            else:
+                y, e = v, 0
+            st[(c, b)] = dict(x1=v, x2=q["x1"], y1=y, y2=q["y1"], e1=e, e2=q["e1"])
+            v = y
+        out[k] = v
+    return out

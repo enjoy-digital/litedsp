@@ -38,6 +38,7 @@ class TestAngleTracker(unittest.TestCase):
         prng   = random.Random(1)
         angles = [prng.randint(-TURN//2, TURN//2 - 1) for _ in range(n)]
         dut = LiteDSPAngleTracker(angle_width=AW, kp_shift=4, ki_shift=10, with_csr=False)
+        dut.angle_offset.reset = 1234
 
         @passive
         def switch():
@@ -54,7 +55,7 @@ class TestAngleTracker(unittest.TestCase):
         cap = run_stream(dut, [{"angle": a} for a in angles], n, ["angle"], ["angle"],
             sink_throttle=0.2, source_ready_rate=0.7, extra=[switch()])
         ref, _ = angle_tracker_model(angles, np.array([4]*n_sw + [3]*(n - n_sw)),
-            np.array([10]*n_sw + [8]*(n - n_sw)))
+            np.array([10]*n_sw + [8]*(n - n_sw)), angle_offset=1234)
         self.assertTrue(np.array_equal(column(cap, "angle", AW), ref))
         self.assertEqual(dut.latency, 1)
 

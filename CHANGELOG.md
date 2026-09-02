@@ -98,6 +98,38 @@ Additional contracts introduced with the harmonization:
   characterized PAPR reduction + below-threshold EVM gates (`char/`, ~1.9 dB PAPR reduction
   at a 7 dB target on ~11 dB-PAPR OFDM-like stimulus, EVM ~1.6%, out-of-band regrowth
   bounded).
+- Motor-control block family (`litedsp/motor/`, palette category `motor`, 19 blocks, see
+  `doc/motor_control.md`): Clarke/inverse Clarke (`LiteDSPClarke`/`LiteDSPInverseClarke`,
+  amplitude-invariant, Q1.15 constants), Park/inverse Park as the complex mixer fed by a
+  quarter-wave sin/cos ROM or CORDIC (`LiteDSPSinCos`, `LiteDSPPark`/`LiteDSPInversePark`),
+  `LiteDSPAngleRamp` (V/f bring-up), `LiteDSPPIController` (runtime Q4.12 gains, output limit,
+  conditional/clamp anti-windup, feed-forward, open-loop mode, setpoint stream) and
+  `LiteDSPDQController` (lock-stepped d/q loops, optional cross-coupling decoupling),
+  `LiteDSPSlewLimiter`, `LiteDSPSVPWM` (min/max zero-sequence injection, 3-cycle pipeline),
+  `LiteDSPPWM` (center-aligned three-phase carrier accepting one duty sample per period so the
+  loop is paced by backpressure, time-shared compare multiplier, dead time, fault latch + IRQ,
+  ADC trigger), `LiteDSPQuadratureDecoder` (4x decode, glitch filter, index, reciprocal-multiply
+  angle, M-method speed) and `LiteDSPHallDecoder` (serial-divider interpolation),
+  `LiteDSPSigmaDeltaFilter` (per-phase sinc³ demodulation on the shared 1-bit
+  `LiteDSPBitstreamDecimator` + a fast over-current path) and `LiteDSPOvercurrentTrip`,
+  `LiteDSPAngleTracker` (type-II angle PLL on `LiteDSPPILoop`, runtime shifts),
+  `LiteDSPSMObserver` (sensorless sliding-mode back-EMF observer + CORDIC), and
+  `LiteDSPResolverDigital` (excitation ROM, delayed-reference demodulation, exact boxcar,
+  CORDIC + tracker), composed in `LiteDSPFOC` (atomic sin/cos fan-out delay-matched across the
+  Park + controller latency). Bit-exact golden models for every arithmetic block (FOC = the
+  composed models) under randomized backpressure, cycle-exact register models for the PWM and
+  encoders, Verilator co-simulation of all stream-shaped blocks (the CORDIC-based sin/cos
+  exposed and fixed a latent inline-product truncation in `LiteDSPCORDIC`), derived functional
+  bounds (pole-cancelling PI settling in 8 samples, wind-up ordering, SVPWM linear range
+  1.15, decoupling 6x lower d-axis excursion, tracker lock, observer lag/chatter, resolver
+  0.5-degree tracking). AN009 (`examples/foc_pmsm.py`) closes the loop on a per-unit PMSM plant
+  with the RTL FOC + PWM using an ideal angle, the RTL quadrature decoder on emulated pins and
+  sensorless SMO + tracker after an open-loop V/f start; `examples/foc_core.yml` generates the
+  AXI-Stream/AXI-Lite current-controller core. Typed drivers (`FOCDriver`, `PWMDriver`,
+  `QuadratureDecoderDriver`, `AngleTrackerDriver`).
+- New stream layouts (`abc_layout`, `angle_layout`; `tdm_layout` for channel-tagged audio),
+  `layout=` on `LiteDSPSplit`/`LiteDSPDelay`/`LiteDSPChannelMux`/`LiteDSPChannelDemux`/
+  `LiteDSPCombine`, and `in_width` on `LiteDSPCICDecimatorRuntime` (2-bit +1/-1 bitstreams).
 - Multi-sample-per-cycle (parallel) datapaths for rates above the fabric clock — parallel
   NCO/mixer/FIR/CIC/DDC, bit-identical to their serial counterparts.
 - Timing-oriented FIR decimator schedule with registered RAM operands and an explicit second

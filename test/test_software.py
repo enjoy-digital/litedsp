@@ -9,7 +9,8 @@
 import unittest
 
 from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, discover,
-    NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver)
+    NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
+    FOCDriver, PWMDriver, QuadratureDecoderDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -147,6 +148,42 @@ class TestMixerDriver(unittest.TestCase):
         self.assertEqual(bus.regs.mix_control.value & 0b1, 0)
         m.set_bypass(0b01)
         self.assertEqual((bus.regs.mix_control.value >> 8) & 0b11, 0b01)
+
+class TestMotorDrivers(unittest.TestCase):
+    def test_foc_setpoints_gains_mode(self):
+        regs = {f"foc_{r}": MockCSR() for r in FOCDriver.regs}
+        drv  = FOCDriver(MockBus(regs), "foc")
+        drv.set_setpoints(-0.25, 0.5)
+        self.assertEqual(regs["foc_dq_setpoint_d"].value, (-8192) & 0xFFFF)
+        self.assertEqual(regs["foc_dq_setpoint_q"].value, 16384)
+        drv.set_gains(1.5, 0.02)
+        self.assertEqual((regs["foc_dq_kp_d"].value, regs["foc_dq_ki_q"].value), (6144, 82))
+        drv.set_open_loop(True, v_q=0.5)
+        self.assertEqual(regs["foc_dq_voltage_q"].value, 16384)
+        self.assertEqual(regs["foc_dq_control"].value & 1, 1)
+        drv.set_open_loop(False)
+        self.assertEqual(regs["foc_dq_control"].value & 1, 0)
+
+    def test_pwm_frequency_dead_time(self):
+        regs = {f"pwm_{r}": MockCSR() for r in PWMDriver.regs}
+        drv  = PWMDriver(MockBus(regs), "pwm", clk_freq=100e6)
+        drv.set_frequency(20e3)
+        drv.set_dead_time(500e-9)
+        drv.set_trigger(0, 1)
+        drv.enable()
+        self.assertEqual(regs["pwm_period"].value, 2500)
+        self.assertEqual(regs["pwm_dead_time"].value, 50)
+        self.assertEqual(regs["pwm_trigger"].value, 1 << 16)
+        self.assertEqual(regs["pwm_control"].value & 1, 1)
+
+    def test_quadrature_decoder_rpm(self):
+        regs = {f"enc_{r}": MockCSR() for r in QuadratureDecoderDriver.regs}
+        regs["enc_speed"].value = 100
+        drv  = QuadratureDecoderDriver(MockBus(regs), "enc", clk_freq=100e6)
+        drv.configure(4096, 4, window_cycles=1_000_000)
+        self.assertEqual(regs["enc_angle_scale"].value, 1 << 20)
+        # 100 counts per 10 ms window at 4096 counts/turn: 100/4096*100/s = 2.44 turns/s = 146 rpm.
+        self.assertAlmostEqual(drv.get_speed_rpm(), 100/4096*100*60, places=6)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):
