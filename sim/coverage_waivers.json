@@ -65,5 +65,81 @@
       "test.test_pfb_channelizer:TestPFBChannelizerBitExact.test_oversampled_fft_bit_exact",
       "test.test_pfb_channelizer:TestPFBChannelizerFunctional.test_oversampled_odd_channel_phase_correction"
     ]
+  },
+  "sincos_cordic": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only); the CORDIC-based sin/cos is bit-exact against its model under backpressure and its full-circle SNR is gated.",
+    "semantic_checks": [
+      "test.test_transforms:TestSinCos.test_bit_exact",
+      "test.test_transforms:TestSinCos.test_full_circle_snr"
+    ]
+  },
+  "park": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only), plus the complex mixer's unused up/bypass mode arms (the Park rotation hard-wires the down mode); the rotation is bit-exact against the model, round-trips with the inverse and keeps a DC current constant in dq.",
+    "semantic_checks": [
+      "test.test_transforms:TestPark.test_bit_exact_under_backpressure",
+      "test.test_transforms:TestPark.test_rotation_round_trip",
+      "test.test_transforms:TestPark.test_dc_current_is_constant_in_dq"
+    ]
+  },
+  "inverse_park": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only), plus the complex mixer's unused down/bypass mode arms (the inverse Park hard-wires the up mode); bit-exact and round-trip checked with the Park block.",
+    "semantic_checks": [
+      "test.test_transforms:TestPark.test_bit_exact_under_backpressure",
+      "test.test_transforms:TestPark.test_rotation_round_trip"
+    ]
+  },
+  "dq_controller": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only) (the two PI controllers); bit-exact against the model under backpressure, plant step with and without decoupling, open-loop voltages.",
+    "semantic_checks": [
+      "test.test_pi:TestDQController.test_bit_exact_under_backpressure",
+      "test.test_pi:TestDQController.test_dq_plant_step_decoupling",
+      "test.test_pi:TestDQController.test_open_loop_passes_voltages"
+    ]
+  },
+  "bitstream_decimator": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only) (the runtime-rate CIC); bit-exact against the model, rate sweep including the staged architecture, density-to-level and sigma-delta loopback checks.",
+    "semantic_checks": [
+      "test.test_bitstream:TestBitstreamDecimator.test_bit_exact",
+      "test.test_bitstream:TestBitstreamDecimator.test_rate_sweep_and_staged",
+      "test.test_bitstream:TestBitstreamDecimator.test_density_maps_to_level"
+    ]
+  },
+  "sigma_delta_filter": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only) (six bitstream decimators); the co-simulation stimulus is a random bitstream that never trips the fast path, whose trip/clear arms are checked semantically.",
+    "semantic_checks": [
+      "test.test_sense:TestSigmaDeltaFilter.test_bit_exact_main_path",
+      "test.test_sense:TestSigmaDeltaFilter.test_fast_path_trips",
+      "test.test_sense:TestSigmaDeltaFilter.test_clear_and_single_channel"
+    ]
+  },
+  "smo_observer": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only) (the vectoring CORDIC) and the observer's clear arm; bit-exact against the model under backpressure, steady-state PMSM tracking and the tracker lock are gated.",
+    "semantic_checks": [
+      "test.test_observer:TestSMObserver.test_bit_exact_under_backpressure",
+      "test.test_observer:TestSMObserver.test_tracks_pmsm_steady_state",
+      "test.test_observer:TestSMObserver.test_with_tracker_lock"
+    ]
+  },
+  "foc": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only) (Clarke, sin/cos, d/q PI, SVPWM, delay) plus the two mixers' unused mode arms (Park/inverse Park hard-wire down/up); the composite is bit-exact against the composed models under backpressure, the open-loop vector and a closed-loop plant step are gated.",
+    "semantic_checks": [
+      "test.test_foc:TestFOC.test_bit_exact_under_backpressure",
+      "test.test_foc:TestFOC.test_open_loop_rotating_vector",
+      "test.test_foc:TestFOC.test_closed_loop_plant_step"
+    ]
+  },
+  "reverb": {
+    "reason": "The uncovered lines are the reset arms of the nested @ResetInserter sub-blocks, whose reset inputs the composite ties off (the testbench exercises the top-level reset only) (combs, allpasses, split, combine, FIFO, mix) plus the delay lines' bypass paths, which the composite never enables; bit-exact against the composed delay-line models under backpressure, decay/passthrough/stereo-spread bounds.",
+    "semantic_checks": [
+      "test.test_effects:TestReverb.test_bit_exact",
+      "test.test_effects:TestReverb.test_decay_passthrough_spread"
+    ]
+  },
+  "compressor_limiter": {
+    "reason": "The limiter variant keeps the peak sidechain, whose level enters the shared LUT log2 shifted by data_width; the log2's leading-one arms below that shift are reachable only through the RMS detector (covered by the compressor and gate specs). The peak path is bit-exact in the unit tests and the ceiling with lookahead is gated.",
+    "semantic_checks": [
+      "test.test_dynamics:TestCompressor.test_bit_exact_peak_stereo",
+      "test.test_dynamics:TestCompressor.test_limiter_ceiling_with_lookahead"
+    ]
   }
 }

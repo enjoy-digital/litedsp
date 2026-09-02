@@ -1034,9 +1034,11 @@ def spec_overcurrent_trip():
     from litedsp.motor.sense import LiteDSPOvercurrentTrip
     n    = 300
     dut  = LiteDSPOvercurrentTrip(data_width=16, with_csr=False)
-    cols = _rand_cols(3, n, lo=-30000, hi=30000)                       # sink(a, b, c).
-    return dut, cols, n - 4, lambda c: list(models.overcurrent_trip_model(c[0], c[1], c[2],
-        20000)[:3])
+    dut.threshold.reset = 20000                                        # Trips on the stimulus.
+    cols  = _rand_cols(3, n, lo=-30000, hi=30000)                      # sink(a, b, c).
+    clear = [int(k in (100, 200)) for k in range(n)]                   # Re-arm twice.
+    return dut, cols + [clear], n - 4, lambda c: list(models.overcurrent_trip_model(c[0], c[1],
+        c[2], 20000)[:3]), False, False, (dut.clear,)
 
 def spec_angle_tracker():
     from litedsp.motor.observer import LiteDSPAngleTracker
@@ -1165,14 +1167,16 @@ def _spec_compressor(preset, lookahead=0, **ctrl):
     prng = random.Random(3)
     data, chn = [], []
     for k in range(n):
-        level = [0.01, 0.1, 0.5, 1.0][(k//30) % 4]
+        # Log-distributed amplitude stretches (1 LSB .. full scale) so the shared log2's
+        # leading-one arms are all exercised through the RMS detector.
+        level = 2.0**(-23*[1.0, 0.6, 0.3, 0.0][(k//30) % 4])
         for c in range(2):
             data.append(int(prng.randint(-(1 << 23) + 1, (1 << 23) - 1)*level)); chn.append(c)
     return dut, [data, chn], 2*n - 4, lambda c: [models.compressor_model(c[0], c[1], thr, sa, sb,
         att, rel, grm, lookahead=lookahead, **ctrl)[0], np.array(c[1])]
 
 def spec_compressor():
-    return _spec_compressor("compressor")
+    return _spec_compressor("compressor", detector=1)                # RMS sidechain.
 
 def spec_compressor_limiter():
     return _spec_compressor("limiter", lookahead=8)
