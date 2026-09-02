@@ -2734,3 +2734,43 @@ def loudness_model(x, channel, sections, n_channels=2, hop_samples=64, channel_w
             hops.append(acc)
             acc = 0
     return hops
+
+def tdm_mux_model(channels):
+    """Reference for litedsp.stream.route.LiteDSPTDMMux: strict round-robin interleave of the
+    per-channel sample lists; returns ``(data, channel)`` beat arrays."""
+    n_ch, n = len(channels), min(len(c) for c in channels)
+    data = np.array([int(channels[k % n_ch][k//n_ch]) for k in range(n_ch*n)], np.int64)
+    return data, np.array([k % n_ch for k in range(n_ch*n)], np.int64)
+
+def sigma_delta_model(x, interpolation=64, order=2, data_width=24):
+    """Bit-exact reference for litedsp.audio.pdm.LiteDSPSigmaDeltaModulator: zero-order hold of
+    each sample for ``interpolation`` bits, error feedback ``u = x + e1`` (order 1) or ``x + 2 e1
+    - e2`` (order 2), ``bit = u >= 0``, ``e = u -/+ 2**(data_width - 1)`` saturated to
+    ``data_width + 2`` bits. Returns the bit array."""
+    FS, EW = 1 << (data_width - 1), data_width + 2
+    e1 = e2 = 0
+    bits = []
+    for v in np.asarray(x, np.int64):
+        v = int(v)
+        for _ in range(int(interpolation)):
+            u = v + e1 if order == 1 else v + 2*e1 - e2
+            b = 1 if u >= 0 else 0
+            e = u - (FS if b else -FS)
+            e2, e1 = e1, int(np_saturated(np.array([e]), EW)[0])
+            bits.append(b)
+    return np.array(bits, np.int64)
+
+def pdm_receiver_model(bits, decimation=64, n_stages=4, data_width=24, with_dc_blocker=True,
+    dc_pole_shift=10, comp_coefficients=None):
+    """Bit-exact reference for litedsp.audio.pdm.LiteDSPPDMReceiver: per channel the bitstream
+    decimator, the mono DC blocker (8 fractional bits) and the droop-compensation FIR, then the
+    TDM interleave. ``bits`` is a list of per-channel bit arrays; returns ``(data, channel)``."""
+    outs = []
+    for b in bits:
+        y = bitstream_decimator_model(np.asarray(b, np.int64), decimation, n_stages, 1, data_width)
+        if with_dc_blocker:
+            y = dc_blocker_model(y, pole_shift=dc_pole_shift, data_width=data_width, precision_bits=8)
+        if comp_coefficients is not None:
+            y = fir_model(y, comp_coefficients, data_width)
+        outs.append(np.asarray(y, np.int64))
+    return tdm_mux_model(outs)

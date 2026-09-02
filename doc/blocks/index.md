@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-152 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+158 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -39,6 +39,7 @@
 | [Hilbert](hilbert.md) | `LiteDSPHilbert` | 3 | — | Real -> analytic (complex) signal via a Hilbert FIR. |
 | [IIR biquad](iir_biquad.md) | `LiteDSPIIRBiquad` | 2 | 24 | One DF2T biquad section applied to I and Q with shared coefficients. |
 | [DC blocker](dc_blocker.md) | `LiteDSPDCBlocker` | 1 | 0 | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
+| [DC blocker (mono)](dc_blocker_real.md) | `LiteDSPDCBlocker` | 1 | — | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
 | [Moving average](moving_average.md) | `LiteDSPMovingAverage` | 1 | 0 | Boxcar moving average over ``2**length_log2`` samples (per I/Q), a.k.a. CIC-1. |
 | [Farrow interpolator](farrow.md) | `LiteDSPFarrowInterpolator` | 7 | 16 | Cubic (Catmull-Rom) Farrow fractional-delay interpolator with runtime ``mu``. |
 | [LMS equalizer](equalizer.md) | `LiteDSPLMSEqualizer` | 1 | — | Adaptive complex FIR equalizer: trained LMS, blind CMA or decision-directed. |
@@ -150,6 +151,8 @@
 | [Skid buffer](skid_buffer.md) | `LiteDSPSkidBuffer` | 0 | — | Elastic timing-slack buffer for an I/Q stream (registers both valid and ready paths). |
 | [Channel mux](channel_mux.md) | `LiteDSPChannelMux` | 0 | — | Route one of ``n`` sinks to a single source, selected by ``sel`` (runtime). |
 | [Channel demux](channel_demux.md) | `LiteDSPChannelDemux` | 0 | — | Route a single sink to one of ``n`` sources, selected by ``sel`` (runtime). |
+| [TDM mux (interleave)](tdm_mux.md) | `LiteDSPTDMMux` | 0 | — | Interleave ``n_channels`` mono streams into one channel-tagged TDM stream (strict |
+| [TDM demux](tdm_demux.md) | `LiteDSPTDMDemux` | 0 | — | Split a channel-tagged TDM stream into ``n_channels`` mono streams: every beat is routed |
 | [Capture (scope)](capture.md) | `LiteDSPCapture` | var | — | Scope-like capture: on a trigger, record ``depth`` I/Q samples to RAM, then stream them out. |
 | [Conjugate](conjugate.md) | `LiteDSPConjugate` | 0 | — | Complex conjugate: ``q -> -q``. |
 | [Swap I/Q](swap_iq.md) | `LiteDSPSwapIQ` | 0 | — | Swap I and Q (a +/-90 deg rotation / spectrum mirror). |
@@ -207,4 +210,7 @@
 | [Wet/dry mix](wet_dry_mix.md) | `LiteDSPWetDryMix` | 1 | — | Two-input gain mix on TDM streams: ``y = dry*sink_dry + wet*sink_wet`` (signed Q1.15 gains). |
 | [Reverb](reverb.md) | `LiteDSPReverb` | 1 | 16 | Schroeder / Freeverb-style reverb: parallel damped feedback combs, series allpasses, mix. |
 | [Peak meter](peak_meter.md) | `LiteDSPPeakMeter` | 0 | — | Per-channel peak / hold / clip meter on a TDM stream (zero-latency passthrough tap). |
-| [Loudness (BS.1770)](loudness.md) | `LiteDSPLoudness` | 0 | — | ITU-R BS.1770 loudness front-end: K-weighting + per-hop weighted sum of squares (zero-latency |
+| [Loudness (BS.1770)](loudness.md) | `LiteDSPLoudness` | 0 | 8 | ITU-R BS.1770 loudness front-end: K-weighting + per-hop weighted sum of squares (zero-latency |
+| [Sigma-delta modulator](sigma_delta_mod.md) | `LiteDSPSigmaDeltaModulator` | 1 | — | Error-feedback sigma-delta modulator: ``real_layout`` samples to a 1-bit stream at |
+| [PDM DAC](sigma_delta_dac.md) | `LiteDSPSigmaDeltaDAC` | var | — | PDM DAC: a TDM (or mono) sink feeding one :class:`LiteDSPSigmaDeltaModulator` per channel, |
+| [PDM receiver](pdm_rx.md) | `LiteDSPPDMReceiver` | var | 0 | PDM microphone receiver: :class:`LiteDSPBitstreamInterface` (``mclk`` out at ``sys_clk / |

@@ -100,6 +100,9 @@ SPECIFIC = [
     ("reverb",          {"allpass_delays": (2,)}),
     ("peak_meter",      {"decay_shift": 16}),
     ("loudness",        {"hop_samples": 0}),
+    ("sigma_delta_mod", {"order": 3}),
+    ("sigma_delta_dac", {"clk_div": 3}),
+    ("pdm_rx",          {"n_channels": 3, "dual_edge": True}),
 ]
 
 class TestParams(unittest.TestCase):

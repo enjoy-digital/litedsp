@@ -245,6 +245,20 @@ def spec_dc_blocker():
     return dut, cols, n - 4, lambda c: [models.dc_blocker_model(np.array(c[0])),
                                         models.dc_blocker_model(np.array(c[1]))]
 
+def spec_dc_blocker_real():
+    from litedsp.filter.dc_blocker import LiteDSPDCBlocker
+    n    = 300
+    dut  = LiteDSPDCBlocker(data_width=24, iq=False, precision_bits=8, with_csr=False)
+    cols = _rand_cols(1, n, lo=-(1 << 23) + 1, hi=(1 << 23) - 1)
+    return dut, cols, n - 4, lambda c: [models.dc_blocker_model(np.array(c[0]), data_width=24, precision_bits=8)]
+
+def spec_tdm_mux():
+    from litedsp.stream.route import LiteDSPTDMMux
+    n    = 150
+    dut  = LiteDSPTDMMux(n_channels=2, data_width=24, with_csr=False)
+    cols = _rand_cols(2, n, lo=-(1 << 23) + 1, hi=(1 << 23) - 1)   # sinks[0], sinks[1].
+    return dut, cols, 2*n - 4, lambda c: list(models.tdm_mux_model([c[0], c[1]]))
+
 def spec_moving_average():
     from litedsp.filter.moving_average import LiteDSPMovingAverage
     n, length_log2 = 300, 4
@@ -1202,6 +1216,13 @@ def spec_reverb():
         dut.room_size.reset.value, dut.damping.reset.value, dut.allpass_gain.reset.value,
         dut.wet.reset.value, dut.dry.reset.value, **kw), np.array(c[1])]
 
+def spec_sigma_delta_mod():
+    from litedsp.audio.pdm import LiteDSPSigmaDeltaModulator
+    n    = 40
+    dut  = LiteDSPSigmaDeltaModulator(data_width=24, interpolation=64, order=2, with_csr=False)
+    cols = _rand_cols(1, n, lo=-(1 << 22), hi=(1 << 22))
+    return dut, cols, 64*n - 64, lambda c: [models.sigma_delta_model(c[0], 64, 2)]
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1227,6 +1248,8 @@ SPECS = {
     "cic_interpolator": spec_cic_interpolator,
     "iir_biquad":       spec_iir_biquad,
     "dc_blocker":       spec_dc_blocker,
+    "dc_blocker_real":  spec_dc_blocker_real,
+    "tdm_mux":          spec_tdm_mux,
     "moving_average":   spec_moving_average,
     "equalizer":        spec_equalizer,
     "pfb_channelizer":  spec_pfb_channelizer,
@@ -1314,6 +1337,7 @@ SPECS = {
     "delay_line":       spec_delay_line,
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
+    "sigma_delta_mod":  spec_sigma_delta_mod,
 }
 
 # Known failures -----------------------------------------------------------------------------------

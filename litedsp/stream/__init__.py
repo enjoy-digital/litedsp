@@ -17,6 +17,6 @@ from litedsp.stream.dma       import LiteDSPDMACapture, LiteDSPDMAReplay
 from litedsp.stream.fifo      import LiteDSPStreamFIFO
 from litedsp.stream.framing   import LiteDSPStreamFramer, LiteDSPStreamDeframer
 from litedsp.stream.ops       import LiteDSPConjugate, LiteDSPSwapIQ, LiteDSPNegate, LiteDSPIQAdd
-from litedsp.stream.route     import LiteDSPChannelMux, LiteDSPChannelDemux
+from litedsp.stream.route     import LiteDSPChannelMux, LiteDSPChannelDemux, LiteDSPTDMMux, LiteDSPTDMDemux
 from litedsp.stream.split     import LiteDSPSplit
 from litedsp.stream.timestamp import LiteDSPTimeCore, LiteDSPTimestamper, LiteDSPTimeUntagger

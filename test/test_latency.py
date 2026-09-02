@@ -35,7 +35,7 @@ EXCLUDED = {
     "viterbi_decoder", "crc", "diff_encoder", "diff_decoder", "stats", "fft", "fft_iter",
     "parallel_fft",  # Transform (like fft); latency pinned cycle-exact in test_fft_parallel.
     "window", "magnitude", "magnitude_cordic", "log2", "log_power", "envelope", "channel_mux",
-    "channel_demux", "combine", "split", "framer", "deframer", "mixer", "equalizer", "farrow",
+    "channel_demux", "tdm_mux", "tdm_demux", "combine", "split", "framer", "deframer", "mixer", "equalizer", "farrow",
     "derotator", "ddc", "duc", "channelizer", "pfb_channelizer", "decimator", "interpolator", "fir_decimator",
     "fir_interpolator", "cic_decimator", "cic_interpolator", "halfband_dec", "halfband_int",
     "pulse_shaper", "downsampler", "upsampler", "iq_pack", "iq_unpack", "energy_detector",
@@ -45,6 +45,7 @@ EXCLUDED = {
     "exp2",                 # Unsigned in/out widths differ; latency pinned in test_logdb.
     "compressor", "limiter", "noise_gate",   # Serial engine; cycles_per_sample pinned in test_dynamics.
     "delay_line", "chorus", "lfo", "reverb", # Serial engines / source; pinned in test_effects.
+    "sigma_delta_mod", "sigma_delta_dac", "pdm_rx",   # Rate changer / pin-level sink and source.
 }
 
 def _build(spec):

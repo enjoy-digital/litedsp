@@ -132,10 +132,16 @@ class LiteDSPBitstreamInterface(LiteXModule):
         div     = Signal(max=clock_div)
         rise    = Signal()                                         # Cycle after the rising edge.
         fall    = Signal()
-        self.sync += If(div == clock_div - 1, div.eq(0)).Else(div.eq(div + 1))
+        armed   = Signal()                                         # Set at the first falling edge.
+        self.sync += [
+            If(div == clock_div - 1, div.eq(0)).Else(div.eq(div + 1)),
+            If(fall, armed.eq(1)),
+        ]
+        # The rising-edge strobe (dual-edge second channel) is armed by the first falling edge so
+        # a frame always starts with the falling-edge channel (no stray bit from reset).
         self.comb += [
             self.mclk.eq(div < clock_div//2),
-            rise.eq(div == 0),
+            rise.eq((div == 0) & armed),
             fall.eq(div == clock_div//2),
         ]
 

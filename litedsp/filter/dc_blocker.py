@@ -11,7 +11,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import check, iq_layout, rounded, saturated, add_bypass
+from litedsp.common import real_layout, check, iq_layout, rounded, saturated, add_bypass
 
 # DC Blocker ---------------------------------------------------------------------------------------
 
@@ -56,16 +56,21 @@ class LiteDSPDCBlocker(LiteXModule):
         Extra fractional bits of the recursive state (0 = legacy data_width-wide recursion,
         bit-identical). With p > 0 the output is requantized with first-order error feedback;
         residual DC is bounded by -6.02*(data_width - 1 + precision_bits - pole_shift) dBFS.
+    iq : bool
+        ``True`` (default): complex I/Q stream, one recursion per component. ``False``: a mono
+        ``real_layout`` stream (audio / PDM front-ends).
     """
-    def __init__(self, data_width=16, pole_shift=5, precision_bits=0, with_csr=True):
+    def __init__(self, data_width=16, pole_shift=5, precision_bits=0, iq=True, with_csr=True):
         check(pole_shift >= 1,     "expected pole_shift >= 1")
         check(precision_bits >= 0, "expected precision_bits >= 0")
         self.data_width     = data_width
         self.pole_shift     = pole_shift
         self.precision_bits = precision_bits
+        self.iq             = iq
         self.latency        = 1
-        self.sink   = stream.Endpoint(iq_layout(data_width))
-        self.source = stream.Endpoint(iq_layout(data_width))
+        layout = iq_layout(data_width) if iq else real_layout(data_width)
+        self.sink   = stream.Endpoint(layout)
+        self.source = stream.Endpoint(layout)
 
         # # #
 
@@ -82,7 +87,7 @@ class LiteDSPDCBlocker(LiteXModule):
         # Datapath.
         # ---------
         p = precision_bits
-        for field in ["i", "q"]:
+        for field in (["i", "q"] if iq else ["data"]):
             x      = getattr(self.sink, field)
             x_prev = Signal((data_width, True))  # x[n-1].
             if p == 0:
@@ -101,19 +106,26 @@ class LiteDSPDCBlocker(LiteXModule):
                 W      = data_width + p
                 y_wide = Signal((W, True))               # y[n-1] state, Qm.(n+p).
                 e      = Signal((p, True))               # Error-feedback state, in [-2**(p-1), 2**(p-1)).
+                y_ceil = Signal((W + 1, True))           # y + 2**pole_shift - 1 (explicit width).
                 leak   = Signal((W, True))
+                diff   = Signal((W + 1, True))           # (x - x[n-1]) << p.
+                acc    = Signal((W + 2, True))           # diff + y - leak before saturation.
                 y_next = Signal((W, True))
                 s      = Signal((W + 1, True))
                 q      = Signal((data_width + 1, True))  # Requantized output before saturation.
                 self.comb += [
                     # Leak rounded away from zero: |leak| >= 1 whenever y != 0, so the state
                     # decays to exactly 0 (no truncation deadband -> no DC residual on a pure
-                    # step, no limit cycles on silence).
+                    # step, no limit cycles on silence). Intermediates get explicit widths so
+                    # the Verilog context never truncates them.
+                    y_ceil.eq(y_wide + (2**pole_shift - 1)),
                     leak.eq(Mux(y_wide < 0,
                         y_wide >> pole_shift,                          # Floor: <= -1 for y < 0.
-                        (y_wide + (2**pole_shift - 1)) >> pole_shift,  # Ceil:  >= +1 for y > 0.
+                        y_ceil >> pole_shift,                          # Ceil:  >= +1 for y > 0.
                     )),
-                    y_next.eq(saturated(((x - x_prev) << p) + y_wide - leak, W)),
+                    diff.eq((x - x_prev) << p),
+                    acc.eq(diff + y_wide - leak),
+                    y_next.eq(saturated(acc, W)),
                     # First-order error feedback on the output requantization (noise transfer
                     # 1 - z**-1: a null at DC, so the p dropped bits add no DC bias).
                     s.eq(y_next + e),

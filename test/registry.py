@@ -55,6 +55,7 @@ VSPEC = {
     "hilbert":            _v(),
     "iir_biquad":         _v("iir_biquad_model",       cosim=True),
     "dc_blocker":         _v("dc_blocker_model",       cosim=True),
+    "dc_blocker_real":    _v("dc_blocker_model",       cosim=True),
     "moving_average":     _v("moving_average_model",   cosim=True),
     "farrow":             _v(),
     "equalizer":          _v("equalizer_model", cosim=True),
@@ -176,6 +177,9 @@ VSPEC = {
     "reverb":             _v("reverb_model", cosim=True),       # Cosim spec uses short delays.
     "peak_meter":         _v("peak_meter_model"),               # CSR read-back meters: passthrough
     "loudness":           _v("loudness_model"),                 # taps, measurements not on the stream.
+    "sigma_delta_mod":    _v("sigma_delta_model", rate=(64, 1), cosim=True),
+    "sigma_delta_dac":    _v("sigma_delta_model", latency="n/a", rate=None),   # Sink-only (pins).
+    "pdm_rx":             _v("pdm_receiver_model", latency="n/a", rate=None),  # Source-only (pins).
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),
@@ -183,6 +187,8 @@ VSPEC = {
     "skid_buffer":        _v(),
     "channel_mux":        _v(rate=None),
     "channel_demux":      _v(rate=None),
+    "tdm_mux":            _v("tdm_mux_model", cosim=True),    # Round-robin interleave (2 sinks).
+    "tdm_demux":          _v(rate=None),
     "capture":            _v(latency="variable", rate=None),
     "conjugate":          _v("conjugate_model", cosim=True),
     "swap_iq":            _v("swap_iq_model", cosim=True),

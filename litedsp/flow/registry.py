@@ -96,7 +96,7 @@ from litedsp.stream.combine        import LiteDSPCombine
 from litedsp.stream.split          import LiteDSPSplit
 from litedsp.stream.delay          import LiteDSPDelay
 from litedsp.stream.buffer         import LiteDSPSkidBuffer
-from litedsp.stream.route          import LiteDSPChannelMux, LiteDSPChannelDemux
+from litedsp.stream.route          import LiteDSPChannelMux, LiteDSPChannelDemux, LiteDSPTDMMux, LiteDSPTDMDemux
 from litedsp.stream.capture        import LiteDSPCapture
 from litedsp.stream.ops            import LiteDSPConjugate, LiteDSPSwapIQ, LiteDSPNegate
 from litedsp.stream.fifo           import LiteDSPStreamFIFO
@@ -122,6 +122,7 @@ from litedsp.level.logdb           import LiteDSPExp2
 from litedsp.audio.dynamics        import LiteDSPCompressor
 from litedsp.audio.effects         import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 from litedsp.audio.meter           import LiteDSPPeakMeter, LiteDSPLoudness
+from litedsp.audio.pdm             import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -154,6 +155,7 @@ ENTRIES = [
     ("hilbert",            LiteDSPHilbert,               {},                                     "filter",     "Hilbert",               None),
     ("iir_biquad",         LiteDSPIIRBiquad,             {},                                     "filter",     "IIR biquad",            {"architecture": ["classic", "folded"]}),
     ("dc_blocker",         LiteDSPDCBlocker,             {},                                     "filter",     "DC blocker",            None),
+    ("dc_blocker_real",    LiteDSPDCBlocker,             {"iq": False, "data_width": 24, "precision_bits": 8}, "filter", "DC blocker (mono)", None),
     ("moving_average",     LiteDSPMovingAverage,         {},                                     "filter",     "Moving average",        None),
     ("farrow",             LiteDSPFarrowInterpolator,    {},                                     "filter",     "Farrow interpolator",   None),
     ("equalizer",          LiteDSPLMSEqualizer,          {"n_taps": 7},                          "filter",     "LMS equalizer",         {"architecture": ["classic", "pipelined"]}),
@@ -241,6 +243,8 @@ ENTRIES = [
     ("skid_buffer",        LiteDSPSkidBuffer,            {},                                     "stream",     "Skid buffer",           None),
     ("channel_mux",        LiteDSPChannelMux,            {"n": 2},                               "stream",     "Channel mux",           None),
     ("channel_demux",      LiteDSPChannelDemux,          {"n": 2},                               "stream",     "Channel demux",         None),
+    ("tdm_mux",            LiteDSPTDMMux,                {},                                     "stream",     "TDM mux (interleave)",  None),
+    ("tdm_demux",          LiteDSPTDMDemux,              {},                                     "stream",     "TDM demux",             None),
     ("capture",            LiteDSPCapture,               {"depth": 256},                         "stream",     "Capture (scope)",       None),
     ("conjugate",          LiteDSPConjugate,             {},                                     "stream",     "Conjugate",             None),
     ("swap_iq",            LiteDSPSwapIQ,                {},                                     "stream",     "Swap I/Q",              None),
@@ -292,6 +296,9 @@ ENTRIES = [
     ("reverb",             LiteDSPReverb,                {},                                     "audio",      "Reverb",                None),
     ("peak_meter",         LiteDSPPeakMeter,             {},                                     "audio",      "Peak meter",            None),
     ("loudness",           LiteDSPLoudness,              {},                                     "audio",      "Loudness (BS.1770)",    None),
+    ("sigma_delta_mod",    LiteDSPSigmaDeltaModulator,   {},                                     "audio",      "Sigma-delta modulator", {"order": [1, 2]}),
+    ("sigma_delta_dac",    LiteDSPSigmaDeltaDAC,         {},                                     "audio",      "PDM DAC",               None),
+    ("pdm_rx",             LiteDSPPDMReceiver,           {},                                     "audio",      "PDM receiver",          None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

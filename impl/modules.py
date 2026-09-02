@@ -95,6 +95,7 @@ from litedsp.level.logdb          import LiteDSPLog2, LiteDSPExp2
 from litedsp.audio.dynamics       import LiteDSPCompressor
 from litedsp.audio.effects        import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
 from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
+from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -189,6 +190,18 @@ def iir_biquad_folded():
 def dc_blocker():
     d = LiteDSPDCBlocker(data_width=16, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
+
+def dc_blocker_real():
+    d = LiteDSPDCBlocker(data_width=24, iq=False, precision_bits=8, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def tdm_mux():
+    d = LiteDSPTDMMux(n_channels=2, data_width=24, with_csr=False)
+    return d, _eps(*d.sinks, d.source), 10.0
+
+def tdm_demux():
+    d = LiteDSPTDMDemux(n_channels=2, data_width=24, with_csr=False)
+    return d, _eps(d.sink, *d.sources), 10.0
 
 def moving_average():
     d = LiteDSPMovingAverage(data_width=16, length_log2=5, with_csr=False)
@@ -734,6 +747,18 @@ def loudness():
     d = LiteDSPLoudness(data_width=24, n_channels=2, with_csr=False)
     return d, {d.clear, d.sum_sq, d.hop_count, d.update, d.overrun} | _eps(d.sink, d.source), 10.0
 
+def sigma_delta_mod():
+    d = LiteDSPSigmaDeltaModulator(data_width=24, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def sigma_delta_dac():
+    d = LiteDSPSigmaDeltaDAC(data_width=24, n_channels=2, with_csr=False)
+    return d, {d.pdm_out, d.pdm_clk, d.underrun, d.clear} | _eps(d.sink), 10.0
+
+def pdm_rx():
+    d = LiteDSPPDMReceiver(data_width=24, n_channels=2, with_csr=False)
+    return d, {d.mclk, d.mdat, d.overrun, d.clear} | _eps(d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -744,7 +769,8 @@ REGISTRY = {
     "cic_decimator": cic_decimator,
     "cic_interpolator": cic_interpolator, "halfband": halfband, "iir_biquad": iir_biquad,
     "iir_biquad_folded": iir_biquad_folded,
-    "dc_blocker": dc_blocker, "moving_average": moving_average, "farrow": farrow,
+    "dc_blocker": dc_blocker, "dc_blocker_real": dc_blocker_real, "tdm_mux": tdm_mux,
+    "tdm_demux": tdm_demux, "moving_average": moving_average, "farrow": farrow,
     "gain": gain, "power": power, "agc": agc, "dpd": dpd, "cfr": cfr,
     "cfr_pipelined": cfr_pipelined, "saturate": saturate, "rms": rms,
     "magnitude": magnitude, "magnitude_cordic": magnitude_cordic, "combine": combine,
@@ -798,6 +824,7 @@ REGISTRY = {
     "log2_lut": log2_lut, "exp2": exp2, "compressor": compressor, "limiter": limiter,
     "lfo": lfo, "delay_line": delay_line, "chorus": chorus, "wet_dry_mix": wet_dry_mix,
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
+    "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
 }
 
 # Subset for the slower full place-&-route flows.

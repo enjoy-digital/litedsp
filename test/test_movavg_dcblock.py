@@ -115,5 +115,17 @@ class TestDCBlocker(unittest.TestCase):
             self.assertTrue(np.all(tail == 0), f"{f}: limit cycle on silence (max |y| = "
                 f"{np.abs(tail).max()} after settling)")
 
+class TestDCBlockerReal(unittest.TestCase):
+    # verify-tier: model — the mono (iq=False) build runs the same recursion on ``data``.
+    def test_bit_exact(self):
+        prng = random.Random(7)
+        x    = [prng.randint(-(1 << 22), (1 << 22)) + 200000 for _ in range(300)]   # DC offset.
+        dut  = LiteDSPDCBlocker(data_width=24, iq=False, precision_bits=8, pole_shift=10, with_csr=False)
+        cap  = run_stream(dut, [{"data": v} for v in x], len(x), ["data"], ["data"],
+            sink_throttle=0.2, source_ready_rate=0.7)
+        ref  = dc_blocker_model(np.array(x), pole_shift=10, data_width=24, precision_bits=8)
+        self.assertTrue(np.array_equal(column(cap, "data", 24), ref))
+        self.assertEqual(dut.latency, 1)
+
 if __name__ == "__main__":
     unittest.main()

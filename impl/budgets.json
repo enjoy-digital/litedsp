@@ -4630,6 +4630,20 @@
       }
     }
   },
+  "pdm_rx": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 675,
+      "lut": 1244,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 675,
+        "lut": 1244
+      }
+    }
+  },
   "pfb_channelizer": {
     "ecp5": {
       "bram": 0,

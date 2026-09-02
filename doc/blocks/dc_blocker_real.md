@@ -1,4 +1,4 @@
-# DC blocker
+# DC blocker (mono)
 
 `LiteDSPDCBlocker` — `litedsp.filter.dc_blocker` — category `filter`
 
@@ -40,26 +40,20 @@ With ``precision_bits = p > 0`` the recursive state/accumulator runs ``p`` bits 
 
 | Parameter | Default | Type | Description |
 |---|---|---|---|
-| `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
+| `data_width` | `24` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `pole_shift` | `5` | int | Leaky-integrator pole position (pole = 1 - 2**-pole_shift); larger = narrower DC notch but slower settling. Implemented as a bare shift, so any value costs no multiplier. |
-| `precision_bits` | `0` | int | Extra fractional bits of the recursive state (0 = legacy data_width-wide recursion, bit-identical). With p > 0 the output is requantized with first-order error feedback; residual DC is bounded by -6.02*(data_width - 1 + precision_bits - pole_shift) dBFS. |
-| `iq` | `True` | bool | ``True`` (default): complex I/Q stream, one recursion per component. ``False``: a mono ``real_layout`` stream (audio / PDM front-ends). |
+| `precision_bits` | `8` | int | Extra fractional bits of the recursive state (0 = legacy data_width-wide recursion, bit-identical). With p > 0 the output is requantized with first-order error feedback; residual DC is bounded by -6.02*(data_width - 1 + precision_bits - pole_shift) dBFS. |
+| `iq` | `False` | bool | ``True`` (default): complex I/Q stream, one recursion per component. ``False``: a mono ``real_layout`` stream (audio / PDM front-ends). |
 
 ## Ports
 
 | Port | Direction | Layout |
 |---|---|---|
-| `sink` | sink | iq |
-| `source` | source | iq |
+| `sink` | sink | real |
+| `source` | source | real |
 
 Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 ## FPGA Resources
 
-| Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
-|---|---|---|---|---|---|---|
-| ecp5 | 226 | 97 | 0 | 0 | 202.0 | — |
-| xilinx | 90 | 97 | 0 | 0 | — | — |
-| xilinx_au | 91 | 97 | 0 | 0 | — | — |
-
-Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
+Not characterized yet (no `impl/budgets.json` entry).
