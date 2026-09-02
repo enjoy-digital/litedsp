@@ -102,6 +102,34 @@ class TestCICDecimatorRuntime(unittest.TestCase):
             self.assertTrue(np.array_equal(gi, ri), f"I R={R} N={N} staged")
             self.assertTrue(np.array_equal(gq, rq), f"Q R={R} N={N} staged")
 
+    def test_narrow_input_width_bit_exact(self):
+        # in_width sizes the sink and the Hogenauer registers independently of data_width: a
+        # 2-bit +1/-1 bitstream (sigma-delta / PDM front end) through a 16-bit output must match
+        # the golden model of the same cascade; the runtime shift then aligns the output.
+        R, N = 16, 3
+        prng = random.Random(29)
+        bits = [prng.choice([-1, 1]) for _ in range(R*40)]
+        dut  = LiteDSPCICDecimatorRuntime(data_width=16, r_max=64, n_stages=N, iq=False,
+            with_csr=False, in_width=2)
+        self.assertEqual(len(dut.sink.data), 2)
+        self.assertEqual(len(dut.source.data), 16)
+        n_out = len(bits)//R
+
+        @passive
+        def cfg():
+            yield dut.rate.eq(R)
+            yield dut.shift.eq(0)                      # Raw accumulator (fits: 12 bits + sign).
+            while True:
+                yield
+
+        cap = run_stream(dut, [{"data": b} for b in bits], n_out, ["data"], ["data"],
+            sink_throttle=0.2, source_ready_rate=0.6, extra=[cfg()])
+        ref = cic_decimator_model(bits, R, N, data_width=16, shift=0,
+            wrap_width=2 + cic_shift(64, N))                # Registers sized by r_max=64.
+        self.assertTrue(np.array_equal(column(cap, "data", 16), ref[:n_out]))
+        with self.assertRaises(ValueError):
+            LiteDSPCICDecimatorRuntime(in_width=0, with_csr=False)
+
 class TestCICInterpolator(unittest.TestCase):
     def run_int(self, xi, xq, R, N, M=1, staged=False):
         dut = LiteDSPCICInterpolator(data_width=16, interpolation=R, n_stages=N, diff_delay=M,

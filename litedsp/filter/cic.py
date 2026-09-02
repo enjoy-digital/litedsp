@@ -326,24 +326,33 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
     decimated rate (two cycles per comb stage + bias/shift/saturate cycles, ``2N+3`` cycles per
     output). It requires ``rate >= 2*n_stages + 4`` so an output drains before the next window
     closes; the ``sample_ce``/``out_ce`` strobes and the stream interface are identical.
+
+    ``in_width`` (default ``data_width``) sets the sink sample width independently of the
+    ``data_width`` output: the Hogenauer registers are sized ``in_width + growth``, so a narrow
+    input (e.g. the 2-bit ``+1/-1`` mapping of a sigma-delta or PDM bitstream, see
+    :class:`~litedsp.filter.bitstream.LiteDSPBitstreamDecimator`) does not pay for a full-width
+    datapath; the rescale shift then also sets the output alignment.
     """
     def __init__(self, data_width=16, r_max=8192, n_stages=4, diff_delay=1, iq=True,
-        with_csr=True, staged=False):
+        with_csr=True, staged=False, in_width=None):
         N, M = n_stages, diff_delay  # Literature names.
         check(r_max >= 2 and N >= 1 and M >= 1, "expected r_max >= 2, n_stages >= 1, diff_delay >= 1")
+        if in_width is None:
+            in_width = data_width
+        check(in_width >= 1, "expected in_width >= 1")
         self.staged = staged
         self.data_width = data_width
+        self.in_width   = in_width
         self.r_max      = r_max
         self.n_stages, self.diff_delay = N, M
         self.latency    = 1
         growth          = _growth_bits(r_max, N, M)
-        W               = data_width + growth
+        W               = in_width + growth
         self.growth     = growth
 
         fields = ["i", "q"] if iq else ["data"]
-        layout = iq_layout(data_width) if iq else real_layout(data_width)
-        self.sink   = stream.Endpoint(layout)
-        self.source = stream.Endpoint(layout)
+        self.sink   = stream.Endpoint(iq_layout(in_width)   if iq else real_layout(in_width))
+        self.source = stream.Endpoint(iq_layout(data_width) if iq else real_layout(data_width))
 
         self.rate  = Signal(bits_for(r_max), reset=8)                    # Decimation factor R (runtime).
         self.shift = Signal(bits_for(growth), reset=cic_shift(8, N, M))  # Rescale shift; keep = cic_shift(rate, N, M).

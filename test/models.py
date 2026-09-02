@@ -365,10 +365,17 @@ def _wrapper(W):
         return v - (1 << W) if v >= half else v
     return wrap
 
-def cic_decimator_model(x, R, N=3, M=1, data_width=16):
-    """Cycle-accurate reference for litedsp.filter.cic.CICDecimator (one channel)."""
+def cic_decimator_model(x, R, N=3, M=1, data_width=16, shift=None, wrap_width=None):
+    """Cycle-accurate reference for litedsp.filter.cic.CICDecimator (one channel).
+
+    ``shift`` (default: the exact gain ``ceil(N*log2(R*M))``) and ``wrap_width`` (default:
+    ``data_width + growth``) model the runtime variant, whose rescale shift is a control and
+    whose registers are sized ``in_width + growth(r_max)`` (LiteDSPCICDecimatorRuntime).
+    """
     growth = _cic_growth(R, N, M)
-    wrap   = _wrapper(data_width + growth)
+    wrap   = _wrapper(data_width + growth if wrap_width is None else wrap_width)
+    if shift is None:
+        shift = growth
     integ  = [0]*N
     combq  = [[0]*M for _ in range(N)]
     out, decim = [], 0
@@ -384,7 +391,7 @@ def cic_decimator_model(x, R, N=3, M=1, data_width=16):
                 d = wrap(c - combq[k][M - 1])
                 combq[k] = [c] + combq[k][:M - 1]
                 c = d
-            out.append(np_scaled(np.int64(c), growth, data_width))
+            out.append(np_scaled(np.int64(c), shift, data_width))
         else:
             decim += 1
     return np.array(out, np.int64)

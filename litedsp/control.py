@@ -15,7 +15,9 @@ class LiteDSPPILoop(LiteXModule):
 
     ``out = (error >> kp_shift) + integral`` where ``integral += (error >> ki_shift)`` each
     enabled cycle. Drive ``error``/``ce``; read ``out`` (and ``integral`` for the frequency
-    state). Larger shifts = slower/tighter loop.
+    state). Larger shifts = slower/tighter loop. ``kp_shift``/``ki_shift`` may be Python ints
+    (build-time gains) or ``Signal``s (runtime gains, e.g. from a CSR, as the motor-control
+    angle tracker does): Migen's ``>>`` accepts either.
     """
     def __init__(self, error_width=18, out_width=32, kp_shift=4, ki_shift=12):
         self.error    = Signal((error_width, True))  # Loop error input (signed).
