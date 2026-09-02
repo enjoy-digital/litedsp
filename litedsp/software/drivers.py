@@ -21,6 +21,7 @@ this is what the CLI and the GUI live mode build on. Drivers only touch ``bus.re
 read()/write(), so any bus object with that shape works (including mocks in tests).
 """
 
+import math
 import time
 
 # Helpers ------------------------------------------------------------------------------------------
@@ -536,6 +537,251 @@ class AngleTrackerDriver(Driver):
     def get_speed_raw(self):
         return self.speed.read()
 
+# Audio drivers ------------------------------------------------------------------------------------
+
+class VolumeDriver(Driver):
+    """Per-channel gain in dB (unsigned Q5.gain_frac), faded mute mask, ramp enable."""
+    regs      = ("gain0", "control", "status")
+    gain_frac = 19                                   # 24-bit build (gain_frac = data_width - 5).
+
+    def set_db(self, channel, db):
+        """Gain of ``channel`` in dB (clamped to the +30 dB register range)."""
+        value = int(round(10**(db/20)*(1 << self.gain_frac)))
+        value = max(0, min((1 << (self.gain_frac + 5)) - 1, value))
+        getattr(self.bus.regs, f"{self.prefix}_gain{channel}").write(value)
+
+    def mute(self, mask):
+        """Mute mask (bit c fades channel c to silence)."""
+        self.control.write((self.control.read() & ~0xFF) | (int(mask) & 0xFF))
+
+    def set_ramp(self, enable):
+        self.control.write((self.control.read() & ~(1 << 8)) | (int(bool(enable)) << 8))
+
+class StereoMatrixDriver(Driver):
+    """2x2 mix matrix in floats (signed Q3.15): M/S encode/decode, pan, width, swap, mono."""
+    regs        = ("a", "b", "c", "d", "control", "status")
+    coeff_width = 18
+    coeff_frac  = 15
+
+    def _q(self, x):
+        lim = (1 << (self.coeff_width - 1)) - 1
+        return int(round(max(-lim, min(lim, x*(1 << self.coeff_frac))))) & ((1 << self.coeff_width) - 1)
+
+    def set_matrix(self, a, b, c, d):
+        """``L' = a L + b R``, ``R' = c L + d R``."""
+        self.a.write(self._q(a)); self.b.write(self._q(b))
+        self.c.write(self._q(c)); self.d.write(self._q(d))
+
+    def ms_encode(self):
+        self.set_matrix(0.5, 0.5, 0.5, -0.5)
+
+    def ms_decode(self):
+        self.set_matrix(1.0, 1.0, 1.0, -1.0)
+
+    def pan(self, position):
+        """Constant-power pan of a mono (L = R) source, ``position`` -1 (left) .. +1 (right)."""
+        from litedsp.audio.design import pan_matrix
+        self.set_matrix(*pan_matrix(position))
+
+    def width(self, w):
+        """Stereo width: 0 = mono, 1 = unchanged, > 1 = wider (mid/side scaling)."""
+        self.set_matrix((1 + w)/2, (1 - w)/2, (1 - w)/2, (1 + w)/2)
+
+    def swap(self):
+        self.set_matrix(0.0, 1.0, 1.0, 0.0)
+
+    def mono(self):
+        self.set_matrix(0.5, 0.5, 0.5, 0.5)
+
+class CompressorDriver(Driver):
+    """Dynamics processor (compressor / limiter / gate presets) in dB and milliseconds."""
+    regs = ("threshold", "slope_above", "slope_below", "attack", "release", "gr_max", "makeup",
+            "control", "status", "config")
+
+    def set_threshold_db(self, db):
+        from litedsp.audio.design import log2_from_db
+        self.threshold.write(log2_from_db(db, 8) & 0xFFFF)
+
+    def set_ratio(self, ratio):
+        """Compression ratio above the threshold (1.0 = off, inf = limiter)."""
+        self.slope_above.write(int(round((1.0 - 1.0/ratio)*65536)))
+
+    def set_expansion(self, ratio):
+        """Expansion ratio below the threshold (1.0 = off; a gate uses e.g. 8)."""
+        self.slope_below.write(int(round((ratio - 1.0)*65536)))
+
+    def set_attack_ms(self, ms, sample_rate=48000):
+        from litedsp.audio.design import time_constant_coeff
+        self.attack.write(65535 if ms <= 0 else time_constant_coeff(ms, sample_rate, 16))
+
+    def set_release_ms(self, ms, sample_rate=48000):
+        from litedsp.audio.design import time_constant_coeff
+        self.release.write(65535 if ms <= 0 else time_constant_coeff(ms, sample_rate, 16))
+
+    def set_makeup_db(self, db):
+        from litedsp.audio.design import log2_from_db
+        self.makeup.write(log2_from_db(db, 8) & 0xFFFF)
+
+    def set_max_reduction_db(self, db):
+        from litedsp.audio.design import log2_from_db
+        self.gr_max.write(log2_from_db(abs(db), 8) & 0x7FFF)
+
+    def set_detector(self, rms=False, rms_shift=6, stereo_link=False):
+        v = self.control.read() & ~0x1FF
+        self.control.write(v | int(bool(rms)) | ((rms_shift & 0xF) << 4) | (int(bool(stereo_link)) << 8))
+
+    def set_bypass(self, bypass):
+        self.control.write((self.control.read() & ~(1 << 9)) | (int(bool(bypass)) << 9))
+
+    @property
+    def gain_reduction_db(self):
+        """Current gain reduction in dB (Q7.8 log2 units)."""
+        return (self.status.read() & 0x7FFF)/256*20*math.log10(2)
+
+class AudioEQDriver(Driver):
+    """Parametric EQ: RBJ band design in Hz/dB/Q, quantized to the block's coefficient format,
+    loaded into the shadow set and committed atomically."""
+    regs = ("config", "coeff_index", "coeff_value", "band_enable", "control", "status")
+
+    def __init__(self, bus, prefix, clk_freq=None):
+        super().__init__(bus, prefix, clk_freq)
+        cfg = self.config.read()
+        self.n_bands     = cfg & 0xFF
+        self.n_channels  = (cfg >> 8) & 0xFF
+        self.coeff_width = (cfg >> 16) & 0xFF
+        self.frac_bits   = (cfg >> 24) & 0xFF
+
+    def set_band(self, band, kind, f0, gain_db=0.0, q=0.7071, sample_rate=48000):
+        """Design one RBJ section (``lowpass``, ``highpass``, ``bandpass``, ``notch``,
+        ``allpass``, ``peaking``, ``lowshelf``, ``highshelf``) into the shadow set."""
+        from litedsp.audio.design  import rbj_biquad
+        from litedsp.filter.design import biquad_sos_quantize
+        row = rbj_biquad(kind, f0, gain_db, q, sample_rate=sample_rate)
+        (sec,), _ = biquad_sos_quantize([row], self.coeff_width, self.frac_bits)
+        mask = (1 << self.coeff_width) - 1
+        self.coeff_index.write(8*band)
+        for k in ("b0", "b1", "b2", "a1", "a2"):
+            self.coeff_value.write(sec[k] & mask)             # Auto-incrementing index.
+
+    def set_bands(self, bands, sample_rate=48000):
+        """``bands`` = list of ``(kind, f0, gain_db, q)``; loads them all, then commits."""
+        for band, (kind, f0, gain_db, q) in enumerate(bands):
+            self.set_band(band, kind, f0, gain_db, q, sample_rate)
+        self.commit()
+
+    def commit(self):
+        self.control.write(self.control.read() | 1)
+
+    def enable_band(self, band, enable=True):
+        mask = self.band_enable.read()
+        self.band_enable.write((mask | (1 << band)) if enable else (mask & ~(1 << band)))
+
+    def set_bypass(self, bypass):
+        self.control.write((self.control.read() & ~(1 << 1)) | (int(bool(bypass)) << 1))
+
+class LFODriver(NCODriver):
+    """Low-frequency oscillator: frequency in Hz at the audio sample rate (``clk_freq``),
+    shape and amplitude."""
+    regs   = ("phase_inc", "control", "amplitude")
+    SHAPES = ("sine", "triangle", "saw", "square")
+
+    def set_shape(self, shape):
+        self.control.write((self.control.read() & ~0b11) | self.SHAPES.index(shape))
+
+    def set_amplitude(self, amplitude):
+        """Amplitude 0..1 (signed Q1.15)."""
+        self.amplitude.write(int(round(max(-1.0, min(1.0, amplitude))*32767)) & 0xFFFF)
+
+class PeakMeterDriver(Driver):
+    """Peak / hold / clip meter read-back in dBFS."""
+    regs       = ("control", "decay_shift", "clip_threshold", "clip", "peak0", "hold0",
+                  "clip_count0", "peak_log20")
+    data_width = 24
+
+    def _reg(self, name, channel):
+        return getattr(self.bus.regs, f"{self.prefix}_{name}{channel}")
+
+    def _dbfs(self, raw):
+        return -200.0 if raw == 0 else 20*math.log10(raw/(1 << (self.data_width - 1)))
+
+    def read_dbfs(self, channel):
+        """Decaying peak in dBFS from the block's log2 scan (Q(int).8)."""
+        l = self._reg("peak_log2", channel).read()
+        return -200.0 if l == 0 else 20*math.log10(2)*(l/256 - (self.data_width - 1))
+
+    def read_peak(self, channel):
+        return self._dbfs(self._reg("peak", channel).read())
+
+    def read_hold(self, channel):
+        return self._dbfs(self._reg("hold", channel).read())
+
+    def clip_counts(self, n_channels):
+        return [self._reg("clip_count", c).read() for c in range(n_channels)]
+
+    def set_decay(self, shift):
+        self.decay_shift.write(int(shift))
+
+    def clear(self):
+        self.control.write(1)
+
+class LoudnessDriver(Driver):
+    """ITU-R BS.1770 loudness from the block's K-weighted hop sums: momentary (400 ms),
+    short-term (3 s) and gated integrated loudness in LKFS."""
+    regs = ("control", "status", "sum_sq", "hop_count", "config")
+
+    def __init__(self, bus, prefix, clk_freq=None):
+        super().__init__(bus, prefix, clk_freq)
+        cfg = self.config.read()
+        self.n_channels  = cfg & 0xF
+        self.data_width  = (cfg >> 4) & 0x3F
+        self.hop_samples = (cfg >> 10) & 0x1FFFFF
+        self.hops        = []
+
+    def read_hop(self):
+        """Poll: append the latest hop sum when a new one was latched; returns the hop count."""
+        count = self.hop_count.read()
+        if count != len(self.hops):
+            self.hops.append(self.sum_sq.read())
+        return count
+
+    def _lkfs(self, mean_sq):
+        fs2 = float(1 << (2*(self.data_width - 1)))
+        return -0.691 + 10*math.log10(max(mean_sq, 1e-30)/(self.hop_samples*fs2))
+
+    def hop_lkfs(self, sum_sq):
+        return self._lkfs(sum_sq)
+
+    def momentary(self, sample_rate=48000):
+        """Loudness of the last 400 ms (the last ``0.4*fs/hop`` hops)."""
+        n = max(1, int(round(0.4*sample_rate/self.hop_samples)))
+        return self._lkfs(sum(self.hops[-n:])/max(1, len(self.hops[-n:])))
+
+    def short_term(self, sample_rate=48000):
+        n = max(1, int(round(3.0*sample_rate/self.hop_samples)))
+        return self._lkfs(sum(self.hops[-n:])/max(1, len(self.hops[-n:])))
+
+    def integrated(self, sample_rate=48000):
+        """Gated integrated loudness (BS.1770-4: absolute gate -70 LKFS, relative gate -10 LU)
+        over 400 ms blocks with 75 % overlap built from the hop sums."""
+        n = max(1, int(round(0.4*sample_rate/self.hop_samples)))
+        step = max(1, n//4)
+        blocks = [sum(self.hops[k:k + n])/n for k in range(0, max(1, len(self.hops) - n + 1), step)
+                  if len(self.hops[k:k + n]) == n]
+        if not blocks and self.hops:                          # Shorter than one block: use it all.
+            blocks = [sum(self.hops)/len(self.hops)]
+        if not blocks:
+            return -200.0
+        abs_gated = [b for b in blocks if self._lkfs(b) > -70.0]
+        if not abs_gated:
+            return -200.0
+        rel = self._lkfs(sum(abs_gated)/len(abs_gated)) - 10.0
+        gated = [b for b in abs_gated if self._lkfs(b) > rel] or abs_gated
+        return self._lkfs(sum(gated)/len(gated))
+
+    def clear(self):
+        self.hops = []
+        self.control.write(1)
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -555,6 +801,13 @@ TYPED = {
     "pwm":      PWMDriver,
     "quadrature_decoder": QuadratureDecoderDriver,
     "angle_tracker": AngleTrackerDriver,
+    "volume":        VolumeDriver,
+    "stereo_matrix": StereoMatrixDriver,
+    "compressor":    CompressorDriver, "limiter": CompressorDriver, "noise_gate": CompressorDriver,
+    "audio_eq":      AudioEQDriver,
+    "lfo":           LFODriver,
+    "peak_meter":    PeakMeterDriver,
+    "loudness":      LoudnessDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -562,7 +815,8 @@ TYPED = {
 DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
-           AngleTrackerDriver]
+           AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
+           LFODriver, PeakMeterDriver, LoudnessDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

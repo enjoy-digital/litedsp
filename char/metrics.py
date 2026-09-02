@@ -91,6 +91,27 @@ def enob_bits(x, f):
     """
     return (sinad_db(x, f) - 1.76)/6.02
 
+def thd_db(x, f, n_harmonics=5, guard=8):
+    """Total harmonic distortion (dB, negative is better): power of harmonics 2..``n_harmonics``
+    of the tone at normalized frequency ``f`` (folded around fs/2) relative to the fundamental,
+    from the Hann-windowed spectrum with ``guard`` bins per band."""
+    p    = _power_spectrum(x)
+    n    = len(p)
+    fund = _band_power(p, f, guard)
+    bins = set()
+    for h in range(2, n_harmonics + 1):
+        fh = (h*f) % 1.0
+        fh = 1.0 - fh if fh > 0.5 else fh
+        if abs(fh - f)*n <= 2*guard + 1 or fh*n <= guard:   # Folds onto the fundamental / DC.
+            continue
+        bins.add(int(round(fh*n)))                          # Folded harmonics sharing a band
+    harm = sum(float(p[_band_idx(n, k, guard)].sum()) for k in bins)   # count once.
+    return 10*np.log10(max(harm, 1e-300)/fund)
+
+def thd_n_db(x, f):
+    """THD+N (dB, negative is better): noise + distortion relative to the fitted tone (``-sinad``)."""
+    return -sinad_db(x, f)
+
 def tone_amplitude(x, f):
     """Least-squares amplitude of the tone at known normalized frequency ``f``."""
     return _tone_fit(x, f)[0]

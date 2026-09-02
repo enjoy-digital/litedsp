@@ -109,9 +109,29 @@ def response_for(key, params=None, data_width=16, n_points=512):
         L = 1 << int(p.get("length_log2", 4))
         return freqs, _db(_cic_mag(freqs, L, 1))            # Boxcar = single-stage CIC shape.
 
-    if key == "dc_blocker":
+    if key in ("dc_blocker", "dc_blocker_real"):
         a = 1.0 - 2.0**-int(p.get("pole_shift", 5))         # y = x - x1 + a*y1.
         return freqs, _db(_rational([1, -1], [1, -a], freqs))
+
+    if key == "bitstream_decimator":
+        R = int(p.get("decimation", 64))
+        N = int(p.get("n_stages", 4))
+        M = int(p.get("diff_delay", 1))
+        return freqs, _db(_cic_mag(freqs, R, N, M))
+
+    if key == "audio_eq":
+        frac = int(p.get("frac_bits", 28))
+        mag  = np.ones_like(freqs)
+        for c in (p.get("sections") or []):                  # Cascade of quantized biquads.
+            mag = mag*_rational([c["b0"], c["b1"], c["b2"]], [1 << frac, c["a1"], c["a2"]], freqs)
+        return freqs, _db(mag)
+
+    if key == "loudness":
+        from litedsp.audio.design import k_weighting_sos
+        mag = np.ones_like(freqs)
+        for b0, b1, b2, a0, a1, a2 in k_weighting_sos(float(p.get("sample_rate", 48000))):
+            mag = mag*_rational([b0, b1, b2], [a0, a1, a2], freqs)
+        return freqs, _db(mag)                                # K-weighting side branch.
 
     if key == "iir_biquad":
         frac = int(p.get("frac_bits", 14))

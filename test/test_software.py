@@ -10,7 +10,9 @@ import unittest
 
 from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, discover,
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
-    FOCDriver, PWMDriver, QuadratureDecoderDriver)
+    FOCDriver, PWMDriver, QuadratureDecoderDriver,
+    VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
+    LoudnessDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -184,6 +186,84 @@ class TestMotorDrivers(unittest.TestCase):
         self.assertEqual(regs["enc_angle_scale"].value, 1 << 20)
         # 100 counts per 10 ms window at 4096 counts/turn: 100/4096*100/s = 2.44 turns/s = 146 rpm.
         self.assertAlmostEqual(drv.get_speed_rpm(), 100/4096*100*60, places=6)
+
+class TestAudioDrivers(unittest.TestCase):
+    def test_volume_db_mute(self):
+        regs = {f"vol_{r}": MockCSR() for r in VolumeDriver.regs + ("gain1",)}
+        drv  = VolumeDriver(MockBus(regs), "vol")
+        drv.set_db(0, 0.0)
+        drv.set_db(1, -6.0206)
+        self.assertEqual(regs["vol_gain0"].value, 1 << 19)
+        self.assertEqual(regs["vol_gain1"].value, 1 << 18)
+        drv.set_db(0, 40.0)                                        # Clamped to the register range.
+        self.assertEqual(regs["vol_gain0"].value, (1 << 24) - 1)
+        drv.mute(0b10)
+        self.assertEqual(regs["vol_control"].value & 0xFF, 0b10)
+
+    def test_stereo_matrix(self):
+        regs = {f"mtx_{r}": MockCSR() for r in StereoMatrixDriver.regs}
+        drv  = StereoMatrixDriver(MockBus(regs), "mtx")
+        drv.ms_encode()
+        self.assertEqual((regs["mtx_a"].value, regs["mtx_d"].value), (16384, (-16384) & 0x3FFFF))
+        drv.swap()
+        self.assertEqual((regs["mtx_a"].value, regs["mtx_b"].value), (0, 32768))
+
+    def test_compressor_units(self):
+        regs = {f"comp_{r}": MockCSR() for r in CompressorDriver.regs}
+        drv  = CompressorDriver(MockBus(regs), "comp")
+        drv.set_threshold_db(-6.0206)
+        self.assertEqual(regs["comp_threshold"].value, (-256) & 0xFFFF)
+        drv.set_ratio(4.0)
+        self.assertEqual(regs["comp_slope_above"].value, 49152)
+        drv.set_attack_ms(0)
+        self.assertEqual(regs["comp_attack"].value, 65535)
+        drv.set_release_ms(100.0, 48000)
+        self.assertLess(regs["comp_release"].value, 65536//100)
+        drv.set_detector(rms=True, rms_shift=5)
+        self.assertEqual(regs["comp_control"].value & 0xFF, 1 | (5 << 4))
+        regs["comp_status"].value = 512
+        self.assertAlmostEqual(drv.gain_reduction_db, 12.04, places=1)
+
+    def test_audio_eq_band_load(self):
+        regs = {f"eq_{r}": MockCSR() for r in AudioEQDriver.regs}
+        regs["eq_config"].value = 3 | (2 << 8) | (32 << 16) | (28 << 24)
+        writes = []
+        regs["eq_coeff_value"].write = lambda v: writes.append(v)
+        drv  = AudioEQDriver(MockBus(regs), "eq")
+        self.assertEqual((drv.n_bands, drv.coeff_width, drv.frac_bits), (3, 32, 28))
+        drv.set_band(1, "peaking", 1000.0, -4.0, 1.5, sample_rate=48000)
+        self.assertEqual(regs["eq_coeff_index"].value, 8)
+        self.assertEqual(len(writes), 5)
+        b0 = writes[0] if writes[0] < (1 << 31) else writes[0] - (1 << 32)
+        self.assertAlmostEqual(b0/(1 << 28), 0.94, delta=0.05)     # Peaking b0 just below 1.
+        drv.commit()
+        self.assertEqual(regs["eq_control"].value & 1, 1)
+
+    def test_lfo(self):
+        regs = {f"lfo_{r}": MockCSR() for r in LFODriver.regs}
+        drv  = LFODriver(MockBus(regs), "lfo", clk_freq=48000)
+        drv.set_frequency(1.5)
+        self.assertEqual(regs["lfo_phase_inc"].value, round(1.5/48000*2**32))
+        drv.set_shape("saw")
+        self.assertEqual(regs["lfo_control"].value & 0b11, 2)
+
+    def test_meters(self):
+        regs = {f"pm_{r}": MockCSR() for r in PeakMeterDriver.regs}
+        regs["pm_peak_log20"].value = 23*256 - 256                # log2 = 22.0 -> -6.02 dBFS.
+        regs["pm_peak0"].value = 1 << 22
+        pm = PeakMeterDriver(MockBus(regs), "pm")
+        self.assertAlmostEqual(pm.read_dbfs(0), -6.02, places=2)
+        self.assertAlmostEqual(pm.read_peak(0), -6.02, places=2)
+        regs = {f"lu_{r}": MockCSR() for r in LoudnessDriver.regs}
+        regs["lu_config"].value = 2 | (24 << 4) | (4800 << 10)
+        lu = LoudnessDriver(MockBus(regs), "lu")
+        fs2 = float(1 << 46)
+        # Two channels at -20 dBFS RMS: sum of mean squares = 2 * 0.01 -> -0.691 - 16.99 LKFS.
+        regs["lu_hop_count"].value = 1
+        regs["lu_sum_sq"].value = int(2*0.01*4800*fs2)
+        lu.read_hop()
+        self.assertAlmostEqual(lu.momentary(), -17.68, places=2)
+        self.assertAlmostEqual(lu.integrated(), -17.68, places=2)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

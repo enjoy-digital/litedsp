@@ -1,0 +1,32 @@
+# LiteDSP standalone core: stereo audio processor (AN010).
+#
+#   litedsp_gen examples/audio_core.yml
+#
+# AXI-Stream input/output: channel-tagged TDM audio (24-bit Q1.23 samples + channel tag, L = 0,
+# R = 1). Parametric EQ -> compressor -> volume -> 16-bit noise-shaped dither. The EQ
+# coefficients, dynamics settings, gains and dither mode are AXI-Lite registers (the typed
+# drivers in litedsp/software/drivers.py speak Hz/dB/ms). The I2S/PDM converters have pins
+# rather than stream ports, so they sit next to the core (see examples/audio_processor.py).
+
+# Core ---------------------------------------------------------------------
+name     : audio_core
+csr_base : 0x0
+
+# Flow ---------------------------------------------------------------------
+flow:
+  name       : audio
+  data_width : 24
+  clock_ns   : 10.0
+  inputs     : [{id: audio_in,  layout: tdm}]
+  outputs    : [{id: audio_out, layout: tdm}]
+  blocks:
+    - {id: eq,     type: audio_eq,   params: {n_bands: 3}}
+    - {id: comp,   type: compressor, params: {}}
+    - {id: vol,    type: volume,     params: {}}
+    - {id: dither, type: dither,     params: {out_width: 16, shaping: ef2}}
+  connections:
+    - {from: audio_in,      to: eq.sink}
+    - {from: eq.source,     to: comp.sink}
+    - {from: comp.source,   to: vol.sink}
+    - {from: vol.source,    to: dither.sink}
+    - {from: dither.source, to: audio_out}

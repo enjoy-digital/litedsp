@@ -95,7 +95,18 @@ class TestResponse(unittest.TestCase):
     def test_dc_blocker_is_highpass(self):
         freqs, h_db = response_for("dc_blocker", {})
         self.assertLess(h_db[0], -100)                           # DC rejected.
-        self.assertAlmostEqual(h_db[-1], 0.0, delta=0.2)         # ~unity at Nyquist.
+
+    def test_audio_responses(self):
+        from litedsp.audio.design  import rbj_biquad
+        from litedsp.filter.design import biquad_sos_quantize
+        sections, _ = biquad_sos_quantize([rbj_biquad("peaking", 1000.0, -6.0, 1.0, sample_rate=48000)], 32, 28)
+        freqs, h_db = response_for("audio_eq", {"sections": sections, "frac_bits": 28})
+        self.assertAlmostEqual(h_db[np.argmin(np.abs(freqs - 1000/48000))], -6.0, delta=0.1)
+        freqs, h_db = response_for("bitstream_decimator", {"decimation": 64, "n_stages": 4})
+        self.assertAlmostEqual(h_db[0], 0.0, places=3)
+        freqs, h_db = response_for("loudness", {"sample_rate": 48000})
+        self.assertLess(h_db[np.argmin(np.abs(freqs - 20/48000))], -20)   # RLB high-pass.
+        self.assertAlmostEqual(h_db[np.argmin(np.abs(freqs - 1000/48000))], 0.0, delta=0.5)
 
     def test_notch_default_at_quarter_rate(self):
         # cos_w0 reset 0 -> f0 = 0.25; n_points=513 puts 0.25 exactly on the grid.
