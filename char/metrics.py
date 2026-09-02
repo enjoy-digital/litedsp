@@ -108,9 +108,19 @@ def thd_db(x, f, n_harmonics=5, guard=8):
     harm = sum(float(p[_band_idx(n, k, guard)].sum()) for k in bins)   # count once.
     return 10*np.log10(max(harm, 1e-300)/fund)
 
-def thd_n_db(x, f):
-    """THD+N (dB, negative is better): noise + distortion relative to the fitted tone (``-sinad``)."""
-    return -sinad_db(x, f)
+def thd_n_db(x, f, band=None):
+    """THD+N (dB, negative is better): noise + distortion relative to the fitted tone (``-sinad``).
+    With ``band=(f_lo, f_hi)`` (normalized) the residual is limited to that band (FFT mask): the
+    audio-band figure of a noise-shaped signal."""
+    if band is None:
+        return -sinad_db(x, f)
+    _, psig, resid = _tone_fit(x, f)
+    n     = len(resid)
+    spec  = np.fft.fft(resid)
+    freqs = np.abs(np.fft.fftfreq(n))
+    spec[(freqs < band[0]) | (freqs > band[1])] = 0
+    resid = np.fft.ifft(spec)
+    return 10*np.log10(np.mean(np.abs(resid)**2)/psig)
 
 def tone_amplitude(x, f):
     """Least-squares amplitude of the tone at known normalized frequency ``f``."""

@@ -35,6 +35,7 @@ headless (matplotlib Agg, `savefig` only) and are smoke-checked in CI (`test/tes
 | [AN006 — ADS-B / Mode-S receiver](../doc/app_notes/an006_adsb_receiver.md) | `adsb_receiver.py` | 2 MHz magnitude → Correlator → PPM → DF17/CRC-24 | Exact acquisition, parsed ICAO/type code, zero syndrome, and corruption rejection |
 | [AN007 — AIS GMSK receiver](../doc/app_notes/an007_ais_receiver.md) | `ais_receiver.py` | GMSK → FMDemod → NRZI → HDLC flags/unstuff/FCS | Exact training/flag acquisition, zero payload errors, and corruption rejection |
 | [AN008 — Chirp spread-spectrum receiver](../doc/app_notes/an008_css_receiver.md) | `css_receiver.py` | Preamble acquire → RTL CFO estimate → dechirp/FFT | Exact start, ≤0.05-bin CFO error, and SF7 payload recovery |
+| [AN010 — Stereo audio processor](../doc/app_notes/an010_audio_processor.md) | `audio_processor.py` | AudioEQ → Volume → PeakMeter → Dither(16-bit ef2); Compressor → Limiter → PeakMeter; I2S TX ⇒ pins ⇒ I2S RX → Dither → I2S TX ⇒ pins ⇒ I2S RX | EQ magnitude within 0.3 dB of the design (0.2 measured), compressor static curve bit-exact vs the model and within 0.12 dB of the design, limiter holds a 0 dBFS tone at −0.96 dBFS (0 clips), 16-bit in-band THD+N ≤ −80 dB (−95 measured), I2S transport bit-exact |
 | [AN009 — PMSM field-oriented control](../doc/app_notes/an009_foc_pmsm.md) | `foc_pmsm.py` | FOC (Clarke → Park → d/q PI → inverse Park → SVPWM) → PWM on a per-unit PMSM plant; ideal angle / QuadratureDecoder / SMO + AngleTracker sensorless | Speed loop settles within 2 % with all three sensors, \|i_d\| < 0.08 pu, encoder angle RMS < 3°, sensorless angle RMS < 10° after an open-loop start |
 
 ## Standalone core configs
@@ -49,3 +50,4 @@ map artifacts:
 | `qpsk_receiver_core.yml` | QPSK Costas → M&M timing recovery → hard decisions | `litedsp_gen examples/qpsk_receiver_core.yml` |
 | `spectrum_core.yml` | Window(hann) → FFT → PSD | `litedsp_gen examples/spectrum_core.yml` |
 | `foc_core.yml` | FOC current controller (abc currents + angle → duties) | `litedsp_gen examples/foc_core.yml` |
+| `audio_core.yml` | Stereo TDM audio: AudioEQ → Compressor → Volume → Dither(16-bit) | `litedsp_gen examples/audio_core.yml` |

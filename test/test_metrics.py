@@ -24,6 +24,13 @@ class TestTHD(unittest.TestCase):
         self.assertAlmostEqual(thd_n_db(noisy, f), 20*np.log10(1e-3/np.sqrt(0.5)), delta=0.5)
         self.assertAlmostEqual(thd_n_db(noisy, f), -sinad_db(noisy, f), places=9)
 
+    def test_thd_n_band(self):
+        n, f = 8192, 0.0173
+        t    = np.arange(n)
+        x    = np.sin(2*np.pi*f*t) + 1e-3*np.sin(2*np.pi*0.4*t)   # Out-of-band spur at 0.4.
+        self.assertAlmostEqual(thd_n_db(x, f), 20*np.log10(1e-3), delta=0.2)
+        self.assertLess(thd_n_db(x, f, band=(0.0, 0.2)), -100)
+
     def test_thd_folds_harmonics(self):
         n, f = 4096, 0.2                                          # 3rd harmonic folds to 0.4.
         t    = np.arange(n)

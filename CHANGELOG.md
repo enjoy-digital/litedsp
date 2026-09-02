@@ -98,6 +98,30 @@ Additional contracts introduced with the harmonization:
   characterized PAPR reduction + below-threshold EVM gates (`char/`, ~1.9 dB PAPR reduction
   at a 7 dB target on ~11 dB-PAPR OFDM-like stimulus, EVM ~1.6%, out-of-band regrowth
   bounded).
+- Audio-processing block family (`litedsp/audio/`, palette category `audio`, 20 blocks, see
+  `doc/audio.md`): multi-channel audio rides a channel-tagged TDM stream (`tdm_layout`,
+  `LiteDSPTDMMux`/`LiteDSPTDMDemux`, 24-bit Q1.23 default). Converters: `LiteDSPI2SReceiver`/
+  `LiteDSPI2STransmitter` (I2S, left/right-justified, 2/4/8-slot TDM; master or slave in the
+  `sys` domain, frame-start synchronization, overrun/underrun flags), `LiteDSPPDMReceiver`
+  (clocked dual-edge bitstream interface, per-channel sinc^N `LiteDSPBitstreamDecimator`, mono
+  `LiteDSPDCBlocker(iq=False)`, optional CIC droop-compensation MAC FIR),
+  `LiteDSPSigmaDeltaModulator` (order 1/2 error feedback, zero-order hold) and
+  `LiteDSPSigmaDeltaDAC`. Processing: `LiteDSPAudioEQ` (time-multiplexed DF1 biquad cascade with
+  first/second-order error feedback, Q4.28 coefficients in active/shadow RAMs with an atomic
+  commit, 8 cycles per band), `LiteDSPCompressor` (compressor / limiter / gate presets on one
+  engine: peak or RMS sidechain, LUT `LiteDSPLog2` and the new `LiteDSPExp2`, log-domain gain
+  computer with Q7.24 smoothing, lookahead, stereo link), `LiteDSPVolume` (ramped Q5.19 gains,
+  faded mute), `LiteDSPStereoMatrix`, `LiteDSPDither` (xorshift32 TPDF, ef1/ef2 noise shaping),
+  `LiteDSPLFO`, `LiteDSPDelayLine` (feedback/damping, LFO-modulated fractional delay for
+  chorus/flanger), `LiteDSPReverb` (parallel damped combs behind an atomic split + series
+  allpasses + `LiteDSPWetDryMix`; `LiteDSPCombine` now carries tag fields). Metering:
+  `LiteDSPPeakMeter` (peak/hold/clip with a shared LUT log2 scan, IRQ) and `LiteDSPLoudness`
+  (BS.1770 K-weighting, per-hop weighted sums, IRQ). Design helpers (`litedsp.audio.design`:
+  RBJ biquads, Linkwitz-Riley, K-weighting, dB/log2/time-constant conversions), typed drivers
+  (EQ/volume/compressor/LFO/matrix/meters/loudness in Hz, dB, ms), GUI responses, THD/THD+N
+  metrics, AN010 (EQ within 0.3 dB of the design, compressor static curve bit-exact vs the model,
+  limiter ceiling, 16-bit in-band THD+N -95 dB, I2S transport over pins) and
+  `examples/audio_core.yml`.
 - Motor-control block family (`litedsp/motor/`, palette category `motor`, 19 blocks, see
   `doc/motor_control.md`): Clarke/inverse Clarke (`LiteDSPClarke`/`LiteDSPInverseClarke`,
   amplitude-invariant, Q1.15 constants), Park/inverse Park as the complex mixer fed by a

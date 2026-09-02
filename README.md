@@ -36,7 +36,8 @@ tooling below).
 
 It is meant both as a ready-to-use library for RF processing on FPGA (mixers, NCO, filters,
 rate conversion, gain/AGC, power, corrections, analysis), motor control (field-oriented
-control, PWM, sensor interfaces, observers) and as a clean base to customize from for
+control, PWM, sensor interfaces, observers), audio processing (I2S/PDM converters, EQ,
+dynamics, effects, metering, dither) and as a clean base to customize from for
 client-specific requirements.
 
 [> Features
@@ -72,6 +73,7 @@ client-specific requirements.
 | `stream/`       | `LiteDSPCombine`, `LiteDSPSplit`, `LiteDSPDelay`, `LiteDSPChannelMux`/`LiteDSPChannelDemux`, `LiteDSPConjugate`/`LiteDSPSwapIQ`/`LiteDSPNegate`/`LiteDSPIQAdd`, offset-binary converters, `LiteDSPIQClockDomainCrossing`, `LiteDSPSkidBuffer`, `LiteDSPStreamFIFO`, `LiteDSPIQPack`/`LiteDSPIQUnpack`, `LiteDSPCapture` (scope, CSR or memory-mapped readout), `LiteDSPCSRSource`/`LiteDSPCSRSink`/`LiteDSPCSRReader`/`LiteDSPNullSink`, `LiteDSPStreamFramer`/`LiteDSPStreamDeframer` (`tlast`), `LiteDSPTimeCore`/`LiteDSPTimestamper`/`LiteDSPTimeUntagger` (timestamped streams, see `doc/timestamps.md`), `LiteDSPDMACapture`/`LiteDSPDMAReplay` (Wishbone or LiteDRAM DMA) |
 | `frontend/`     | `LiteDSPADCInterface`/`LiteDSPDACInterface` (raw converter words), `LiteDSPBitstreamInterface` (sigma-delta / PDM modulator clock + data pins), `LiteDSPIQPacketizer`/`LiteDSPIQDepacketizer` (framed host-link words, LitePCIe-ready, optional timestamp header), `LiteDSPUDPIQStreamer`/`LiteDSPUDPIQReceiver` (I/Q packets over LiteEth UDP) |
 | `motor/`        | `LiteDSPClarke`/`LiteDSPInverseClarke`, `LiteDSPPark`/`LiteDSPInversePark` (complex-mixer rotation), `LiteDSPSinCos`, `LiteDSPAngleRamp`, `LiteDSPPIController` (anti-windup, feed-forward, setpoint stream), `LiteDSPDQController` (d/q current loops, decoupling), `LiteDSPSlewLimiter`, `LiteDSPSVPWM` (min/max injection), `LiteDSPPWM` (center-aligned 3-phase, dead time, fault latch, ADC trigger), `LiteDSPQuadratureDecoder`, `LiteDSPHallDecoder` (interpolated), `LiteDSPSigmaDeltaFilter` (sinc³ current sense + fast over-current path), `LiteDSPOvercurrentTrip`, `LiteDSPAngleTracker` (type-II angle PLL), `LiteDSPSMObserver` (sensorless sliding-mode back-EMF), `LiteDSPResolverDigital`, `LiteDSPFOC` composite; shared `LiteDSPBitstreamDecimator` in `filter/`. See `doc/motor_control.md` |
+| `audio/`        | `LiteDSPI2SReceiver`/`LiteDSPI2STransmitter` (I2S, left/right-justified, TDM; master or slave), `LiteDSPPDMReceiver` (PDM microphones: clocked bitstream interface, sinc decimators, DC blocking, droop compensation), `LiteDSPSigmaDeltaModulator`/`LiteDSPSigmaDeltaDAC`, `LiteDSPAudioEQ` (time-multiplexed DF1 biquad cascade with error feedback, shadow coefficient set), `LiteDSPCompressor` (compressor / limiter / gate presets, log-domain gain computer, lookahead), `LiteDSPVolume` (ramped per-channel gains, mute), `LiteDSPStereoMatrix`, `LiteDSPDither` (TPDF, 1st/2nd-order noise shaping), `LiteDSPLFO`, `LiteDSPDelayLine` (echo / chorus with modulation), `LiteDSPReverb` (Freeverb-style combs + allpasses), `LiteDSPWetDryMix`, `LiteDSPPeakMeter`, `LiteDSPLoudness` (BS.1770 K-weighting); channel-tagged TDM streams (`tdm_layout`), `LiteDSPTDMMux`/`LiteDSPTDMDemux` in `stream/`. See `doc/audio.md` |
 | parallel (*)    | `LiteDSPParallelNCO`, `LiteDSPParallelMixer`, `LiteDSPParallelFIRFilter`/`LiteDSPParallelFIRFilterComplex`, `LiteDSPParallelCICDecimator`, `LiteDSPParallelFFT` (radix-2 DIF split, 2 samples/clk), `LiteDSPParallelDDC` composite + `LiteDSPIQSerialToParallel`/`LiteDSPIQParallelToSerial` adapters |
 | misc            | `LiteDSPISqrt` (`numeric.py`), `LiteDSPPILoop` (`control.py`)                 |
 
@@ -134,6 +136,7 @@ Assembled-chain demos live in `examples/`.
 | `doc/fixed_point.md`      | Qm.n conventions, rounding/saturation rules                 |
 | `doc/timestamps.md`       | Timestamped streams: edge tagging, latency back-computation, packet header |
 | `doc/motor_control.md`    | Motor-control family: per-unit conventions, PWM-paced loop, bring-up, protection |
+| `doc/audio.md`            | Audio family: channel-tagged TDM streams, serial engines and clock budgets, converters, host math |
 | `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |
 | `doc/flow.md`             | Netlist format, flow/GUI usage, IP core generation          |
 | `doc/resources.md`        | Per-block LUT/FF/BRAM/DSP + fmax table (generated)          |

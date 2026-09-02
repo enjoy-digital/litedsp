@@ -11,6 +11,11 @@ new block.
 - Payload layouts come from `litedsp.common`:
   - real samples: `real_layout(data_width)` → field `data` (signed).
   - complex samples: `iq_layout(data_width)` → fields `i`, `q` (signed).
+  - three-phase quantities (motor control): `abc_layout(data_width)` → fields `a`, `b`, `c` (signed).
+  - electrical angle: `angle_layout(angle_width)` → field `angle` (signed, full turn = `2**angle_width`).
+  - multi-channel audio: `tdm_layout(data_width, n_channels)` → field `data` (signed) plus an
+    unsigned `channel` tag; frames are consecutive beats, channel 0 first (`n_channels=1` is a
+    plain `real_layout`). `tdm_channel(endpoint)` reads the tag (or a constant 0 for mono).
 - Time-shared multi-channel engines (resampler farm) take per-channel `sinks` served in
   round-robin TDM and emit one *channel-tagged* stream: `iq_layout` plus a `channel` payload
   field. Fan back out with a `LiteDSPChannelDemux` whose `sel` is driven by the tag
