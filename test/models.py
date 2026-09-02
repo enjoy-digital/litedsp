@@ -2437,3 +2437,48 @@ def stereo_matrix_model(l, r, a, b, c, d, coeff_frac=15, data_width=24):
     """Bit-exact reference for litedsp.audio.level.LiteDSPStereoMatrix: (L', R') per frame."""
     l, r = np.asarray(l, np.int64), np.asarray(r, np.int64)
     return (np_scaled(a*l + b*r, coeff_frac, data_width), np_scaled(c*l + d*r, coeff_frac, data_width))
+
+# Audio: Dither ------------------------------------------------------------------------------------
+
+def xorshift32(state):
+    state ^= (state << 13) & 0xFFFFFFFF
+    state ^= state >> 17
+    state ^= (state << 5) & 0xFFFFFFFF
+    return state & 0xFFFFFFFF
+
+def dither_model(x, channel, out_width=16, n_channels=2, shaping="none", seed=0x2545F491,
+    data_width=24, dither_enable=1, shaping_enable=None):
+    """Bit-exact reference for litedsp.audio.dither.LiteDSPDither.
+
+    Per accepted beat: ``u = x + feedback`` (``ef1``: e1, ``ef2``: 2e1 - e2 of the channel),
+    TPDF dither from the low ``shift`` bits of two xorshift32 generators (advanced per beat),
+    round-half-up to ``out_width``, saturate; the fed-back error ``u - q`` includes the dither
+    so it is shaped too. Returns the MSB-aligned ``data_width`` output words; the enables may
+    be per-beat arrays.
+    """
+    x       = np.asarray(x, np.int64)
+    n       = len(x)
+    shift   = data_width - out_width
+    channel = _per_sample(channel, n)
+    d_en    = _per_sample(dither_enable, n)
+    s_en    = _per_sample(int(shaping != "none") if shaping_enable is None else shaping_enable, n)
+    r0, r1  = seed & 0xFFFFFFFF, ((seed*0x9E3779B1 + 0x7F4A7C15) & 0xFFFFFFFF) or 1
+    e1, e2  = [0]*n_channels, [0]*n_channels
+    out     = np.zeros(n, np.int64)
+    mask    = (1 << shift) - 1
+    for k in range(n):
+        c    = int(channel[k])
+        tpdf = ((r0 & mask) + (r1 & mask) - (1 << shift)) if d_en[k] else 0
+        fb   = 0
+        if s_en[k] and shaping == "ef1":
+            fb = e1[c]
+        elif s_en[k] and shaping == "ef2":
+            fb = 2*e1[c] - e2[c]
+        u    = int(x[k]) + fb
+        v    = u + tpdf
+        q_r  = int(np_rounded(np.int64(v), shift))
+        q    = int(np_saturated(np.int64(q_r), out_width))
+        e2[c], e1[c] = e1[c], u - (q_r << shift)
+        out[k] = q << shift
+        r0, r1 = xorshift32(r0), xorshift32(r1)
+    return out

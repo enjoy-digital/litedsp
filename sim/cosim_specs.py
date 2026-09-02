@@ -1094,6 +1094,22 @@ def spec_stereo_matrix():
         return [out, np.array(c[1])]
     return dut, cols, 2*n - 4, model
 
+def _spec_dither(shaping):
+    from litedsp.audio.dither import LiteDSPDither
+    n    = 150
+    dut  = LiteDSPDither(data_width=24, out_width=16, n_channels=2, shaping=shaping, with_csr=False)
+    cols = _tdm_cols(n, 2)
+    s_en = [int(not (100 <= k < 200)) for k in range(2*n)]
+    return dut, cols + [s_en], 2*n - 4, \
+        lambda c: [models.dither_model(c[0], c[1], shaping=shaping, shaping_enable=np.array(c[2])),
+                   np.array(c[1])], False, False, (dut.shaping_enable,)
+
+def spec_dither():
+    return _spec_dither("none")
+
+def spec_dither_ef2():
+    return _spec_dither("ef2")
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1194,6 +1210,8 @@ SPECS = {
     "foc":              spec_foc,
     "volume":           spec_volume,
     "stereo_matrix":    spec_stereo_matrix,
+    "dither":           spec_dither,
+    "dither_ef2":       spec_dither_ef2,
 }
 
 # Known failures -----------------------------------------------------------------------------------
@@ -1239,6 +1257,7 @@ def check_coverage():
         "sincos_cordic":             "sincos",
         "pi_controller_ref":         "pi_controller",
         "dq_controller_decoupling":  "dq_controller",
+        "dither_ef2":                "dither",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

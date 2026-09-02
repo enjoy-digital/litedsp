@@ -89,6 +89,7 @@ from litedsp.motor.observer       import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.resolver       import LiteDSPResolverDigital
 from litedsp.motor.foc            import LiteDSPFOC
 from litedsp.audio.level          import LiteDSPVolume, LiteDSPStereoMatrix
+from litedsp.audio.dither         import LiteDSPDither
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -666,6 +667,11 @@ def stereo_matrix():
     return d, {d.a, d.b, d.c, d.d, d.bypass, d.clear_sat, d.sat, d.sequence_error} | \
            _eps(d.sink, d.source), 10.0
 
+def dither():
+    d = LiteDSPDither(data_width=24, out_width=16, n_channels=2, shaping="ef2", with_csr=False)
+    return d, {d.dither_enable, d.shaping_enable, d.bypass, d.clear_sat, d.sat} | \
+           _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -726,7 +732,7 @@ REGISTRY = {
     "overcurrent_trip": overcurrent_trip, "quadrature_decoder": quadrature_decoder,
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
     "resolver": resolver, "foc": foc,
-    "volume": volume, "stereo_matrix": stereo_matrix,
+    "volume": volume, "stereo_matrix": stereo_matrix, "dither": dither,
 }
 
 # Subset for the slower full place-&-route flows.

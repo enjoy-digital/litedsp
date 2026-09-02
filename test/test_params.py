@@ -83,6 +83,9 @@ SPECIFIC = [
     ("volume",          {"ramp_shift": 0}),
     ("volume",          {"gain_frac": 23}),                # <= data_width - 2.
     ("stereo_matrix",   {"coeff_frac": 17}),               # < coeff_width - 1.
+    ("dither",          {"out_width": 24}),                # < data_width.
+    ("dither",          {"shaping": "ef3"}),
+    ("dither",          {"seed": 0}),
 ]
 
 class TestParams(unittest.TestCase):

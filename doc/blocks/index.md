@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-139 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+140 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -193,5 +193,6 @@
 
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
-| [Volume (ramped)](volume.md) | `LiteDSPVolume` | 2 | — | Per-channel volume with zipper-free gain ramping and mute on a TDM audio stream. |
-| [Stereo matrix (M/S, pan)](stereo_matrix.md) | `LiteDSPStereoMatrix` | 4 | — | 2x2 matrix on a stereo TDM stream: ``L' = a*L + b*R``, ``R' = c*L + d*R``. |
+| [Volume (ramped)](volume.md) | `LiteDSPVolume` | 2 | 4 | Per-channel volume with zipper-free gain ramping and mute on a TDM audio stream. |
+| [Stereo matrix (M/S, pan)](stereo_matrix.md) | `LiteDSPStereoMatrix` | 4 | 2 | 2x2 matrix on a stereo TDM stream: ``L' = a*L + b*R``, ``R' = c*L + d*R``. |
+| [Dither / requantizer](dither.md) | `LiteDSPDither` | 1 | — | Word-length reduction with TPDF dither and optional error-feedback noise shaping. |

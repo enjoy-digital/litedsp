@@ -116,6 +116,7 @@ from litedsp.motor.observer        import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.resolver        import LiteDSPResolverDigital
 from litedsp.motor.foc             import LiteDSPFOC
 from litedsp.audio.level           import LiteDSPVolume, LiteDSPStereoMatrix
+from litedsp.audio.dither          import LiteDSPDither
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -273,6 +274,7 @@ ENTRIES = [
     # audio ----------------------------------------------------------------------------------------
     ("volume",             LiteDSPVolume,                {},                                     "audio",      "Volume (ramped)",       None),
     ("stereo_matrix",      LiteDSPStereoMatrix,          {},                                     "audio",      "Stereo matrix (M/S, pan)", None),
+    ("dither",             LiteDSPDither,                {},                                     "audio",      "Dither / requantizer",  {"shaping": ["none", "ef1", "ef2"]}),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

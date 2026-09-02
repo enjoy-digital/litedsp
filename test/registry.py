@@ -162,6 +162,7 @@ VSPEC = {
     # audio (channel-tagged TDM streams, 24-bit).
     "volume":             _v("volume_model", cosim=True),
     "stereo_matrix":      _v("stereo_matrix_model", cosim=True),   # Serial engine: 2 beats in, 2 out.
+    "dither":             _v("dither_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

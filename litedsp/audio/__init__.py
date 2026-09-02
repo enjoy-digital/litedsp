@@ -19,4 +19,5 @@ Conventions (see ``doc/audio.md``):
 - Host-side design math (RBJ biquads, dB, time constants) lives in :mod:`litedsp.audio.design`.
 """
 
-from litedsp.audio.level import LiteDSPVolume, LiteDSPStereoMatrix
+from litedsp.audio.dither import LiteDSPDither
+from litedsp.audio.level  import LiteDSPVolume, LiteDSPStereoMatrix
