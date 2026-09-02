@@ -115,6 +115,7 @@ from litedsp.motor.encoder         import LiteDSPQuadratureDecoder, LiteDSPHallD
 from litedsp.motor.observer        import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.resolver        import LiteDSPResolverDigital
 from litedsp.motor.foc             import LiteDSPFOC
+from litedsp.audio.level           import LiteDSPVolume, LiteDSPStereoMatrix
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -269,6 +270,9 @@ ENTRIES = [
     ("smo_observer",       LiteDSPSMObserver,            {},                                     "motor",      "Sliding-mode observer", None),
     ("resolver",           LiteDSPResolverDigital,       {},                                     "motor",      "Resolver-to-digital",   None),
     ("foc",                LiteDSPFOC,                   {},                                     "motor",      "FOC current controller", {"anti_windup": ["conditional", "clamp", "none"]}),
+    # audio ----------------------------------------------------------------------------------------
+    ("volume",             LiteDSPVolume,                {},                                     "audio",      "Volume (ramped)",       None),
+    ("stereo_matrix",      LiteDSPStereoMatrix,          {},                                     "audio",      "Stereo matrix (M/S, pan)", None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

@@ -80,6 +80,9 @@ SPECIFIC = [
     ("resolver",        {"decimation": 2}),                # Excitation period >= 4 samples.
     ("foc",             {"anti_windup": "x"}),
     ("foc",             {"lut_depth": 1000}),
+    ("volume",          {"ramp_shift": 0}),
+    ("volume",          {"gain_frac": 23}),                # <= data_width - 2.
+    ("stereo_matrix",   {"coeff_frac": 17}),               # < coeff_width - 1.
 ]
 
 class TestParams(unittest.TestCase):

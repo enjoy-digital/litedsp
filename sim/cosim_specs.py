@@ -1057,6 +1057,43 @@ def spec_foc():
     return dut, cols, n - 4, lambda c: list(models.foc_model(c[0], c[1], c[2], c[3], 0, 8000,
         limit=20000, **gains))                                        # sink(a,b,c), sink_angle.
 
+# Audio --------------------------------------------------------------------------------------------
+
+def _tdm_cols(n_frames, n_channels, seed=1, lo=-(1 << 23) + 1, hi=(1 << 23) - 1):
+    """TDM stimulus columns: (data, channel) for n_frames*n_channels beats."""
+    prng = random.Random(seed)
+    data, ch = [], []
+    for _ in range(n_frames):
+        for c in range(n_channels):
+            data.append(prng.randint(lo, hi)); ch.append(c)
+    return [data, ch]
+
+def spec_volume():
+    from litedsp.audio.level import LiteDSPVolume
+    n    = 150
+    dut  = LiteDSPVolume(data_width=24, n_channels=2, with_csr=False)
+    dut.gains[0].reset, dut.gains[1].reset = int(0.5*(1 << 19)), int(2.0*(1 << 19))
+    cols = _tdm_cols(n, 2)
+    mute = [0 if k < 200 else 0b10 for k in range(2*n)]
+    return dut, cols + [mute], 2*n - 4, \
+        lambda c: [models.volume_model(c[0], c[1], [int(0.5*(1 << 19)), int(2.0*(1 << 19))],
+            np.array(c[2])), np.array(c[1])], False, False, (dut.mute,)
+
+def spec_stereo_matrix():
+    from litedsp.audio.level import LiteDSPStereoMatrix
+    n    = 150
+    dut  = LiteDSPStereoMatrix(data_width=24, with_csr=False)
+    coeffs = (20000, -12000, 7000, 30000)
+    for name, v in zip("abcd", coeffs):
+        getattr(dut, name).reset = v
+    cols = _tdm_cols(n, 2)
+    def model(c):
+        l, r = np.array(c[0][0::2]), np.array(c[0][1::2])
+        ol, orr = models.stereo_matrix_model(l, r, *coeffs)
+        out = np.empty(2*n, np.int64); out[0::2], out[1::2] = ol, orr
+        return [out, np.array(c[1])]
+    return dut, cols, 2*n - 4, model
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1155,6 +1192,8 @@ SPECS = {
     "angle_tracker":    spec_angle_tracker,
     "smo_observer":     spec_smo_observer,
     "foc":              spec_foc,
+    "volume":           spec_volume,
+    "stereo_matrix":    spec_stereo_matrix,
 }
 
 # Known failures -----------------------------------------------------------------------------------

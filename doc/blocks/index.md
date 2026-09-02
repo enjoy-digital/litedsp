@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-137 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+139 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -187,4 +187,11 @@
 | [Angle tracker (PLL)](angle_tracker.md) | `LiteDSPAngleTracker` | 1 | 0 | Type-II tracking loop on an angle stream: filtered angle + speed (angle PLL). |
 | [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 18 | 4 | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |
 | [Resolver-to-digital](resolver.md) | `LiteDSPResolverDigital` | 20 | 5 | Resolver-to-digital converter: excitation output, synchronous demodulation, tracking loop. |
-| [FOC current controller](foc.md) | `LiteDSPFOC` | 9 | — | Field-oriented current control: phase currents + rotor angle -> three-phase duties. |
+| [FOC current controller](foc.md) | `LiteDSPFOC` | 9 | 15 | Field-oriented current control: phase currents + rotor angle -> three-phase duties. |
+
+## Audio Processing (`audio/`)
+
+| Block | Class | Latency | DSP | Description |
+|---|---|---|---|---|
+| [Volume (ramped)](volume.md) | `LiteDSPVolume` | 2 | — | Per-channel volume with zipper-free gain ramping and mute on a TDM audio stream. |
+| [Stereo matrix (M/S, pan)](stereo_matrix.md) | `LiteDSPStereoMatrix` | 4 | — | 2x2 matrix on a stereo TDM stream: ``L' = a*L + b*R``, ``R' = c*L + d*R``. |

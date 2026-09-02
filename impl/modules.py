@@ -88,6 +88,7 @@ from litedsp.motor.encoder        import LiteDSPQuadratureDecoder, LiteDSPHallDe
 from litedsp.motor.observer       import LiteDSPAngleTracker, LiteDSPSMObserver
 from litedsp.motor.resolver       import LiteDSPResolverDigital
 from litedsp.motor.foc            import LiteDSPFOC
+from litedsp.audio.level          import LiteDSPVolume, LiteDSPStereoMatrix
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -653,6 +654,18 @@ def pwm():
                d.fault_clear, d.missed_clear, d.trigger_count, d.trigger_direction,
                d.fault_latched, d.missed} | _eps(d.sink), 10.0
 
+# Audio.
+# ------
+def volume():
+    d = LiteDSPVolume(data_width=24, n_channels=2, with_csr=False)
+    return d, {d.mute, d.ramp_enable, d.bypass, d.clear_sat, d.sat} | set(d.gains) | \
+           _eps(d.sink, d.source), 10.0
+
+def stereo_matrix():
+    d = LiteDSPStereoMatrix(data_width=24, with_csr=False)
+    return d, {d.a, d.b, d.c, d.d, d.bypass, d.clear_sat, d.sat, d.sequence_error} | \
+           _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -713,6 +726,7 @@ REGISTRY = {
     "overcurrent_trip": overcurrent_trip, "quadrature_decoder": quadrature_decoder,
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
     "resolver": resolver, "foc": foc,
+    "volume": volume, "stereo_matrix": stereo_matrix,
 }
 
 # Subset for the slower full place-&-route flows.

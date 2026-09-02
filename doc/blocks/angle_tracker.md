@@ -13,7 +13,8 @@ Per accepted sample the wrapped error ``e = angle_in - theta`` drives a
 controls) whose output advances the internal angle ``theta`` (``angle_width + frac_bits``
 bits): ``theta += (e >> kp_shift) + integral`` and ``integral += e >> ki_shift`` (error in the
 ``frac_bits`` domain). The emitted angle is the estimate *for the accepted sample*
-(``theta`` before its update, like the carrier loop's NCO phase): a constant-speed input is
+(``theta`` before its update, like the carrier loop's NCO phase) plus ``angle_offset``
+(sensor alignment / observer lag compensation): a constant-speed input is
 tracked with zero steady-state error; the integrator is the ``speed`` (angle units per
 sample, Q.``frac_bits``), so the raw noisy angle from an encoder, Hall decoder or observer
 becomes a smooth estimate (``theta + speed`` predicts the next sample). Latency 1.
@@ -44,6 +45,10 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 |---|---|---|---|
 | `[4:0]` | `kp_shift` | `4` | Proportional shift (larger = slower). |
 | `[12:8]` | `ki_shift` | `10` | Integral shift (larger = slower). |
+
+### `angle_offset` (read-write, 16 bits)
+
+Offset added to the tracked angle (alignment / lag compensation).
 
 ### `speed` (read-only, 32 bits)
 

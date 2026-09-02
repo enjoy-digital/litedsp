@@ -2281,7 +2281,8 @@ def hall_sector_model(codes, invert=False):
 
 # Motor Control: Observers -------------------------------------------------------------------------
 
-def angle_tracker_model(angles, kp_shift=4, ki_shift=10, angle_width=16, frac_bits=14):
+def angle_tracker_model(angles, kp_shift=4, ki_shift=10, angle_width=16, frac_bits=14,
+    angle_offset=0):
     """Bit-exact reference for litedsp.motor.observer.LiteDSPAngleTracker.
 
     Per accepted sample: the output is the current estimate ``theta >> frac``; then the wrapped
@@ -2298,7 +2299,7 @@ def angle_tracker_model(angles, kp_shift=4, ki_shift=10, angle_width=16, frac_bi
     theta = integral = 0
     out, speeds = np.zeros(n, np.int64), np.zeros(n, np.int64)
     for k, a in enumerate(np.asarray(angles, np.int64)):
-        out[k]   = wa(theta >> frac_bits)
+        out[k]   = wa((theta >> frac_bits) + angle_offset)
         err      = wa(int(a) - (theta >> frac_bits))
         e_frac   = wrap(err << frac_bits)
         loop_out = wrap(integral + (e_frac >> int(kp[k])))
@@ -2400,3 +2401,39 @@ def foc_model(a, b, c, angle, setpoint_d, setpoint_q, kp_d, ki_d, kp_q, ki_q, li
         decoupling, speed, l_pu, psi_pu)
     v_a, v_b    = mixer_model(v_d, v_q, cos, sin, mode="up", data_width=data_width)
     return svpwm_model(v_a, v_b, 1, data_width)
+
+# Audio: Level -------------------------------------------------------------------------------------
+
+def volume_model(x, channel, gains, mute=0, n_channels=2, ramp_shift=8, gain_frac=19,
+    data_width=24, ramp_enable=1):
+    """Bit-exact reference for litedsp.audio.level.LiteDSPVolume.
+
+    ``x``/``channel`` are the accepted beats; ``gains`` is a list of ``n_channels`` targets
+    (each a scalar or a per-beat array), ``mute`` a per-beat mask (or scalar). Per beat of
+    channel c: ``delta = target - applied[c]``; ``step = delta >> ramp_shift`` (arithmetic),
+    or +/-1 when that is zero but delta is not; ``applied[c] += step`` (or = target without
+    ramping); ``y = round(x*applied)`` saturated. Returns the output samples.
+    """
+    x       = np.asarray(x, np.int64)
+    n       = len(x)
+    channel = _per_sample(channel, n)
+    mute    = _per_sample(mute, n)
+    ramp    = _per_sample(ramp_enable, n)
+    gains   = [_per_sample(g, n) for g in gains]
+    applied = [1 << gain_frac]*n_channels
+    out     = np.zeros(n, np.int64)
+    for k in range(n):
+        c      = int(channel[k])
+        target = 0 if (int(mute[k]) >> c) & 1 else int(gains[c][k])
+        delta  = target - applied[c]
+        step   = delta >> ramp_shift
+        if step == 0 and delta != 0:
+            step = 1 if delta > 0 else -1
+        applied[c] = applied[c] + step if ramp[k] else target
+        out[k] = np_scaled(np.int64(int(x[k])*applied[c]), gain_frac, data_width)
+    return out
+
+def stereo_matrix_model(l, r, a, b, c, d, coeff_frac=15, data_width=24):
+    """Bit-exact reference for litedsp.audio.level.LiteDSPStereoMatrix: (L', R') per frame."""
+    l, r = np.asarray(l, np.int64), np.asarray(r, np.int64)
+    return (np_scaled(a*l + b*r, coeff_frac, data_width), np_scaled(c*l + d*r, coeff_frac, data_width))

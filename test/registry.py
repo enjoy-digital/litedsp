@@ -159,6 +159,9 @@ VSPEC = {
     "smo_observer":       _v("smo_model", cosim=True),
     "resolver":           _v("resolver_model", rate=None),     # Two sources: no generic cosim.
     "foc":                _v("foc_model", cosim=True),
+    # audio (channel-tagged TDM streams, 24-bit).
+    "volume":             _v("volume_model", cosim=True),
+    "stereo_matrix":      _v("stereo_matrix_model", cosim=True),   # Serial engine: 2 beats in, 2 out.
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),
