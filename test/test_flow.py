@@ -74,7 +74,7 @@ class TestRegistry(unittest.TestCase):
             self.assertTrue(spec.ports, f"{key} has no stream ports")
             for p in spec.ports:
                 self.assertIn(p.direction, ("sink", "source"))
-                self.assertIn(p.layout, ("iq", "iq_symbol", "real", "raw"))
+                self.assertIn(p.layout, ("iq", "iq_symbol", "real", "tdm", "abc", "angle", "raw"))
 
     def test_categories(self):
         cats = registry.by_category()

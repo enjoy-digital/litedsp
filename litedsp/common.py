@@ -66,6 +66,45 @@ def iq_symbol_layout(data_width=16, symbol_width=2):
     """Complex sample plus a hard-decision symbol (QPSK uses ``symbol_width=2``)."""
     return iq_layout(data_width) + [("symbol", symbol_width)]
 
+def abc_layout(data_width=16):
+    """Three-phase payload (motor control): signed per-unit ``a``, ``b``, ``c`` samples.
+
+    Two-phase stationary (alpha/beta) and rotating (d/q) vectors ride on :func:`iq_layout`
+    (``i`` = alpha or d, ``q`` = beta or q), so the Park rotation is the complex mixer.
+    """
+    return [
+        ("a", (data_width, True)),
+        ("b", (data_width, True)),
+        ("c", (data_width, True)),
+    ]
+
+def angle_layout(angle_width=16):
+    """Angle stream payload (motor control): signed, full circle = ``2**angle_width``.
+
+    Same convention as :class:`~litedsp.generation.cordic.LiteDSPCORDIC` (pi = 2**(width-1));
+    wrap-around subtraction of two angles is their signed difference.
+    """
+    return [("angle", (angle_width, True))]
+
+def tdm_channel_bits(n_channels):
+    """Width of the ``channel`` tag of a :func:`tdm_layout` stream (at least 1 bit)."""
+    return max(1, bits_for(n_channels - 1))
+
+def tdm_layout(data_width=24, n_channels=2):
+    """Channel-tagged real TDM stream (audio): ``data`` plus a ``channel`` tag (0 = L, 1 = R).
+
+    One beat carries one sample of one channel; frames are ``n_channels`` consecutive beats in
+    channel order, so a single time-multiplexed engine serves every channel (audio rates are far
+    below the fabric clock). ``n_channels == 1`` degenerates to :func:`real_layout`.
+    """
+    if n_channels == 1:
+        return real_layout(data_width)
+    return real_layout(data_width) + [("channel", tdm_channel_bits(n_channels))]
+
+def tdm_channel(endpoint):
+    """The ``channel`` tag of a TDM endpoint, or constant 0 for a mono (real) endpoint."""
+    return getattr(endpoint, "channel", Constant(0, 1))
+
 # Timestamps (see litedsp/stream/timestamp.py and doc/timestamps.md).
 TIMESTAMP_WIDTH = 64
 

@@ -217,6 +217,12 @@ def _layout(ep):
         return "iq"
     if fields == ["data"]:
         return "real"
+    if set(fields) == {"data", "channel"}:
+        return "tdm"
+    if set(fields) >= {"a", "b", "c"}:
+        return "abc"
+    if fields == ["angle"]:
+        return "angle"
     return "raw"
 
 def _ports(dut):

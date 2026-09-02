@@ -38,6 +38,8 @@ CATEGORY_TITLES = {
     "comm":       "Communications",
     "analysis":   "Analysis / Measurement",
     "stream":     "Stream Utilities",
+    "motor":      "Motor Control",
+    "audio":      "Audio Processing",
 }
 
 def _root():

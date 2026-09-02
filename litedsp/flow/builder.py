@@ -18,7 +18,8 @@ from litex.gen import *
 
 from litex.soc.interconnect import stream
 
-from litedsp.common      import iq_layout, iq_symbol_layout, real_layout
+from litedsp.common      import (iq_layout, iq_symbol_layout, real_layout, tdm_layout,
+    abc_layout, angle_layout)
 from litedsp.flow        import registry, glue
 from litedsp.flow.netlist import validate, split_ref, NetlistError
 
@@ -29,6 +30,12 @@ def _layout(kind, data_width):
         return real_layout(data_width)
     if kind == "iq_symbol":
         return iq_symbol_layout(data_width)
+    if kind == "tdm":
+        return tdm_layout(data_width, 2)       # Fallback only: connected I/O copy the port's schema.
+    if kind == "abc":
+        return abc_layout(data_width)
+    if kind == "angle":
+        return angle_layout(data_width)        # angle_width follows the chain data_width.
     return iq_layout(data_width)
 
 def _build_kwargs(spec, params, data_width, with_csr):
