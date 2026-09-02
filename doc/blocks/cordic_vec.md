@@ -2,7 +2,7 @@
 
 `LiteDSPCORDIC` — `litedsp.generation.cordic` — category `generation`
 
-latency: 18 samples · CSR: yes · bypass: no
+latency: 19 samples · CSR: yes · bypass: no
 
 ## Overview
 
@@ -15,7 +15,7 @@ full scale this yields ``(cos z, sin z)``.
 
 Quadrant pre-rotation extends convergence to the full circle; the output is multiplied by
 1/K so magnitude/rotation are unity-gain. Pure feedforward pipeline (``latency =
-stages + 2``), so backpressure simply freezes it.
+stages + 3``), so backpressure simply freezes it.
 
 ## Parameters
 
@@ -23,7 +23,7 @@ stages + 2``), so backpressure simply freezes it.
 |---|---|---|---|
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `angle_width` | — | none | Phase word width in bits; the full circle spans 2**angle_width (pi = 2**(angle_width-1)). Defaults to data_width. |
-| `stages` | — | none | Number of pipelined CORDIC iterations; each adds ~1 bit of result precision and one cycle of latency (latency = stages + 2). Defaults to data_width. |
+| `stages` | — | none | Number of pipelined CORDIC iterations; each adds ~1 bit of result precision and one cycle of latency (latency = stages + 3). Defaults to data_width. |
 | `mode` | `"vectoring"` | str | "rotation" (rotate (x, y) by z, e.g. sin/cos generation) or "vectoring" (magnitude on ``mag`` and atan2(y, x) on ``angle``). Choices: `rotation`, `vectoring`. |
 
 ## Ports
@@ -37,7 +37,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 ## Register Map
 
-### `latency` (read-only, 16 bits, reset `0x12`)
+### `latency` (read-only, 16 bits, reset `0x13`)
 
 CORDIC pipeline latency (cycles).
 
@@ -45,7 +45,7 @@ CORDIC pipeline latency (cycles).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1839 | 849 | 0 | 1 | 169.6 | — |
+| ecp5 | 1892 | 899 | 0 | 1 | 166.9 | — |
 | xilinx | 742 | 827 | 0 | 1 | 186.4 | — |
 | xilinx_au | 702 | 824 | 0 | 1 | 391.0 | — |
 

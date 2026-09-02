@@ -143,7 +143,7 @@ class LiteDSPSMObserver(LiteXModule):
     0.6``): too small loses the sliding regime, too large adds chatter at low speed. The
     estimate lags the rotor by a constant bounded by the filter phase ``atan2(a*sin(d), 1 -
     a*cos(d))`` (``a = 1 - 2**-lpf_shift``, ``d`` = angle step per sample). Feed the angle to
-    :class:`LiteDSPAngleTracker` for a smooth estimate and speed. Latency ``stages + 2``
+    :class:`LiteDSPAngleTracker` for a smooth estimate and speed. Latency ``stages + 3``
     (CORDIC).
 
     Parameters

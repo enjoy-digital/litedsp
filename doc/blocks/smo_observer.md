@@ -2,7 +2,7 @@
 
 `LiteDSPSMObserver` — `litedsp.motor.observer` — category `motor`
 
-latency: 18 samples · CSR: yes · bypass: no
+latency: 19 samples · CSR: yes · bypass: no
 
 ## Overview
 
@@ -20,7 +20,7 @@ operating point at roughly half the back-EMF magnitude (``~0.35*w_pu`` for ``psi
 0.6``): too small loses the sliding regime, too large adds chatter at low speed. The
 estimate lags the rotor by a constant bounded by the filter phase ``atan2(a*sin(d), 1 -
 a*cos(d))`` (``a = 1 - 2**-lpf_shift``, ``d`` = angle step per sample). Feed the angle to
-:class:`LiteDSPAngleTracker` for a smooth estimate and speed. Latency ``stages + 2``
+:class:`LiteDSPAngleTracker` for a smooth estimate and speed. Latency ``stages + 3``
 (CORDIC).
 
 ## Parameters
@@ -76,7 +76,7 @@ Back-EMF beta.
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 2775 | 856 | 0 | 4 | — | — |
+| ecp5 | 2775 | 873 | 0 | 4 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

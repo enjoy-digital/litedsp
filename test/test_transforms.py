@@ -122,7 +122,7 @@ class TestSinCos(unittest.TestCase):
     def test_bit_exact(self):
         prng   = random.Random(3)
         angles = [prng.randint(-(1 << (AW - 1)), (1 << (AW - 1)) - 1) for _ in range(300)]
-        for method, latency in (("rom", 1), ("cordic", 18)):
+        for method, latency in (("rom", 1), ("cordic", 19)):
             with self.subTest(method=method):
                 dut, gc, gs = self.run_sincos(angles, method=method)
                 rc, rs = sincos_model(angles, method=method)

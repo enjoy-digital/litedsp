@@ -2,7 +2,7 @@
 
 `LiteDSPResolverDigital` — `litedsp.motor.resolver` — category `motor`
 
-latency: 20 samples · CSR: yes · bypass: no
+latency: 21 samples · CSR: yes · bypass: no
 
 ## Overview
 
@@ -70,7 +70,7 @@ Demodulated amplitude (maximize with phase_offset).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 5327 | 1768 | 0 | 5 | — | — |
+| ecp5 | 5509 | 1825 | 0 | 5 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

@@ -7,8 +7,8 @@
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
 | [NCO (DDS)](nco.md) | `LiteDSPNCO` | 1 | 0 | Numerically-Controlled Oscillator (a.k.a. DDS). |
-| [CORDIC (rotate)](cordic_rot.md) | `LiteDSPCORDIC` | 18 | 2 | Pipelined CORDIC (one iteration per stage), gain-compensated, full-circle. |
-| [CORDIC (vector)](cordic_vec.md) | `LiteDSPCORDIC` | 18 | 1 | Pipelined CORDIC (one iteration per stage), gain-compensated, full-circle. |
+| [CORDIC (rotate)](cordic_rot.md) | `LiteDSPCORDIC` | 19 | 2 | Pipelined CORDIC (one iteration per stage), gain-compensated, full-circle. |
+| [CORDIC (vector)](cordic_vec.md) | `LiteDSPCORDIC` | 19 | 1 | Pipelined CORDIC (one iteration per stage), gain-compensated, full-circle. |
 | [Chirp (LFM)](chirp.md) | `LiteDSPChirp` | var | — | Linear-FM (chirp) I/Q generator: the instantaneous frequency ramps by ``rate`` per sample. |
 | [Noise (AWGN)](noise_source.md) | `LiteDSPNoiseSource` | var | — | Approximate-Gaussian (AWGN) complex noise via summed xorshift32 streams (CLT). |
 | [Pattern source](pattern_source.md) | `LiteDSPPatternSource` | var | 0 | I/Q test-pattern generator (constant / counter ramp / PRBS / impulse). |
@@ -39,7 +39,7 @@
 | [Hilbert](hilbert.md) | `LiteDSPHilbert` | 3 | — | Real -> analytic (complex) signal via a Hilbert FIR. |
 | [IIR biquad](iir_biquad.md) | `LiteDSPIIRBiquad` | 2 | 24 | One DF2T biquad section applied to I and Q with shared coefficients. |
 | [DC blocker](dc_blocker.md) | `LiteDSPDCBlocker` | 1 | 0 | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
-| [DC blocker (mono)](dc_blocker_real.md) | `LiteDSPDCBlocker` | 1 | — | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
+| [DC blocker (mono)](dc_blocker_real.md) | `LiteDSPDCBlocker` | 1 | 0 | Multiplier-free 1st-order DC-removal IIR (per I/Q). |
 | [Moving average](moving_average.md) | `LiteDSPMovingAverage` | 1 | 0 | Boxcar moving average over ``2**length_log2`` samples (per I/Q), a.k.a. CIC-1. |
 | [Farrow interpolator](farrow.md) | `LiteDSPFarrowInterpolator` | 7 | 16 | Cubic (Catmull-Rom) Farrow fractional-delay interpolator with runtime ``mu``. |
 | [LMS equalizer](equalizer.md) | `LiteDSPLMSEqualizer` | 1 | — | Adaptive complex FIR equalizer: trained LMS, blind CMA or decision-directed. |
@@ -90,7 +90,7 @@
 
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
-| [FM demod](fm_demod.md) | `LiteDSPFMDemod` | 18 | 4 | FM discriminator: instantaneous frequency = ``angle(x[n] * conj(x[n-1]))``. |
+| [FM demod](fm_demod.md) | `LiteDSPFMDemod` | 19 | 4 | FM discriminator: instantaneous frequency = ``angle(x[n] * conj(x[n-1]))``. |
 | [AM demod](am_demod.md) | `LiteDSPAMDemod` | 2 | — | AM envelope demodulator: ``|x|`` (magnitude) with the carrier DC removed. |
 | [Slicer](slicer.md) | `LiteDSPSlicer` | 1 | — | Hard-decision QAM slicer: map each of I/Q to the nearest PAM level. |
 | [Soft demapper (LLR)](soft_demapper.md) | `LiteDSPSoftDemapper` | 2 | 2 | Gray-coded square-QAM max-log soft demapper: per-axis folded piecewise-linear LLRs. |
@@ -99,7 +99,7 @@
 | [Frame sync (preamble)](frame_sync.md) | `LiteDSPFrameSync` | 9 | 23 | Preamble detector + stream aligner: the gateway block for burst receivers. |
 | [Timing recovery (M&M)](timing_recovery.md) | `LiteDSPTimingRecovery` | var | 18 | Symbol timing recovery with an interpolation controller (M&M or Gardner detector). |
 | [Carrier loop (PLL)](carrier_loop.md) | `LiteDSPCarrierLoop` | 1 | — | Carrier recovery: derotate the input with an internal NCO driven by a PI loop. |
-| [Phase detector](phase_detect.md) | `LiteDSPPhaseDetect` | 18 | — | Instantaneous phase ``atan2(Q, I)`` of an I/Q stream (CORDIC vectoring). |
+| [Phase detector](phase_detect.md) | `LiteDSPPhaseDetect` | 19 | — | Instantaneous phase ``atan2(Q, I)`` of an I/Q stream (CORDIC vectoring). |
 | [CFO estimator (coarse)](cfo_estimator.md) | `LiteDSPCFOEstimator` | 0 | 4 | Coarse CFO estimator: delay-conjugate-multiply autocorrelation + CORDIC angle. |
 | [Differential encoder](diff_encoder.md) | `LiteDSPDifferentialEncoder` | 1 | — | ``out[n] = (in[n] + out[n-1]) mod M`` (symbol indices). |
 | [Differential decoder](diff_decoder.md) | `LiteDSPDifferentialDecoder` | 1 | — | ``out[n] = (in[n] - in[n-1]) mod M`` (inverse of the encoder). |
@@ -134,7 +134,7 @@
 | [PSD](psd.md) | `LiteDSPPSD` | var | 2 | Power-spectral-density accumulator for a streaming FFT. |
 | [Welch PSD](welch.md) | `LiteDSPWelchPSD` | var | — | Windowed, averaged power spectral density: Window -> FFT -> PSD, with segment overlap. |
 | [Magnitude (approx)](magnitude.md) | `LiteDSPMagnitude` | 1 | 0 | Complex magnitude ``|I + jQ|``. |
-| [Magnitude (CORDIC)](magnitude_cordic.md) | `LiteDSPMagnitude` | 18 | 1 | Complex magnitude ``|I + jQ|``. |
+| [Magnitude (CORDIC)](magnitude_cordic.md) | `LiteDSPMagnitude` | 19 | 1 | Complex magnitude ``|I + jQ|``. |
 | [Goertzel](goertzel.md) | `LiteDSPGoertzel` | var | 17 | Single-bin DFT (tone detector) via a 2nd-order resonator — one multiplier. |
 | [Stats](stats.md) | `LiteDSPStats` | 1 | 2 | Min / max / mean / variance of a real stream over ``2**window_log2`` samples. |
 | [Histogram](histogram.md) | `LiteDSPHistogram` | var | 0 | Sample-distribution histogram (e.g. for ADC characterization). |
@@ -151,8 +151,8 @@
 | [Skid buffer](skid_buffer.md) | `LiteDSPSkidBuffer` | 0 | — | Elastic timing-slack buffer for an I/Q stream (registers both valid and ready paths). |
 | [Channel mux](channel_mux.md) | `LiteDSPChannelMux` | 0 | — | Route one of ``n`` sinks to a single source, selected by ``sel`` (runtime). |
 | [Channel demux](channel_demux.md) | `LiteDSPChannelDemux` | 0 | — | Route a single sink to one of ``n`` sources, selected by ``sel`` (runtime). |
-| [TDM mux (interleave)](tdm_mux.md) | `LiteDSPTDMMux` | 0 | — | Interleave ``n_channels`` mono streams into one channel-tagged TDM stream (strict |
-| [TDM demux](tdm_demux.md) | `LiteDSPTDMDemux` | 0 | — | Split a channel-tagged TDM stream into ``n_channels`` mono streams: every beat is routed |
+| [TDM mux (interleave)](tdm_mux.md) | `LiteDSPTDMMux` | 0 | 0 | Interleave ``n_channels`` mono streams into one channel-tagged TDM stream (strict |
+| [TDM demux](tdm_demux.md) | `LiteDSPTDMDemux` | 0 | 0 | Split a channel-tagged TDM stream into ``n_channels`` mono streams: every beat is routed |
 | [Capture (scope)](capture.md) | `LiteDSPCapture` | var | — | Scope-like capture: on a trigger, record ``depth`` I/Q samples to RAM, then stream them out. |
 | [Conjugate](conjugate.md) | `LiteDSPConjugate` | 0 | — | Complex conjugate: ``q -> -q``. |
 | [Swap I/Q](swap_iq.md) | `LiteDSPSwapIQ` | 0 | — | Swap I and Q (a +/-90 deg rotation / spectrum mirror). |
@@ -189,8 +189,8 @@
 | [Quadrature encoder](quadrature_decoder.md) | `LiteDSPQuadratureDecoder` | var | 2 | Incremental encoder (A/B/Z) interface: position, direction, speed and electrical angle. |
 | [Hall sensor decoder](hall_decoder.md) | `LiteDSPHallDecoder` | var | 0 | Three 120-degree Hall sensors -> sector, direction, speed and (interpolated) angle. |
 | [Angle tracker (PLL)](angle_tracker.md) | `LiteDSPAngleTracker` | 1 | 0 | Type-II tracking loop on an angle stream: filtered angle + speed (angle PLL). |
-| [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 18 | 4 | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |
-| [Resolver-to-digital](resolver.md) | `LiteDSPResolverDigital` | 20 | 5 | Resolver-to-digital converter: excitation output, synchronous demodulation, tracking loop. |
+| [Sliding-mode observer](smo_observer.md) | `LiteDSPSMObserver` | 19 | 4 | Sensorless sliding-mode back-EMF observer (PMSM, stationary alpha/beta frame). |
+| [Resolver-to-digital](resolver.md) | `LiteDSPResolverDigital` | 21 | 5 | Resolver-to-digital converter: excitation output, synchronous demodulation, tracking loop. |
 | [FOC current controller](foc.md) | `LiteDSPFOC` | 9 | 15 | Field-oriented current control: phase currents + rotor angle -> three-phase duties. |
 
 ## Audio Processing (`audio/`)
@@ -207,12 +207,12 @@
 | [LFO](lfo.md) | `LiteDSPLFO` | 1 | 1 | Low-frequency oscillator: sine (quarter-wave ROM), triangle, saw or square, with amplitude. |
 | [Delay line (echo)](delay_line.md) | `LiteDSPDelayLine` | 7 | 2 | Feedback delay line with damping, wet/dry mix and optional modulated fractional delay. |
 | [Chorus / flanger](chorus.md) | `LiteDSPDelayLine` | 9 | 2 | Feedback delay line with damping, wet/dry mix and optional modulated fractional delay. |
-| [Wet/dry mix](wet_dry_mix.md) | `LiteDSPWetDryMix` | 1 | — | Two-input gain mix on TDM streams: ``y = dry*sink_dry + wet*sink_wet`` (signed Q1.15 gains). |
+| [Wet/dry mix](wet_dry_mix.md) | `LiteDSPWetDryMix` | 1 | 4 | Two-input gain mix on TDM streams: ``y = dry*sink_dry + wet*sink_wet`` (signed Q1.15 gains). |
 | [Reverb](reverb.md) | `LiteDSPReverb` | 1 | 16 | Schroeder / Freeverb-style reverb: parallel damped feedback combs, series allpasses, mix. |
-| [Peak meter](peak_meter.md) | `LiteDSPPeakMeter` | 0 | — | Per-channel peak / hold / clip meter on a TDM stream (zero-latency passthrough tap). |
+| [Peak meter](peak_meter.md) | `LiteDSPPeakMeter` | 0 | 0 | Per-channel peak / hold / clip meter on a TDM stream (zero-latency passthrough tap). |
 | [Loudness (BS.1770)](loudness.md) | `LiteDSPLoudness` | 0 | 8 | ITU-R BS.1770 loudness front-end: K-weighting + per-hop weighted sum of squares (zero-latency |
-| [Sigma-delta modulator](sigma_delta_mod.md) | `LiteDSPSigmaDeltaModulator` | 1 | — | Error-feedback sigma-delta modulator: ``real_layout`` samples to a 1-bit stream at |
+| [Sigma-delta modulator](sigma_delta_mod.md) | `LiteDSPSigmaDeltaModulator` | 1 | 0 | Error-feedback sigma-delta modulator: ``real_layout`` samples to a 1-bit stream at |
 | [PDM DAC](sigma_delta_dac.md) | `LiteDSPSigmaDeltaDAC` | var | 0 | PDM DAC: a TDM (or mono) sink feeding one :class:`LiteDSPSigmaDeltaModulator` per channel, |
 | [PDM receiver](pdm_rx.md) | `LiteDSPPDMReceiver` | var | 0 | PDM microphone receiver: :class:`LiteDSPBitstreamInterface` (``mclk`` out at ``sys_clk / |
-| [I2S receiver](i2s_rx.md) | `LiteDSPI2SReceiver` | var | — | Serial audio receiver (I2S, left/right-justified, TDM) to a channel-tagged TDM stream. |
+| [I2S receiver](i2s_rx.md) | `LiteDSPI2SReceiver` | var | 0 | Serial audio receiver (I2S, left/right-justified, TDM) to a channel-tagged TDM stream. |
 | [I2S transmitter](i2s_tx.md) | `LiteDSPI2STransmitter` | var | 0 | Channel-tagged TDM stream to serial audio (I2S, left/right-justified, TDM); the mirror of |

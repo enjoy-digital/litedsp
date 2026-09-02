@@ -46,7 +46,7 @@ class TestResolverDigital(unittest.TestCase):
         r_exc, _, r_ang = resolver_model(s, c, D, phase_offset=3)
         self.assertTrue(np.array_equal(exc, r_exc[:len(exc)]))
         self.assertTrue(np.array_equal(ang, r_ang[:len(ang)]))
-        self.assertEqual(dut.latency, 20)
+        self.assertEqual(dut.latency, 21)
 
     # verify-tier: bound — rotating shaft (2.5 degrees per period) through a 3-sample analog
     # delay compensated by phase_offset = D - 3: the boxcar demodulation measures the angle

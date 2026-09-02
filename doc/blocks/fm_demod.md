@@ -2,7 +2,7 @@
 
 `LiteDSPFMDemod` — `litedsp.comm.fm_demod` — category `comm`
 
-latency: 18 samples · CSR: no · bypass: no
+latency: 19 samples · CSR: no · bypass: no
 
 ## Overview
 

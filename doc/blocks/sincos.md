@@ -11,7 +11,7 @@ Angle stream -> ``(cos, sin)`` unit vector on ``iq_layout`` (i = cos, q = sin).
 ``method="rom"``: quarter-wave sine ROM addressed by the top ``log2(lut_depth)`` angle
 bits (the NCO's table, bit-identical to the full-period tables), 1-cycle latency, no DSP.
 ``method="cordic"``: :class:`~litedsp.generation.cordic.LiteDSPCORDIC` rotation of the
-full-scale vector by the angle (``stages + 2`` cycles, no ROM, full angle resolution).
+full-scale vector by the angle (``stages + 3`` cycles, no ROM, full angle resolution).
 Full scale is ``2**(data_width-1) - 1`` (0.99997 pu), as for the NCO.
 
 ## Parameters

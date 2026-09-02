@@ -2,7 +2,7 @@
 
 `LiteDSPPhaseDetect` — `litedsp.comm.phase_detect` — category `comm`
 
-latency: 18 samples · CSR: no · bypass: no
+latency: 19 samples · CSR: no · bypass: no
 
 ## Overview
 

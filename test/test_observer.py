@@ -151,7 +151,7 @@ class TestSMObserver(unittest.TestCase):
         got  = run_smo(dut, *cols, n)
         ref  = smo_model(*cols, **self.GAINS)
         self.assertTrue(np.array_equal(got, ref))
-        self.assertEqual(dut.latency, 18)
+        self.assertEqual(dut.latency, 19)
 
     # verify-tier: bound — steady-state PMSM (i_q = 0.5 pu) at 0.3 and 0.8 pu speed with the
     # operating-point sliding gain (0.35*w) and lpf_shift = 4: the raw angle lags the rotor by

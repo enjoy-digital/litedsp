@@ -20,8 +20,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Yosys
-        run: sudo apt-get update && sudo apt-get install -y yosys
+      - name: Install OSS CAD Suite (Yosys)
+        # The distribution Yosys (0.33, 2023) synthesizes the current LiteX Verilog emission
+        # into 15..80 % more LUTs than the budgets; use the same suite as the P&R job.
+        uses: YosysHQ/setup-oss-cad-suite@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: "2025-06-25"
 
       - name: Install Python dependencies
         run: |

@@ -2,7 +2,7 @@
 
 `LiteDSPMagnitude` — `litedsp.analysis.magnitude` — category `analysis`
 
-latency: 18 samples · CSR: no · bypass: no
+latency: 19 samples · CSR: no · bypass: no
 
 ## Overview
 

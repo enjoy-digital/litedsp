@@ -39,7 +39,7 @@ class LiteDSPCORDIC(LiteXModule):
 
     Quadrant pre-rotation extends convergence to the full circle; the output is multiplied by
     1/K so magnitude/rotation are unity-gain. Pure feedforward pipeline (``latency =
-    stages + 2``), so backpressure simply freezes it.
+    stages + 3``), so backpressure simply freezes it.
 
     Parameters
     ----------
@@ -48,7 +48,7 @@ class LiteDSPCORDIC(LiteXModule):
         Defaults to data_width.
     stages : int
         Number of pipelined CORDIC iterations; each adds ~1 bit of result precision and one
-        cycle of latency (latency = stages + 2). Defaults to data_width.
+        cycle of latency (latency = stages + 3). Defaults to data_width.
     mode : str
         "rotation" (rotate (x, y) by z, e.g. sin/cos generation) or "vectoring" (magnitude on
         ``mag`` and atan2(y, x) on ``angle``).
@@ -62,7 +62,7 @@ class LiteDSPCORDIC(LiteXModule):
         self.data_width  = data_width
         self.angle_width = angle_width
         self.mode        = mode
-        self.latency     = stages + 2
+        self.latency     = stages + 3                 # Stages + product + output registers.
 
         W   = data_width + 2       # Datapath guard bits (gain growth ~1.65x).
         Wz  = angle_width + 2      # Angle guard bits.
@@ -128,21 +128,24 @@ class LiteDSPCORDIC(LiteXModule):
 
         # Output: gain-compensate (rotation/magnitude) and register.
         # ----------------------------------------------------------
-        # The 1/K products live in explicitly sized Signals: Verilog sizes an inline product
-        # to its assignment context and would truncate it to the output width (caught by the
-        # Verilator co-simulation of the motor-control sin/cos block; see litedsp/level/gain.py).
+        # The 1/K products live in explicitly sized, registered Signals: Verilog sizes an inline
+        # product to its assignment context and would truncate it to the output width (caught
+        # by the Verilator co-simulation of the motor-control sin/cos block; see
+        # litedsp/level/gain.py), and the register (absorbed by the DSP's output register)
+        # keeps the multiply out of the rounding/saturation path.
         PW  = W + 16                                       # W-bit value times a Q1.15 constant.
         px  = Signal((PW, True))
-        self.comb += px.eq(x[stages]*kinv)
+        z_d = Signal.like(z[stages])
+        self.sync += If(adv, px.eq(x[stages]*kinv), z_d.eq(z[stages]))
         if mode == "rotation":
             py = Signal((PW, True))
-            self.comb += py.eq(y[stages]*kinv)
+            self.sync += If(adv, py.eq(y[stages]*kinv))
             cx, _ = scaled(px, 15, data_width)
             cy, _ = scaled(py, 15, data_width)
             self.sync += If(adv, self.source.x.eq(cx), self.source.y.eq(cy))
         else:
             cmag, _ = scaled(px, 15, data_width + 1)
-            self.sync += If(adv, self.source.mag.eq(cmag), self.source.angle.eq(z[stages]))
+            self.sync += If(adv, self.source.mag.eq(cmag), self.source.angle.eq(z_d))
 
         valid_pipe = Signal(self.latency)
         self.sync += If(adv, valid_pipe.eq(Cat(self.sink.valid, valid_pipe[:-1])))
