@@ -153,6 +153,8 @@ VSPEC = {
     "bitstream_decimator": _v("bitstream_decimator_model", rate=None, cosim=True),  # Runtime rate.
     "sigma_delta_filter": _v("sigma_delta_filter_model", rate=None, cosim=True),
     "overcurrent_trip":   _v("overcurrent_trip_model", cosim=True),
+    "quadrature_decoder": _v("quadrature_decoder_model", latency="n/a", rate=None),  # Pin-driven.
+    "hall_decoder":       _v("hall_sector_model", latency="n/a", rate=None),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

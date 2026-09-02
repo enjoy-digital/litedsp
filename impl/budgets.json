@@ -84,6 +84,20 @@
       }
     }
   },
+  "bitstream_decimator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 240,
+      "lut": 677,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 240,
+        "lut": 677
+      }
+    }
+  },
   "block_deinterleaver": {
     "ecp5": {
       "bram": 2,
@@ -4358,6 +4372,20 @@
       }
     }
   },
+  "overcurrent_trip": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 36,
+      "lut": 228,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 36,
+        "lut": 228
+      }
+    }
+  },
   "park": {
     "ecp5": {
       "bram": 0,
@@ -5278,6 +5306,20 @@
         "dsp": 0,
         "ff": 33,
         "lut": 60
+      }
+    }
+  },
+  "sigma_delta_filter": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 906,
+      "lut": 2518,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 906,
+        "lut": 2518
       }
     }
   },

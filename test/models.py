@@ -2191,3 +2191,90 @@ def overcurrent_trip_model(a, b, c, threshold):
     a, b, c = (np.asarray(v, np.int64) for v in (a, b, c))
     over  = (np.abs(a) > threshold) | (np.abs(b) > threshold) | (np.abs(c) > threshold)
     return a, b, c, np.cumsum(over) > 0
+
+# Motor Control: Position Sensors ------------------------------------------------------------------
+
+def quadrature_decoder_model(a, b, z, counts_per_rev=4096, pole_pairs=1, filter_length=2,
+    angle_width=16, scale_frac=16, angle_scale=None, angle_offset=0, invert=False,
+    index_enable=False, window=1 << 16, speed_width=16):
+    """Cycle-exact reference for litedsp.motor.encoder.LiteDSPQuadratureDecoder.
+
+    ``a``/``b``/``z`` are the pin levels per cycle (as seen by the block, cycle 0 = reset).
+    Returns a dict of per-cycle register values (``position``, ``epos``, ``direction``,
+    ``error``, ``speed``) and the combinational ``angle`` (what a ``sample`` strobe latches).
+    """
+    n = len(a)
+    if angle_scale is None:
+        angle_scale = (1 << (angle_width + scale_frac))//counts_per_rev
+    fwd  = {(0b00, 0b01), (0b01, 0b11), (0b11, 0b10), (0b10, 0b00)}
+    mask = (1 << angle_width) - 1
+    wrap = _wrapper(speed_width)
+    pins = [dict(s1=0, s2=0, out=0, cnt=0) for _ in range(3)]
+    a_p = b_p = z_p = 0
+    position = epos = direction = error = angle_full = win_cnt = delta = speed = 0
+    out = {k: np.zeros(n, np.int64) for k in ("position", "epos", "direction", "error", "speed", "angle")}
+    for t in range(n):
+        out["position"][t], out["epos"][t] = position, epos
+        out["direction"][t], out["error"][t], out["speed"][t] = direction, error, speed
+        out["angle"][t] = ((angle_full >> scale_frac) + angle_offset) & mask
+        # Combinational decode from the filtered pins and their previous values.
+        a_f, b_f, z_f = pins[0]["out"], pins[1]["out"], pins[2]["out"]
+        prev, cur = a_p | (b_p << 1), a_f | (b_f << 1)
+        illegal   = (prev ^ cur) == 0b11
+        step      = prev != cur and not illegal
+        fwd_match = ((prev, cur) in fwd) ^ bool(invert)
+        step_up, step_down = step and fwd_match, step and not fwd_match
+        index     = bool(z_f and not z_p and index_enable)
+        # Next state: synchronizers + glitch filters.
+        for k, pin in enumerate((a, b, z)):
+            s = pins[k]
+            if filter_length == 1:
+                out_n, cnt_n = s["s2"], 0
+            elif s["s2"] != s["out"]:
+                out_n, cnt_n = (s["s2"], 0) if s["cnt"] == filter_length - 1 else (s["out"], s["cnt"] + 1)
+            else:
+                out_n, cnt_n = s["out"], 0
+            pins[k] = dict(s1=int(pin[t]), s2=s["s1"], out=out_n, cnt=cnt_n)
+        a_p, b_p, z_p = a_f, b_f, z_f
+        angle_full = epos*angle_scale
+        if index:
+            position, epos = 0, 0
+        elif step_up:
+            position  = 0 if position == counts_per_rev - 1 else position + 1
+            epos      = epos + pole_pairs
+            epos      = epos - counts_per_rev if epos >= counts_per_rev else epos
+            direction = 0
+        elif step_down:
+            position  = counts_per_rev - 1 if position == 0 else position - 1
+            epos      = epos - pole_pairs
+            epos      = epos + counts_per_rev if epos < 0 else epos
+            direction = 1
+        if illegal:
+            error = 1
+        s = 1 if step_up else (-1 if step_down else 0)
+        if win_cnt >= window - 1:
+            win_cnt, speed, delta = 0, wrap(delta + s), 0
+        else:
+            win_cnt, delta = win_cnt + 1, wrap(delta + s)
+    return out
+
+HALL_SECTORS = {0b001: 0, 0b011: 1, 0b010: 2, 0b110: 3, 0b100: 4, 0b101: 5}
+
+def hall_sector_model(codes, invert=False):
+    """Reference for the sector/direction/error decode of LiteDSPHallDecoder: per code in
+    the sequence (a new code per entry), returns (sector, direction, error) arrays."""
+    sector, direction, error, armed = 0, 0, 0, False
+    out = np.zeros((len(codes), 3), np.int64)
+    for k, code in enumerate(codes):
+        code = int(code)
+        if code in (0, 7):
+            error = int(error or armed)                    # Invalid codes flag once armed.
+        else:
+            armed = True
+            new = HALL_SECTORS[code]
+            if new != sector:
+                forward   = (new == (sector + 1) % 6) ^ bool(invert)
+                direction = int(not forward)
+                sector    = new
+        out[k] = (sector, direction, error)
+    return out[:, 0], out[:, 1], out[:, 2]

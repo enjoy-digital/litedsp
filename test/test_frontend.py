@@ -153,11 +153,13 @@ class TestBitstreamInterface(unittest.TestCase):
         caps = [[] for _ in dut.sources]
         flags = []
 
+        @passive
         def modulator():
             # A modulator launches its bit right after the mclk rising edge (and, for a dual-edge
-            # stereo microphone, the second channel after the falling edge).
+            # stereo microphone, the second channel after the falling edge); runs until the
+            # captures are done.
             prev, idx = 0, [0]*n_lines
-            for _ in range(clock_div*(n_bits + 4)):
+            while True:
                 clk = (yield dut.mclk)
                 if clk != prev:
                     for line in range(n_lines):

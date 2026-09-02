@@ -111,6 +111,7 @@ from litedsp.motor.limiter         import LiteDSPSlewLimiter
 from litedsp.motor.svpwm           import LiteDSPSVPWM
 from litedsp.motor.pwm             import LiteDSPPWM
 from litedsp.motor.sense           import LiteDSPSigmaDeltaFilter, LiteDSPOvercurrentTrip
+from litedsp.motor.encoder         import LiteDSPQuadratureDecoder, LiteDSPHallDecoder
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -259,6 +260,8 @@ ENTRIES = [
     ("pwm",                LiteDSPPWM,                   {},                                     "motor",      "3-phase PWM",           None),
     ("sigma_delta_filter", LiteDSPSigmaDeltaFilter,      {},                                     "motor",      "Sigma-delta current sense", None),
     ("overcurrent_trip",   LiteDSPOvercurrentTrip,       {},                                     "motor",      "Over-current trip",     None),
+    ("quadrature_decoder", LiteDSPQuadratureDecoder,     {},                                     "motor",      "Quadrature encoder",    None),
+    ("hall_decoder",       LiteDSPHallDecoder,           {},                                     "motor",      "Hall sensor decoder",   None),
 ]
 
 # Lazy registry ------------------------------------------------------------------------------------

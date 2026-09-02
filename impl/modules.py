@@ -84,6 +84,7 @@ from litedsp.motor.limiter        import LiteDSPSlewLimiter
 from litedsp.motor.svpwm          import LiteDSPSVPWM
 from litedsp.motor.pwm            import LiteDSPPWM
 from litedsp.motor.sense          import LiteDSPSigmaDeltaFilter, LiteDSPOvercurrentTrip
+from litedsp.motor.encoder        import LiteDSPQuadratureDecoder, LiteDSPHallDecoder
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -611,6 +612,17 @@ def overcurrent_trip():
     d = LiteDSPOvercurrentTrip(data_width=16, with_csr=False)
     return d, {d.threshold, d.clear, d.fault, d.phase, d.count} | _eps(d.sink, d.source), 10.0
 
+def quadrature_decoder():
+    d = LiteDSPQuadratureDecoder(with_csr=False)
+    return d, {d.a, d.b, d.z, d.sample, d.counts_per_rev, d.pole_pairs, d.angle_scale,
+               d.angle_offset, d.window, d.invert, d.index_enable, d.clear, d.position, d.epos,
+               d.direction, d.speed, d.index_seen, d.error, d.overrun} | _eps(d.source), 10.0
+
+def hall_decoder():
+    d = LiteDSPHallDecoder(with_csr=False)
+    return d, {d.hall, d.sample, d.angle_offset, d.invert, d.clear, d.sector, d.direction,
+               d.period, d.speed, d.error, d.stall, d.overrun} | _eps(d.source), 10.0
+
 def pwm():
     d = LiteDSPPWM(data_width=16, period_width=16, dead_time_width=8, with_csr=False)
     return d, {d.pwm_h, d.pwm_l, d.trigger, d.fault, d.period, d.dead_time, d.enable,
@@ -674,7 +686,8 @@ REGISTRY = {
     "dq_controller": dq_controller, "dq_controller_decoupling": dq_controller_decoupling,
     "slew_limiter": slew_limiter, "svpwm": svpwm, "pwm": pwm,
     "bitstream_decimator": bitstream_decimator, "sigma_delta_filter": sigma_delta_filter,
-    "overcurrent_trip": overcurrent_trip,
+    "overcurrent_trip": overcurrent_trip, "quadrature_decoder": quadrature_decoder,
+    "hall_decoder": hall_decoder,
 }
 
 # Subset for the slower full place-&-route flows.

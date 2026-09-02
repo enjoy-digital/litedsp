@@ -71,6 +71,9 @@ SPECIFIC = [
     ("bitstream_decimator", {"r_max": 8}),                 # r_max >= decimation.
     ("sigma_delta_filter", {"n_channels": 2}),             # 1 or 3 phases.
     ("sigma_delta_filter", {"fast_decimation": 1}),
+    ("quadrature_decoder", {"filter_length": 0}),
+    ("hall_decoder",    {"timer_width": 4}),               # >= 8 required.
+    ("hall_decoder",    {"interpolate": "yes"}),           # Bool required.
 ]
 
 class TestParams(unittest.TestCase):
