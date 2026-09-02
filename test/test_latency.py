@@ -48,25 +48,40 @@ def _build(spec):
         kwargs["with_csr"] = False
     return spec.cls(**kwargs)
 
+def payload_fields(endpoint):
+    """``[(name, signed)]`` of an endpoint's payload (unsigned fields are stream tags)."""
+    out = []
+    for name, shape, *_ in endpoint.description.payload_layout:
+        out.append((name, isinstance(shape, tuple) and shape[1]))
+    return out
+
 def measure_cycle_latency(dut, fields, n=48):
-    """Cycle delta between acceptance of input k and emergence of output k (free flow)."""
+    """Cycle delta between acceptance of input k and emergence of output k (free flow).
+
+    ``fields`` lists ``(name, signed)``: signed payload fields get random samples, unsigned
+    tags (e.g. the TDM ``channel``) cycle 0, 1, 0, 1, ... so tagged engines see legal frames.
+    """
     in_cycles, out_cycles = [], []
     prng = random.Random(3)
+
+    def stimulus(k):
+        return [getattr(dut.sink, f).eq(prng.randint(-1000, 1000) if signed else k % 2)
+                for f, signed in fields]
 
     @passive
     def driver():
         cycle = 0
         fed   = 0
         yield dut.sink.valid.eq(1)
-        for f in fields:
-            yield getattr(dut.sink, f).eq(prng.randint(-1000, 1000))
+        for stmt in stimulus(0):
+            yield stmt
         while True:
             yield
             if (yield dut.sink.ready) and fed < n:
                 in_cycles.append(cycle)
                 fed += 1
-                for f in fields:
-                    yield getattr(dut.sink, f).eq(prng.randint(-1000, 1000))
+                for stmt in stimulus(fed):
+                    yield stmt
             cycle += 1
 
     def capture():
@@ -93,13 +108,14 @@ class TestLatency(unittest.TestCase):
             spec = palette[key]
             if len(spec.sinks) != 1 or len(spec.sources) != 1:
                 continue
-            if spec.port("sink").layout != "iq" or spec.port("source").layout != "iq":
+            layouts = {spec.port("sink").layout, spec.port("source").layout}
+            if len(layouts) != 1 or layouts.pop() not in ("iq", "real", "tdm"):
                 continue
             with self.subTest(block=key):
                 dut = _build(spec)
                 if dut.latency == 0:
                     continue  # Combinational passthrough; nothing to measure.
-                deltas = measure_cycle_latency(dut, ["i", "q"])
+                deltas = measure_cycle_latency(dut, payload_fields(dut.sink))
                 self.assertEqual(len(deltas), 1,
                     f"{key}: latency not constant under free flow: {sorted(deltas)}")
                 self.assertEqual(deltas.pop(), dut.latency,

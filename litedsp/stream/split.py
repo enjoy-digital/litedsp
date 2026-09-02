@@ -18,20 +18,24 @@ from litedsp.common import check, iq_layout
 # Split / Duplicate --------------------------------------------------------------------------------
 
 class LiteDSPSplit(LiteXModule):
-    """Fan-out one I/Q stream to ``n`` identical sources (all consumed together).
+    """Fan-out one stream to ``n`` identical sources (all consumed together).
 
     Parameters
     ----------
     n : int
         Number of duplicated output streams (>= 1). The fan-out is atomic, so the slowest
         branch paces the whole stream (every source sees exactly the same transfers).
+    layout : list
+        Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc).
     """
-    def __init__(self, n=2, data_width=16):
+    def __init__(self, n=2, data_width=16, layout=None):
         check(n >= 1, "expected n >= 1")
+        if layout is None:
+            layout = iq_layout(data_width)
         self.n      = n
         self.latency = 0
-        self.sink    = stream.Endpoint(iq_layout(data_width))
-        self.sources = [stream.Endpoint(iq_layout(data_width)) for _ in range(n)]
+        self.sink    = stream.Endpoint(layout)
+        self.sources = [stream.Endpoint(layout) for _ in range(n)]
 
         # # #
 
@@ -41,9 +45,6 @@ class LiteDSPSplit(LiteXModule):
         self.comb += self.sink.ready.eq(all_ready)
         for s in self.sources:
             self.comb += [
+                *self.sink.connect(s, omit={"valid", "ready"}),  # Payload + first/last.
                 s.valid.eq(self.sink.valid & all_ready),
-                s.first.eq(self.sink.first),
-                s.last.eq(self.sink.last),
-                s.i.eq(self.sink.i),
-                s.q.eq(self.sink.q),
             ]

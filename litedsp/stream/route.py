@@ -16,35 +16,30 @@ from litedsp.common import iq_layout
 # Channel Mux / Demux ------------------------------------------------------------------------------
 
 class LiteDSPChannelMux(LiteXModule):
-    """Route one of ``n`` I/Q sinks to a single source, selected by ``sel`` (runtime).
+    """Route one of ``n`` sinks to a single source, selected by ``sel`` (runtime).
 
     Parameters
     ----------
     n : int
         Number of selectable input channels (sinks). Sizes the ``sel`` signal/CSR; unselected
         sinks are backpressured (ready held low), not drained.
+    layout : list
+        Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc).
     """
-    def __init__(self, n=2, data_width=16, with_csr=True):
+    def __init__(self, n=2, data_width=16, with_csr=True, layout=None):
+        if layout is None:
+            layout = iq_layout(data_width)
         self.n      = n
         self.latency = 0
-        self.sinks  = [stream.Endpoint(iq_layout(data_width)) for _ in range(n)]
-        self.source = stream.Endpoint(iq_layout(data_width))
+        self.sinks  = [stream.Endpoint(layout) for _ in range(n)]
+        self.source = stream.Endpoint(layout)
         self.sel    = Signal(max=max(2, n))  # Selected input channel (runtime).
 
         # # #
 
         # Mux.
         # ----
-        cases = {}
-        for k in range(n):
-            cases[k] = [
-                self.source.valid.eq(self.sinks[k].valid),
-                self.source.first.eq(self.sinks[k].first),
-                self.source.last.eq(self.sinks[k].last),
-                self.source.i.eq(self.sinks[k].i),
-                self.source.q.eq(self.sinks[k].q),
-                self.sinks[k].ready.eq(self.source.ready),
-            ]
+        cases = {k: self.sinks[k].connect(self.source) for k in range(n)}
         self.comb += Case(self.sel, cases)   # Unselected sinks: ready stays 0.
 
         # CSR.
@@ -54,35 +49,30 @@ class LiteDSPChannelMux(LiteXModule):
             self.comb += self.sel.eq(self._sel.storage)
 
 class LiteDSPChannelDemux(LiteXModule):
-    """Route a single I/Q sink to one of ``n`` sources, selected by ``sel`` (runtime).
+    """Route a single sink to one of ``n`` sources, selected by ``sel`` (runtime).
 
     Parameters
     ----------
     n : int
         Number of selectable output channels (sources). Sizes the ``sel`` signal/CSR;
         unselected sources see valid held low (no data is duplicated to them).
+    layout : list
+        Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc).
     """
-    def __init__(self, n=2, data_width=16, with_csr=True):
+    def __init__(self, n=2, data_width=16, with_csr=True, layout=None):
+        if layout is None:
+            layout = iq_layout(data_width)
         self.n       = n
         self.latency = 0
-        self.sink    = stream.Endpoint(iq_layout(data_width))
-        self.sources = [stream.Endpoint(iq_layout(data_width)) for _ in range(n)]
+        self.sink    = stream.Endpoint(layout)
+        self.sources = [stream.Endpoint(layout) for _ in range(n)]
         self.sel     = Signal(max=max(2, n))  # Selected output channel (runtime).
 
         # # #
 
         # Demux.
         # ------
-        cases = {}
-        for k in range(n):
-            cases[k] = [
-                self.sources[k].valid.eq(self.sink.valid),
-                self.sources[k].first.eq(self.sink.first),
-                self.sources[k].last.eq(self.sink.last),
-                self.sources[k].i.eq(self.sink.i),
-                self.sources[k].q.eq(self.sink.q),
-                self.sink.ready.eq(self.sources[k].ready),
-            ]
+        cases = {k: self.sink.connect(self.sources[k]) for k in range(n)}
         self.comb += Case(self.sel, cases)   # Unselected sources: valid stays 0.
 
         # CSR.

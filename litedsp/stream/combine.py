@@ -32,16 +32,25 @@ class LiteDSPCombine(LiteXModule):
     Parameters
     ----------
     n_channels : int
-        Number of I/Q input streams summed (>= 1). Adds ceil(log2(n_channels)) accumulator
+        Number of input streams summed (>= 1). Adds ceil(log2(n_channels)) accumulator
         guard bits before saturation; all inputs must present a sample for any to transfer.
+    layout : list
+        Payload layout (default ``iq_layout(data_width)``): every signed payload field is
+        summed (``real_layout``/``abc_layout`` work too); unsigned tags (TDM ``channel``) are
+        rejected because a sum of tagged beats has no meaning.
     """
-    def __init__(self, n_channels=2, data_width=16, with_csr=True):
+    def __init__(self, n_channels=2, data_width=16, with_csr=True, layout=None):
         check(n_channels >= 1, "expected n_channels >= 1")
+        if layout is None:
+            layout = iq_layout(data_width)
+        fields = [(name, shape) for name, shape, *_ in layout]
+        check(all(isinstance(s, tuple) and s[1] for _, s in fields),
+            "expected a layout of signed sample fields (no tags such as 'channel')")
         self.n_channels = n_channels
         self.data_width = data_width
         self.latency    = 1
-        self.sinks  = [stream.Endpoint(iq_layout(data_width)) for _ in range(n_channels)]
-        self.source = stream.Endpoint(iq_layout(data_width))
+        self.sinks  = [stream.Endpoint(layout) for _ in range(n_channels)]
+        self.source = stream.Endpoint(layout)
         self.enable = Signal(n_channels, reset=2**n_channels - 1)  # Per-channel enable mask.
 
         # # #
@@ -61,20 +70,13 @@ class LiteDSPCombine(LiteXModule):
         # Width-growing sum of enabled channels, then saturate.
         # -----------------------------------------------------
         # Disabled channels contribute zero but are still consumed (the join stays in lockstep).
-        acc_bits = data_width + int(math.ceil(math.log2(n_channels))) if n_channels > 1 else data_width
-        sum_i    = Signal((acc_bits, True))
-        sum_q    = Signal((acc_bits, True))
-        self.comb += [
-            sum_i.eq(reduce(lambda a, b: a + b,
-                [Mux(self.enable[k], self.sinks[k].i, 0) for k in range(n_channels)])),
-            sum_q.eq(reduce(lambda a, b: a + b,
-                [Mux(self.enable[k], self.sinks[k].q, 0) for k in range(n_channels)])),
-        ]
-        self.sync += If(advance,
-            self.source.i.eq(saturated(sum_i, data_width)),
-            self.source.q.eq(saturated(sum_q, data_width)),
-            self.source.valid.eq(all_valid),
-        )
+        guard = int(math.ceil(math.log2(n_channels))) if n_channels > 1 else 0
+        for name, (width, _) in fields:
+            acc = Signal((width + guard, True), name=f"sum_{name}")
+            self.comb += acc.eq(reduce(lambda a, b: a + b,
+                [Mux(self.enable[k], getattr(self.sinks[k], name), 0) for k in range(n_channels)]))
+            self.sync += If(advance, getattr(self.source, name).eq(saturated(acc, width)))
+        self.sync += If(advance, self.source.valid.eq(all_valid))
 
         # CSR.
         # ----

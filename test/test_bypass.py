@@ -36,12 +36,26 @@ class TestBypass(unittest.TestCase):
                 dut = spec.cls(**kwargs)
                 self.assertTrue(hasattr(dut, "bypass"), f"{key} has no bypass")
                 dut.bypass.reset = 1
-                fields = ["i", "q"] if hasattr(dut.sink, "i") else ["data"]
-                data   = [{f: prng.randint(-30000, 30000) for f in fields} for _ in range(80)]
+                # Every payload field: signed fields get random samples, an unsigned tag (the
+                # TDM ``channel``) cycles through its range so tagged streams are covered too.
+                shapes = {name: shape for name, shape, *_ in dut.sink.description.payload_layout}
+                fields = list(shapes)
+                data   = []
+                for k in range(80):
+                    beat = {}
+                    for f in fields:
+                        width, signed = (shapes[f] if isinstance(shapes[f], tuple)
+                                         else (shapes[f], False))
+                        lim     = min(30000, 2**(width - 1) - 1) if signed else 2**width - 1
+                        beat[f] = prng.randint(-lim, lim) if signed else k % (lim + 1)
+                    data.append(beat)
                 cap = run_stream(dut, data, len(data), fields, fields,
                     sink_throttle=0.2, source_ready_rate=0.7)
                 for f in fields:
-                    self.assertTrue(np.array_equal(column(cap, f, 16), [d[f] for d in data]),
+                    width, signed = (shapes[f] if isinstance(shapes[f], tuple)
+                                     else (shapes[f], False))
+                    got = column(cap, f, width if signed else None)
+                    self.assertTrue(np.array_equal(got, [d[f] for d in data]),
                         f"{key}: {f} not passed through under bypass")
 
 if __name__ == "__main__":

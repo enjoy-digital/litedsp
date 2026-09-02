@@ -16,7 +16,7 @@ from litedsp.common import check, iq_layout
 
 @ResetInserter()
 class LiteDSPDelay(LiteXModule):
-    """Delay an I/Q stream by ``depth`` cycles (data and valid travel together).
+    """Delay a stream by ``depth`` cycles (payload and valid travel together).
 
     A simple pipeline of register stages used to time-align parallel branches by a known
     latency. Under backpressure all branches stall identically, so the alignment in samples is
@@ -25,15 +25,19 @@ class LiteDSPDelay(LiteXModule):
     Parameters
     ----------
     depth : int
-        Delay in samples (>= 0; 0 = pure passthrough). Costs one I/Q register stage
-        (2*data_width + 1 flip-flops) per unit of delay.
+        Delay in samples (>= 0; 0 = pure passthrough). Costs one payload register stage
+        (payload width + 1 flip-flops) per unit of delay.
+    layout : list
+        Payload layout (default ``iq_layout(data_width)``); any layout works (real, TDM, abc).
     """
-    def __init__(self, depth=1, data_width=16):
+    def __init__(self, depth=1, data_width=16, layout=None):
         check(depth >= 0, "expected depth >= 0")
+        if layout is None:
+            layout = iq_layout(data_width)
         self.depth   = depth
         self.latency = depth
-        self.sink   = stream.Endpoint(iq_layout(data_width))
-        self.source = stream.Endpoint(iq_layout(data_width))
+        self.sink   = stream.Endpoint(layout)
+        self.source = stream.Endpoint(layout)
 
         # # #
 
@@ -52,24 +56,20 @@ class LiteDSPDelay(LiteXModule):
         # ---------------
         # Data and valid shift together, so input bubbles travel through and reappear at the
         # output with the sample alignment unchanged.
-        i_pipe = [Signal((data_width, True)) for _ in range(depth)]
-        q_pipe = [Signal((data_width, True)) for _ in range(depth)]
+        p_pipe = [Signal(len(self.sink.payload)) for _ in range(depth)]  # Raw payload bits.
         v_pipe = Signal(depth)
         # depth == 1 shifts valid alone (an empty v_pipe[:-1] slice emits illegal Verilog —
         # found by the full-registry Verilator lint sweep).
         v_next = self.sink.valid if depth == 1 else Cat(self.sink.valid, v_pipe[:-1])
         self.sync += If(adv,
-            i_pipe[0].eq(self.sink.i),
-            q_pipe[0].eq(self.sink.q),
+            p_pipe[0].eq(self.sink.payload.raw_bits()),
             v_pipe.eq(v_next),
-            *[i_pipe[k].eq(i_pipe[k - 1]) for k in range(1, depth)],
-            *[q_pipe[k].eq(q_pipe[k - 1]) for k in range(1, depth)],
+            *[p_pipe[k].eq(p_pipe[k - 1]) for k in range(1, depth)],
         )
 
         # Output.
         # -------
         self.comb += [
             self.source.valid.eq(v_pipe[-1]),
-            self.source.i.eq(i_pipe[-1]),
-            self.source.q.eq(q_pipe[-1]),
+            self.source.payload.raw_bits().eq(p_pipe[-1]),
         ]
