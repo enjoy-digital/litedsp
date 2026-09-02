@@ -1126,6 +1126,20 @@ def spec_audio_eq():
         lambda c: [models.audio_eq_model(c[0], c[1], secs, band_enable=np.array(c[2])),
                    np.array(c[1])], False, False, (dut.band_enable,)
 
+def spec_log2_lut():
+    from litedsp.level.logdb import LiteDSPLog2
+    n    = 300
+    dut  = LiteDSPLog2(in_width=32, frac_bits=8, lut=True, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=(1 << 31) - 1)
+    return dut, cols, n - 4, lambda c: [models.log2_model(c[0], 32, 8, lut=True)]
+
+def spec_exp2():
+    from litedsp.level.logdb import LiteDSPExp2
+    n    = 300
+    dut  = LiteDSPExp2(with_csr=False)
+    cols = _rand_cols(1, n, lo=-47*256, hi=47*256)
+    return dut, cols, n - 4, lambda c: [models.exp2_model(c[0])]
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1229,6 +1243,8 @@ SPECS = {
     "dither":           spec_dither,
     "dither_ef2":       spec_dither_ef2,
     "audio_eq":         spec_audio_eq,
+    "log2_lut":         spec_log2_lut,
+    "exp2":             spec_exp2,
 }
 
 # Known failures -----------------------------------------------------------------------------------
@@ -1275,6 +1291,7 @@ def check_coverage():
         "pi_controller_ref":         "pi_controller",
         "dq_controller_decoupling":  "dq_controller",
         "dither_ef2":                "dither",
+        "log2_lut":                  "log2",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

@@ -9,8 +9,11 @@ latency: 1 sample · CSR: no · bypass: no
 Fixed-point base-2 logarithm of an unsigned input (priority-encoder + mantissa).
 
 ``log2(x) ~= msb_position + fraction`` where the fraction is the ``frac_bits`` bits just
-below the most-significant set bit (linear-in-mantissa approximation, error < ~0.086).
-Output is ``log2`` in unsigned Q(int).``frac_bits``. ``x == 0`` yields 0.
+below the most-significant set bit (linear-in-mantissa approximation, error < ~0.086,
+i.e. 0.5 dB). With ``lut=True`` the mantissa addresses a ``2**frac_bits`` entry ROM of
+``log2(1 + m)`` instead (error < 2**-frac_bits, 0.02 dB at 8 bits -- what the audio
+dynamics processor and meters need), at one more cycle of latency. Output is ``log2`` in
+unsigned Q(int).``frac_bits``. ``x == 0`` yields 0.
 
 ## Parameters
 
@@ -18,6 +21,7 @@ Output is ``log2`` in unsigned Q(int).``frac_bits``. ``x == 0`` yields 0.
 |---|---|---|---|
 | `in_width` | `32` | int | Width in bits of the unsigned input. Sets the integer output bits (enough to encode the MSB index) and the size of the priority encoder / alignment shifter. |
 | `frac_bits` | `8` | int | Fractional bits of the coefficient/control fixed-point format. |
+| `lut` | `False` | bool | Refine the mantissa through a log2 ROM (latency 2) instead of the linear approximation. |
 
 ## Ports
 

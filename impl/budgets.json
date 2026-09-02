@@ -98,6 +98,20 @@
       }
     }
   },
+  "audio_eq": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 163,
+      "lut": 780,
+      "synth": {
+        "bram": 0,
+        "dsp": 4,
+        "ff": 163,
+        "lut": 780
+      }
+    }
+  },
   "bitstream_decimator": {
     "ecp5": {
       "bram": 0,

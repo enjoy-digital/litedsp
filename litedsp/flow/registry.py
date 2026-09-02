@@ -118,6 +118,7 @@ from litedsp.motor.foc             import LiteDSPFOC
 from litedsp.audio.level           import LiteDSPVolume, LiteDSPStereoMatrix
 from litedsp.audio.dither          import LiteDSPDither
 from litedsp.audio.eq              import LiteDSPAudioEQ
+from litedsp.level.logdb           import LiteDSPExp2
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -178,6 +179,7 @@ ENTRIES = [
     ("envelope",           LiteDSPEnvelopeDetector,      {},                                     "level",      "Envelope detector",     None),
     ("log2",               LiteDSPLog2,                  {},                                     "level",      "Log2",                  None),
     ("log_power",          LiteDSPLogPower,              {},                                     "level",      "Log power (dB)",        None),
+    ("exp2",               LiteDSPExp2,                  {},                                     "level",      "Exp2 (antilog)",        None),
     # correction -----------------------------------------------------------------------------------
     ("dc_offset",          LiteDSPDCOffset,              {},                                     "correction", "DC offset",             None),
     ("iq_balance",         LiteDSPIQBalance,             {},                                     "correction", "I/Q balance",           None),

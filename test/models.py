@@ -692,8 +692,9 @@ def isqrt_model(x):
 
 # Log2 ---------------------------------------------------------------------------------------------
 
-def log2_model(x, in_width=32, frac_bits=8):
-    """Reference for litedsp.level.logdb.Log2 (linear-mantissa approximation)."""
+def log2_model(x, in_width=32, frac_bits=8, lut=False):
+    """Reference for litedsp.level.logdb.Log2 (linear-mantissa approximation, or the ROM-
+    refined mantissa ``round(log2(1 + m/2**F)*2**F)`` with ``lut=True``)."""
     out = []
     for v in np.asarray(x, np.int64):
         v = int(v)
@@ -703,7 +704,29 @@ def log2_model(x, in_width=32, frac_bits=8):
         msb     = v.bit_length() - 1
         shifted = v << (in_width - 1 - msb)
         mant    = (shifted >> (in_width - 1 - frac_bits)) & ((1 << frac_bits) - 1)
+        if lut:
+            mant = int(round(math.log2(1 + mant/(1 << frac_bits))*(1 << frac_bits)))
         out.append((msb << frac_bits) | mant)
+    return np.array(out, np.int64)
+
+def exp2_model(v, in_width=16, frac_bits=8, out_frac=20, out_width=25):
+    """Bit-exact reference for litedsp.level.logdb.LiteDSPExp2: unsigned 2**v in Q.out_frac,
+    ROM mantissa ``round(2**(f/2**F)*2**out_frac)`` shifted by the integer part (left:
+    saturating, right: round-half-up), per sample."""
+    F, OF, OW = frac_bits, out_frac, out_width
+    LMAX, RMAX = OW - OF, OF + 2
+    out = []
+    for x in np.asarray(v, np.int64):
+        x = int(x)
+        i, f = x >> F, x & ((1 << F) - 1)
+        rom  = int(round(2**(f/(1 << F))*(1 << OF)))
+        if i < 0:
+            r = min(-i, RMAX)
+            out.append((rom + ((1 << (r - 1)) if r else 0)) >> r)
+        elif i > LMAX or (rom << i) >= (1 << OW):
+            out.append((1 << OW) - 1)
+        else:
+            out.append(rom << i)
     return np.array(out, np.int64)
 
 # DC Offset Correction -----------------------------------------------------------------------------

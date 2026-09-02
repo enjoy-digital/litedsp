@@ -42,6 +42,7 @@ EXCLUDED = {
     "cp_remove",  # Rate changer (drops the cyclic prefix); alignment pinned in test_ofdm.
     "bitstream_decimator",  # Rate changer (runtime rate); pinned in test_bitstream.
     "stereo_matrix",        # Serial two-beat engine; cycles_per_frame pinned in test_audio_level.
+    "exp2",                 # Unsigned in/out widths differ; latency pinned in test_logdb.
 }
 
 def _build(spec):

@@ -164,6 +164,7 @@ VSPEC = {
     "stereo_matrix":      _v("stereo_matrix_model", cosim=True),   # Serial engine: 2 beats in, 2 out.
     "dither":             _v("dither_model", cosim=True),
     "audio_eq":           _v("audio_eq_model", cosim=True),
+    "exp2":               _v("exp2_model", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

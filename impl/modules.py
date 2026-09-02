@@ -91,6 +91,7 @@ from litedsp.motor.foc            import LiteDSPFOC
 from litedsp.audio.level          import LiteDSPVolume, LiteDSPStereoMatrix
 from litedsp.audio.dither         import LiteDSPDither
 from litedsp.audio.eq             import LiteDSPAudioEQ
+from litedsp.level.logdb          import LiteDSPLog2, LiteDSPExp2
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -678,6 +679,14 @@ def audio_eq():
     return d, {d.band_enable, d.bypass, d.coeff_index, d.coeff_value, d.coeff_we, d.coeff_commit,
                d.commit_pending, d.clear_sat, d.sat} | _eps(d.sink, d.source), 10.0
 
+def log2_lut():
+    d = LiteDSPLog2(in_width=32, frac_bits=8, lut=True, with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
+def exp2():
+    d = LiteDSPExp2(with_csr=False)
+    return d, _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -739,6 +748,7 @@ REGISTRY = {
     "hall_decoder": hall_decoder, "angle_tracker": angle_tracker, "smo_observer": smo_observer,
     "resolver": resolver, "foc": foc,
     "volume": volume, "stereo_matrix": stereo_matrix, "dither": dither, "audio_eq": audio_eq,
+    "log2_lut": log2_lut, "exp2": exp2,
 }
 
 # Subset for the slower full place-&-route flows.

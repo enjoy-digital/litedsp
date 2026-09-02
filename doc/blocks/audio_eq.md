@@ -90,6 +90,6 @@ Per-band enable mask (a disabled band passes its input through).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 777 | 160 | 0 | 4 | — | — |
+| ecp5 | 780 | 163 | 0 | 4 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).

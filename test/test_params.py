@@ -89,6 +89,8 @@ SPECIFIC = [
     ("audio_eq",        {"frac_bits": 40}),                # < coeff_width.
     ("audio_eq",        {"error_feedback": 3}),
     ("audio_eq",        {"n_bands": 0}),
+    ("exp2",            {"frac_bits": 16}),                # < in_width.
+    ("exp2",            {"out_width": 20}),                # > out_frac.
 ]
 
 class TestParams(unittest.TestCase):

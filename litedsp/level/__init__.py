@@ -11,7 +11,7 @@ from litedsp.level.cfr      import LiteDSPCFR
 from litedsp.level.clipper  import LiteDSPClipper
 from litedsp.level.dpd      import LiteDSPDPD
 from litedsp.level.gain     import LiteDSPGain
-from litedsp.level.logdb    import LiteDSPLog2, LiteDSPLogPower
+from litedsp.level.logdb    import LiteDSPLog2, LiteDSPLogPower, LiteDSPExp2
 from litedsp.level.peak     import LiteDSPEnvelopeDetector
 from litedsp.level.power    import LiteDSPPower
 from litedsp.level.rms      import LiteDSPRMS

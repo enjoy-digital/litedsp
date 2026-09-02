@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-141 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+142 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -75,6 +75,7 @@
 | [Envelope detector](envelope.md) | `LiteDSPEnvelopeDetector` | 2 | — | Envelope follower on |I+jQ| with separate attack/release time constants. |
 | [Log2](log2.md) | `LiteDSPLog2` | 1 | — | Fixed-point base-2 logarithm of an unsigned input (priority-encoder + mantissa). |
 | [Log power (dB)](log_power.md) | `LiteDSPLogPower` | 2 | — | Power-to-dB: ``10*log10(x) = 3.0103 * log2(x)`` (x is a power value, unsigned). |
+| [Exp2 (antilog)](exp2.md) | `LiteDSPExp2` | 2 | — | Fixed-point ``2**v`` of a signed log2-domain value (ROM mantissa + integer shift). |
 
 ## Impairment Correction (`correction/`)
 
