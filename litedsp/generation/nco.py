@@ -66,9 +66,46 @@ class LiteDSPNCO(LiteXModule):
         self.sync += If(ce, valid.eq(1))
         self.comb += self.source.valid.eq(valid)
 
-        # Cos/Sin ROM lookup (full-period tables, or one quarter-wave table reconstructing both).
-        cos, sin = sincos_rom(self, addr, ce, data_width, lut_depth, quarter_wave)
-        self.comb += [self.source.i.eq(cos), self.source.q.eq(sin)]
+        # Cos/Sin ROM lookup, kept inline (the netlist naming this produces is what the DUC's
+        # closed timing target was recorded against; sincos_rom() below is the same logic for
+        # the motor-control sin/cos block).
+        if not quarter_wave:
+            # Full-period cos/sin ROMs.
+            cos_rom = Memory(data_width, lut_depth, init=self.build_lut(lut_depth, data_width, math.cos))
+            sin_rom = Memory(data_width, lut_depth, init=self.build_lut(lut_depth, data_width, math.sin))
+            cos_rp  = cos_rom.get_port(has_re=True)
+            sin_rp  = sin_rom.get_port(has_re=True)
+            self.specials += cos_rom, sin_rom, cos_rp, sin_rp
+            self.comb += [
+                cos_rp.re.eq(ce), cos_rp.adr.eq(addr),
+                sin_rp.re.eq(ce), sin_rp.adr.eq(addr),
+                self.source.i.eq(cos_rp.dat_r),
+                self.source.q.eq(sin_rp.dat_r),
+            ]
+        else:
+            # Quarter-wave: one sine table (depth N/4+1) reconstructs cos and sin (4x ROM saving).
+            quarter = lut_depth//4
+            scale   = (1 << (data_width - 1)) - 1
+            qt = Memory(data_width, quarter + 1,
+                init=[int(round(math.sin(2*math.pi*j/lut_depth)*scale)) & ((1 << data_width)-1)
+                      for j in range(quarter + 1)])
+            sp, cp = qt.get_port(has_re=True), qt.get_port(has_re=True)
+            self.specials += qt, sp, cp
+            idx  = addr[:addr_bits-2]                    # Within-quadrant index.
+            q_s  = addr[addr_bits-2:]                    # Sine quadrant (2 bits).
+            q_c  = Signal(2)
+            self.comb += q_c.eq(q_s + 1)                 # cos(x) = sin(x + pi/2).
+            neg_s, neg_c = Signal(), Signal()
+            self.comb += [
+                sp.re.eq(ce), sp.adr.eq(Mux(q_s[0], quarter - idx, idx)), neg_s.eq(q_s[1]),
+                cp.re.eq(ce), cp.adr.eq(Mux(q_c[0], quarter - idx, idx)), neg_c.eq(q_c[1]),
+            ]
+            neg_s_d, neg_c_d = Signal(), Signal()
+            self.sync += If(ce, neg_s_d.eq(neg_s), neg_c_d.eq(neg_c))
+            self.comb += [
+                self.source.i.eq(Mux(neg_c_d, -cp.dat_r, cp.dat_r)),   # cos.
+                self.source.q.eq(Mux(neg_s_d, -sp.dat_r, sp.dat_r)),   # sin.
+            ]
 
         # CSR.
         # ----
