@@ -336,10 +336,10 @@ class LiteDSPHallDecoder(LiteXModule):
                        {"default": sector_new.eq(self.sector)}),
             invalid.eq((code == 0) | (code == 7)),
         ]
-        edge      = Signal()
+        sector_edge      = Signal()
         forward   = Signal()
         self.comb += [
-            edge.eq(~invalid & (sector_new != self.sector)),
+            sector_edge.eq(~invalid & (sector_new != self.sector)),
             forward.eq((sector_new == Mux(self.sector == 5, 0, self.sector + 1)) ^ self.invert),
         ]
 
@@ -350,7 +350,7 @@ class LiteDSPHallDecoder(LiteXModule):
         armed = Signal()                                              # A valid code was seen.
         self.sync += [
             If(~invalid, armed.eq(1)),
-            If(edge,
+            If(sector_edge,
                 self.sector.eq(sector_new),
                 self.direction.eq(~forward),
                 self.period.eq(timer),
@@ -386,13 +386,13 @@ class LiteDSPHallDecoder(LiteXModule):
             quot     = Signal(NUM_W)
             rem      = Signal(timer_width + 1)
             rem_sh   = Signal(timer_width + 1)
-            bit      = Signal()
+            num_bit  = Signal()
             inc      = Signal(NUM_W)                                  # Q.FRAC angle per cycle.
             self.comb += [
-                bit.eq(num_bits[div_i - 1]),
-                rem_sh.eq(Cat(bit, rem[:-1])),                        # (rem << 1) | bit.
+                num_bit.eq(num_bits[div_i - 1]),
+                rem_sh.eq(Cat(num_bit, rem[:-1])),                    # (rem << 1) | bit.
             ]
-            self.sync += If(edge & (timer != 0),
+            self.sync += If(sector_edge & (timer != 0),
                 busy.eq(1), div_i.eq(NUM_W), quot.eq(0), rem.eq(0),
             ).Elif(busy,
                 If(div_i == 0,
@@ -411,7 +411,7 @@ class LiteDSPHallDecoder(LiteXModule):
             )
             frac = Signal(NUM_W)                                      # Position inside the sector, Q.FRAC.
             lim  = Constant((SECTOR - 1) << FRAC, NUM_W)
-            self.sync += If(edge,
+            self.sync += If(sector_edge,
                 frac.eq(0),
             ).Elif((frac + inc) < lim,
                 frac.eq(frac + inc),
