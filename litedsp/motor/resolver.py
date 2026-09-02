@@ -114,7 +114,7 @@ class LiteDSPResolverDigital(LiteXModule):
 
         # Synchronous demodulation: exact boxcar over one period.
         # -------------------------------------------------------
-        ref     = Signal((data_width, True))
+        reference = Signal((data_width, True))        # Delayed excitation sample.
         p_sin   = Signal((2*data_width, True))
         p_cos   = Signal((2*data_width, True))
         acc_sin = Signal((AW, True))
@@ -122,9 +122,9 @@ class LiteDSPResolverDigital(LiteXModule):
         sum_sin = Signal((AW, True))
         sum_cos = Signal((AW, True))
         self.comb += [
-            ref.eq(demp.dat_r),
-            p_sin.eq(self.sink.i*ref),
-            p_cos.eq(self.sink.q*ref),
+            reference.eq(demp.dat_r),
+            p_sin.eq(self.sink.i*reference),
+            p_cos.eq(self.sink.q*reference),
             sum_sin.eq(acc_sin + p_sin),
             sum_cos.eq(acc_cos + p_cos),
         ]
