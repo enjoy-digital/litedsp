@@ -92,6 +92,7 @@ from litedsp.analysis.stats        import LiteDSPStats
 from litedsp.analysis.histogram    import LiteDSPHistogram
 from litedsp.analysis.detect       import LiteDSPEnergyDetector
 from litedsp.analysis.measure      import LiteDSPErrorCounter
+from litedsp.analysis.reorder      import LiteDSPBitReverse
 from litedsp.stream.combine        import LiteDSPCombine
 from litedsp.stream.split          import LiteDSPSplit
 from litedsp.stream.delay          import LiteDSPDelay
@@ -236,6 +237,7 @@ ENTRIES = [
     ("stats",              LiteDSPStats,                 {},                                     "analysis",   "Stats",                 None),
     ("histogram",          LiteDSPHistogram,             {},                                     "analysis",   "Histogram",             None),
     ("energy_detector",    LiteDSPEnergyDetector,        {},                                     "analysis",   "Energy detector",       None),
+    ("bit_reverse",        LiteDSPBitReverse,            {"N": 64},                              "analysis",   "Bit-reverse reorder",   None),
     ("error_counter",      LiteDSPErrorCounter,          {},                                     "analysis",   "Error counter",         None),
     # stream ---------------------------------------------------------------------------------------
     ("combine",            LiteDSPCombine,               {"n_channels": 2},                      "stream",     "Combine (sum)",         None),

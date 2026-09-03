@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-160 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+161 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -139,6 +139,7 @@
 | [Stats](stats.md) | `LiteDSPStats` | 1 | 2 | Min / max / mean / variance of a real stream over ``2**window_log2`` samples. |
 | [Histogram](histogram.md) | `LiteDSPHistogram` | var | 0 | Sample-distribution histogram (e.g. for ADC characterization). |
 | [Energy detector](energy_detector.md) | `LiteDSPEnergyDetector` | 0 | — | Signal-presence detector with an adaptive noise floor (CFAR-style). |
+| [Bit-reverse reorder](bit_reverse.md) | `LiteDSPBitReverse` | var | 0 | Reorder ``N``-beat frames from bit-reversed to natural order (the FFT's output order). |
 | [Error counter](error_counter.md) | `LiteDSPErrorCounter` | var | 0 | Count mismatches between a reference and a received I/Q stream (synchronous join). |
 
 ## Stream Utilities (`stream/`)

@@ -781,6 +781,14 @@ def spec_window():
     return dut, cols, n - 4, lambda c: [
         *models.window_model(c[0], c[1], coeffs), first, last], False, True
 
+def spec_bit_reverse():
+    from litedsp.analysis.reorder import LiteDSPBitReverse
+    n, N = 4*16 + 6, 16                                            # 4 frames + 6 fill beats.
+    dut  = LiteDSPBitReverse(N=N, data_width=16, fft_latency=6, with_csr=False)
+    cols = _rand_cols(2, n)
+    return dut, cols, 4*N - 4, lambda c: models.bit_reverse_model([c[0][6:], c[1][6:]], N), \
+        False, True
+
 def spec_psd():
     # Framed *output* (first/last markers on the emitted spectrum) is fine for the generic TB:
     # it captures the payload samples in order and ignores the markers. data_width=14 keeps
@@ -1297,6 +1305,7 @@ SPECS = {
     "magnitude":        spec_magnitude,
     "window":           spec_window,
     "psd":              spec_psd,
+    "bit_reverse":      spec_bit_reverse,
     "parallel_fft":     spec_parallel_fft,
     "parallel_fft_folded":    spec_parallel_fft_folded,
     "parallel_fft_native_x2": spec_parallel_fft_native_x2,

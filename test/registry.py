@@ -130,6 +130,7 @@ VSPEC = {
     "parallel_fft":       _v("parallel_fft_model", cosim=True),  # Bit-exact (= fft_fixed_model
                                                                # re-laned); 2-lane layout: no cosim.
     "psd":                _v("psd_model",   latency="variable", rate=None, cosim=True),
+    "bit_reverse":        _v("bit_reverse_model", latency="variable", cosim=True),
     "welch":              _v("welch_model", latency="variable", rate=None, cosim=True),
     "magnitude":          _v("magnitude_model", cosim=True),
     "magnitude_cordic":   _v(),

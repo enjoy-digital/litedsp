@@ -19,3 +19,4 @@ from litedsp.analysis.psd       import LiteDSPPSD
 from litedsp.analysis.stats     import LiteDSPStats
 from litedsp.analysis.welch     import LiteDSPWelchPSD
 from litedsp.analysis.window    import LiteDSPWindow
+from litedsp.analysis.reorder   import LiteDSPBitReverse

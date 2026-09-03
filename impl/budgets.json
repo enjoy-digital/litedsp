@@ -112,6 +112,20 @@
       }
     }
   },
+  "bit_reverse": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 29,
+      "lut": 1383,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 29,
+        "lut": 1383
+      }
+    }
+  },
   "bitstream_decimator": {
     "ecp5": {
       "bram": 0,

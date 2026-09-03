@@ -24,6 +24,7 @@ BANNED_PARAMS = {"R", "L", "M", "factor", "ratio_int", "coeffs", "taps"}
 
 # Blocks whose latency is data-dependent (explicit ``self.latency = None``).
 VARIABLE_LATENCY = {
+    "bit_reverse",
     "arb_resampler", "block_deinterleaver", "block_interleaver", "capture", "cp_insert",
     "ccsds_rs_decoder", "ccsds_rs_encoder", "depuncturer", "goertzel", "histogram",
     "ldpc_decoder", "ldpc_decoder_z_parallel", "ldpc_encoder", "power", "psd", "puncturer",

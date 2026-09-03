@@ -2802,3 +2802,16 @@ def i2s_frame_model(frames, fmt="i2s", sample_width=24, slot_width=32, n_channel
             lrck.append(int(pos == 0 and slot == 0) if pol is None else int((slot == 0) == bool(pol)))
         prev = w
     return sdata, lrck
+
+def bit_reverse_model(cols, N):
+    """Bit-exact reference for litedsp.analysis.reorder.LiteDSPBitReverse: every N-beat frame of
+    each column is reordered from bit-reversed to natural order (``out[b] = in[bitrev(b)]``);
+    beats of an incomplete trailing frame are not emitted."""
+    bits = (N - 1).bit_length()
+    rev  = [int("".join(reversed(f"{k:0{bits}b}")), 2) for k in range(N)]
+    out  = []
+    for c in cols:
+        c = np.asarray(c, np.int64)
+        n = (len(c)//N)*N
+        out.append(np.concatenate([c[f:f + N][rev] for f in range(0, n, N)]) if n else np.zeros(0, np.int64))
+    return out

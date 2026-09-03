@@ -106,6 +106,7 @@ SPECIFIC = [
     ("i2s_rx",          {"fmt": "bad"}),
     ("i2s_rx",          {"slot_width": 20}),
     ("i2s_tx",          {"bclk_div": 3}),
+    ("bit_reverse",     {"N": 100}),
 ]
 
 class TestParams(unittest.TestCase):

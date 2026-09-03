@@ -50,6 +50,7 @@ from litedsp.analysis.window      import LiteDSPWindow
 from litedsp.analysis.fft         import LiteDSPFFT, LiteDSPInterleavedFFT
 from litedsp.analysis.fft_iter    import LiteDSPFFTIter
 from litedsp.analysis.fft_parallel import LiteDSPParallelFFT
+from litedsp.analysis.reorder     import LiteDSPBitReverse
 from litedsp.analysis.psd         import LiteDSPPSD
 from litedsp.analysis.goertzel    import LiteDSPGoertzel
 from litedsp.analysis.stats       import LiteDSPStats
@@ -282,6 +283,10 @@ def fft_iter():
 def psd():
     d = LiteDSPPSD(256, data_width=16, avg_log2=4, with_csr=False)
     return d, _eps(d.sink, d.source), 10.0
+
+def bit_reverse():
+    d = LiteDSPBitReverse(N=256, data_width=16, fft_latency=255, with_csr=False)
+    return d, {d.filled} | _eps(d.sink, d.source), 10.0
 
 def goertzel():
     d = LiteDSPGoertzel(64, 5, data_width=16, with_csr=False)
@@ -785,7 +790,7 @@ REGISTRY = {
     "cfr_pipelined": cfr_pipelined, "saturate": saturate, "rms": rms,
     "magnitude": magnitude, "magnitude_cordic": magnitude_cordic, "combine": combine,
     "window": window, "fft": fft, "fft_folded": fft_folded,
-    "fft_interleaved_x2": fft_interleaved_x2, "fft_iter": fft_iter, "psd": psd,
+    "fft_interleaved_x2": fft_interleaved_x2, "fft_iter": fft_iter, "psd": psd, "bit_reverse": bit_reverse,
     "goertzel": goertzel, "goertzel_folded": goertzel_folded,
     "stats": stats, "histogram": histogram, "ddc": ddc, "duc": duc, "channelizer": channelizer,
     "ddc_ip": ddc_ip, "qpsk_receiver_ip": qpsk_receiver_ip,
