@@ -198,7 +198,11 @@ def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_
     if not ok and name not in KNOWN_FAIL:
         for k, r in enumerate(ref):
             if not np.array_equal(got[:, k], np.asarray(r)[:n_out]):
-                print(f"  field {k}: got[:4]={got[:4, k].tolist()} ref[:4]={np.asarray(r)[:4].tolist()}")
+                r0  = np.asarray(r)[:n_out]
+                bad = np.flatnonzero(got[:len(r0), k] != r0)
+                i0  = int(bad[0]) if len(bad) else len(r0)
+                print(f"  field {k}: {len(bad)} mismatching beat(s), first at {i0}: "
+                      f"got[{i0}:{i0 + 4}]={got[i0:i0 + 4, k].tolist()} ref={r0[i0:i0 + 4].tolist()}")
     return expected
 
 def main(argv=None):

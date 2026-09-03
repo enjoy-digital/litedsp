@@ -1158,9 +1158,18 @@ def spec_audio_eq():
     dut  = LiteDSPAudioEQ(data_width=24, n_bands=3, n_channels=2, sections=secs, with_csr=False)
     cols = _tdm_cols(n, 2, lo=-(1 << 22), hi=(1 << 22))
     mask = [0b111 if k < 160 else 0b101 for k in range(2*n)]
-    return dut, cols + [mask], 2*n - 4, \
+    # Reload the (identical) coefficient table through the shadow port and commit it, so the
+    # copy engine runs without changing what the model computes.
+    from migen import Memory
+    init  = next(list(m.init) for m in dut._fragment.specials if isinstance(m, Memory) and m.depth == 8*3)
+    index = [(k - 30) % 24 if 30 <= k < 54 else 0 for k in range(2*n)]
+    value = [init[(k - 30) % 24] if 30 <= k < 54 else 0 for k in range(2*n)]
+    we    = [int(30 <= k < 54) for k in range(2*n)]
+    commit = [int(k == 60) for k in range(2*n)]
+    return dut, cols + [mask, index, value, we, commit], 2*n - 4, \
         lambda c: [models.audio_eq_model(c[0], c[1], secs, band_enable=np.array(c[2])),
-                   np.array(c[1])], False, False, (dut.band_enable,)
+                   np.array(c[1])], False, False, \
+        (dut.band_enable, dut.coeff_index, dut.coeff_value, dut.coeff_we, dut.coeff_commit)
 
 def spec_log2_lut():
     from litedsp.level.logdb import LiteDSPLog2
