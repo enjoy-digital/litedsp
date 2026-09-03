@@ -122,7 +122,7 @@ Additional contracts introduced with the harmonization:
   metrics, AN010 (EQ within 0.3 dB of the design, compressor static curve bit-exact vs the model,
   limiter ceiling, 16-bit in-band THD+N -95 dB, I2S transport over pins) and
   `examples/audio_core.yml`.
-- Radar / sonar block family (`litedsp/radar/`, palette category `radar`, 10 blocks + `LiteDSPBitReverse`, see
+- Radar / sonar block family (`litedsp/radar/`, palette category `radar`, 17 blocks + `LiteDSPBitReverse`, see
   `doc/radar.md`): `LiteDSPRangeGate` (sample-domain PRI/CPI timer, gated and framed receive
   window, IRQ), `LiteDSPPulseCompressor` (chirp matched filter on two `LiteDSPFIRFilterComplex`
   with rect/Hamming taper, `classic` or `mac`, tag re-alignment; PSLR gates), `LiteDSPMTICanceller`
@@ -134,6 +134,12 @@ Additional contracts introduced with the harmonization:
   sub-bin interpolation, per-CPI target bursts with terminators, IRQ), `LiteDSPTargetList`
   (ping-pong list, overflow, CSR readback) and `LiteDSPAlphaBetaTracker` (serial gated nearest-
   neighbour association, alpha-beta update, confirmation / coasting / deletion, track bursts).
+  Extended set: `LiteDSPOSCFAR` (ordered statistic on the shared window engine), `LiteDSPClutterMap`
+  (scan-to-scan per-cell average in RAM), `LiteDSPKalmanTracker` (constant-velocity Kalman update on
+  the shared tracker engine, bit-serial gains, clamped covariance), `LiteDSPBeamformer` (joined
+  element streams, serial beams, atomic shadow weights), `LiteDSPMonopulse` (mixer + vectoring
+  CORDIC phase), `LiteDSPPulseGenerator` (source-only chirp train) and `LiteDSPTVG` (sonar log-domain
+  gain ramp through Exp2 with a same-latency bypass); both CFARs gained a runtime threshold floor.
   New stream kinds `cell_layout`, `target_layout`, `track_layout` (one burst per CPI closed by a
   terminator beat) classified by the flow; design helpers (`litedsp.radar.design`: `cfar_alpha`,
   `alpha_beta_from_index`, `steering_weights`, unit conversions, `tvg_coefficients`) and chirp
@@ -142,7 +148,8 @@ Additional contracts introduced with the harmonization:
   `TrackerDriver`. Every block has a bit-exact integer model, backpressured tests with functional
   bounds (compression sidelobes, exact clutter cancellation, Doppler bin position and sidelobes,
   measured CFAR false-alarm rate, centroid error, tracking RMS error and coasting), Verilator
-  co-simulation (18 configurations), ECP5 budgets and datasheets.
+  co-simulation (28 configurations), ECP5 budgets and datasheets; AN011 runs the pulse-Doppler chain
+  end to end (`examples/pulse_doppler_radar.py`).
 - Motor-control block family (`litedsp/motor/`, palette category `motor`, 19 blocks, see
   `doc/motor_control.md`): Clarke/inverse Clarke (`LiteDSPClarke`/`LiteDSPInverseClarke`,
   amplitude-invariant, Q1.15 constants), Park/inverse Park as the complex mixer fed by a

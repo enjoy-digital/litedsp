@@ -81,6 +81,13 @@ has one, so a mixed 16-bit I/Q / 17-bit cell chain sets `data_width` per block i
 | `LiteDSPPeakExtractor` | `peak_extractor` | 3x3 local maxima of the detections, parabolic sub-bin interpolation (bit-serial divider), target bursts, IRQ per CPI | plateaus give one record |
 | `LiteDSPTargetList` | `target_list` | ping-pong list of `max_targets` records with overflow flag, re-emitted framed, CSR readback | `TargetListDriver.read_targets()` |
 | `LiteDSPAlphaBetaTracker` | `alpha_beta_tracker` | gated nearest-neighbour association + alpha-beta filter per track, confirmation / coasting / deletion, track bursts, IRQ per update | `TrackerDriver.set_tracking_index(lam)` |
+| `LiteDSPOSCFAR` | `os_cfar` | ordered-statistic CFAR on the CA window (ranked training cell, runtime rank): immune to a neighbouring target or interferer | `OSCFARDriver.set_rank` |
+| `LiteDSPClutterMap` | `clutter_map` | per-cell exponential average across scans in RAM (censored / learn-all, freeze, initialisation scan), threshold on the cell's own clutter | `ClutterMapDriver.set_alpha / set_learning` |
+| `LiteDSPKalmanTracker` | `kalman_tracker` | the tracker engine with a constant-velocity Kalman update per axis (predicted covariance, bit-serial gains, clamped covariance with `cov_sat`) | `KalmanTrackerDriver.set_noise / set_tracking_index` |
+| `LiteDSPBeamformer` | `beamformer` | narrowband phase-shift beams from `n_elements` joined streams, `n_beams` per sample (channel tag), shadow weights committed at a sample boundary | `BeamformerDriver.set_steering(beam, angle, d/lambda, taper)` |
+| `LiteDSPMonopulse` | `monopulse` | phase of `a * conj(b)` (mixer + vectoring CORDIC) on `angle_layout` | angle of arrival on the host |
+| `LiteDSPPulseGenerator` | `pulse_generator` | source-only chirp pulse train (framed pulse + zeros to the PRI, CPI or single-pulse modes, `tx` / `pulse_start`) | `PulseGeneratorDriver.set_waveform(bw_hz, pulse_s, pri_s)` |
+| `LiteDSPTVG` | `tvg` | sonar time-varying gain: log-domain ramp `g0 + k_log log2(r) + k_lin r` through Exp2, bypass at the same latency | `TVGDriver.set_law(dB/decade, dB/bin, g0_dB)` |
 
 Resource budgets (ECP5 synthesis, default parameters) are in [`resources.md`](resources.md); the
 generated datasheets under `blocks/` embed them per block. The default geometry (N = 64 range
@@ -99,15 +106,22 @@ with N x M (corner turn: 2 x N x M x 2dw bits) and with the CFAR box (2-D CFAR l
 | 2-D CFAR | `None` (R rows + C cells + 7) | M / (M + C) |
 | peak extractor | `None` | 1 per cycle, `frac_bits + 3` extra cycles per record |
 | target list | `None` | 1 per cycle; stalls only with both banks sealed |
-| tracker | `None` | `n_tracks + 2` cycles per record, ~3 `n_tracks` cycles per terminator |
+| tracker | `None` | `n_tracks + 2` cycles per record, ~3 `n_tracks` cycles per terminator (Kalman: + `cov_width + cov_frac` per assigned track) |
+| OS-CFAR | `None` (as CA-CFAR) | 1 per cycle, flush between frames |
+| clutter map | fixed (4) | 1 per cycle |
+| beamformer | fixed (3) for one beam, `None` otherwise | `n_beams` cycles per sample (joined sinks) |
+| monopulse | fixed (2 + CORDIC stages) | 1 per cycle (joined sinks) |
+| pulse generator | n/a (source) | 1 per cycle, one bubble per pulse start |
+| TVG | fixed (6) | 1 per cycle |
 
 ## Host side
 
 `litedsp.radar.design` holds the pure-Python design maths (CFAR alpha from a false-alarm
 probability, Kalata tracker gains, steering weights, unit conversions, time-varying-gain
 coefficients) and `litedsp.radar.waveform` the chirp helpers shared by the gateware and the
-models. The typed drivers (`RangeGateDriver`, `CFARDriver`, `TargetListDriver`, `TrackerDriver`
-in `litedsp/software/drivers.py`) wrap the CSR maps; the flow's manifest discovery picks them
+models. The typed drivers (`RangeGateDriver`, `PulseGeneratorDriver`, `CFARDriver`, `OSCFARDriver`,
+`ClutterMapDriver`, `TargetListDriver`, `TrackerDriver`, `KalmanTrackerDriver`, `BeamformerDriver`,
+`TVGDriver` in `litedsp/software/drivers.py`) wrap the CSR maps; the flow's manifest discovery picks them
 by registry key.
 
 ## Verification
@@ -117,11 +131,12 @@ that runs it under random backpressure (`sink_throttle=0.2`, `source_ready_rate=
 functional bounds derived from the design (pulse-compression sidelobes, MTI cancellation,
 Doppler bin position and sidelobes, measured CFAR false-alarm rate, centroid error, tracking
 RMS error and coasting). All keys are co-simulated with Verilator against the same models
-(`sim/run_blocks.py`), including the CA / GO CFAR statistics, the wide 2-D box and the
-`mac` pulse compressor; the sparse target / track blocks compute their expected output count
-from the model. Nightly line coverage is above 90 % for every key except the composites with
-nested reset arms (pulse compressor, Doppler processor), which carry waivers naming their
-semantic tests.
+(`sim/run_blocks.py`), including the CA / GO CFAR statistics, the wide 2-D box, the `mac`
+pulse compressor, the two-beam beamformer and the two-sink monopulse; the sparse target /
+track blocks compute their expected output count from the model. Nightly line coverage is
+above 90 % for every key except the composites with nested sub-block arms (pulse compressor,
+Doppler processor, monopulse, TVG) and the beamformer's shadow-weight path, which carry
+waivers naming their semantic tests.
 
 ## Non-goals and composition hints
 
@@ -131,9 +146,24 @@ chip (DMA the pulse frames out and columns back in) since the Doppler processor 
 framed columns. The 2-D CFAR replicates its line buffer per read port; for very large maps use
 the 1-D CA-CFAR per row (Doppler-only training) or per column after a second corner turn.
 
-## Roadmap (extended set)
+## Sonar
 
-Ordered-statistic CFAR, clutter map, Kalman tracker, phase-shift beamformer, monopulse angle,
-pulse generator and sonar time-varying gain follow the same conventions and are added in this
-family's second batch; their design entries (`steering_weights`, `tvg_coefficients`,
-`alpha_beta_from_index`) are already in `litedsp.radar.design`.
+Active sonar uses the same chain at audio-like sample rates: `LiteDSPPulseGenerator` drives the
+projector (its `tx` strobe blanks the receiver, the framed pulse is the matched-filter reference
+through `chirp_reference`), `LiteDSPTVG` compensates the spreading and absorption losses along
+the range bins before detection (`tvg_coefficients(40, alpha, g0)` for two-way spherical
+spreading plus absorption in dB per bin), and the detectors run on the compressed profile
+(`LiteDSPMagnitude` or the log-domain blocks for envelope / log compression, then
+`LiteDSPCACFAR` / `LiteDSPOSCFAR` per ping or `LiteDSPClutterMap` across pings). Array
+receivers go through `LiteDSPBeamformer` (one stream per hydrophone, weights from
+`steering_weights`) or, for two half-arrays, `LiteDSPMonopulse` for a bearing per range bin.
+Range bin r is `r * c_s / (2 fs)` (sound speed) and the parameters scale down with the sample
+rate: a 100 kHz sonar with 1024 range bins and 16 pings keeps every block at a fraction of the
+radar budgets.
+
+## Roadmap
+
+Serial (multiplier-shared) architectures for the OS-CFAR rank filter and the 2-D CFAR line
+buffer at large maps, an off-chip corner turn for long CPIs, staggered PRIs and a
+detection-list sink for the image overlay block are the next steps; the extended set above
+lands the design entries the follow-up families (instrumentation, GNSS) build on.
