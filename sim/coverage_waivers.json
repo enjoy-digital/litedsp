@@ -294,5 +294,12 @@
     "semantic_checks": [
       "test.test_image_blend:TestBoxOverlay.test_boxes"
     ]
+  },
+  "manchester_decoder": {
+    "reason": "The cosim decodes a clean chip stream; the violation counting, the phase restart and the inversion arms run in the unit tests (round trips for every code, violation pairs counted and flagged, inverted encoder vector).",
+    "semantic_checks": [
+      "test.test_line_code:TestLineCodes.test_codes",
+      "test.test_line_code:TestLineCodes.test_violations_and_invert"
+    ]
   }
 }
