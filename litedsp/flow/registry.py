@@ -126,6 +126,7 @@ from litedsp.audio.meter           import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm             import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.audio.i2s             import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.comm.fm_mod           import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
+from litedsp.comm.am_mod           import LiteDSPAMModulator
 from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
@@ -338,6 +339,7 @@ ENTRIES = [
     ("i2s_rx",             LiteDSPI2SReceiver,           {},                                     "audio",      "I2S receiver",          {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["slave", "master"]}),
     # Radar / sonar.
     ("fm_modulator",       LiteDSPFrequencyModulator,    {},                                     "comm",       "FM modulator",          {}),
+    ("am_modulator",       LiteDSPAMModulator,           {},                                     "comm",       "AM modulator",          {"carrier": ["baseband", "nco"]}),
     ("pm_modulator",       LiteDSPPhaseModulator,        {},                                     "comm",       "Phase modulator",       {}),
     ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),

@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-212 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+213 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -123,6 +123,7 @@
 | [OFDM CP remove](cp_remove.md) | `LiteDSPCPRemove` | 0 | — | Remove a cyclic prefix: (CP + N)-sample symbols in, framed N-sample symbols out. |
 | [OFDM equalizer (1-tap)](ofdm_equalizer.md) | `LiteDSPOFDMEqualizer` | 2 | 6 | LS channel estimation + divider-free one-tap OFDM equalizer with per-bin CSI. |
 | [FM modulator](fm_modulator.md) | `LiteDSPFrequencyModulator` | 2 | 2 | FM modulator: real samples to a complex exponential whose instantaneous frequency is |
+| [AM modulator](am_modulator.md) | `LiteDSPAMModulator` | 2 | 3 | AM modulator: ``envelope = 2**(dw-2) * (1 + m * x)`` with the modulation index ``m`` |
 | [Phase modulator](pm_modulator.md) | `LiteDSPPhaseModulator` | 2 | 2 | PM modulator: the carrier phase (``phase_inc`` per sample) plus ``d / 2**(data_width-1) * |
 
 ## Analysis / Measurement (`analysis/`)

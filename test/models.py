@@ -3741,3 +3741,50 @@ def fm_modulator_model(x, phase_inc=0, deviation=0, phase_bits=32, data_width=16
 
 def pm_modulator_model(x, phase_inc=0, deviation=0, phase_bits=32, data_width=16, lut_depth=1024):
     return angle_modulator_model(x, "pm", phase_inc, deviation, phase_bits, data_width, lut_depth)
+
+def am_modulator_model(x, index=32768, carrier="baseband", phase_inc=0, data_width=16, phase_bits=32, lut_depth=1024):
+    """Bit-exact reference for litedsp.comm.am_mod.LiteDSPAMModulator: ``envelope = 2^(dw-2) +
+    rounded(x * index, dw)`` (saturated), on I (baseband) or multiplied with the NCO carrier."""
+    DW = data_width
+    env = [_sat((1 << (DW - 2)) + _rnd(int(v)*int(index), DW), DW) for v in x]
+    if carrier == "baseband":
+        return np.array(env, np.int64), np.zeros(len(env), np.int64)
+    ci, cq = nco_model(phase_inc, len(env), phase_bits, DW, lut_depth)
+    oi = [_sat(_rnd(e*int(c), DW - 1), DW) for e, c in zip(env, ci)]
+    oq = [_sat(_rnd(e*int(s_), DW - 1), DW) for e, s_ in zip(env, cq)]
+    return np.array(oi, np.int64), np.array(oq, np.int64)
+
+def gray_model(words, width=2, n_lanes=1, encode=True):
+    """Reference for litedsp.comm.gray: per-lane binary <-> Gray on packed words."""
+    mask = (1 << width) - 1
+    out = []
+    for w in words:
+        w = int(w)
+        r = 0
+        for k in range(n_lanes):
+            b = (w >> (k*width)) & mask
+            if encode:
+                g = b ^ (b >> 1)
+            else:
+                g = b
+                sh = 1
+                while sh < width:
+                    g ^= g >> sh
+                    sh <<= 1
+            r |= (g & mask) << (k*width)
+        out.append(r)
+    return np.array(out, np.int64)
+
+def ssb_modulator_model(x, n_taps=31, sideband=0, data_width=16):
+    """Bit-exact reference for litedsp.comm.ssb_mod.LiteDSPSSBModulator: the Hilbert block's two
+    FIRs (a unit-delay tap on I, the Hilbert taps on Q) then a saturating negate on Q for the
+    lower sideband."""
+    from litedsp.filter.design import hilbert_coefficients
+    delay = [0]*n_taps
+    delay[(n_taps - 1)//2] = (1 << (data_width - 1)) - 1
+    i = fir_model(x, delay, data_width)
+    q = fir_model(x, hilbert_coefficients(n_taps, data_width=data_width), data_width)
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    if sideband:
+        q = np.where(q == -(1 << (data_width - 1)), (1 << (data_width - 1)) - 1, -q)
+    return i, q

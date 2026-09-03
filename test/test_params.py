@@ -136,6 +136,7 @@ SPECIFIC = [
     ("pulse_generator", {"pulse_len": 128}),
     ("pixel_pattern",   {"width": 4}),
     ("fm_modulator",    {"lut_depth": 100}),
+    ("am_modulator",    {"carrier": "lo"}),
     ("pixel_pattern",   {"mode": "noise"}),
     ("pixel_pack",      {"format": "yuyv"}),
     ("pixel_from_video", {"width": 1}),

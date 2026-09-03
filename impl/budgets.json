@@ -98,6 +98,20 @@
       }
     }
   },
+  "am_modulator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 3,
+      "ff": 147,
+      "lut": 770,
+      "synth": {
+        "bram": 0,
+        "dsp": 3,
+        "ff": 147,
+        "lut": 770
+      }
+    }
+  },
   "angle_ramp": {
     "ecp5": {
       "bram": 0,

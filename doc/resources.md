@@ -9,6 +9,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `agc` | 390/126/0/4/113.8/100.0 | 231/126/0/2/114.7/100.0 | 203/122/0/2/246.6/100.0 |
 | `alpha_beta_tracker` | 2474/981/0/8/- | - | - |
 | `alpha_blend` | 155/28/0/6/- | - | - |
+| `am_modulator` | 770/147/0/3/- | - | - |
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |

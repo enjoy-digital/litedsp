@@ -30,3 +30,4 @@ from litedsp.comm.soft_demap      import LiteDSPSoftDemapper
 from litedsp.comm.timing_recovery import LiteDSPTimingRecovery
 from litedsp.comm.viterbi         import LiteDSPViterbiDecoder
 from litedsp.comm.fm_mod import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
+from litedsp.comm.am_mod import LiteDSPAMModulator

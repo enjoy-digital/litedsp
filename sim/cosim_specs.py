@@ -1410,6 +1410,20 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def _spec_am(carrier):
+    from litedsp.comm.am_mod import LiteDSPAMModulator
+    n = 300
+    dut = LiteDSPAMModulator(carrier=carrier, with_csr=False)
+    dut.index.reset, dut.phase_inc.reset = 26000, 0x0800_0000
+    cols = _rand_cols(1, n)
+    return dut, cols, n - 4, lambda c: list(models.am_modulator_model(c[0], 26000, carrier, 0x0800_0000))
+
+def spec_am_modulator():
+    return _spec_am("baseband")
+
+def spec_am_modulator_nco():
+    return _spec_am("nco")
+
 def _spec_angle_mod(mode):
     from litedsp.comm.fm_mod import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
     n = 300
@@ -1914,6 +1928,8 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "am_modulator":     spec_am_modulator,
+    "am_modulator_nco": spec_am_modulator_nco,
     "fm_modulator":     spec_fm_modulator,
     "pm_modulator":     spec_pm_modulator,
     "pixel_histogram":  spec_pixel_histogram,
@@ -2001,6 +2017,7 @@ def check_coverage():
             "ca_cfar_go":               "ca_cfar",
             "cfar_2d_wide":             "cfar_2d",
             "beamformer_2beams":        "beamformer",
+            "am_modulator_nco":         "am_modulator",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

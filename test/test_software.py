@@ -8,7 +8,7 @@
 
 import unittest
 
-from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, phase_inc_from_freq, freq_from_phase_inc, discover,
+from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, phase_inc_from_freq, freq_from_phase_inc, discover,
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
@@ -277,6 +277,9 @@ class TestCommExtraDrivers(unittest.TestCase):
         regs = {f"pm_{r}": MockCSR() for r in PhaseModulatorDriver.regs}
         PhaseModulatorDriver(MockBus(regs), "pm", clk_freq=1e6).set_deviation(math.pi/2)
         self.assertEqual(regs["pm_deviation"].value, 1 << 30)
+        regs = {f"am_{r}": MockCSR() for r in AMModulatorDriver.regs}
+        AMModulatorDriver(MockBus(regs), "am").set_index(0.5)
+        self.assertEqual(regs["am_index"].value, 16384)
 
 class TestRadarDrivers(unittest.TestCase):
     def test_range_gate(self):
