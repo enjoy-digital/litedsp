@@ -330,6 +330,11 @@ def add_bypass(module, output_registered=True):
     source payload: ``True`` for sync-registered outputs (the override register is the last
     delay stage), ``False`` for comb-driven outputs (a full-latency delay chain + comb mux).
 
+    The select travels with the sample it was presented with (delayed through the same
+    stages as the payload), so a beat accepted while ``bypass`` is set is passed through
+    whatever the control does while it is in flight; a per-beat ``bypass`` column in the
+    co-simulation and a host toggle both see the switch land on an exact beat boundary.
+
     Requires ``module.sink``/``module.source`` with identical payload layouts and an integer
     ``module.latency >= 1`` whose pipeline advances when the output can accept a sample.
     """
@@ -339,6 +344,11 @@ def add_bypass(module, output_registered=True):
     module.comb += adv.eq(module.source.ready | ~module.source.valid)
     fields = [f[0] for f in module.sink.description.payload_layout]
     stages = module.latency - (1 if output_registered else 0)
+    sel    = module.bypass
+    for _ in range(stages):  # The select rides along with its beat.
+        d = Signal()
+        module.sync += If(adv, d.eq(sel))
+        sel = d
     for name in fields:
         tap = getattr(module.sink, name)
         for _ in range(stages):  # Delay-match the processing pipeline.
@@ -346,9 +356,9 @@ def add_bypass(module, output_registered=True):
             module.sync += If(adv, d.eq(tap))
             tap = d
         if output_registered:
-            module.sync += If(adv & module.bypass, getattr(module.source, name).eq(tap))
+            module.sync += If(adv & sel, getattr(module.source, name).eq(tap))
         else:
-            module.comb += If(module.bypass, getattr(module.source, name).eq(tap))
+            module.comb += If(sel, getattr(module.source, name).eq(tap))
 
 def add_bypass_csr(module):
     """CSR for :func:`add_bypass` (call from ``add_csr``)."""

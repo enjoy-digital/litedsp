@@ -38,11 +38,11 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `cic_parallel_x4` | 2770/1167/0/0/173.5/100.0 | 1670/1169/0/0/160.5/100.0 | 1670/1169/0/0/307.6/100.0 |
 | `clarke` | 187/35/0/2/- | - | - |
 | `clutter_map` | 554/294/0/2/- | - | - |
-| `color_matrix` | 742/950/0/9/- | - | - |
+| `color_matrix` | 742/952/0/9/- | - | - |
 | `combine` | 327/33/0/0/281.6 | 134/33/0/0/- | 139/33/0/0/- |
 | `compressor` | 2639/390/1/5/- | - | - |
-| `convolutional_deinterleaver` | 465/157/1/0/- | - | - |
-| `convolutional_interleaver` | 448/157/1/0/- | - | - |
+| `convolutional_deinterleaver` | 468/158/1/0/- | - | - |
+| `convolutional_interleaver` | 434/158/1/0/- | - | - |
 | `cordic_rot` | 1943/907/0/2/154.8 | 970/858/0/2/- | 924/866/0/2/- |
 | `cordic_vec` | 1892/899/0/1/166.9 | 742/827/0/1/186.4 | 702/824/0/1/391.0 |
 | `corner_turn` | 166/136/4/0/- | - | - |
@@ -56,7 +56,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `ddc_ip` | 4800/6866/2/70/91.4/100.0 | 1009/1802/1/100/103.0/100.0 | 974/1802/1/100/233.5/100.0 |
 | `ddc_parallel_x4` | 1919/1071/8/18/42.5 | 1256/367/2/16/- | 1250/367/2/16/- |
 | `debayer` | 905/376/2/0/- | - | - |
-| `delay_line` | 13118/236/0/2/- | - | - |
+| `delay_line` | 13419/236/0/2/- | - | - |
 | `depuncturer` | 31/16/0/0/474.3 | 12/16/0/0/- | 13/16/0/0/- |
 | `dither` | 285/133/0/0/- | - | - |
 | `doppler` | 1768/307/0/14/- | - | - |
@@ -135,7 +135,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `mixer_parallel_x4` | 1252/666/0/16/- | 294/2/0/16/- | 293/2/0/16/- |
 | `monopulse` | 1934/958/0/4/- | - | - |
 | `moving_average` | 238/93/0/0/147.7 | 207/91/0/0/- | 207/91/0/0/- |
-| `mti` | 688/191/2/0/- | - | - |
+| `mti` | 690/192/2/0/- | - | - |
 | `nco` | 43/43/2/0/237.2 | 65/33/1/0/264.8 | 65/33/1/0/583.0 |
 | `nco_parallel_x2` | 85/52/4/0/231.9 | 94/32/1/0/- | 94/32/1/0/- |
 | `nco_parallel_x4` | 222/71/8/2/167.5 | 182/31/2/0/- | 182/31/2/0/- |
@@ -156,9 +156,9 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `pi_controller` | 514/50/0/2/- | - | - |
 | `pixel_fifo` | 695/26/0/0/- | - | - |
 | `pixel_from_video` | 258/89/0/0/- | - | - |
-| `pixel_gain` | 158/97/0/3/- | - | - |
+| `pixel_gain` | 158/98/0/3/- | - | - |
 | `pixel_histogram` | 362/160/2/0/- | - | - |
-| `pixel_lut` | 147/72/3/0/- | - | - |
+| `pixel_lut` | 148/73/3/0/- | - | - |
 | `pixel_pack` | 0/0/0/0/- | - | - |
 | `pixel_pattern` | 538/108/0/0/- | - | - |
 | `pixel_stats` | 1771/1101/0/0/- | - | - |
@@ -208,6 +208,6 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `viterbi_decoder_acs32` | 5324/1571/2/0/88.6/100.0 | 3375/1527/1/0/89.4/100.0 | 4140/1530/0/0/181.2/100.0 |
 | `viterbi_decoder_soft` | 6848/864/2/0/94.2/100.0 | 3440/802/1/0/89.6/100.0 | 4770/805/0/0/181.2/100.0 |
 | `viterbi_decoder_soft_acs32` | 5554/1577/2/0/72.7/80.0 | 3382/1532/1/0/93.0/100.0 | 4040/1530/0/0/152.2/100.0 |
-| `volume` | 375/154/0/4/- | - | - |
+| `volume` | 375/155/0/4/- | - | - |
 | `wet_dry_mix` | 227/29/0/4/- | - | - |
 | `window` | 391/82/0/2/99.9 | 124/54/0/2/- | 119/54/0/2/326.7 |
