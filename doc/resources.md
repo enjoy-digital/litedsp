@@ -150,6 +150,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `stereo_matrix` | 617/171/0/2/- | - | - |
 | `stream_fifo` | 32/14/0/0/231.8 | 40/14/0/0/- | 36/14/0/0/- |
 | `svpwm` | 611/181/0/1/- | - | - |
+| `target_list` | 263/112/0/0/- | - | - |
 | `tdm_demux` | 55/0/0/0/- | - | - |
 | `tdm_mux` | 31/1/0/0/- | - | - |
 | `timing_recovery` | 1430/561/0/18/96.4/100.0 | 762/331/0/8/108.0/100.0 | 787/331/0/8/201.2/100.0 |

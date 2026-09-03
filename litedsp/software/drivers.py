@@ -840,6 +840,30 @@ class CFARDriver(Driver):
     def detection_count(self):
         return self.detections.read()
 
+class TargetListDriver(Driver):
+    """Read back the last sealed target list as bin-unit dicts."""
+    regs = ("config", "control", "status", "index", "range", "doppler", "data", "count", "cpi_count", "dropped")
+
+    @property
+    def frac_bits(self):
+        return (self.config.read() >> 16) & 0xF
+
+    def read_targets(self):
+        scale = float(1 << self.frac_bits)
+        out   = []
+        for i in range(self.count.read()):
+            self.index.write(i)
+            out.append({"range": self.range.read()/scale, "doppler": self.doppler.read()/scale,
+                        "data": self.data.read()})
+        return out
+
+    @property
+    def overflow(self):
+        return self.status.read() & 1
+
+    def clear(self):
+        self.control.write(1)
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -869,6 +893,7 @@ TYPED = {
     "range_gate":    RangeGateDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
+    "target_list":   TargetListDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -877,7 +902,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

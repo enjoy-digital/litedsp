@@ -3054,3 +3054,23 @@ def peak_extractor_model(data, detect, n_range_bins=64, n_doppler_bins=16, local
         for col, v in zip(out, (0, 0, count, 0, int(count == 0), 1)):
             col.append(int(v))
     return tuple(np.array(c, np.int64) for c in out)
+
+def target_list_model(rng, dop, data, hit, max_targets=16):
+    """Bit-exact reference for litedsp.radar.detect.LiteDSPTargetList: per burst (records closed
+    by a terminator with ``hit = 0``) the first ``max_targets`` records re-emitted framed, then
+    the terminator with the kept count. Returns ``(range, doppler, data, hit, first, last)`` and
+    the number of dropped records."""
+    out, dropped, burst = [[] for _ in range(6)], 0, []
+    for r, d, v, h in zip(rng, dop, data, hit):
+        if h:
+            burst.append((int(r), int(d), int(v)))
+            continue
+        kept = burst[:max_targets]
+        dropped += len(burst) - len(kept)
+        for i, (r_, d_, v_) in enumerate(kept):
+            for col, val in zip(out, (r_, d_, v_, 1, int(i == 0), 0)):
+                col.append(val)
+        for col, val in zip(out, (0, 0, len(kept), 0, int(not kept), 1)):
+            col.append(val)
+        burst = []
+    return tuple(np.array(c, np.int64) for c in out), dropped

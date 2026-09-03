@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-169 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+170 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -228,5 +228,6 @@
 | [CA-CFAR detector](ca_cfar.md) | `LiteDSPCACFAR` | var | 2 | One-dimensional cell-averaging CFAR detector on framed cell streams. |
 | [2-D CA-CFAR detector](cfar_2d.md) | `LiteDSPCFAR2D` | var | 5 | Cell-averaging CFAR over a ``(2R+1) x (2C+1)`` box of a range-Doppler map. |
 | [Peak extractor](peak_extractor.md) | `LiteDSPPeakExtractor` | var | 0 | Detected cells to sparse target records with sub-bin centroids. |
+| [Target list](target_list.md) | `LiteDSPTargetList` | var | 0 | Per-CPI target list buffer with host readback. |
 | [Doppler processor](doppler.md) | `LiteDSPDopplerProcessor` | var | 14 | Slow-time columns (``n_pulses`` beats per range bin) to range-Doppler map rows. |
 | [Pulse compressor (chirp matched filter)](pulse_compressor.md) | `LiteDSPPulseCompressor` | 4 | 60 | Matched filter for the linear-FM pulse of :class:`~litedsp.generation.source.LiteDSPChirp` |

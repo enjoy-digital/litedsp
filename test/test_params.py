@@ -121,6 +121,7 @@ SPECIFIC = [
     ("cfar_2d",         {"n_doppler_bins": 4}),
     ("peak_extractor",  {"frac_bits": 0}),
     ("peak_extractor",  {"index_width": 3}),
+    ("target_list",     {"max_targets": 1}),
 ]
 
 class TestParams(unittest.TestCase):

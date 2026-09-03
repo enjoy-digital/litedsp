@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -296,6 +296,23 @@ class TestRadarDrivers(unittest.TestCase):
         regs["cfar_config"].value = 68 | (8 << 16) | (1 << 24)    # 2-D box: n_training direct.
         drv.set_pfa(1e-3)
         self.assertEqual(regs["cfar_alpha"].value, cfar_alpha(1e-3, 68, "power", frac_bits=8))
+
+    def test_target_list(self):
+        regs = {f"tl_{r}": MockCSR() for r in TargetListDriver.regs}
+        regs["tl_config"].value = 16 | (4 << 16)
+        regs["tl_count"].value  = 2
+        table = {0: (0x0C8, 0x034, 500), 1: (0x1E4, 0x0B0, 900)}      # (12.5, 3.25), (30.25, 11.0).
+        class Indexed(MockCSR):
+            def __init__(self, k): self.k = k
+            def read(self): return table[regs["tl_index"].value][self.k]
+        regs["tl_range"], regs["tl_doppler"], regs["tl_data"] = Indexed(0), Indexed(1), Indexed(2)
+        drv = TargetListDriver(MockBus(regs), "tl")
+        self.assertEqual(drv.read_targets(), [
+            {"range": 12.5, "doppler": 3.25, "data": 500}, {"range": 30.25, "doppler": 11.0, "data": 900}])
+        regs["tl_status"].value = 1
+        self.assertEqual(drv.overflow, 1)
+        drv.clear()
+        self.assertEqual(regs["tl_control"].value, 1)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

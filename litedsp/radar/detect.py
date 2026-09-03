@@ -347,3 +347,204 @@ class LiteDSPPeakExtractor(LiteXModule):
         self.ev.cpi = EventSourcePulse(description="A CPI's target burst has been closed.")
         self.ev.finalize()
         self.comb += self.ev.cpi.trigger.eq(self.cpi_done)
+
+# Target List --------------------------------------------------------------------------------------
+
+@ResetInserter()
+class LiteDSPTargetList(LiteXModule):
+    """Per-CPI target list buffer with host readback.
+
+    Buffers each CPI's burst of :func:`~litedsp.common.target_layout` records in a ping-pong RAM
+    of ``2 x max_targets`` entries: the terminator seals a bank (records beyond ``max_targets``
+    are dropped, counted and flagged by the sticky ``overflow``) and the sealed list is re-emitted
+    framed (records then the terminator with the count) while the other bank fills;
+    ``sink.ready`` drops only when both banks are sealed. The host reads the last sealed list
+    through ``rd_index`` -> ``rd_range`` / ``rd_doppler`` / ``rd_data`` (one cycle later) and
+    ``rd_count``; the list stays readable until the following CPI's terminator. The optional
+    ``ev.list`` interrupt fires when a list is sealed. ``latency = None``.
+    """
+    def __init__(self, max_targets=16, data_width=17, index_width=12, frac_bits=4, with_csr=True,
+        with_irq=False):
+        check(2 <= max_targets <= 4096, "expected 2 <= max_targets <= 4096")
+        self.max_targets = max_targets
+        self.data_width  = data_width
+        self.index_width = index_width
+        self.frac_bits   = frac_bits
+        self.latency     = None
+        layout = target_layout(data_width, index_width, frac_bits)
+        self.sink   = stream.Endpoint(layout)
+        self.source = stream.Endpoint(layout)
+        PW = index_width + frac_bits
+        CW = max(1, (max_targets).bit_length())
+        self.clear      = Signal()
+        self.overflow   = Signal()                                      # Sticky.
+        self.dropped    = Signal(32)
+        self.cpi_count  = Signal(32)
+        self.sealed     = Signal()                                      # Pulse: a list was sealed.
+        self.rd_index   = Signal(max=max_targets)
+        self.rd_range   = Signal(PW)
+        self.rd_doppler = Signal(PW)
+        self.rd_data    = Signal(data_width)
+        self.rd_count   = Signal(CW)
+
+        # # #
+
+        RW = 2*PW + data_width
+        self.specials.mem = mem = Memory(RW, 2*max_targets)
+        wp  = mem.get_port(write_capable=True)
+        rp  = mem.get_port(has_re=True)
+        hrp = mem.get_port(has_re=True)
+        self.specials += wp, rp, hrp
+        count  = [Signal(CW, name=f"count{b}") for b in range(2)]
+        sealed = [Signal(name=f"sealed{b}") for b in range(2)]
+        wb, rb = Signal(), Signal()
+
+        # Input: fill bank wb, the terminator seals it.
+        # ----------------------------------------------
+        xfer = Signal()
+        wcount = Signal(CW)
+        self.comb += [
+            self.sink.ready.eq(~(sealed[0] & sealed[1]) & ~Mux(wb, sealed[1], sealed[0])),
+            xfer.eq(self.sink.valid & self.sink.ready),
+            wcount.eq(Mux(wb, count[1], count[0])),
+            wp.adr.eq(Cat(wcount[:max(1, (max_targets - 1).bit_length())], wb) if max_targets & (max_targets - 1) == 0
+                      else wcount + Mux(wb, max_targets, 0)),
+            wp.dat_w.eq(Cat(self.sink.range, self.sink.doppler, self.sink.data)),
+            wp.we.eq(xfer & self.sink.hit & (wcount < max_targets)),
+        ]
+        self.sync += [
+            self.sealed.eq(0),
+            If(xfer,
+                If(self.sink.hit,
+                    If(wcount < max_targets,
+                        If(wb, count[1].eq(count[1] + 1)).Else(count[0].eq(count[0] + 1)),
+                    ).Else(
+                        self.overflow.eq(1),
+                        self.dropped.eq(self.dropped + 1),
+                    ),
+                ).Else(
+                    If(wb, sealed[1].eq(1)).Else(sealed[0].eq(1)),
+                    wb.eq(~wb),
+                    self.sealed.eq(1),
+                    self.cpi_count.eq(self.cpi_count + 1),
+                ),
+            ),
+            If(self.clear, self.overflow.eq(0)),
+        ]
+
+        # Output: re-emit the sealed bank rb (registered RAM read, one beat per record), then
+        # the terminator, then release the bank.
+        # -----------------------------------------------------------------------------------
+        adv = Signal()
+        ri  = Signal(CW)
+        rcount = Signal(CW)
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            rcount.eq(Mux(rb, count[1], count[0])),
+            rp.adr.eq(Cat(ri[:max(1, (max_targets - 1).bit_length())], rb) if max_targets & (max_targets - 1) == 0
+                      else ri + Mux(rb, max_targets, 0)),
+            rp.re.eq(adv),
+        ]
+        rec_a, term_a, first_a = Signal(), Signal(), Signal()           # Stage A (address) beat.
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            If(Mux(rb, sealed[1], sealed[0]) & adv,
+                NextValue(ri, 0),
+                If(rcount == 0, NextState("TERM")).Else(NextState("EMIT")),
+            ),
+        )
+        fsm.act("EMIT",
+            rec_a.eq(1),
+            first_a.eq(ri == 0),
+            If(adv,
+                NextValue(ri, ri + 1),
+                If(ri == rcount - 1, NextState("TERM")),
+            ),
+        )
+        fsm.act("TERM",
+            term_a.eq(1),
+            first_a.eq(rcount == 0),
+            If(adv,
+                NextState("RELEASE"),
+            ),
+        )
+        fsm.act("RELEASE",
+            If(rb, NextValue(sealed[1], 0), NextValue(count[1], 0)).Else(NextValue(sealed[0], 0), NextValue(count[0], 0)),
+            NextValue(rb, ~rb),
+            NextState("IDLE"),
+        )
+        term_b, first_b = Signal(), Signal()
+        self.sync += If(adv,
+            self.source.valid.eq(rec_a | term_a),
+            term_b.eq(term_a), first_b.eq(first_a),
+            self.source.hit.eq(rec_a),
+            self.source.first.eq(first_a),
+            self.source.last.eq(term_a),
+        )
+        rd_term_count = Signal(CW)
+        self.sync += If(adv, rd_term_count.eq(rcount))
+        self.comb += [
+            self.source.range.eq(Mux(term_b, 0, rp.dat_r[:PW])),
+            self.source.doppler.eq(Mux(term_b, 0, rp.dat_r[PW:2*PW])),
+            self.source.data.eq(Mux(term_b, rd_term_count, rp.dat_r[2*PW:])),
+        ]
+
+        # Host readback of the last sealed bank (~wb).
+        # ---------------------------------------------
+        hb = Signal()
+        self.comb += [
+            hb.eq(~wb),
+            hrp.adr.eq(Cat(self.rd_index[:max(1, (max_targets - 1).bit_length())], hb) if max_targets & (max_targets - 1) == 0
+                       else self.rd_index + Mux(hb, max_targets, 0)),
+            hrp.re.eq(1),
+            self.rd_range.eq(hrp.dat_r[:PW]),
+            self.rd_doppler.eq(hrp.dat_r[PW:2*PW]),
+            self.rd_data.eq(hrp.dat_r[2*PW:]),
+            self.rd_count.eq(Mux(hb, count[1], count[0])),
+        ]
+
+        # CSR.
+        # ----
+        if with_csr:
+            self.add_csr()
+        if with_irq:
+            self.add_irq()
+
+    def add_csr(self):
+        PW = self.index_width + self.frac_bits
+        self._config = CSRStatus(fields=[
+            CSRField("max_targets", size=16, offset=0,  description="List capacity."),
+            CSRField("frac_bits",   size=4,  offset=16, description="Sub-bin fractional bits."),
+        ])
+        self._control = CSRStorage(fields=[
+            CSRField("clear", size=1, offset=0, pulse=True, description="Clear the overflow flag."),
+        ])
+        self._status = CSRStatus(fields=[
+            CSRField("overflow", size=1, offset=0, description="Sticky: a list exceeded max_targets."),
+        ])
+        self._index     = CSRStorage(max(1, (self.max_targets - 1).bit_length()), name="index", description="Readback record index.")
+        self._range     = CSRStatus(PW, name="range", description="Record range (Q.frac_bits bins).")
+        self._doppler   = CSRStatus(PW, name="doppler", description="Record Doppler bin (Q.frac_bits).")
+        self._data      = CSRStatus(self.data_width, name="data", description="Record cell value.")
+        self._count     = CSRStatus(len(self.rd_count), name="count", description="Records in the last sealed list.")
+        self._cpi_count = CSRStatus(32, name="cpi_count", description="Lists sealed since reset.")
+        self._dropped   = CSRStatus(32, name="dropped", description="Records dropped since reset.")
+        self.comb += [
+            self._config.fields.max_targets.eq(self.max_targets),
+            self._config.fields.frac_bits.eq(self.frac_bits),
+            self.clear.eq(self._control.fields.clear),
+            self._status.fields.overflow.eq(self.overflow),
+            self.rd_index.eq(self._index.storage),
+            self._range.status.eq(self.rd_range),
+            self._doppler.status.eq(self.rd_doppler),
+            self._data.status.eq(self.rd_data),
+            self._count.status.eq(self.rd_count),
+            self._cpi_count.status.eq(self.cpi_count),
+            self._dropped.status.eq(self.dropped),
+        ]
+
+    def add_irq(self):
+        self.ev      = EventManager()
+        self.ev.list = EventSourcePulse(description="A CPI's target list has been sealed.")
+        self.ev.finalize()
+        self.comb += self.ev.list.trigger.eq(self.sealed)

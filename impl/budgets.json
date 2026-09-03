@@ -6027,6 +6027,20 @@
       }
     }
   },
+  "target_list": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 112,
+      "lut": 263,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 112,
+        "lut": 263
+      }
+    }
+  },
   "tdm_demux": {
     "ecp5": {
       "bram": 0,

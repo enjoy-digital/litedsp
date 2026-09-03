@@ -1319,6 +1319,20 @@ def spec_peak_extractor():
         return list(models.peak_extractor_model(c[0], c[2], N, M, 1, 1))
     return dut, [data, [0]*n, detect, first, last], len(ref[0]) - 1, model, True, True   # cell_layout order.
 
+def spec_target_list():
+    from litedsp.radar.detect import LiteDSPTargetList
+    N, M, n_cpi = 16, 8, 3
+    n    = N*M*n_cpi
+    dut  = LiteDSPTargetList(max_targets=8, with_csr=False)
+    prng = random.Random(14)
+    data   = [prng.randint(0, 5000) for _ in range(n)]
+    detect = [int(prng.random() < 0.4) for _ in range(n)]
+    rng, dop, val, hit, first, last = models.peak_extractor_model(data, detect, N, M, 1, 1)
+    ref, _ = models.target_list_model(rng, dop, val, hit, max_targets=8)      # Overflows some CPIs.
+    def model(c):
+        return list(models.target_list_model(c[0], c[1], c[2], c[3], max_targets=8)[0])
+    return dut, [list(rng), list(dop), list(val), list(hit), list(first), list(last)], len(ref[0]) - 1, model, True, True
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1507,6 +1521,7 @@ SPECS = {
     "cfar_2d":          spec_cfar_2d,
     "cfar_2d_wide":     spec_cfar_2d_wide,
     "peak_extractor":   spec_peak_extractor,
+    "target_list":      spec_target_list,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,

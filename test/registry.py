@@ -191,6 +191,7 @@ VSPEC = {
     "ca_cfar":            _v("ca_cfar_model", latency="variable", cosim=True),
     "cfar_2d":            _v("cfar_2d_model", latency="variable", cosim=True),
     "peak_extractor":     _v("peak_extractor_model", latency="variable", cosim=True),
+    "target_list":        _v("target_list_model", latency="variable", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),
