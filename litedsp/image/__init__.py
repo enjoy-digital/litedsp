@@ -15,3 +15,5 @@ from litedsp.image.common import LiteDSPPixelCounter
 from litedsp.image.pattern import LiteDSPPixelPattern
 from litedsp.image.adapt   import LiteDSPPixelPack, LiteDSPPixelUnpack
 from litedsp.image.video   import LiteDSPPixelFromVideo, LiteDSPPixelToVideo
+from litedsp.image.linebuffer import LiteDSPLineBuffer
+from litedsp.image.stream  import LiteDSPPixelFIFO

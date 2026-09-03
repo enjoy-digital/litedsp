@@ -3991,6 +3991,34 @@
       }
     }
   },
+  "line_buffer": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 295,
+      "lut": 792,
+      "synth": {
+        "bram": 2,
+        "dsp": 0,
+        "ff": 295,
+        "lut": 792
+      }
+    }
+  },
+  "line_buffer_5x5_rgb": {
+    "ecp5": {
+      "bram": 8,
+      "dsp": 0,
+      "ff": 1449,
+      "lut": 9104,
+      "synth": {
+        "bram": 8,
+        "dsp": 0,
+        "ff": 1449,
+        "lut": 9104
+      }
+    }
+  },
   "lms_equalizer": {
     "ecp5": {
       "bram": 0,
@@ -5182,6 +5210,20 @@
         "dsp": 2,
         "ff": 50,
         "lut": 514
+      }
+    }
+  },
+  "pixel_fifo": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 26,
+      "lut": 695,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 26,
+        "lut": 695
       }
     }
   },

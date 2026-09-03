@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-183 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+185 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -225,6 +225,8 @@
 | [Pixel pattern source](pixel_pattern.md) | `LiteDSPPixelPattern` | var | 0 | Framed raster test-pattern source (``pixel_layout``), geometry from CSRs. |
 | [Pixels from LiteX video](pixel_from_video.md) | `LiteDSPPixelFromVideo` | 1 | 0 | LiteX ``video_data_layout`` stream to a framed RGB pixel stream. |
 | [Pixels to LiteX video](pixel_to_video.md) | `LiteDSPPixelToVideo` | 1 | 0 | Framed RGB pixels onto a LiteX timing-generator stream (``video_timing_layout``) as a |
+| [Line buffer (window)](line_buffer.md) | `LiteDSPLineBuffer` | 69 | 0 | Sliding ``kernel_size x kernel_size`` window over a raster pixel stream. |
+| [Pixel FIFO](pixel_fifo.md) | `LiteDSPPixelFIFO` | 0 | 0 | Elastic buffer for a pixel stream (``pixel_layout``, tags carried). |
 | [Pixel pack](pixel_pack.md) | `LiteDSPPixelPack` | 0 | 0 | Pack pixels into memory words: ``rgb888`` (``r`` in the low byte, then ``g``, ``b``), |
 | [Pixel unpack](pixel_unpack.md) | `LiteDSPPixelUnpack` | 1 | 0 | Unpack memory words back into pixels (inverse of :class:`LiteDSPPixelPack`; ``rgb565`` |
 

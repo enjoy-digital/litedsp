@@ -98,6 +98,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `ldpc_encoder` | 4719/446/0/0/177.4 | 1271/458/0/0/- | 1277/459/0/0/- |
 | `lfo` | 318/58/0/1/- | - | - |
 | `limiter` | 2790/397/2/5/- | - | - |
+| `line_buffer` | 792/295/2/0/- | - | - |
+| `line_buffer_5x5_rgb` | 9104/1449/8/0/- | - | - |
 | `lms_equalizer` | 1773/522/0/56/58.7 | 2295/392/0/66/- | 2252/392/0/68/- |
 | `lms_equalizer_pipelined` | 5179/5397/0/60/96.9/100.0 | 2184/4404/0/63/102.3/100.0 | 2190/4386/0/63/194.4/100.0 |
 | `log2_lut` | 555/29/0/0/- | - | - |
@@ -128,6 +130,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `pfb_channelizer_fft_2x` | 2640/584/0/14/89.4/100.0 | 1098/346/0/10/109.9/100.0 | 1070/346/0/10/193.6/100.0 |
 | `pfb_channelizer_folded` | 1288/486/0/10/99.6/100.0 | 524/286/0/10/119.0/100.0 | 517/288/0/10/216.0/100.0 |
 | `pi_controller` | 514/50/0/2/- | - | - |
+| `pixel_fifo` | 695/26/0/0/- | - | - |
 | `pixel_from_video` | 258/89/0/0/- | - | - |
 | `pixel_pack` | 0/0/0/0/- | - | - |
 | `pixel_pattern` | 538/108/0/0/- | - | - |

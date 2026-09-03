@@ -1249,6 +1249,19 @@ def spec_sigma_delta_mod():
 
 # Radar / Sonar ------------------------------------------------------------------------------------
 
+def spec_line_buffer():
+    from litedsp.image.linebuffer import LiteDSPLineBuffer
+    w, h = 16, 8
+    dut  = LiteDSPLineBuffer(kernel_size=3, width=w, border="mirror", with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2)
+    def model(c):
+        img  = np.array(c[0][:w*h]).reshape(h, w)
+        img2 = np.array(c[0][w*h:2*w*h]).reshape(h, w)
+        r1, r2 = models.line_buffer_model(img, 3, "mirror"), models.line_buffer_model(img2, 3, "mirror")
+        keys = [f"w{i}{j}" for i in range(3) for j in range(3)] + ["eol", "first", "last"]
+        return [np.concatenate([r1[k], r2[k]]) for k in keys]
+    return dut, cols + [eol, first, last], 2*w*h - 4, model, True, True
+
 def spec_pixel_from_video():
     from litedsp.image.video import LiteDSPPixelFromVideo
     w, h = 16, 8
@@ -1656,6 +1669,7 @@ SPECS = {
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
+    "line_buffer":      spec_line_buffer,
     "pixel_from_video": spec_pixel_from_video,
     "pixel_pattern":    spec_pixel_pattern,
     "pulse_generator":  spec_pulse_generator,

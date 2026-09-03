@@ -141,6 +141,8 @@ from litedsp.radar.sonar           import LiteDSPTVG
 from litedsp.image.pattern         import LiteDSPPixelPattern
 from litedsp.image.adapt           import LiteDSPPixelPack, LiteDSPPixelUnpack
 from litedsp.image.video           import LiteDSPPixelFromVideo, LiteDSPPixelToVideo
+from litedsp.image.linebuffer      import LiteDSPLineBuffer
+from litedsp.image.stream          import LiteDSPPixelFIFO
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -323,6 +325,8 @@ ENTRIES = [
     ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),
     ("pixel_to_video",     LiteDSPPixelToVideo,          {"data_width": 8},                      "image",      "Pixels to LiteX video", {}),
+    ("line_buffer",        LiteDSPLineBuffer,            {"data_width": 8, "width": 64},         "image",      "Line buffer (window)",  {"kernel_size": [3, 5, 7], "border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("pixel_fifo",         LiteDSPPixelFIFO,             {"data_width": 8, "depth": 256},        "image",      "Pixel FIFO",            {"n_channels": [1, 3]}),
     ("pixel_pack",         LiteDSPPixelPack,             {"data_width": 8},                      "image",      "Pixel pack",            {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pixel_unpack",       LiteDSPPixelUnpack,           {"data_width": 8, "width": 64},         "image",      "Pixel unpack",          {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pulse_generator",    LiteDSPPulseGenerator,        {},                                     "radar",      "Pulse generator",       {}),
