@@ -183,5 +183,19 @@
       "test.test_monopulse:TestMonopulse.test_bit_exact",
       "test.test_monopulse:TestMonopulse.test_phase_sweep"
     ]
+  },
+  "beamformer": {
+    "reason": "The uncovered lines are the shadow-weight load and commit arms and the saturation clamp (the cosim uses the reset weights); the beams are bit-exact against the model under independently throttled sinks, the steering gain / null and the commit atomicity are gated by the unit tests.",
+    "semantic_checks": [
+      "test.test_beamformer:TestBeamformer.test_bit_exact",
+      "test.test_beamformer:TestBeamformer.test_commit_atomicity_and_saturation"
+    ]
+  },
+  "beamformer_2beams": {
+    "reason": "The uncovered lines are the shadow-weight load and commit arms and the saturation clamp (the cosim uses the reset weights); the beams are bit-exact against the model under independently throttled sinks, the steering gain / null and the commit atomicity are gated by the unit tests.",
+    "semantic_checks": [
+      "test.test_beamformer:TestBeamformer.test_bit_exact",
+      "test.test_beamformer:TestBeamformer.test_commit_atomicity_and_saturation"
+    ]
   }
 }
