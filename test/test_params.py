@@ -137,6 +137,7 @@ SPECIFIC = [
     ("pixel_pattern",   {"width": 4}),
     ("pixel_pattern",   {"mode": "noise"}),
     ("pixel_pack",      {"format": "yuyv"}),
+    ("pixel_from_video", {"width": 1}),
     ("pixel_unpack",    {"width": 1}),
     ("pulse_generator", {"n_pulses": 0}),
     ("tvg",             {"max_gain_log2": 13}),

@@ -3412,3 +3412,77 @@ def pixel_pattern_model(mode="bars", width=16, height=12, data_width=8, n_channe
             else:
                 px += 1
     return img if n_channels == 3 else img[:, :, 0]
+
+def video_frames(imgs, h_blank=6, v_blank=3, h_sync=2, v_sync=1):
+    """LiteX-style timed video beats (``video_layout`` / ``video_timing_layout`` fields) for the
+    (H, W, 3) frames ``imgs`` with horizontal / vertical blanking: ``de`` over the active area,
+    ``hsync`` / ``vsync`` pulses at the start of the blanking intervals. Returns the beat dicts
+    (with ``hcount`` / ``vcount`` / ``hres`` / ``vres`` for the timing generator)."""
+    beats = []
+    h, w = imgs[0].shape[:2]
+    for y in range(v_blank):                                            # Leading vertical blanking:
+        for x in range(w + h_blank):                                    # the adapter arms on vsync.
+            beats.append({"hsync": int(w <= x < w + h_sync), "vsync": int(y < v_sync), "de": 0, "r": 0, "g": 0, "b": 0,
+                          "hcount": x, "vcount": h + y, "hres": w, "vres": h})
+    for img in imgs:
+        h, w = img.shape[:2]
+        for y in range(h + v_blank):
+            for x in range(w + h_blank):
+                de = int(x < w and y < h)
+                beats.append({"hsync": int(w <= x < w + h_sync), "vsync": int(h <= y < h + v_sync), "de": de,
+                              "r": int(img[y, x, 0]) if de else 0, "g": int(img[y, x, 1]) if de else 0,
+                              "b": int(img[y, x, 2]) if de else 0,
+                              "hcount": x, "vcount": y, "hres": w, "vres": h})
+    return beats
+
+def pixel_from_video_model(beats, width, height):
+    """Bit-exact reference for litedsp.image.video.LiteDSPPixelFromVideo: the active pixels of
+    ``beats`` (after the first vsync) as framed raster columns ``(r, g, b, eol, first, last)``."""
+    r, g, b, eol, first, last = [], [], [], [], [], []
+    armed, vs_d, de_d = False, 0, 0
+    col = row = 0
+    pending = False
+    for bt in beats:
+        if bt["vsync"] and not vs_d:
+            armed, row, pending = True, 0, True
+        if bt["de"]:
+            c = 0 if not de_d else col
+            if armed:
+                r.append(bt["r"]); g.append(bt["g"]); b.append(bt["b"])
+                eol.append(int(c == width - 1)); first.append(int(pending)); last.append(int(c == width - 1 and row == height - 1))
+            pending = False
+            col = c + 1
+        elif de_d:
+            col = 0
+            if row != height - 1:
+                row += 1
+        vs_d, de_d = bt["vsync"], bt["de"]
+    return tuple(np.array(v, np.int64) for v in (r, g, b, eol, first, last))
+
+def pack_channels(img, data_width=8):
+    """(H, W) or (H, W, 3) codes -> (H, W) packed words (channels LSB-first)."""
+    img = np.asarray(img, np.int64)
+    if img.ndim == 2:
+        return img
+    return sum(img[:, :, c] << (c*data_width) for c in range(img.shape[2]))
+
+def np_pad_border(img, p, border="replicate"):
+    """Pad a (H, W[, C]) image by ``p`` pixels: edge replication, mirror (``p[-1] = p[1]``) or zeros."""
+    pad = [(p, p), (p, p)] + ([(0, 0)] if np.ndim(img) == 3 else [])
+    return np.pad(img, pad, mode={"replicate": "edge", "mirror": "reflect", "zero": "constant"}[border])
+
+def line_buffer_model(img, kernel_size=3, border="replicate", data_width=8):
+    """Bit-exact reference for litedsp.image.linebuffer.LiteDSPLineBuffer on one frame: a dict of
+    ``w{i}{j}`` raster columns (packed channels) plus ``eol``, ``first``, ``last``."""
+    K, P = kernel_size, kernel_size//2
+    packed = pack_channels(img, data_width)
+    h, w   = packed.shape
+    padded = np_pad_border(packed, P, border)
+    out = {}
+    for i in range(K):
+        for j in range(K):
+            out[f"w{i}{j}"] = padded[i:i + h, j:j + w].reshape(-1)
+    out["eol"]   = np.array([int(k % w == w - 1) for k in range(w*h)], np.int64)
+    out["first"] = np.array([int(k == 0) for k in range(w*h)], np.int64)
+    out["last"]  = np.array([int(k == w*h - 1) for k in range(w*h)], np.int64)
+    return out

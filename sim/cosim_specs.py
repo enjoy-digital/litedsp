@@ -1249,6 +1249,19 @@ def spec_sigma_delta_mod():
 
 # Radar / Sonar ------------------------------------------------------------------------------------
 
+def spec_pixel_from_video():
+    from litedsp.image.video import LiteDSPPixelFromVideo
+    w, h = 16, 8
+    dut  = LiteDSPPixelFromVideo(width=w, height=h, with_csr=False)
+    prng = random.Random(22)
+    imgs = [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(h)]) for _ in range(2)]
+    beats = models.video_frames(imgs)
+    cols  = [[b[f] for b in beats] for f in ("hsync", "vsync", "de", "r", "g", "b")]
+    def model(c):
+        bts = [dict(hsync=a, vsync=b_, de=d, r=r, g=g, b=bb) for a, b_, d, r, g, bb in zip(*c)]
+        return list(models.pixel_from_video_model(bts, w, h))
+    return dut, cols, 2*w*h - 2, model, False, True   # Both frames follow the leading vsync.
+
 def spec_pixel_pattern():
     from litedsp.image.pattern import LiteDSPPixelPattern
     w, h = 20, 6
@@ -1643,6 +1656,7 @@ SPECS = {
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
+    "pixel_from_video": spec_pixel_from_video,
     "pixel_pattern":    spec_pixel_pattern,
     "pulse_generator":  spec_pulse_generator,
     "range_gate":       spec_range_gate,

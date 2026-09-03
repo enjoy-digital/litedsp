@@ -184,6 +184,8 @@ VSPEC = {
     "i2s_rx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level source.
     "i2s_tx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level sink.
     "pixel_pattern":      _v("pixel_pattern_model", latency="n/a", rate=None, cosim=True),
+    "pixel_from_video":   _v("pixel_from_video_model", latency=1, rate=None, cosim=True),
+    "pixel_to_video":     _v(latency=1, rate=None),
     "pixel_pack":         _v(latency=0),
     "pixel_unpack":       _v(latency=1),
     "pulse_generator":    _v("pulse_generator_model", latency="n/a", rate=None, cosim=True),

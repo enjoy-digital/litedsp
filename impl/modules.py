@@ -114,6 +114,7 @@ from litedsp.radar.beamform       import LiteDSPBeamformer, LiteDSPMonopulse
 from litedsp.radar.sonar          import LiteDSPTVG
 from litedsp.image.pattern        import LiteDSPPixelPattern
 from litedsp.image.adapt          import LiteDSPPixelPack, LiteDSPPixelUnpack
+from litedsp.image.video          import LiteDSPPixelFromVideo, LiteDSPPixelToVideo
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -793,6 +794,14 @@ def pixel_pattern():
     d = LiteDSPPixelPattern(with_csr=False)
     return d, {d.mode, d.width, d.height, *d.const, d.enable, d.trigger, d.busy, d.frames} | _eps(d.source), 10.0
 
+def pixel_from_video():
+    d = LiteDSPPixelFromVideo(with_csr=False)
+    return d, {d.width, d.height, d.clear, d.geometry_error, d.frames} | _eps(d.sink, d.source), 10.0
+
+def pixel_to_video():
+    d = LiteDSPPixelToVideo(with_csr=False)
+    return d, {d.underflow, d.underflows, d.dropped, d.clear, d.synced} | _eps(d.sink, d.vtg_sink, d.source), 10.0
+
 def pixel_pack():
     d = LiteDSPPixelPack()
     return d, _eps(d.sink, d.source), 10.0
@@ -954,7 +963,7 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
-    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "pixel_pack": pixel_pack, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
+    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "pixel_pack": pixel_pack, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
     "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker, "beamformer": beamformer, "beamformer_4beams": beamformer_4beams, "monopulse": monopulse, "tvg": tvg,
 }
 

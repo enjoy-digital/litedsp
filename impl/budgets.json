@@ -5185,6 +5185,20 @@
       }
     }
   },
+  "pixel_from_video": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 89,
+      "lut": 258,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 89,
+        "lut": 258
+      }
+    }
+  },
   "pixel_pack": {
     "ecp5": {
       "bram": 0,
@@ -5210,6 +5224,20 @@
         "dsp": 0,
         "ff": 108,
         "lut": 538
+      }
+    }
+  },
+  "pixel_to_video": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 94,
+      "lut": 109,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 94,
+        "lut": 109
       }
     }
   },
