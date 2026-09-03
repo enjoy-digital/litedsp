@@ -20,7 +20,8 @@ per incoming row, and a ``2C+1``-wide shift register slides horizontally. Edges 
 padded: ``C`` virtual cells after each row and ``R`` virtual rows after each CPI are flushed
 with ``sink.ready`` low, so the output has one cell per input cell in the same order and
 framing (throughput ``M / (M + C)``). Threshold ``sum * alpha * round(2**16 / n_training)``
-rounded and saturated, ``alpha`` unsigned Q(alpha_width - threshold_frac).threshold_frac
+rounded, saturated and floored at the runtime ``threshold_min``, ``alpha`` unsigned
+Q(alpha_width - threshold_frac).threshold_frac
 (see ``litedsp.radar.design.cfar_alpha``). A ``first``/``last`` at the wrong position sets
 the sticky ``frame_error`` and re-synchronises the row. ``latency = None``.
 
@@ -71,6 +72,10 @@ Threshold factor on the training mean (unsigned Q.8).
 |---|---|---|---|
 | `[0]` | `frame_error` | `0` | Sticky: row framing did not match n_doppler_bins. |
 
+### `threshold_min` (read-write, 17 bits)
+
+Threshold floor (unsigned cell units): guards the zero-padded edges and notches.
+
 ### `detections` (read-only, 32 bits)
 
 Detections since reset.
@@ -79,7 +84,7 @@ Detections since reset.
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1321 | 723 | 4 | 5 | — | — |
+| ecp5 | 1375 | 723 | 4 | 5 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

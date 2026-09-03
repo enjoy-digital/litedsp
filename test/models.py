@@ -2941,13 +2941,15 @@ def doppler_model(i, q, n_pulses, window="hann", magnitude="approx", data_width=
     data  = np.concatenate(out) if out else np.zeros(0, np.int64)
     return data, first, last
 
-def cfar_threshold(stat, alpha, recip, data_width, threshold_frac):
-    """Threshold pipeline shared by the CFAR models: ``sat(rounded(stat*alpha*recip, frac+16))``."""
+def cfar_threshold(stat, alpha, recip, data_width, threshold_frac, threshold_min=0):
+    """Threshold pipeline shared by the CFAR models: ``sat(rounded(stat*alpha*recip, frac+16))``
+    floored at ``threshold_min``."""
     p2  = int(stat)*int(alpha)*int(recip)
     thr = (p2 + (1 << (threshold_frac + 15))) >> (threshold_frac + 16)
-    return min(thr, (1 << data_width) - 1)
+    return max(min(thr, (1 << data_width) - 1), int(threshold_min))
 
-def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_width=17, threshold_frac=8):
+def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_width=17, threshold_frac=8,
+    threshold_min=0):
     """Bit-exact reference for litedsp.radar.cfar.LiteDSPCACFAR: the sliding window with the
     cell under test in the centre, zero padded at frame edges (``first`` clears the window, the
     trailing cells are flushed after ``last``), CA / GO / SO statistic, threshold and decision.
@@ -2961,7 +2963,7 @@ def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_
         if real[H]:
             lead, lag = sum(cells[0:T]), sum(cells[H + G + 1:H + G + 1 + T])
             stat = {0: lead + lag, 1: 2*max(lead, lag), 2: 2*min(lead, lag)}[int(mode)]
-            thr  = cfar_threshold(stat, alpha, recip, data_width, threshold_frac)
+            thr  = cfar_threshold(stat, alpha, recip, data_width, threshold_frac, threshold_min)
             for col, v in zip(out, (cells[H], thr, int(cells[H] > thr), firsts[H], lasts[H])):
                 col.append(v)
     def push(cell, is_real, f, l):
@@ -2982,7 +2984,7 @@ def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_
     return tuple(np.array(c, np.int64) for c in out)
 
 def cfar_2d_model(x, n_range_bins=64, n_doppler_bins=16, n_train=(4, 2), n_guard=(1, 1), alpha=512,
-    data_width=17, threshold_frac=8):
+    data_width=17, threshold_frac=8, threshold_min=0):
     """Bit-exact reference for litedsp.radar.cfar_2d.LiteDSPCFAR2D on whole CPIs of
     ``n_range_bins`` rows x ``n_doppler_bins`` cells (raster order, zero padded): box sum minus
     guard-box sum, threshold and decision. Returns ``(data, threshold, detect, first, last)``."""
@@ -3001,7 +3003,7 @@ def cfar_2d_model(x, n_range_bins=64, n_doppler_bins=16, n_train=(4, 2), n_guard
             for c in range(M):
                 big   = int(pad[r:r + 2*R + 1, c:c + 2*C + 1].sum())
                 guard = int(pad[r + R - gr:r + R + gr + 1, c + C - gd:c + C + gd + 1].sum())
-                thr   = cfar_threshold(big - guard, alpha, recip, data_width, threshold_frac)
+                thr   = cfar_threshold(big - guard, alpha, recip, data_width, threshold_frac, threshold_min)
                 v     = int(m[r, c])
                 for col, val in zip(out, (v, thr, int(v > thr), int(c == 0), int(c == M - 1))):
                     col.append(val)

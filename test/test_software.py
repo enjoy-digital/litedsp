@@ -293,6 +293,8 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual(regs["cfar_control"].value, 1)
         regs["cfar_detections"].value = 7
         self.assertEqual(drv.detection_count, 7)
+        drv.set_floor(40)
+        self.assertEqual(regs["cfar_threshold_min"].value, 40)
         regs["cfar_config"].value = 68 | (8 << 16) | (1 << 24)    # 2-D box: n_training direct.
         drv.set_pfa(1e-3)
         self.assertEqual(regs["cfar_alpha"].value, cfar_alpha(1e-3, 68, "power", frac_bits=8))

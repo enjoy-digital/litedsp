@@ -14,7 +14,8 @@ ignored and the ``n_train`` leading and lagging training cells form the noise es
 Runtime ``mode``: 0 cell averaging (``lead + lag``), 1 greatest-of (``2*max``), 2
 smallest-of (``2*min``). The threshold is ``alpha * mean`` (``alpha`` unsigned
 Q(alpha_width - threshold_frac).threshold_frac, see ``litedsp.radar.design.cfar_alpha``),
-computed as ``sum * alpha * round(2**16 / (2*n_train))`` and rounded. Frames are
+computed as ``sum * alpha * round(2**16 / (2*n_train))``, rounded and floored at the runtime
+``threshold_min`` (the zero-padded edges see smaller training sums). Frames are
 zero-padded: ``first`` clears the window, and after ``last`` the block flushes the trailing
 cells with zero neighbours (``n_train + n_guard + 1`` cycles ``sink.ready`` low), so the output has exactly one
 beat per input cell with the same framing. Output: the cell, its threshold and the
@@ -60,6 +61,10 @@ Threshold factor on the training mean (unsigned Q.8).
 | `[15:8]` | `n_guard` | `0` | Guard cells per side. |
 | `[23:16]` | `frac` | `0` | Fractional bits of alpha. |
 
+### `threshold_min` (read-write, 17 bits)
+
+Threshold floor (unsigned cell units): guards the zero-padded edges and notches.
+
 ### `detections` (read-only, 32 bits)
 
 Detections since reset.
@@ -68,7 +73,7 @@ Detections since reset.
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1152 | 625 | 0 | 2 | — | — |
+| ecp5 | 1268 | 625 | 0 | 2 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

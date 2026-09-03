@@ -33,7 +33,8 @@ class LiteDSPCACFAR(LiteXModule):
     Runtime ``mode``: 0 cell averaging (``lead + lag``), 1 greatest-of (``2*max``), 2
     smallest-of (``2*min``). The threshold is ``alpha * mean`` (``alpha`` unsigned
     Q(alpha_width - threshold_frac).threshold_frac, see ``litedsp.radar.design.cfar_alpha``),
-    computed as ``sum * alpha * round(2**16 / (2*n_train))`` and rounded. Frames are
+    computed as ``sum * alpha * round(2**16 / (2*n_train))``, rounded and floored at the runtime
+    ``threshold_min`` (the zero-padded edges see smaller training sums). Frames are
     zero-padded: ``first`` clears the window, and after ``last`` the block flushes the trailing
     cells with zero neighbours (``n_train + n_guard + 1`` cycles ``sink.ready`` low), so the output has exactly one
     beat per input cell with the same framing. Output: the cell, its threshold and the
@@ -53,9 +54,10 @@ class LiteDSPCACFAR(LiteXModule):
         self.latency        = None
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint(cell_layout(data_width))
-        self.alpha      = Signal(alpha_width, reset=int(round(2.0*(1 << threshold_frac))))
-        self.mode       = Signal(2)
-        self.detections = Signal(32)                                    # Detections since reset.
+        self.alpha         = Signal(alpha_width, reset=int(round(2.0*(1 << threshold_frac))))
+        self.mode          = Signal(2)
+        self.threshold_min = Signal(data_width)                         # Threshold floor (noise).
+        self.detections    = Signal(32)                                 # Detections since reset.
 
         # # #
 
@@ -139,11 +141,13 @@ class LiteDSPCACFAR(LiteXModule):
         ]
         thr_full = Signal(SW + 1 + alpha_width + 17)
         thr_r    = Signal(SW + 1 + alpha_width + 1)
+        thr_c    = Signal(data_width)
         thr      = Signal(data_width)
         self.comb += [
             thr_full.eq(p2 + (1 << (threshold_frac + 15))),
             thr_r.eq(thr_full >> (threshold_frac + 16)),
-            thr.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r)),
+            thr_c.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r)),
+            thr.eq(Mux(thr_c < self.threshold_min, self.threshold_min, thr_c)),
         ]
         detect = Signal()
         self.comb += detect.eq(cut3 > thr)
@@ -177,10 +181,13 @@ class LiteDSPCACFAR(LiteXModule):
             CSRField("n_guard", size=8, offset=8, description="Guard cells per side."),
             CSRField("frac",    size=8, offset=16, description="Fractional bits of alpha."),
         ])
+        self._threshold_min = CSRStorage(self.data_width, name="threshold_min",
+            description="Threshold floor (unsigned cell units): guards the zero-padded edges and notches.")
         self._detections = CSRStatus(32, name="detections", description="Detections since reset.")
         self.comb += [
             self.alpha.eq(self._alpha.storage),
             self.mode.eq(self._control.fields.mode),
+            self.threshold_min.eq(self._threshold_min.storage),
             self._config.fields.n_train.eq(self.n_train),
             self._config.fields.n_guard.eq(self.n_guard),
             self._config.fields.frac.eq(self.threshold_frac),

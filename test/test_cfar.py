@@ -37,20 +37,23 @@ class TestCACFAR(unittest.TestCase):
         for name, col in zip(FIELDS, ref):
             self.assertEqual(column(cap, name).tolist(), col[:n].tolist(), name)
 
-    # verify-tier: model — two 64-cell frames of exponential-like cells, CA / GO / SO statistics,
-    # bit-exact (cell, threshold, decision, framing) under backpressure.
+    # verify-tier: model — two 64-cell frames of exponential-like cells, CA / GO / SO statistics and
+    # a threshold floor, bit-exact (cell, threshold, decision, framing) under backpressure.
     def test_bit_exact(self):
         prng  = random.Random(3)
         x     = [min(int(prng.expovariate(1/3000)), 2**17 - 1) for _ in range(2*64)]
         beats = frames(x, 64)
         first = [b["first"] for b in beats]; last = [b["last"] for b in beats]
-        for mode in (0, 1, 2):
-            with self.subTest(mode=mode):
+        for mode, floor in ((0, 0), (1, 0), (2, 0), (0, 4000)):
+            with self.subTest(mode=mode, floor=floor):
                 dut = LiteDSPCACFAR(n_train=8, n_guard=2, with_csr=False)
                 dut.mode.reset = mode
+                dut.threshold_min.reset = floor
                 cap = run_stream(dut, beats, 2*64, ["data", "first", "last"], FIELDS,
                     sink_throttle=0.2, source_ready_rate=0.7)
-                self._check(cap, ca_cfar_model(x, first, last, 8, 2, alpha=512, mode=mode), 2*64)
+                self._check(cap, ca_cfar_model(x, first, last, 8, 2, alpha=512, mode=mode, threshold_min=floor), 2*64)
+                if floor:
+                    self.assertGreaterEqual(int(column(cap, "threshold").min()), floor)
                 self.assertIsNone(dut.latency)
 
     # verify-tier: bound — 4096 exponential cells (power domain) with alpha from cfar_alpha for

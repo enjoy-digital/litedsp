@@ -37,7 +37,8 @@ class LiteDSPCFAR2D(LiteXModule):
     padded: ``C`` virtual cells after each row and ``R`` virtual rows after each CPI are flushed
     with ``sink.ready`` low, so the output has one cell per input cell in the same order and
     framing (throughput ``M / (M + C)``). Threshold ``sum * alpha * round(2**16 / n_training)``
-    rounded and saturated, ``alpha`` unsigned Q(alpha_width - threshold_frac).threshold_frac
+    rounded, saturated and floored at the runtime ``threshold_min``, ``alpha`` unsigned
+    Q(alpha_width - threshold_frac).threshold_frac
     (see ``litedsp.radar.design.cfar_alpha``). A ``first``/``last`` at the wrong position sets
     the sticky ``frame_error`` and re-synchronises the row. ``latency = None``.
     """
@@ -63,7 +64,8 @@ class LiteDSPCFAR2D(LiteXModule):
         self.latency        = None
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint(cell_layout(data_width))
-        self.alpha       = Signal(alpha_width, reset=int(round(2.0*(1 << threshold_frac))))
+        self.alpha         = Signal(alpha_width, reset=int(round(2.0*(1 << threshold_frac))))
+        self.threshold_min = Signal(data_width)                         # Threshold floor (noise).
         self.clear       = Signal()
         self.frame_error = Signal()
         self.detections  = Signal(32)
@@ -261,12 +263,14 @@ class LiteDSPCFAR2D(LiteXModule):
         x6, v6, f6, l6 = Signal(data_width), Signal(), Signal(), Signal()
         thr_full = Signal(BW + alpha_width + 17)
         thr_r    = Signal(BW + alpha_width + 1)
+        thr_c    = Signal(data_width)
         thr      = Signal(data_width)
         detect   = Signal()
         self.comb += [
             thr_full.eq(p2 + (1 << (threshold_frac + 15))),
             thr_r.eq(thr_full[threshold_frac + 16:]),
-            thr.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r[:data_width])),
+            thr_c.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r[:data_width])),
+            thr.eq(Mux(thr_c < self.threshold_min, self.threshold_min, thr_c)),
             detect.eq(x6 > thr),
         ]
         self.sync += [
@@ -303,9 +307,12 @@ class LiteDSPCFAR2D(LiteXModule):
         self._status = CSRStatus(fields=[
             CSRField("frame_error", size=1, offset=0, description="Sticky: row framing did not match n_doppler_bins."),
         ])
+        self._threshold_min = CSRStorage(self.data_width, name="threshold_min",
+            description="Threshold floor (unsigned cell units): guards the zero-padded edges and notches.")
         self._detections = CSRStatus(32, name="detections", description="Detections since reset.")
         self.comb += [
             self.alpha.eq(self._alpha.storage),
+            self.threshold_min.eq(self._threshold_min.storage),
             self.clear.eq(self._control.fields.clear),
             self._config.fields.n_training.eq(self.n_training),
             self._config.fields.frac.eq(self.threshold_frac),

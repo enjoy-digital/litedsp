@@ -25,20 +25,21 @@ class TestCFAR2D(unittest.TestCase):
         for name, col in zip(FIELDS, ref):
             self.assertEqual(column(cap, name).tolist(), col[:n].tolist(), name)
 
-    # verify-tier: model — two CPIs of 16x8 (box (2,1)/(1,1)) and of 8x16 (box (1,2)/(1,1)),
-    # exponential-like cells with a few strong targets, bit-exact (cell, threshold, decision,
-    # framing) under backpressure.
+    # verify-tier: model — two CPIs of 16x8 (box (2,1)/(1,1)) and of 8x16 (box (1,2)/(1,1), with a
+    # threshold floor), exponential-like cells with a few strong targets, bit-exact (cell, threshold,
+    # decision, framing) under backpressure.
     def test_bit_exact(self):
         prng = random.Random(4)
-        for N, M, n_train in ((16, 8, (2, 1)), (8, 16, (1, 2))):
-            with self.subTest(N=N, M=M):
+        for N, M, n_train, floor in ((16, 8, (2, 1), 0), (8, 16, (1, 2), 5000)):
+            with self.subTest(N=N, M=M, floor=floor):
                 x = [min(int(prng.expovariate(1/3000)), 2**17 - 1) for _ in range(2*N*M)]
                 for k in (0, N*M//2 + 3, 2*N*M - 1):
                     x[k] = 90000
                 dut = LiteDSPCFAR2D(n_range_bins=N, n_doppler_bins=M, n_train=n_train, n_guard=(1, 1), with_csr=False)
+                dut.threshold_min.reset = floor
                 cap = run_stream(dut, rows(x, M), 2*N*M, ["data", "first", "last"], FIELDS,
                     sink_throttle=0.2, source_ready_rate=0.7)
-                self._check(cap, cfar_2d_model(x, N, M, n_train, (1, 1), alpha=512), 2*N*M)
+                self._check(cap, cfar_2d_model(x, N, M, n_train, (1, 1), alpha=512, threshold_min=floor), 2*N*M)
                 self.assertIsNone(dut.latency)
 
     # verify-tier: bound — a 64x16 exponential map with alpha for Pfa = 1e-3 over the 68-cell

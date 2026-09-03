@@ -813,7 +813,10 @@ class RangeGateDriver(Driver):
 
 class CFARDriver(Driver):
     """CFAR threshold factor from a false-alarm probability, statistic mode and detection count."""
-    regs = ("alpha", "control", "config", "detections")
+    regs = ("alpha", "control", "config", "detections", "threshold_min")
+
+    def set_floor(self, threshold):
+        self.threshold_min.write(int(threshold))
 
     @property
     def n_training(self):

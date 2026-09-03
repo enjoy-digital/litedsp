@@ -794,15 +794,15 @@ def corner_turn():
 
 def ca_cfar():
     d = LiteDSPCACFAR(n_train=8, n_guard=2, with_csr=False)
-    return d, {d.alpha, d.mode, d.detections} | _eps(d.sink, d.source), 10.0
+    return d, {d.alpha, d.mode, d.threshold_min, d.detections} | _eps(d.sink, d.source), 10.0
 
 def cfar_2d():
     d = LiteDSPCFAR2D(with_csr=False)
-    return d, {d.alpha, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
+    return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
 
 def cfar_2d_wide():
     d = LiteDSPCFAR2D(n_train=(6, 3), with_csr=False)
-    return d, {d.alpha, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
+    return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
 
 def peak_extractor():
     d = LiteDSPPeakExtractor(with_csr=False)
