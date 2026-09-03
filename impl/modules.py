@@ -104,7 +104,8 @@ from litedsp.radar.compress       import LiteDSPPulseCompressor
 from litedsp.radar.mti            import LiteDSPMTICanceller
 from litedsp.radar.corner_turn    import LiteDSPCornerTurn
 from litedsp.radar.doppler        import LiteDSPDopplerProcessor
-from litedsp.radar.cfar           import LiteDSPCACFAR
+from litedsp.radar.cfar           import LiteDSPCACFAR, LiteDSPOSCFAR
+from litedsp.radar.clutter        import LiteDSPClutterMap
 from litedsp.radar.cfar_2d        import LiteDSPCFAR2D
 from litedsp.radar.detect         import LiteDSPPeakExtractor, LiteDSPTargetList
 from litedsp.radar.track          import LiteDSPAlphaBetaTracker
@@ -796,6 +797,14 @@ def ca_cfar():
     d = LiteDSPCACFAR(n_train=8, n_guard=2, with_csr=False)
     return d, {d.alpha, d.mode, d.threshold_min, d.detections} | _eps(d.sink, d.source), 10.0
 
+def os_cfar():
+    d = LiteDSPOSCFAR(n_train=4, n_guard=2, with_csr=False)
+    return d, {d.alpha, d.rank, d.threshold_min, d.detections} | _eps(d.sink, d.source), 10.0
+
+def clutter_map():
+    d = LiteDSPClutterMap(with_csr=False)
+    return d, {d.alpha, d.threshold_min, d.learn_all, d.freeze, d.clear, d.detections, d.scans} | _eps(d.sink, d.source), 10.0
+
 def cfar_2d():
     d = LiteDSPCFAR2D(with_csr=False)
     return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
@@ -901,7 +910,7 @@ REGISTRY = {
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
     "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
-    "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker,
+    "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker,
 }
 
 # Subset for the slower full place-&-route flows.

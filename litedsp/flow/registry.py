@@ -130,7 +130,8 @@ from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
 from litedsp.radar.corner_turn     import LiteDSPCornerTurn
 from litedsp.radar.doppler         import LiteDSPDopplerProcessor
-from litedsp.radar.cfar            import LiteDSPCACFAR
+from litedsp.radar.cfar            import LiteDSPCACFAR, LiteDSPOSCFAR
+from litedsp.radar.clutter         import LiteDSPClutterMap
 from litedsp.radar.cfar_2d         import LiteDSPCFAR2D
 from litedsp.radar.detect          import LiteDSPPeakExtractor, LiteDSPTargetList
 from litedsp.radar.track           import LiteDSPAlphaBetaTracker
@@ -317,6 +318,8 @@ ENTRIES = [
     ("mti",                LiteDSPMTICanceller,          {},                                     "radar",      "MTI canceller",         None),
     ("corner_turn",        LiteDSPCornerTurn,            {},                                     "radar",      "Corner turn (fast to slow time)", None),
     ("ca_cfar",            LiteDSPCACFAR,                {},                                     "radar",      "CA-CFAR detector",      {}),
+    ("os_cfar",            LiteDSPOSCFAR,                {},                                     "radar",      "OS-CFAR detector",      {}),
+    ("clutter_map",        LiteDSPClutterMap,            {},                                     "radar",      "Clutter map",           {}),
     ("cfar_2d",            LiteDSPCFAR2D,                {},                                     "radar",      "2-D CA-CFAR detector",  {}),
     ("peak_extractor",     LiteDSPPeakExtractor,         {},                                     "radar",      "Peak extractor",        {}),
     ("target_list",        LiteDSPTargetList,            {},                                     "radar",      "Target list",           {}),

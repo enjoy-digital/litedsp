@@ -843,6 +843,38 @@ class CFARDriver(Driver):
     def detection_count(self):
         return self.detections.read()
 
+class OSCFARDriver(CFARDriver):
+    """Ordered-statistic CFAR: the CA driver plus the rank."""
+    def set_rank(self, rank):
+        self.control.write(int(rank))
+
+    def set_pfa(self, pfa, domain="power", n_train_cells=None):
+        raise NotImplementedError("OS-CFAR alpha depends on the rank: use set_alpha")
+
+class ClutterMapDriver(Driver):
+    """Clutter map: threshold factor, floor and learning control."""
+    regs = ("alpha", "threshold_min", "control", "config", "detections", "scans")
+
+    @property
+    def frac_bits(self):
+        return (self.config.read() >> 24) & 0xFF
+
+    def set_alpha(self, alpha):
+        self.alpha.write(int(round(float(alpha)*(1 << self.frac_bits))))
+
+    def set_floor(self, threshold):
+        self.threshold_min.write(int(threshold))
+
+    def set_learning(self, learn_all=False, freeze=False):
+        self.control.write(int(bool(learn_all)) | (int(bool(freeze)) << 1))
+
+    def clear(self):
+        self.control.write(self.control.read() | (1 << 2))
+
+    @property
+    def detection_count(self):
+        return self.detections.read()
+
 class TargetListDriver(Driver):
     """Read back the last sealed target list as bin-unit dicts."""
     regs = ("config", "control", "status", "index", "range", "doppler", "data", "count", "cpi_count", "dropped")
@@ -933,6 +965,8 @@ TYPED = {
     "range_gate":    RangeGateDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
+    "os_cfar":       OSCFARDriver,
+    "clutter_map":   ClutterMapDriver,
     "target_list":   TargetListDriver,
     "alpha_beta_tracker": TrackerDriver,
 }
@@ -943,7 +977,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver, TrackerDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

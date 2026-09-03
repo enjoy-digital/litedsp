@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver, TrackerDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -298,6 +298,25 @@ class TestRadarDrivers(unittest.TestCase):
         regs["cfar_config"].value = 68 | (8 << 16) | (1 << 24)    # 2-D box: n_training direct.
         drv.set_pfa(1e-3)
         self.assertEqual(regs["cfar_alpha"].value, cfar_alpha(1e-3, 68, "power", frac_bits=8))
+
+    def test_os_cfar_and_clutter(self):
+        regs = {f"os_{r}": MockCSR() for r in OSCFARDriver.regs}
+        regs["os_config"].value = 4 | (2 << 8) | (8 << 16)
+        drv = OSCFARDriver(MockBus(regs), "os")
+        drv.set_rank(6)
+        drv.set_alpha(3.0)
+        self.assertEqual((regs["os_control"].value, regs["os_alpha"].value), (6, 768))
+        with self.assertRaises(NotImplementedError):
+            drv.set_pfa(1e-3)
+        regs = {f"cm_{r}": MockCSR() for r in ClutterMapDriver.regs}
+        regs["cm_config"].value = 64 | (3 << 20) | (8 << 24)
+        drv = ClutterMapDriver(MockBus(regs), "cm")
+        drv.set_alpha(2.5)
+        drv.set_floor(30)
+        drv.set_learning(learn_all=True)
+        self.assertEqual((regs["cm_alpha"].value, regs["cm_threshold_min"].value, regs["cm_control"].value), (640, 30, 1))
+        drv.clear()
+        self.assertEqual(regs["cm_control"].value, 1 | (1 << 2))
 
     def test_target_list(self):
         regs = {f"tl_{r}": MockCSR() for r in TargetListDriver.regs}

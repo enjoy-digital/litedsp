@@ -190,6 +190,8 @@ VSPEC = {
     "doppler":            _v("doppler_model", latency="variable", cosim=True),
     "ca_cfar":            _v("ca_cfar_model", latency="variable", cosim=True),
     "cfar_2d":            _v("cfar_2d_model", latency="variable", cosim=True),
+    "os_cfar":            _v("os_cfar_model", latency="variable", cosim=True),
+    "clutter_map":        _v("clutter_map_model", latency=4, cosim=True),
     "peak_extractor":     _v("peak_extractor_model", latency="variable", cosim=True),
     "target_list":        _v("target_list_model", latency="variable", cosim=True),
     "alpha_beta_tracker": _v("alpha_beta_tracker_model", latency="variable", cosim=True),

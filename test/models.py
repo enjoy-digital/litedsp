@@ -2948,21 +2948,36 @@ def cfar_threshold(stat, alpha, recip, data_width, threshold_frac, threshold_min
     thr = (p2 + (1 << (threshold_frac + 15))) >> (threshold_frac + 16)
     return max(min(thr, (1 << data_width) - 1), int(threshold_min))
 
+def os_cfar_model(x, first, last, n_train=4, n_guard=2, rank=5, alpha=1024, data_width=17, threshold_frac=8,
+    threshold_min=0):
+    """Bit-exact reference for litedsp.radar.cfar.LiteDSPOSCFAR: the CA-CFAR window with the
+    statistic = ``rank``-th smallest (0-based) of the 2T training cells and
+    ``threshold = rounded(stat * alpha, frac)``."""
+    return _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min,
+        lambda lead, lag: sorted(lead + lag)[rank], alpha, 1 << 16)
+
 def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_width=17, threshold_frac=8,
     threshold_min=0):
     """Bit-exact reference for litedsp.radar.cfar.LiteDSPCACFAR: the sliding window with the
     cell under test in the centre, zero padded at frame edges (``first`` clears the window, the
     trailing cells are flushed after ``last``), CA / GO / SO statistic, threshold and decision.
     Returns ``(data, threshold, detect, first, last)``, one beat per input cell."""
+    def stat(lead, lag):
+        a, b = sum(lead), sum(lag)
+        return {0: a + b, 1: 2*max(a, b), 2: 2*min(a, b)}[int(mode)]
+    return _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min,
+        stat, alpha, int(round((1 << 16)/(2*n_train))))
+
+def _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min, statistic,
+    alpha, recip):
+    """Software mirror of the 1-D CFAR window engine (``_cfar_window`` / ``_cfar_output``)."""
     T, G  = n_train, n_guard
     H, L  = T + G, 2*(T + G) + 1
-    recip = int(round((1 << 16)/(2*T)))
     cells, real, firsts, lasts = [0]*L, [0]*L, [0]*L, [0]*L
     out = [[] for _ in range(5)]
     def evaluate():
         if real[H]:
-            lead, lag = sum(cells[0:T]), sum(cells[H + G + 1:H + G + 1 + T])
-            stat = {0: lead + lag, 1: 2*max(lead, lag), 2: 2*min(lead, lag)}[int(mode)]
+            stat = statistic(cells[0:T], cells[H + G + 1:H + G + 1 + T])
             thr  = cfar_threshold(stat, alpha, recip, data_width, threshold_frac, threshold_min)
             for col, v in zip(out, (cells[H], thr, int(cells[H] > thr), firsts[H], lasts[H])):
                 col.append(v)
@@ -3174,3 +3189,35 @@ def tracker_scenario(n_cpi=12, seed=0, frac_bits=4, drop=((5, 0), (8, 1)), false
             n += 1
         beats.append({"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
     return beats, truth
+
+def clutter_map_model(x, first, last, n_cells=64, alpha=1024, avg_shift=3, learn_all=0, freeze=0, data_width=17,
+    threshold_frac=8, threshold_min=0):
+    """Bit-exact reference for litedsp.radar.clutter.LiteDSPClutterMap: per-cell leaky sums
+    (``sum += x - (sum >> avg_shift)``, censored unless ``learn_all``, frozen with ``freeze``),
+    initialisation scan (full-scale threshold, no detection, until its ``last``), ``threshold =
+    rounded(sum * alpha, frac + avg_shift)`` saturated and floored. ``first`` restarts the cell
+    address. Returns ``(data, threshold, detect, first, last)``."""
+    recip = 1 << (16 - avg_shift)
+    sums  = [0]*n_cells
+    out   = [[] for _ in range(5)]
+    addr, init = 0, True
+    for k in range(len(x)):
+        if first[k]:
+            addr = 0
+        v = int(x[k])
+        s = sums[addr]
+        if init:
+            thr, det = (1 << data_width) - 1, 0
+            if not freeze:
+                sums[addr] = v << avg_shift
+        else:
+            thr = cfar_threshold(s, alpha, recip, data_width, threshold_frac, threshold_min)
+            det = int(v > thr)
+            if not freeze and (learn_all or not det):
+                sums[addr] = s + v - (s >> avg_shift)
+        for col, val in zip(out, (v, thr, det, int(first[k]), int(last[k]))):
+            col.append(val)
+        if last[k]:
+            init = False
+        addr = (addr + 1) % n_cells
+    return tuple(np.array(c, np.int64) for c in out)

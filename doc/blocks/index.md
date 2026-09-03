@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-171 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+173 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -226,6 +226,8 @@
 | [MTI canceller](mti.md) | `LiteDSPMTICanceller` | 2 | 0 | Two- or three-pulse MTI canceller on framed pulses (one frame = ``n_range_bins`` beats). |
 | [Corner turn (fast to slow time)](corner_turn.md) | `LiteDSPCornerTurn` | var | 0 | Transpose a CPI of ``n_pulses`` framed pulses (``n_range_bins`` beats each) into |
 | [CA-CFAR detector](ca_cfar.md) | `LiteDSPCACFAR` | var | 2 | One-dimensional cell-averaging CFAR detector on framed cell streams. |
+| [OS-CFAR detector](os_cfar.md) | `LiteDSPOSCFAR` | var | 1 | One-dimensional ordered-statistic CFAR detector on framed cell streams. |
+| [Clutter map](clutter_map.md) | `LiteDSPClutterMap` | 4 | 2 | Scan-to-scan clutter map detector on framed cell streams. |
 | [2-D CA-CFAR detector](cfar_2d.md) | `LiteDSPCFAR2D` | var | 5 | Cell-averaging CFAR over a ``(2R+1) x (2C+1)`` box of a range-Doppler map. |
 | [Peak extractor](peak_extractor.md) | `LiteDSPPeakExtractor` | var | 0 | Detected cells to sparse target records with sub-bin centroids. |
 | [Target list](target_list.md) | `LiteDSPTargetList` | var | 0 | Per-CPI target list buffer with host readback. |

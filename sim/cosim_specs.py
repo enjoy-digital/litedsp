@@ -1281,6 +1281,36 @@ def spec_ca_cfar():
 def spec_ca_cfar_go():
     return _spec_ca_cfar(1)
 
+def spec_os_cfar():
+    from litedsp.radar.cfar import LiteDSPOSCFAR
+    N, n_frames = 64, 3
+    n   = N*n_frames
+    dut = LiteDSPOSCFAR(n_train=4, n_guard=2, with_csr=False)
+    prng  = random.Random(15)
+    cells = [min(int(prng.expovariate(1/3000)), 2**17 - 1)//16*16 for _ in range(n)]   # Ties.
+    for k in (5, 70, 73, 191):
+        cells[k] = 100000                                        # Targets incl. a close pair.
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    def model(c):
+        return list(models.os_cfar_model(c[0], c[1], c[2], 4, 2, rank=5, alpha=1024))
+    return dut, [cells, first, last], n - 2, model, True, True
+
+def spec_clutter_map():
+    from litedsp.radar.clutter import LiteDSPClutterMap
+    N, n_scans = 64, 4
+    n   = N*n_scans
+    dut = LiteDSPClutterMap(n_range_bins=N, with_csr=False)
+    prng  = random.Random(16)
+    cells = [min(int(prng.expovariate(1/3000)), 2**17 - 1) for _ in range(n)]
+    for k in (70, 71, 140, 200):
+        cells[k] = 100000
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    def model(c):
+        return list(models.clutter_map_model(c[0], c[1], c[2], N, alpha=1024))
+    return dut, [cells, first, last], n - 4, model, True, True
+
 def _spec_cfar_2d(n_train=(2, 1)):
     from litedsp.radar.cfar_2d import LiteDSPCFAR2D
     N, M, n_cpi = 16, 8, 2
@@ -1529,6 +1559,8 @@ SPECS = {
     "corner_turn":      spec_corner_turn,
     "ca_cfar":          spec_ca_cfar,
     "ca_cfar_go":       spec_ca_cfar_go,
+    "os_cfar":          spec_os_cfar,
+    "clutter_map":      spec_clutter_map,
     "cfar_2d":          spec_cfar_2d,
     "cfar_2d_wide":     spec_cfar_2d_wide,
     "peak_extractor":   spec_peak_extractor,

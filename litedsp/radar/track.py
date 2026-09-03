@@ -22,9 +22,11 @@ TRACK_FREE, TRACK_TENTATIVE, TRACK_CONFIRMED = 0, 1, 2
 
 # Alpha-Beta Tracker -------------------------------------------------------------------------------
 
-@ResetInserter()
-class LiteDSPAlphaBetaTracker(LiteXModule):
-    """Alpha-beta tracker over ``n_tracks`` slots fed by per-CPI target bursts.
+class _LiteDSPTracker(LiteXModule):
+    """Shared tracker engine: register file, serial gated nearest-neighbour association, the
+    per-CPI update loop (the filter update itself comes from ``_add_update_states``), track
+    confirmation / coasting / deletion and the framed track burst. See
+    :class:`LiteDSPAlphaBetaTracker` for the stream contract.
 
     Each incoming record (:func:`~litedsp.common.target_layout`) is associated serially with
     the active, not yet assigned track whose prediction lies within the gates
@@ -58,8 +60,7 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
         PW  = index_width + F                                           # Stream positions.
         PV  = index_width + VF + 2                                      # Internal positions (signed).
         VW  = index_width + VF                                          # Velocities (signed).
-        self.alpha          = Signal(GF + 1, reset=int(round(0.5*(1 << GF))))
-        self.beta           = Signal(GF + 1, reset=int(round(0.15*(1 << GF))))
+        self._add_controls()
         self.gate_r         = Signal(PW, reset=2 << F)                  # Q.frac bins.
         self.gate_d         = Signal(PW, reset=2 << F)
         self.confirm_hits   = Signal(4, reset=3)
@@ -132,31 +133,6 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
         for k in reversed(range(T)):                                    # Lowest free slot wins.
             self.comb += If(state[k] == TRACK_FREE, free_any.eq(1), free_idx.eq(k))
 
-        # Update arithmetic (one track per two cycles: products, then apply).
-        # -------------------------------------------------------------------
-        e_r, e_d = Signal((PV + 1, True)), Signal((PV + 1, True))
-        pa_r, pa_d = Signal((PV + 1 + GF + 2, True)), Signal((PV + 1 + GF + 2, True))
-        pb_r, pb_d = Signal((PV + 1 + GF + 2, True)), Signal((PV + 1 + GF + 2, True))
-        alpha_s, beta_s = Signal((GF + 2, True)), Signal((GF + 2, True))
-        self.comb += [
-            alpha_s.eq(self.alpha), beta_s.eq(self.beta),
-            e_r.eq(A["meas_r"][idx] - A["pred_r"][idx]),
-            e_d.eq(A["meas_d"][idx] - A["pred_d"][idx]),
-        ]
-        self.sync += [
-            pa_r.eq(e_r*alpha_s), pa_d.eq(e_d*alpha_s),
-            pb_r.eq(e_r*beta_s),  pb_d.eq(e_d*beta_s),
-        ]
-        newP_r, newP_d = Signal((PV, True)), Signal((PV, True))
-        newV_r, newV_d = Signal((VW, True)), Signal((VW, True))
-        sumP_r, sumP_d = Signal((PV + 2, True)), Signal((PV + 2, True))
-        sumV_r, sumV_d = Signal((VW + 2, True)), Signal((VW + 2, True))
-        self.comb += [
-            sumP_r.eq(A["pred_r"][idx] + rounded(pa_r, GF)), sumP_d.eq(A["pred_d"][idx] + rounded(pa_d, GF)),
-            sumV_r.eq(A["V_r"][idx] + rounded(pb_r, GF)),    sumV_d.eq(A["V_d"][idx] + rounded(pb_d, GF)),
-            newP_r.eq(saturated(sumP_r, PV)), newP_d.eq(saturated(sumP_d, PV)),
-            newV_r.eq(saturated(sumV_r, VW)), newV_d.eq(saturated(sumV_d, VW)),
-        ]
         predsum_r, predsum_d = Signal((PV + 1, True)), Signal((PV + 1, True))
         self.comb += [predsum_r.eq(A["P_r"][idx] + A["V_r"][idx]), predsum_d.eq(A["P_d"][idx] + A["V_d"][idx])]
         hits_inc = Signal(4)
@@ -181,7 +157,7 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
                     NextValue(best_v, 0),
                     NextState("ASSOC"),
                 ).Else(
-                    NextState("UPDATE_MUL"),
+                    NextState("UPDATE"),
                 ),
             ),
         )
@@ -207,31 +183,11 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
             ),
             NextState("IDLE"),
         )
-        fsm.act("UPDATE_MUL",                                           # Products register this cycle.
-            NextState("UPDATE_APPLY"),
-        )
-        fsm.act("UPDATE_APPLY",
-            *[If(idx == k,
-                If(state[k] != TRACK_FREE,
-                    If(assigned[k],
-                        NextValue(P_r[k], newP_r), NextValue(P_d[k], newP_d),
-                        NextValue(V_r[k], newV_r), NextValue(V_d[k], newV_d),
-                        NextValue(hits[k], hits_inc), NextValue(misses[k], 0),
-                        If((state[k] == TRACK_TENTATIVE) & (hits_inc >= self.confirm_hits),
-                            NextValue(state[k], TRACK_CONFIRMED),
-                        ),
-                    ).Else(
-                        NextValue(P_r[k], pred_r[k]), NextValue(P_d[k], pred_d[k]),
-                        NextValue(misses[k], misses[k] + 1),
-                        If(misses[k] + 1 > self.max_misses,
-                            NextValue(state[k], TRACK_FREE),
-                        ),
-                    ),
-                ),
-                NextValue(assigned[k], 0),
-            ) for k in range(T)],
-            NextState("PREDICT"),
-        )
+        # Filter update states (subclass): entered as "UPDATE" for track idx, leave to "PREDICT".
+        ctx = dict(idx=idx, last_idx=last_idx, A=A, P_r=P_r, P_d=P_d, pred_r=pred_r, pred_d=pred_d, V_r=V_r, V_d=V_d,
+                   meas_r=meas_r, meas_d=meas_d, assigned=assigned, hits=hits, misses=misses, state=state,
+                   hits_inc=hits_inc, PV=PV, VW=VW, T=T)
+        self._add_update_states(fsm, ctx)
         fsm.act("PREDICT",
             *[If(idx == k,
                 NextValue(pred_r[k], saturated(predsum_r, PV)), NextValue(pred_d[k], saturated(predsum_d, PV)),
@@ -241,7 +197,7 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
                 NextState("COUNT"),
             ).Else(
                 NextValue(idx, idx + 1),
-                NextState("UPDATE_MUL"),
+                NextState("UPDATE"),
             ),
         )
         n_active, n_conf = Signal(max=T + 1), Signal(max=T + 1)
@@ -313,10 +269,7 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
 
     def add_csr(self):
         GF, PW = self.gain_frac, self.index_width + self.frac_bits
-        self._gains = CSRStorage(fields=[
-            CSRField("alpha", size=GF + 1, offset=0,  reset=self.alpha.reset.value, description=f"Position gain (Q1.{GF})."),
-            CSRField("beta",  size=GF + 1, offset=16, reset=self.beta.reset.value,  description=f"Velocity gain (Q1.{GF})."),
-        ])
+        self._add_filter_csr()
         self._gates = CSRStorage(fields=[
             CSRField("range",   size=PW, offset=0,  reset=self.gate_r.reset.value, description=f"Range gate (Q.{self.frac_bits} bins)."),
             CSRField("doppler", size=PW, offset=16, reset=self.gate_d.reset.value, description=f"Doppler gate (Q.{self.frac_bits} bins)."),
@@ -340,7 +293,6 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
         self._dropped   = CSRStatus(32, name="dropped", description="Records dropped (no free slot).")
         self._cpi_count = CSRStatus(32, name="cpi_count", description="Updates since reset.")
         self.comb += [
-            self.alpha.eq(self._gains.fields.alpha), self.beta.eq(self._gains.fields.beta),
             self.gate_r.eq(self._gates.fields.range), self.gate_d.eq(self._gates.fields.doppler),
             self.confirm_hits.eq(self._control.fields.confirm_hits),
             self.max_misses.eq(self._control.fields.max_misses),
@@ -357,3 +309,91 @@ class LiteDSPAlphaBetaTracker(LiteXModule):
         self.ev.update = EventSourcePulse(description="The tracks were updated (terminator emitted).")
         self.ev.finalize()
         self.comb += self.ev.update.trigger.eq(self.cpi_done)
+
+# Alpha-Beta Tracker -------------------------------------------------------------------------------
+
+@ResetInserter()
+class LiteDSPAlphaBetaTracker(_LiteDSPTracker):
+    """Alpha-beta tracker over ``n_tracks`` slots fed by per-CPI target bursts.
+
+    Each incoming record (:func:`~litedsp.common.target_layout`) is associated serially with
+    the active, not yet assigned track whose prediction lies within the gates
+    (``|dr| <= gate_r`` and ``|dd| <= gate_d``) with the lowest ``|dr| + |dd|`` (lowest index on
+    ties); an unassociated record initialises the lowest free slot (tentative, velocity 0) or is
+    dropped when none is free (``n_tracks + 2`` cycles per record, input stalled). The terminator
+    updates every active track: assigned tracks filter ``P = pred + alpha*e``,
+    ``V = V + beta*e`` (gains unsigned Q1.gain_frac, positions Q.velocity_frac bins, velocities
+    Q.velocity_frac bins per CPI), count a hit and confirm at ``confirm_hits``; unassigned
+    tracks coast on their prediction and are freed after ``max_misses`` consecutive misses;
+    then ``pred = P + V``. The confirmed tracks (and the tentative ones with ``emit_tentative``)
+    are emitted as a :func:`~litedsp.common.track_layout` burst closed by a terminator whose
+    ``hits`` field is the active track count; ``ev.update`` fires with it.
+    ``latency = None``; rate data dependent.
+    """
+    def _add_controls(self):
+        GF = self.gain_frac
+        self.alpha = Signal(GF + 1, reset=int(round(0.5*(1 << GF))))
+        self.beta  = Signal(GF + 1, reset=int(round(0.15*(1 << GF))))
+
+    def _add_update_states(self, fsm, c):
+        idx, A, PV, VW, GF, T = c["idx"], c["A"], c["PV"], c["VW"], self.gain_frac, c["T"]
+        P_r, P_d, V_r, V_d, pred_r, pred_d = c["P_r"], c["P_d"], c["V_r"], c["V_d"], c["pred_r"], c["pred_d"]
+        hits, misses, state, assigned, hits_inc = c["hits"], c["misses"], c["state"], c["assigned"], c["hits_inc"]
+        # One track per two cycles: products, then apply.
+        # -------------------------------------------------
+        e_r, e_d = Signal((PV + 1, True)), Signal((PV + 1, True))
+        pa_r, pa_d = Signal((PV + 1 + GF + 2, True)), Signal((PV + 1 + GF + 2, True))
+        pb_r, pb_d = Signal((PV + 1 + GF + 2, True)), Signal((PV + 1 + GF + 2, True))
+        alpha_s, beta_s = Signal((GF + 2, True)), Signal((GF + 2, True))
+        self.comb += [
+            alpha_s.eq(self.alpha), beta_s.eq(self.beta),
+            e_r.eq(A["meas_r"][idx] - A["pred_r"][idx]),
+            e_d.eq(A["meas_d"][idx] - A["pred_d"][idx]),
+        ]
+        self.sync += [
+            pa_r.eq(e_r*alpha_s), pa_d.eq(e_d*alpha_s),
+            pb_r.eq(e_r*beta_s),  pb_d.eq(e_d*beta_s),
+        ]
+        newP_r, newP_d = Signal((PV, True)), Signal((PV, True))
+        newV_r, newV_d = Signal((VW, True)), Signal((VW, True))
+        sumP_r, sumP_d = Signal((PV + 2, True)), Signal((PV + 2, True))
+        sumV_r, sumV_d = Signal((VW + 2, True)), Signal((VW + 2, True))
+        self.comb += [
+            sumP_r.eq(A["pred_r"][idx] + rounded(pa_r, GF)), sumP_d.eq(A["pred_d"][idx] + rounded(pa_d, GF)),
+            sumV_r.eq(A["V_r"][idx] + rounded(pb_r, GF)),    sumV_d.eq(A["V_d"][idx] + rounded(pb_d, GF)),
+            newP_r.eq(saturated(sumP_r, PV)), newP_d.eq(saturated(sumP_d, PV)),
+            newV_r.eq(saturated(sumV_r, VW)), newV_d.eq(saturated(sumV_d, VW)),
+        ]
+        fsm.act("UPDATE",                                               # Products register this cycle.
+            NextState("UPDATE_APPLY"),
+        )
+        fsm.act("UPDATE_APPLY",
+            *[If(idx == k,
+                If(state[k] != TRACK_FREE,
+                    If(assigned[k],
+                        NextValue(P_r[k], newP_r), NextValue(P_d[k], newP_d),
+                        NextValue(V_r[k], newV_r), NextValue(V_d[k], newV_d),
+                        NextValue(hits[k], hits_inc), NextValue(misses[k], 0),
+                        If((state[k] == TRACK_TENTATIVE) & (hits_inc >= self.confirm_hits),
+                            NextValue(state[k], TRACK_CONFIRMED),
+                        ),
+                    ).Else(
+                        NextValue(P_r[k], pred_r[k]), NextValue(P_d[k], pred_d[k]),
+                        NextValue(misses[k], misses[k] + 1),
+                        If(misses[k] + 1 > self.max_misses,
+                            NextValue(state[k], TRACK_FREE),
+                        ),
+                    ),
+                ),
+                NextValue(assigned[k], 0),
+            ) for k in range(T)],
+            NextState("PREDICT"),
+        )
+
+    def _add_filter_csr(self):
+        GF = self.gain_frac
+        self._gains = CSRStorage(fields=[
+            CSRField("alpha", size=GF + 1, offset=0,  reset=self.alpha.reset.value, description=f"Position gain (Q1.{GF})."),
+            CSRField("beta",  size=GF + 1, offset=16, reset=self.beta.reset.value,  description=f"Velocity gain (Q1.{GF})."),
+        ])
+        self.comb += [self.alpha.eq(self._gains.fields.alpha), self.beta.eq(self._gains.fields.beta)]

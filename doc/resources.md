@@ -7,7 +7,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP/Fmax floor/target | Artix-7 (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target | Artix UltraScale+ (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target |
 |---|---|---|---|
 | `agc` | 390/126/0/4/113.8/100.0 | 231/126/0/2/114.7/100.0 | 203/122/0/2/246.6/100.0 |
-| `alpha_beta_tracker` | 2507/981/0/8/- | - | - |
+| `alpha_beta_tracker` | 2474/981/0/8/- | - | - |
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |
@@ -15,7 +15,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `bitstream_decimator` | 677/240/0/0/- | - | - |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- | 86/55/1/0/- |
-| `ca_cfar` | 1268/625/0/2/- | - | - |
+| `ca_cfar` | 1266/625/0/2/- | - | - |
 | `ccsds_rs_decoder` | 3741/1482/1/0/102.9/100.0 | 1756/1482/0/0/117.9/100.0 | 1801/1490/0/0/210.3/100.0 |
 | `ccsds_rs_encoder` | 573/265/0/0/223.4 | 255/267/0/0/222.0 | 254/267/0/0/527.3 |
 | `cfar_2d` | 1375/723/4/5/- | - | - |
@@ -30,6 +30,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `cic_parallel_x2` | 1113/832/0/0/237.6/100.0 | 675/834/0/0/233.6/100.0 | 676/834/0/0/406.7/100.0 |
 | `cic_parallel_x4` | 2770/1167/0/0/173.5/100.0 | 1670/1169/0/0/160.5/100.0 | 1670/1169/0/0/307.6/100.0 |
 | `clarke` | 187/35/0/2/- | - | - |
+| `clutter_map` | 554/294/0/2/- | - | - |
 | `combine` | 327/33/0/0/281.6 | 134/33/0/0/- | 139/33/0/0/- |
 | `compressor` | 2639/390/1/5/- | - | - |
 | `cordic_rot` | 1943/907/0/2/154.8 | 970/858/0/2/- | 924/866/0/2/- |
@@ -111,6 +112,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `nco_qw` | 663/52/0/0/218.6 | 222/52/0/0/- | 222/52/0/0/- |
 | `null_sink` | 65/32/0/0/305.3 | 2/32/0/0/- | 2/32/0/0/- |
 | `ofdm_equalizer` | 547/128/0/6/95.1 | 310/68/0/6/- | 284/68/0/6/- |
+| `os_cfar` | 1744/445/0/1/- | - | - |
 | `overcurrent_trip` | 375/36/0/0/- | - | - |
 | `park` | 784/189/0/4/- | - | - |
 | `pattern_source` | 114/65/0/0/463.2 | 36/65/0/0/- | 36/65/0/0/- |
