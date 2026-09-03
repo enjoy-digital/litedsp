@@ -13,6 +13,8 @@ it either bit-exactly (structural blocks) or above an SNR threshold (arithmetic 
 
 import math
 
+import random
+
 import numpy as np
 
 from test.common import np_rounded, np_saturated, np_scaled
@@ -3074,3 +3076,99 @@ def target_list_model(rng, dop, data, hit, max_targets=16):
             col.append(val)
         burst = []
     return tuple(np.array(c, np.int64) for c in out), dropped
+
+def _sat(x, width):
+    hi, lo = (1 << (width - 1)) - 1, -(1 << (width - 1))
+    return max(lo, min(hi, int(x)))
+
+def _rnd(x, shift):
+    return int(x) if shift == 0 else (int(x) + (1 << (shift - 1))) >> shift
+
+def alpha_beta_tracker_model(rng, dop, hit, n_tracks=4, alpha=128, beta=38, gate_r=32, gate_d=32,
+    confirm_hits=3, max_misses=2, emit_tentative=0, index_width=12, frac_bits=4, velocity_frac=8,
+    gain_frac=8):
+    """Bit-exact reference for litedsp.radar.track.LiteDSPAlphaBetaTracker: serial gated
+    nearest-neighbour association (lowest ``|dr| + |dd|``, lowest index on ties, lowest free
+    slot for new tracks), alpha-beta update / coasting / confirmation / deletion on the
+    terminator, then the framed track burst. Returns ``(range, doppler, velocity, id, hits, hit,
+    first, last)`` and a dict of counters."""
+    F, VF, GF, T = frac_bits, velocity_frac, gain_frac, n_tracks
+    PW, PV, VW   = index_width + F, index_width + VF + 2, index_width + VF
+    gr, gd = int(gate_r) << (VF - F), int(gate_d) << (VF - F)
+    trk = [dict(state=0, P=[0, 0], pred=[0, 0], V=[0, 0], meas=[0, 0], assigned=0, hits=0, misses=0) for _ in range(T)]
+    out = [[] for _ in range(8)]
+    stats = dict(dropped=0, cpi_count=0)
+    for r, d, h in zip(rng, dop, hit):
+        if h:
+            m = [int(r) << (VF - F), int(d) << (VF - F)]
+            best, best_s = None, None
+            for k, t in enumerate(trk):
+                if t["state"] == 0 or t["assigned"]:
+                    continue
+                adr, add = abs(m[0] - t["pred"][0]), abs(m[1] - t["pred"][1])
+                if adr <= gr and add <= gd and (best is None or adr + add < best_s):
+                    best, best_s = k, adr + add
+            if best is not None:
+                trk[best]["meas"], trk[best]["assigned"] = list(m), 1
+            else:
+                free = [k for k, t in enumerate(trk) if t["state"] == 0]
+                if free:
+                    trk[free[0]] = dict(state=1, P=list(m), pred=list(m), V=[0, 0], meas=list(m), assigned=1, hits=0, misses=0)
+                else:
+                    stats["dropped"] += 1
+            continue
+        for t in trk:                                                   # Terminator: update.
+            if t["state"] != 0:
+                if t["assigned"]:
+                    for a in range(2):
+                        e = t["meas"][a] - t["pred"][a]
+                        t["P"][a] = _sat(t["pred"][a] + _rnd(e*int(alpha), GF), PV)
+                        t["V"][a] = _sat(t["V"][a] + _rnd(e*int(beta), GF), VW)
+                    t["hits"], t["misses"] = min(15, t["hits"] + 1), 0
+                    if t["state"] == 1 and t["hits"] >= confirm_hits:
+                        t["state"] = 2
+                else:
+                    t["P"] = list(t["pred"])
+                    t["misses"] += 1
+                    if t["misses"] > max_misses:
+                        t["state"] = 0
+            t["assigned"] = 0
+            t["pred"] = [_sat(t["P"][a] + t["V"][a], PV) for a in range(2)]
+        active = sum(t["state"] != 0 for t in trk)
+        n = 0
+        for k, t in enumerate(trk):
+            if t["state"] == 2 or (emit_tentative and t["state"] == 1):
+                pos = [max(0, min((1 << PW) - 1, _rnd(t["P"][a], VF - F))) for a in range(2)]
+                for col, v in zip(out, (pos[0], pos[1], t["V"][0], k, t["hits"], 1, int(n == 0), 0)):
+                    col.append(v)
+                n += 1
+        for col, v in zip(out, (0, 0, 0, 0, active, 0, int(n == 0), 1)):
+            col.append(v)
+        stats["cpi_count"] += 1
+    return tuple(np.array(c, np.int64) for c in out), stats
+
+def tracker_scenario(n_cpi=12, seed=0, frac_bits=4, drop=((5, 0), (8, 1)), false_alarms=True):
+    """Synthetic target bursts for the tracker tests: two crossing targets (range/Doppler in
+    bins, constant velocity, +/-0.1 bin measurement noise), one random false alarm per CPI and
+    dropped detections at ``drop`` = ((cpi, target), ...). Returns the beat dicts and the truth
+    ``[(cpi, target, range, doppler)]``."""
+    prng  = random.Random(seed)
+    F     = frac_bits
+    truth, beats = [], []
+    targets = [((10.0, 3.0), (0.5, -0.25)), ((20.0, 2.0), (-0.5, 0.1))]
+    for c in range(n_cpi):
+        n = 0
+        recs = []
+        for k, ((r0, d0), (vr, vd)) in enumerate(targets):
+            r, d = r0 + vr*c, d0 + vd*c
+            truth.append((c, k, r, d))
+            if (c, k) in drop:
+                continue
+            recs.append((int(round((r + prng.uniform(-0.1, 0.1))*(1 << F))), int(round((d + prng.uniform(-0.1, 0.1))*(1 << F))), 20000 - 1000*k))
+        if false_alarms:                                                # Last in record order so
+            recs.append((prng.randint(30 << F, 60 << F), prng.randint(0, 15 << F), 5000))   # the targets
+        for r, d, v in recs:
+            beats.append({"range": r, "doppler": d, "data": v, "hit": 1, "first": int(n == 0), "last": 0})
+            n += 1
+        beats.append({"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
+    return beats, truth

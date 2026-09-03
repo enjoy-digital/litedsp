@@ -133,6 +133,7 @@ from litedsp.radar.doppler         import LiteDSPDopplerProcessor
 from litedsp.radar.cfar            import LiteDSPCACFAR
 from litedsp.radar.cfar_2d         import LiteDSPCFAR2D
 from litedsp.radar.detect          import LiteDSPPeakExtractor, LiteDSPTargetList
+from litedsp.radar.track           import LiteDSPAlphaBetaTracker
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -319,6 +320,7 @@ ENTRIES = [
     ("cfar_2d",            LiteDSPCFAR2D,                {},                                     "radar",      "2-D CA-CFAR detector",  {}),
     ("peak_extractor",     LiteDSPPeakExtractor,         {},                                     "radar",      "Peak extractor",        {}),
     ("target_list",        LiteDSPTargetList,            {},                                     "radar",      "Target list",           {}),
+    ("alpha_beta_tracker", LiteDSPAlphaBetaTracker,      {},                                     "radar",      "Alpha-beta tracker",    {}),
     ("doppler",            LiteDSPDopplerProcessor,      {},                                     "radar",      "Doppler processor",     {"window": ["rect", "hann", "hamming", "blackman"], "magnitude": ["approx", "power"]}),
     ("pulse_compressor",   LiteDSPPulseCompressor,       {},                                     "radar",      "Pulse compressor (chirp matched filter)", {"window": ["rect", "hann", "hamming", "blackman"], "fir_architecture": ["classic", "pipelined", "mac"]}),
     ("i2s_tx",             LiteDSPI2STransmitter,        {},                                     "audio",      "I2S transmitter",       {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["master", "slave"]}),

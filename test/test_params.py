@@ -122,6 +122,8 @@ SPECIFIC = [
     ("peak_extractor",  {"frac_bits": 0}),
     ("peak_extractor",  {"index_width": 3}),
     ("target_list",     {"max_targets": 1}),
+    ("alpha_beta_tracker", {"n_tracks": 17}),
+    ("alpha_beta_tracker", {"frac_bits": 9}),
 ]
 
 class TestParams(unittest.TestCase):

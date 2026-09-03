@@ -1333,6 +1333,17 @@ def spec_target_list():
         return list(models.target_list_model(c[0], c[1], c[2], c[3], max_targets=8)[0])
     return dut, [list(rng), list(dop), list(val), list(hit), list(first), list(last)], len(ref[0]) - 1, model, True, True
 
+def spec_alpha_beta_tracker():
+    from litedsp.radar.track import LiteDSPAlphaBetaTracker
+    dut = LiteDSPAlphaBetaTracker(with_csr=False)
+    dut.emit_tentative.reset = 1                                       # Every burst carries records.
+    beats, _ = models.tracker_scenario(n_cpi=12, seed=3)
+    cols = [[b[f] for b in beats] for f in ("range", "doppler", "data", "hit", "first", "last")]
+    ref, _ = models.alpha_beta_tracker_model(cols[0], cols[1], cols[3], emit_tentative=1)
+    def model(c):
+        return list(models.alpha_beta_tracker_model(c[0], c[1], c[3], emit_tentative=1)[0])
+    return dut, cols, len(ref[0]) - 1, model, True, True
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1522,6 +1533,7 @@ SPECS = {
     "cfar_2d_wide":     spec_cfar_2d_wide,
     "peak_extractor":   spec_peak_extractor,
     "target_list":      spec_target_list,
+    "alpha_beta_tracker": spec_alpha_beta_tracker,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,

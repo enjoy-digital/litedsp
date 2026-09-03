@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver, TrackerDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -313,6 +313,23 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual(drv.overflow, 1)
         drv.clear()
         self.assertEqual(regs["tl_control"].value, 1)
+
+    def test_tracker(self):
+        regs = {f"trk_{r}": MockCSR() for r in TrackerDriver.regs}
+        regs["trk_config"].value = 4 | (4 << 8) | (8 << 12) | (8 << 16)
+        drv = TrackerDriver(MockBus(regs), "trk")
+        drv.set_gains(0.5, 0.15)
+        self.assertEqual(regs["trk_gains"].value, 128 | (38 << 16))
+        drv.set_gates(2.0, 1.5)
+        self.assertEqual(regs["trk_gates"].value, 32 | (24 << 16))
+        drv.set_confirm(3, 2, emit_tentative=True)
+        self.assertEqual(regs["trk_control"].value, 3 | (2 << 4) | (1 << 8))
+        regs["trk_status"].value = 3 | (2 << 8)
+        self.assertEqual((drv.active, drv.confirmed), (3, 2))
+        from litedsp.radar.design import alpha_beta_from_index
+        a, b = alpha_beta_from_index(0.5)
+        drv.set_tracking_index(0.5)
+        self.assertEqual(regs["trk_gains"].value, int(round(a*256)) | (int(round(b*256)) << 16))
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

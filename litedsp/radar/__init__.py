@@ -32,3 +32,4 @@ from litedsp.radar.doppler  import LiteDSPDopplerProcessor
 from litedsp.radar.cfar     import LiteDSPCACFAR
 from litedsp.radar.cfar_2d  import LiteDSPCFAR2D
 from litedsp.radar.detect   import LiteDSPPeakExtractor, LiteDSPTargetList
+from litedsp.radar.track    import LiteDSPAlphaBetaTracker

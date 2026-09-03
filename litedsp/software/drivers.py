@@ -864,6 +864,43 @@ class TargetListDriver(Driver):
     def clear(self):
         self.control.write(1)
 
+class TrackerDriver(Driver):
+    """Alpha-beta tracker gains, gates and confirmation rules in bin units."""
+    regs = ("gains", "gates", "control", "status", "config", "dropped", "cpi_count")
+
+    @property
+    def _fracs(self):
+        cfg = self.config.read()
+        return (cfg >> 8) & 0xF, (cfg >> 16) & 0xF                    # (frac_bits, gain_frac).
+
+    def set_gains(self, alpha, beta):
+        _, gf = self._fracs
+        a = max(0, min((1 << gf), int(round(alpha*(1 << gf)))))
+        b = max(0, min((1 << gf), int(round(beta*(1 << gf)))))
+        self.gains.write(a | (b << 16))
+
+    def set_tracking_index(self, lam):
+        from litedsp.radar.design import alpha_beta_from_index
+        self.set_gains(*alpha_beta_from_index(lam))
+
+    def set_gates(self, range_bins, doppler_bins):
+        f, _ = self._fracs
+        self.gates.write(int(round(range_bins*(1 << f))) | (int(round(doppler_bins*(1 << f))) << 16))
+
+    def set_confirm(self, confirm_hits, max_misses, emit_tentative=False):
+        self.control.write((int(confirm_hits) & 0xF) | ((int(max_misses) & 0xF) << 4) | (int(bool(emit_tentative)) << 8))
+
+    def clear(self):
+        self.control.write(self.control.read() | (1 << 9))
+
+    @property
+    def active(self):
+        return self.status.read() & 0x1F
+
+    @property
+    def confirmed(self):
+        return (self.status.read() >> 8) & 0x1F
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -894,6 +931,7 @@ TYPED = {
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
     "target_list":   TargetListDriver,
+    "alpha_beta_tracker": TrackerDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -902,7 +940,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, TargetListDriver, TrackerDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

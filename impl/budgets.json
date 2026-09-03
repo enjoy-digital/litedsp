@@ -70,6 +70,20 @@
       }
     }
   },
+  "alpha_beta_tracker": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 8,
+      "ff": 981,
+      "lut": 2507,
+      "synth": {
+        "bram": 0,
+        "dsp": 8,
+        "ff": 981,
+        "lut": 2507
+      }
+    }
+  },
   "angle_ramp": {
     "ecp5": {
       "bram": 0,

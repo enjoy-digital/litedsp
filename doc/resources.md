@@ -7,6 +7,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | module | ECP5 (Yosys/nextpnr) LUT/FF/BRAM/DSP/Fmax floor/target | Artix-7 (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target | Artix UltraScale+ (Vivado) LUT/FF/BRAM/DSP/Fmax floor/target |
 |---|---|---|---|
 | `agc` | 390/126/0/4/113.8/100.0 | 231/126/0/2/114.7/100.0 | 203/122/0/2/246.6/100.0 |
+| `alpha_beta_tracker` | 2507/981/0/8/- | - | - |
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |
