@@ -1410,6 +1410,20 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def _spec_angle_mod(mode):
+    from litedsp.comm.fm_mod import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
+    n = 300
+    dut = (LiteDSPFrequencyModulator if mode == "fm" else LiteDSPPhaseModulator)(with_csr=False)
+    dut.phase_inc.reset, dut.deviation.reset = 0x0123_4567, 0xC000_0000   # Large deviation: wraps.
+    cols = _rand_cols(1, n)                                              # Full scale, negatives.
+    return dut, cols, n - 2, lambda c: list(models.angle_modulator_model(c[0], mode, 0x0123_4567, 0xC000_0000))
+
+def spec_fm_modulator():
+    return _spec_angle_mod("fm")
+
+def spec_pm_modulator():
+    return _spec_angle_mod("pm")
+
 def spec_pixel_histogram():
     from litedsp.image.histogram import LiteDSPPixelHistogram
     w, h, bl = 16, 8, 4
@@ -1900,6 +1914,8 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "fm_modulator":     spec_fm_modulator,
+    "pm_modulator":     spec_pm_modulator,
     "pixel_histogram":  spec_pixel_histogram,
     "alpha_blend":      spec_alpha_blend,
     "mask_blend":       spec_mask_blend,

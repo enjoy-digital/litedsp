@@ -99,6 +99,7 @@ from litedsp.stream.route         import LiteDSPTDMMux, LiteDSPTDMDemux
 from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitter
+from litedsp.comm.fm_mod          import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
 from litedsp.radar.timing         import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress       import LiteDSPPulseCompressor
 from litedsp.radar.mti            import LiteDSPMTICanceller
@@ -806,6 +807,14 @@ def i2s_tx():
     d = LiteDSPI2STransmitter(data_width=24, with_csr=False)
     return d, {d.bclk, d.lrck, d.sdata, d.enable, d.clear, d.underrun} | _eps(d.sink), 10.0
 
+def fm_modulator():
+    d = LiteDSPFrequencyModulator(with_csr=False)
+    return d, {d.phase_inc, d.deviation} | _eps(d.sink, d.source), 10.0
+
+def pm_modulator():
+    d = LiteDSPPhaseModulator(with_csr=False)
+    return d, {d.phase_inc, d.deviation} | _eps(d.sink, d.source), 10.0
+
 def pixel_pattern():
     d = LiteDSPPixelPattern(with_csr=False)
     return d, {d.mode, d.width, d.height, *d.const, d.enable, d.trigger, d.busy, d.frames} | _eps(d.source), 10.0
@@ -1060,7 +1069,7 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
-    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "pixel_pack": pixel_pack, "line_buffer": line_buffer, "line_buffer_5x5_rgb": line_buffer_5x5_rgb, "pixel_fifo": pixel_fifo, "pixel_stats": pixel_stats, "pixel_histogram": pixel_histogram, "alpha_blend": alpha_blend, "box_overlay": box_overlay, "pixel_lut": pixel_lut, "color_matrix": color_matrix, "debayer": debayer, "downscaler": downscaler, "crop": crop, "sobel": sobel, "rank_filter": rank_filter, "threshold": threshold, "pixel_gain": pixel_gain, "kernel_2d": kernel_2d, "kernel_5x5": kernel_5x5, "kernel_2d_rgb": kernel_2d_rgb, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
+    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "fm_modulator": fm_modulator, "pm_modulator": pm_modulator, "pixel_pack": pixel_pack, "line_buffer": line_buffer, "line_buffer_5x5_rgb": line_buffer_5x5_rgb, "pixel_fifo": pixel_fifo, "pixel_stats": pixel_stats, "pixel_histogram": pixel_histogram, "alpha_blend": alpha_blend, "box_overlay": box_overlay, "pixel_lut": pixel_lut, "color_matrix": color_matrix, "debayer": debayer, "downscaler": downscaler, "crop": crop, "sobel": sobel, "rank_filter": rank_filter, "threshold": threshold, "pixel_gain": pixel_gain, "kernel_2d": kernel_2d, "kernel_5x5": kernel_5x5, "kernel_2d_rgb": kernel_2d_rgb, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
     "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker, "beamformer": beamformer, "beamformer_4beams": beamformer_4beams, "monopulse": monopulse, "tvg": tvg,
 }
 

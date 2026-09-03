@@ -86,6 +86,19 @@ def rrc_coefficients(sps, span, beta, data_width=16, gain=1.0):
     h = gain*h/np.sqrt(np.sum(h**2))
     return quantize(h, data_width - 1, data_width)
 
+def gaussian_coefficients(sps=4, span=4, bt=0.3, data_width=16, gain=1.0):
+    """Gaussian pulse-shaping taps (GMSK / GFSK frequency pulse) at ``sps`` samples per symbol
+    over ``span`` symbols with bandwidth-time product ``bt``, unity DC gain (times ``gain``),
+    quantised to signed ``data_width`` with the library's ``quantize``."""
+    if sps < 1 or span < 1 or not (0.0 < bt <= 1.0):
+        raise ValueError("expected sps >= 1, span >= 1 and 0 < bt <= 1")
+    n = sps*span + 1
+    t = (np.arange(n) - (n - 1)/2)/sps
+    sigma = np.sqrt(np.log(2))/(2*np.pi*bt)
+    h = np.exp(-t**2/(2*sigma**2))
+    h = h/h.sum()*gain
+    return quantize(h, data_width - 1, data_width)
+
 def hilbert_coefficients(n_taps, window="hamming", data_width=16):
     """Type-III Hilbert transformer FIR (antisymmetric, even taps zero). Odd ``n_taps``."""
     check(n_taps % 2 == 1, "Hilbert FIR length must be odd.")

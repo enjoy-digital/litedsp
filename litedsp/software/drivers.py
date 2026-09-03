@@ -73,6 +73,22 @@ class NCODriver(Driver):
     def get_frequency(self):
         return freq_from_phase_inc(self.phase_inc.read(), self.clk_freq, self.phase_bits)
 
+class FMModulatorDriver(NCODriver):
+    """FM modulator: carrier in Hz (NCODriver) plus the peak deviation in Hz."""
+    regs = ("phase_inc", "deviation")
+
+    def set_deviation(self, freq):
+        assert self.clk_freq is not None, "clk_freq required"
+        self.deviation.write(phase_inc_from_freq(freq, self.clk_freq, self.phase_bits))
+
+class PhaseModulatorDriver(NCODriver):
+    """PM modulator: carrier in Hz plus the peak phase deviation in radians."""
+    regs = ("phase_inc", "deviation")
+
+    def set_deviation(self, radians):
+        import math
+        self.deviation.write(int(round(radians/(2*math.pi)*(1 << self.phase_bits))) & ((1 << self.phase_bits) - 1))
+
 class CaptureDriver(Driver):
     """Scope-like Capture block: trigger and status."""
     regs = ("threshold", "force", "status")
@@ -1256,6 +1272,7 @@ class BoxOverlayDriver(Driver):
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
+    "fm_modulator": FMModulatorDriver, "pm_modulator": PhaseModulatorDriver,
     "capture":  CaptureDriver,
     "csr_sink": CSRReaderDriver,
     "squelch":  SquelchDriver,
@@ -1306,7 +1323,7 @@ TYPED = {
 
 # Discovery ----------------------------------------------------------------------------------------
 
-DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
+DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,

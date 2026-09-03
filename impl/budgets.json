@@ -2979,6 +2979,20 @@
       }
     }
   },
+  "fm_modulator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 91,
+      "lut": 706,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 91,
+        "lut": 706
+      }
+    }
+  },
   "foc": {
     "ecp5": {
       "bram": 0,
@@ -5476,6 +5490,20 @@
         "dsp": 0,
         "ff": 40,
         "lut": 66
+      }
+    }
+  },
+  "pm_modulator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 91,
+      "lut": 727,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 91,
+        "lut": 727
       }
     }
   },

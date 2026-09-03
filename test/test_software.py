@@ -8,7 +8,7 @@
 
 import unittest
 
-from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, discover,
+from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, phase_inc_from_freq, freq_from_phase_inc, discover,
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
@@ -264,6 +264,19 @@ class TestAudioDrivers(unittest.TestCase):
         lu.read_hop()
         self.assertAlmostEqual(lu.momentary(), -17.68, places=2)
         self.assertAlmostEqual(lu.integrated(), -17.68, places=2)
+
+class TestCommExtraDrivers(unittest.TestCase):
+    def test_angle_modulators(self):
+        import math
+        regs = {f"fm_{r}": MockCSR() for r in FMModulatorDriver.regs}
+        drv  = FMModulatorDriver(MockBus(regs), "fm", clk_freq=1e6)
+        drv.set_frequency(100e3)
+        drv.set_deviation(5e3)
+        self.assertEqual(regs["fm_phase_inc"].value, int(round(100e3/1e6*2**32)))
+        self.assertEqual(regs["fm_deviation"].value, int(round(5e3/1e6*2**32)))
+        regs = {f"pm_{r}": MockCSR() for r in PhaseModulatorDriver.regs}
+        PhaseModulatorDriver(MockBus(regs), "pm", clk_freq=1e6).set_deviation(math.pi/2)
+        self.assertEqual(regs["pm_deviation"].value, 1 << 30)
 
 class TestRadarDrivers(unittest.TestCase):
     def test_range_gate(self):

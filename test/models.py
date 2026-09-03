@@ -3714,3 +3714,30 @@ def box_overlay_model(img, boxes, thickness=1):
                     out[y, x] = color
                     break
     return out
+
+def angle_modulator_model(x, mode="fm", phase_inc=0, deviation=0, phase_bits=32, data_width=16, lut_depth=1024):
+    """Bit-exact reference for litedsp.comm.fm_mod (FM / PM): ``mod = rounded(x * deviation,
+    dw - 1)``; FM accumulates ``phase_inc + mod`` per sample, PM adds ``mod`` to the carrier phase;
+    cos / sin from the NCO tables addressed by the top bits."""
+    addr_bits = int(round(np.log2(lut_depth)))
+    cos_t, sin_t = nco_lut(lut_depth, data_width)
+    mask = (1 << phase_bits) - 1
+    phase = 0
+    oi, oq = [], []
+    for v in x:
+        mod = _rnd(int(v)*int(deviation), data_width - 1)
+        if mode == "fm":
+            phase = (phase + int(phase_inc) + mod) & mask
+            addr_phase = phase
+        else:
+            phase = (phase + int(phase_inc)) & mask
+            addr_phase = (phase + mod) & mask
+        addr = addr_phase >> (phase_bits - addr_bits)
+        oi.append(int(cos_t[addr])); oq.append(int(sin_t[addr]))
+    return np.array(oi, np.int64), np.array(oq, np.int64)
+
+def fm_modulator_model(x, phase_inc=0, deviation=0, phase_bits=32, data_width=16, lut_depth=1024):
+    return angle_modulator_model(x, "fm", phase_inc, deviation, phase_bits, data_width, lut_depth)
+
+def pm_modulator_model(x, phase_inc=0, deviation=0, phase_bits=32, data_width=16, lut_depth=1024):
+    return angle_modulator_model(x, "pm", phase_inc, deviation, phase_bits, data_width, lut_depth)
