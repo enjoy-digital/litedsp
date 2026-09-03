@@ -110,6 +110,7 @@ from litedsp.radar.cfar_2d        import LiteDSPCFAR2D
 from litedsp.radar.detect         import LiteDSPPeakExtractor, LiteDSPTargetList
 from litedsp.radar.track          import LiteDSPAlphaBetaTracker
 from litedsp.radar.kalman         import LiteDSPKalmanTracker
+from litedsp.radar.beamform       import LiteDSPBeamformer, LiteDSPMonopulse
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -827,6 +828,20 @@ def kalman_tracker():
     return d, {d.q, d.r, d.p_vel0, d.cov_sat, d.clear_sat, d.gate_r, d.gate_d, d.confirm_hits, d.max_misses, d.emit_tentative,
                d.clear, d.active, d.confirmed, d.dropped, d.cpi_count, d.cpi_done} | _eps(d.sink, d.source), 10.0
 
+def beamformer():
+    d = LiteDSPBeamformer(with_csr=False)
+    ports = {d.weight_index, d.weight_re, d.weight_im, d.weight_we, d.commit, d.commit_pending, d.saturated, d.clear} | _eps(d.source, *d.sinks)
+    return d, ports, 10.0
+
+def beamformer_4beams():
+    d = LiteDSPBeamformer(n_beams=4, with_csr=False)
+    ports = {d.weight_index, d.weight_re, d.weight_im, d.weight_we, d.commit, d.commit_pending, d.saturated, d.clear} | _eps(d.source, *d.sinks)
+    return d, ports, 10.0
+
+def monopulse():
+    d = LiteDSPMonopulse(with_csr=False)
+    return d, _eps(d.sink_a, d.sink_b, d.source), 10.0
+
 def alpha_beta_tracker():
     d = LiteDSPAlphaBetaTracker(with_csr=False)
     return d, {d.alpha, d.beta, d.gate_r, d.gate_d, d.confirm_hits, d.max_misses, d.emit_tentative, d.clear, d.active,
@@ -916,7 +931,7 @@ REGISTRY = {
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
     "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
-    "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker,
+    "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker, "beamformer": beamformer, "beamformer_4beams": beamformer_4beams, "monopulse": monopulse,
 }
 
 # Subset for the slower full place-&-route flows.

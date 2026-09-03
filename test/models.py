@@ -3308,3 +3308,28 @@ def kalman_tracker_model(rng, dop, hit, n_tracks=4, q=13, r=128, p_vel0=1024, ga
         stats["cpi_count"] += 1
     stats["gains"] = [t["gains"] for t in trk]
     return tuple(np.array(c, np.int64) for c in out), stats
+
+def beamformer_model(xs, weights, shift=14, data_width=16):
+    """Bit-exact reference for litedsp.radar.beamform.LiteDSPBeamformer: ``xs`` is a list of
+    ``(i, q)`` arrays per element, ``weights`` a list per beam of ``(re, im)`` integer lists per
+    element (signed Q(2).weight_frac); each sample yields the beams in order, ``y = scaled(sum_e
+    w * x, shift)``. Returns ``(i, q, channel)`` and the saturation flag."""
+    n = len(xs[0][0])
+    oi, oq, ch = [], [], []
+    sat = 0
+    for k in range(n):
+        for b, (wr, wi) in enumerate(weights):
+            si = sum(int(wr[e])*int(xs[e][0][k]) - int(wi[e])*int(xs[e][1][k]) for e in range(len(xs)))
+            sq = sum(int(wr[e])*int(xs[e][1][k]) + int(wi[e])*int(xs[e][0][k]) for e in range(len(xs)))
+            ri, rq = _rnd(si, shift), _rnd(sq, shift)
+            hi, lo = (1 << (data_width - 1)) - 1, -(1 << (data_width - 1))
+            sat |= int(ri > hi or ri < lo or rq > hi or rq < lo)
+            oi.append(max(lo, min(hi, ri))); oq.append(max(lo, min(hi, rq))); ch.append(b)
+    return (np.array(oi, np.int64), np.array(oq, np.int64), np.array(ch, np.int64)), sat
+
+def monopulse_model(a_i, a_q, b_i, b_q, data_width=16, angle_width=16, stages=None):
+    """Bit-exact reference for litedsp.radar.beamform.LiteDSPMonopulse: the down-conversion mixer
+    (``a * conj(b)``) followed by the vectoring CORDIC angle, per sample."""
+    mi, mq = mixer_model(a_i, a_q, b_i, b_q, "down", data_width)[:2]
+    return np.array([cordic_vectoring_model(int(x), int(y), data_width, angle_width, stages)
+                     for x, y in zip(mi, mq)], np.int64)

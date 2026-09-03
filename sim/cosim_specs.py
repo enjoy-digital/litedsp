@@ -1385,6 +1385,34 @@ def spec_kalman_tracker():
         return list(models.kalman_tracker_model(c[0], c[1], c[3], emit_tentative=1)[0])
     return dut, cols, len(ref[0]) - 1, model, True, True
 
+def _spec_beamformer(n_beams=1):
+    from litedsp.radar.beamform import LiteDSPBeamformer
+    from litedsp.radar.design   import steering_weights
+    N, n = 4, 200
+    dut  = LiteDSPBeamformer(n_elements=N, n_beams=n_beams, with_csr=False)
+    cols = _rand_cols(2*N, n, lo=-30000, hi=30000)
+    # Reset weights (broadside average) - the shadow / commit path is covered by the unit test.
+    w0 = int(round((1 << 14)/N))
+    weights = [([w0]*N, [0]*N)]*n_beams
+    def model(c):
+        xs = [(c[2*e], c[2*e + 1]) for e in range(N)]
+        (i, q, ch), _ = models.beamformer_model(xs, weights)
+        return [i, q] + ([ch] if n_beams > 1 else [])
+    return dut, cols, n_beams*n - 4, model
+
+def spec_beamformer():
+    return _spec_beamformer(1)
+
+def spec_beamformer_2beams():
+    return _spec_beamformer(2)
+
+def spec_monopulse():
+    from litedsp.radar.beamform import LiteDSPMonopulse
+    n    = 300
+    dut  = LiteDSPMonopulse(with_csr=False)
+    cols = _rand_cols(4, n, lo=-30000, hi=30000)
+    return dut, cols, n - 4, lambda c: [models.monopulse_model(c[0], c[1], c[2], c[3])]
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1578,6 +1606,9 @@ SPECS = {
     "target_list":      spec_target_list,
     "alpha_beta_tracker": spec_alpha_beta_tracker,
     "kalman_tracker":   spec_kalman_tracker,
+    "beamformer":       spec_beamformer,
+    "beamformer_2beams": spec_beamformer_2beams,
+    "monopulse":        spec_monopulse,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,
@@ -1637,6 +1668,7 @@ def check_coverage():
             "doppler_power":            "doppler",
             "ca_cfar_go":               "ca_cfar",
             "cfar_2d_wide":             "cfar_2d",
+            "beamformer_2beams":        "beamformer",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

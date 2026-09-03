@@ -11,6 +11,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |
+| `beamformer` | 1075/678/0/16/- | - | - |
+| `beamformer_4beams` | 1478/1453/0/16/- | - | - |
 | `bit_reverse` | 141/74/1/0/- | - | - |
 | `bitstream_decimator` | 677/240/0/0/- | - | - |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
@@ -105,6 +107,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `mixer` | 380/296/0/4/272.5 | 109/130/0/4/226.3 | 106/130/0/4/620.0 |
 | `mixer_parallel_x2` | 628/334/0/8/265.2 | 150/2/0/8/- | 115/2/0/8/558.8 |
 | `mixer_parallel_x4` | 1252/666/0/16/- | 294/2/0/16/- | 293/2/0/16/- |
+| `monopulse` | 1934/958/0/4/- | - | - |
 | `moving_average` | 238/93/0/0/147.7 | 207/91/0/0/- | 207/91/0/0/- |
 | `mti` | 688/191/2/0/- | - | - |
 | `nco` | 43/43/2/0/237.2 | 65/33/1/0/264.8 | 65/33/1/0/583.0 |

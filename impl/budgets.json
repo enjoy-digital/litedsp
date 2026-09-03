@@ -126,6 +126,34 @@
       }
     }
   },
+  "beamformer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 16,
+      "ff": 678,
+      "lut": 1075,
+      "synth": {
+        "bram": 0,
+        "dsp": 16,
+        "ff": 678,
+        "lut": 1075
+      }
+    }
+  },
+  "beamformer_4beams": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 16,
+      "ff": 1453,
+      "lut": 1478,
+      "synth": {
+        "bram": 0,
+        "dsp": 16,
+        "ff": 1453,
+        "lut": 1478
+      }
+    }
+  },
   "bit_reverse": {
     "ecp5": {
       "bram": 1,
@@ -4365,6 +4393,20 @@
         "dsp": 16,
         "ff": 2,
         "lut": 293
+      }
+    }
+  },
+  "monopulse": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 4,
+      "ff": 958,
+      "lut": 1934,
+      "synth": {
+        "bram": 0,
+        "dsp": 4,
+        "ff": 958,
+        "lut": 1934
       }
     }
   },

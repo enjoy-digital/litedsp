@@ -959,6 +959,33 @@ class KalmanTrackerDriver(TrackerDriver):
     def clear_cov_sat(self):
         self.cov.write(1)
 
+class BeamformerDriver(Driver):
+    """Load steering weights (host maths in ``litedsp.radar.design``) and commit them atomically."""
+    regs = ("weight_index", "weight", "control", "status", "config")
+
+    @property
+    def geometry(self):
+        cfg = self.config.read()
+        return cfg & 0x1F, (cfg >> 8) & 0xF, (cfg >> 16) & 0x1F         # (n_elements, n_beams, weight_frac).
+
+    def set_weights(self, beam, real, imag):
+        n, _, _ = self.geometry
+        for e, (re, im) in enumerate(zip(real, imag)):
+            self.weight_index.write(beam*n + e)
+            self.weight.write((int(re) & 0xFFFF) | ((int(im) & 0xFFFF) << 16))
+
+    def set_steering(self, beam, angle_deg, d_over_lambda=0.5, taper="rect"):
+        from litedsp.radar.design import steering_weights
+        n, _, wf = self.geometry
+        self.set_weights(beam, *steering_weights(n, angle_deg, d_over_lambda, taper, weight_frac=wf))
+
+    def commit(self):
+        self.control.write(1)
+
+    @property
+    def saturated(self):
+        return (self.status.read() >> 1) & 1
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -993,6 +1020,7 @@ TYPED = {
     "target_list":   TargetListDriver,
     "alpha_beta_tracker": TrackerDriver,
     "kalman_tracker": KalmanTrackerDriver,
+    "beamformer":    BeamformerDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -1001,7 +1029,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

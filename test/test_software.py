@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -332,6 +332,19 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual(drv.cov_sat, 1)
         drv.clear_cov_sat()
         self.assertEqual(regs["kt_cov"].value, 1)
+
+    def test_beamformer(self):
+        from litedsp.radar.design import steering_weights
+        regs = {f"bf_{r}": MockCSR() for r in BeamformerDriver.regs}
+        regs["bf_config"].value = 4 | (2 << 8) | (14 << 16)
+        drv = BeamformerDriver(MockBus(regs), "bf")
+        drv.set_steering(1, 20.0, 0.5, "hamming")
+        re, im = steering_weights(4, 20.0, 0.5, "hamming", weight_frac=14)
+        self.assertEqual(regs["bf_weight_index"].value, 1*4 + 3)
+        self.assertEqual(regs["bf_weight"].value, (re[3] & 0xFFFF) | ((im[3] & 0xFFFF) << 16))
+        self.assertEqual(len(regs["bf_weight"].writes), 4)
+        drv.commit()
+        self.assertEqual(regs["bf_control"].value, 1)
 
     def test_target_list(self):
         regs = {f"tl_{r}": MockCSR() for r in TargetListDriver.regs}

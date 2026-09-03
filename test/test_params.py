@@ -130,6 +130,8 @@ SPECIFIC = [
     ("alpha_beta_tracker", {"frac_bits": 9}),
     ("kalman_tracker",  {"cov_frac": 2}),
     ("kalman_tracker",  {"cov_width": 8}),
+    ("beamformer",      {"n_elements": 17}),
+    ("beamformer",      {"weight_frac": 16}),
 ]
 
 class TestParams(unittest.TestCase):

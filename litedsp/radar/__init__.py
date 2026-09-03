@@ -35,3 +35,4 @@ from litedsp.radar.detect   import LiteDSPPeakExtractor, LiteDSPTargetList
 from litedsp.radar.track    import LiteDSPAlphaBetaTracker
 from litedsp.radar.clutter  import LiteDSPClutterMap
 from litedsp.radar.kalman   import LiteDSPKalmanTracker
+from litedsp.radar.beamform import LiteDSPBeamformer, LiteDSPMonopulse
