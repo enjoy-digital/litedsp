@@ -1308,7 +1308,7 @@ TYPED = {
     "nco":      NCODriver,
     "fm_modulator": FMModulatorDriver, "pm_modulator": PhaseModulatorDriver, "am_modulator": AMModulatorDriver,
     "fsk_modulator": FSKModulatorDriver,
-    "hamming_decoder": FECDecoderDriver,
+    "hamming_decoder": FECDecoderDriver, "bch_decoder": FECDecoderDriver,
     "capture":  CaptureDriver,
     "csr_sink": CSRReaderDriver,
     "squelch":  SquelchDriver,

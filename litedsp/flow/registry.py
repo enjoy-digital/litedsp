@@ -134,6 +134,7 @@ from litedsp.comm.line_code        import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming          import LiteDSPHammingEncoder, LiteDSPHammingDecoder
 from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
 from litedsp.comm.hdlc             import LiteDSPHDLCFramer, LiteDSPHDLCDeframer
+from litedsp.comm.bch              import LiteDSPBCHEncoder, LiteDSPBCHDecoder
 from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
@@ -361,6 +362,8 @@ ENTRIES = [
     ("convolutional_deinterleaver", LiteDSPConvolutionalDeinterleaver, {},                         "comm",       "Convolutional deinterleaver", {}),
     ("hdlc_framer",        LiteDSPHDLCFramer,            {},                                     "comm",       "HDLC framer",           {}),
     ("hdlc_deframer",      LiteDSPHDLCDeframer,          {},                                     "comm",       "HDLC deframer",         {}),
+    ("bch_encoder",        LiteDSPBCHEncoder,            {},                                     "comm",       "BCH encoder",           {"m": [4, 5, 6, 7, 8], "t": [1, 2, 3, 4]}),
+    ("bch_decoder",        LiteDSPBCHDecoder,            {},                                     "comm",       "BCH decoder",           {"m": [4, 5, 6, 7, 8], "t": [1, 2, 3, 4]}),
     ("pm_modulator",       LiteDSPPhaseModulator,        {},                                     "comm",       "Phase modulator",       {}),
     ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),

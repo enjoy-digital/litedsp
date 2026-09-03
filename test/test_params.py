@@ -143,6 +143,7 @@ SPECIFIC = [
     ("line_encoder",    {"code": "rz"}),
     ("hamming_encoder", {"m": 2}),
     ("hdlc_framer",     {"preamble": 0}),
+    ("bch_encoder",     {"m": 4, "t": 8}),
     ("convolutional_interleaver", {"branches": 1}),
     ("pixel_pattern",   {"mode": "noise"}),
     ("pixel_pack",      {"format": "yuyv"}),

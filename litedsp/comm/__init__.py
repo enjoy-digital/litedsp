@@ -38,3 +38,4 @@ from litedsp.comm.line_code import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming import LiteDSPHammingEncoder, LiteDSPHammingDecoder
 from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
 from litedsp.comm.hdlc import LiteDSPHDLCFramer, LiteDSPHDLCDeframer
+from litedsp.comm.bch import LiteDSPBCHEncoder, LiteDSPBCHDecoder

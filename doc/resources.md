@@ -13,6 +13,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |
+| `bch_decoder` | 1329/379/0/0/- | - | - |
+| `bch_encoder` | 114/61/0/0/- | - | - |
 | `beamformer` | 1075/678/0/16/- | - | - |
 | `beamformer_4beams` | 1478/1453/0/16/- | - | - |
 | `bit_reverse` | 141/74/1/0/- | - | - |

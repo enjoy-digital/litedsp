@@ -1410,6 +1410,35 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def spec_bch_encoder():
+    from litedsp.comm.bch import LiteDSPBCHEncoder
+    blocks = 20
+    dut = LiteDSPBCHEncoder(m=4, t=2, with_csr=False)
+    cols = _rand_cols(1, blocks*dut.k, lo=0, hi=1)
+    return dut, cols, blocks*dut.n - 2, lambda c: list(models.bch_encode_model(c[0], 4, 2)), False, True
+
+def _spec_bch_decoder(m, t, blocks):
+    from litedsp.comm.bch import LiteDSPBCHDecoder
+    dut = LiteDSPBCHDecoder(m=m, t=t, with_csr=False)
+    prng = random.Random(28)
+    bits = [prng.randint(0, 1) for _ in range(blocks*dut.k)]
+    cw = models.bch_encode_model(bits, m, t)[0].tolist()
+    n, k = dut.n, dut.k
+    for b in range(blocks):                                          # 0 .. t + 1 errors per block.
+        for p in prng.sample(range(n), b % (t + 2)):
+            cw[b*n + p] ^= 1
+    def model(c):
+        data, _ = models.bch_decode_model(c[0], m, t)
+        nb = len(data)//k
+        return [data, np.array([int(i % k == 0) for i in range(nb*k)]), np.array([int(i % k == k - 1) for i in range(nb*k)])]
+    return dut, [cw], blocks*k - 2, model, False, True
+
+def spec_bch_decoder():
+    return _spec_bch_decoder(4, 2, 20)
+
+def spec_bch_decoder_63_45():
+    return _spec_bch_decoder(6, 3, 6)
+
 def spec_hdlc_framer():
     from litedsp.comm.hdlc import LiteDSPHDLCFramer
     dut = LiteDSPHDLCFramer(preamble=1, with_csr=False)
@@ -2061,6 +2090,9 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "bch_encoder":      spec_bch_encoder,
+    "bch_decoder":      spec_bch_decoder,
+    "bch_decoder_63_45": spec_bch_decoder_63_45,
     "hdlc_framer":      spec_hdlc_framer,
     "hdlc_deframer":    spec_hdlc_deframer,
     "convolutional_interleaver":   spec_convolutional_interleaver,
@@ -2169,6 +2201,7 @@ def check_coverage():
             "am_modulator_nco":         "am_modulator",
             "fsk_modulator_rect":       "fsk_modulator",
             "hamming_decoder_secded":   "hamming_decoder",
+            "bch_decoder_63_45":        "bch_decoder",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

@@ -154,6 +154,34 @@
       }
     }
   },
+  "bch_decoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 379,
+      "lut": 1329,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 379,
+        "lut": 1329
+      }
+    }
+  },
+  "bch_encoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 61,
+      "lut": 114,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 61,
+        "lut": 114
+      }
+    }
+  },
   "beamformer": {
     "ecp5": {
       "bram": 0,

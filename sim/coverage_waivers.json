@@ -326,5 +326,26 @@
       "test.test_hdlc:TestHDLC.test_round_trip",
       "test.test_hdlc:TestHDLC.test_errors_and_abort"
     ]
+  },
+  "bch_encoder": {
+    "reason": "The cosim runs 20 / 6 blocks with 0 .. t+1 errors; the Berlekamp-Massey and Chien arms that depend on the error pattern (discrepancy-zero steps, degree changes, the root-count check) are exercised by the unit tests: exhaustive <= t errors on (15,7) in the model, RTL bit-exact against it on (15,7) and (31,21) blocks carrying 0 .. t+1 errors with the counters.",
+    "semantic_checks": [
+      "test.test_bch:TestBCHRTL.test_rtl",
+      "test.test_bch:TestBCHModels.test_models"
+    ]
+  },
+  "bch_decoder": {
+    "reason": "The cosim runs 20 / 6 blocks with 0 .. t+1 errors; the Berlekamp-Massey and Chien arms that depend on the error pattern (discrepancy-zero steps, degree changes, the root-count check) are exercised by the unit tests: exhaustive <= t errors on (15,7) in the model, RTL bit-exact against it on (15,7) and (31,21) blocks carrying 0 .. t+1 errors with the counters.",
+    "semantic_checks": [
+      "test.test_bch:TestBCHRTL.test_rtl",
+      "test.test_bch:TestBCHModels.test_models"
+    ]
+  },
+  "bch_decoder_63_45": {
+    "reason": "The cosim runs 20 / 6 blocks with 0 .. t+1 errors; the Berlekamp-Massey and Chien arms that depend on the error pattern (discrepancy-zero steps, degree changes, the root-count check) are exercised by the unit tests: exhaustive <= t errors on (15,7) in the model, RTL bit-exact against it on (15,7) and (31,21) blocks carrying 0 .. t+1 errors with the counters.",
+    "semantic_checks": [
+      "test.test_bch:TestBCHRTL.test_rtl",
+      "test.test_bch:TestBCHModels.test_models"
+    ]
   }
 }
