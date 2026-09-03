@@ -40,7 +40,8 @@ Rules that every block in the family shares:
   frame edges: `first` clears the window and, after `last`, the trailing cells are pushed out by
   autonomous flush beats with `sink.ready` low. The output therefore has exactly one beat per
   input cell with the same framing; the rate stays 1:1 but the throughput is `M / (M + C)` for
-  the 2-D CFAR (C virtual cells per row).
+  the 2-D CFAR (C virtual cells per row). The padded edges (and an MTI notch column) see small
+  training sums: set the runtime `threshold_min` floor a few times above the noise level.
 - **Pulse-compressor alignment.** The two complex FIRs do not carry tags; the compressor
   re-aligns `first`/`last` through a shift register, so range bin r of pulse p leaves at position
   r of output frame p. The first P-1 positions of a frame hold the fold-over of the previous
@@ -75,8 +76,8 @@ has one, so a mixed 16-bit I/Q / 17-bit cell chain sets `data_width` per block i
 | `LiteDSPCornerTurn` | `corner_turn` | N x M x 2dw ping-pong RAM: fast-time frames in, slow-time columns out, `frame_error` | `filled` status |
 | `LiteDSPBitReverse` (`analysis/`) | `bit_reverse` | N-beat frame reorder (bit-reversed FFT output to natural order), skips the SDF FFT's fill beats | any payload layout |
 | `LiteDSPDopplerProcessor` | `doppler` | window -> scaled FFT over the M pulses -> magnitude (`approx`) or power -> natural order | Hann sidelobes <= -25 dB in the tests |
-| `LiteDSPCACFAR` | `ca_cfar` | 1-D cell averaging with guard cells, CA / GO / SO statistic, threshold and decision | `CFARDriver.set_pfa(pfa, domain)` |
-| `LiteDSPCFAR2D` | `cfar_2d` | 2-D box CFAR on map rows: line buffer (4 read ports, replicated by synthesis) + column-sum RAMs + horizontal window | throughput M / (M + C) |
+| `LiteDSPCACFAR` | `ca_cfar` | 1-D cell averaging with guard cells, CA / GO / SO statistic, threshold (floored at `threshold_min`) and decision | `CFARDriver.set_pfa(pfa, domain)`, `set_floor` |
+| `LiteDSPCFAR2D` | `cfar_2d` | 2-D box CFAR on map rows: line buffer (4 read ports, replicated by synthesis) + column-sum RAMs + horizontal window, `threshold_min` floor | throughput M / (M + C) |
 | `LiteDSPPeakExtractor` | `peak_extractor` | 3x3 local maxima of the detections, parabolic sub-bin interpolation (bit-serial divider), target bursts, IRQ per CPI | plateaus give one record |
 | `LiteDSPTargetList` | `target_list` | ping-pong list of `max_targets` records with overflow flag, re-emitted framed, CSR readback | `TargetListDriver.read_targets()` |
 | `LiteDSPAlphaBetaTracker` | `alpha_beta_tracker` | gated nearest-neighbour association + alpha-beta filter per track, confirmation / coasting / deletion, track bursts, IRQ per update | `TrackerDriver.set_tracking_index(lam)` |
