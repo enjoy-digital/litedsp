@@ -25,7 +25,7 @@ class TestCoverageWaivers(unittest.TestCase):
             "sigma_delta_filter", "smo_observer", "foc", "reverb", "compressor_limiter",
             # Radar composites (nested FIR / window / FFT / magnitude / reorder arms).
             "pulse_compressor", "pulse_compressor_hamming", "pulse_compressor_mac", "doppler",
-            "doppler_power", "monopulse", "beamformer", "beamformer_2beams", "tvg",
+            "doppler_power", "monopulse", "beamformer", "beamformer_2beams", "tvg", "pixel_pattern",
         })
         self.assertGreaterEqual(len(waivers["ldpc_decoder"]["semantic_checks"]), 5)
 
