@@ -301,5 +301,23 @@
       "test.test_line_code:TestLineCodes.test_codes",
       "test.test_line_code:TestLineCodes.test_violations_and_invert"
     ]
+  },
+  "hamming_encoder": {
+    "reason": "The cosim streams 40 blocks with 0 / 1 / 2 injected errors; the exhaustive codebook, single- and double-error paths and the status counters are covered by the unit tests (minimum distance, every single error corrected, every SECDED double error detected, RTL bit-exact with the counters).",
+    "semantic_checks": [
+      "test.test_hamming:TestHamming.test_codes"
+    ]
+  },
+  "hamming_decoder": {
+    "reason": "The cosim streams 40 blocks with 0 / 1 / 2 injected errors; the exhaustive codebook, single- and double-error paths and the status counters are covered by the unit tests (minimum distance, every single error corrected, every SECDED double error detected, RTL bit-exact with the counters).",
+    "semantic_checks": [
+      "test.test_hamming:TestHamming.test_codes"
+    ]
+  },
+  "hamming_decoder_secded": {
+    "reason": "The cosim streams 40 blocks with 0 / 1 / 2 injected errors; the exhaustive codebook, single- and double-error paths and the status counters are covered by the unit tests (minimum distance, every single error corrected, every SECDED double error detected, RTL bit-exact with the counters).",
+    "semantic_checks": [
+      "test.test_hamming:TestHamming.test_codes"
+    ]
   }
 }
