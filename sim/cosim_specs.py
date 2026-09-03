@@ -1413,6 +1413,22 @@ def spec_monopulse():
     cols = _rand_cols(4, n, lo=-30000, hi=30000)
     return dut, cols, n - 4, lambda c: [models.monopulse_model(c[0], c[1], c[2], c[3])]
 
+def spec_tvg():
+    from litedsp.radar.sonar  import LiteDSPTVG
+    from litedsp.radar.design import tvg_coefficients
+    N, n_frames = 64, 4
+    n   = N*n_frames
+    dut = LiteDSPTVG(n_range_bins=N, with_csr=False)
+    g0, k_log, k_lin = tvg_coefficients(30.0, 0.05, -3.0)
+    dut.g0.reset, dut.k_log.reset, dut.k_lin.reset = g0, k_log, k_lin
+    cols  = _rand_cols(2, n, lo=-3000, hi=3000)
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    def model(c):
+        i, q = models.tvg_model(c[0], c[1], c[2], N, g0, k_log, k_lin)
+        return [i, q, c[2], c[3]]
+    return dut, cols + [first, last], n - 8, model, True, True
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1609,6 +1625,7 @@ SPECS = {
     "beamformer":       spec_beamformer,
     "beamformer_2beams": spec_beamformer_2beams,
     "monopulse":        spec_monopulse,
+    "tvg":              spec_tvg,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,

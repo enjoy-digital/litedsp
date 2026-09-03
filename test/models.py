@@ -3333,3 +3333,29 @@ def monopulse_model(a_i, a_q, b_i, b_q, data_width=16, angle_width=16, stages=No
     mi, mq = mixer_model(a_i, a_q, b_i, b_q, "down", data_width)[:2]
     return np.array([cordic_vectoring_model(int(x), int(y), data_width, angle_width, stages)
                      for x, y in zip(mi, mq)], np.int64)
+
+def tvg_model(i, q, first, n_range_bins=1024, g0=0, k_log=0, k_lin=0, gain_frac=8, max_gain_log2=8, data_width=16,
+    bypass=0):
+    """Bit-exact reference for litedsp.radar.sonar.LiteDSPTVG: range counter (restarted by
+    ``first``, held at the last bin), log2 ROM, clamped log-domain ramp, Exp2 (Q.14 gain) and
+    the scaled product (or the plain sample with ``bypass``). Returns ``(i, q)``."""
+    import math
+    N, GF = n_range_bins, gain_frac
+    GW = GF + max_gain_log2 + 1
+    OF = 14
+    rom = [0] + [int(round(math.log2(r)*(1 << GF))) for r in range(1, N)]
+    hi, lo = (1 << (GW - 1)) - 1, -(1 << (GW - 1))
+    r = 0
+    oi, oq = [], []
+    for k in range(len(i)):
+        if first[k]:
+            r = 0
+        g  = int(g0) + _rnd(rom[r]*int(k_log), GF) + r*int(k_lin)
+        g  = max(lo, min(hi, g))
+        gain = int(exp2_model(np.array([g]), GW, GF, OF, OF + max_gain_log2 + 1)[0])
+        if bypass:
+            oi.append(int(i[k])); oq.append(int(q[k]))
+        else:
+            oi.append(_sat(_rnd(int(i[k])*gain, OF), data_width)); oq.append(_sat(_rnd(int(q[k])*gain, OF), data_width))
+        r = 1 if first[k] else min(N - 1, r + 1)
+    return np.array(oi, np.int64), np.array(oq, np.int64)

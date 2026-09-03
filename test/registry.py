@@ -198,6 +198,7 @@ VSPEC = {
     "kalman_tracker":     _v("kalman_tracker_model", latency="variable", cosim=True),
     "beamformer":         _v("beamformer_model", latency=3, cosim=True),
     "monopulse":          _v("monopulse_model", latency=21, cosim=True),
+    "tvg":                _v("tvg_model", latency=6, cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

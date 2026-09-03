@@ -986,6 +986,27 @@ class BeamformerDriver(Driver):
     def saturated(self):
         return (self.status.read() >> 1) & 1
 
+class TVGDriver(Driver):
+    """Time-varying gain law in dB (spreading loss per decade, absorption per bin, offset)."""
+    regs = ("g0", "k_log", "k_lin", "control", "status", "config")
+
+    @property
+    def gain_frac(self):
+        return self.config.read() & 0xF
+
+    def set_law(self, db_per_decade=40.0, alpha_db_per_bin=0.0, g0_db=0.0):
+        from litedsp.radar.design import tvg_coefficients
+        g0, k_log, k_lin = tvg_coefficients(db_per_decade, alpha_db_per_bin, g0_db, gain_frac=self.gain_frac)
+        mask = 0xFFFFFFFF
+        self.g0.write(g0 & mask); self.k_log.write(k_log & mask); self.k_lin.write(k_lin & mask)
+
+    def set_bypass(self, bypass=True):
+        self.control.write(int(bool(bypass)))
+
+    @property
+    def saturated(self):
+        return self.status.read() & 1
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -1021,6 +1042,7 @@ TYPED = {
     "alpha_beta_tracker": TrackerDriver,
     "kalman_tracker": KalmanTrackerDriver,
     "beamformer":    BeamformerDriver,
+    "tvg":           TVGDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -1029,7 +1051,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

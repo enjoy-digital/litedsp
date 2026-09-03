@@ -6238,6 +6238,20 @@
       }
     }
   },
+  "tvg": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 6,
+      "ff": 374,
+      "lut": 896,
+      "synth": {
+        "bram": 2,
+        "dsp": 6,
+        "ff": 374,
+        "lut": 896
+      }
+    }
+  },
   "viterbi_decoder": {
     "ecp5": {
       "bram": 2,

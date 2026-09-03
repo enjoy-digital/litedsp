@@ -137,6 +137,7 @@ from litedsp.radar.detect          import LiteDSPPeakExtractor, LiteDSPTargetLis
 from litedsp.radar.track           import LiteDSPAlphaBetaTracker
 from litedsp.radar.kalman          import LiteDSPKalmanTracker
 from litedsp.radar.beamform        import LiteDSPBeamformer, LiteDSPMonopulse
+from litedsp.radar.sonar           import LiteDSPTVG
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -328,6 +329,7 @@ ENTRIES = [
     ("kalman_tracker",     LiteDSPKalmanTracker,         {},                                     "radar",      "Kalman tracker",        {}),
     ("beamformer",         LiteDSPBeamformer,            {},                                     "radar",      "Beamformer",            {}),
     ("monopulse",          LiteDSPMonopulse,             {},                                     "radar",      "Monopulse angle",       {}),
+    ("tvg",                LiteDSPTVG,                   {},                                     "radar",      "Time-varying gain",     {}),
     ("alpha_beta_tracker", LiteDSPAlphaBetaTracker,      {},                                     "radar",      "Alpha-beta tracker",    {}),
     ("doppler",            LiteDSPDopplerProcessor,      {},                                     "radar",      "Doppler processor",     {"window": ["rect", "hann", "hamming", "blackman"], "magnitude": ["approx", "power"]}),
     ("pulse_compressor",   LiteDSPPulseCompressor,       {},                                     "radar",      "Pulse compressor (chirp matched filter)", {"window": ["rect", "hann", "hamming", "blackman"], "fir_architecture": ["classic", "pipelined", "mac"]}),

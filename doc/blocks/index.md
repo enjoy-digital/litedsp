@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-176 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+177 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -234,6 +234,7 @@
 | [Kalman tracker](kalman_tracker.md) | `LiteDSPKalmanTracker` | var | 20 | Constant-velocity Kalman tracker over ``n_tracks`` slots (same stream contract, association, |
 | [Beamformer](beamformer.md) | `LiteDSPBeamformer` | 3 | 16 | Narrowband phase-shift beamformer: ``n_elements`` I/Q streams to ``n_beams`` beams. |
 | [Monopulse angle](monopulse.md) | `LiteDSPMonopulse` | 21 | 4 | Phase-comparison monopulse: the phase of ``a * conj(b)`` for two element / sub-array |
+| [Time-varying gain](tvg.md) | `LiteDSPTVG` | 6 | 6 | Time-varying gain: a log-domain gain ramp along the range bins of each frame. |
 | [Alpha-beta tracker](alpha_beta_tracker.md) | `LiteDSPAlphaBetaTracker` | var | 8 | Alpha-beta tracker over ``n_tracks`` slots fed by per-CPI target bursts. |
 | [Doppler processor](doppler.md) | `LiteDSPDopplerProcessor` | var | 14 | Slow-time columns (``n_pulses`` beats per range bin) to range-Doppler map rows. |
 | [Pulse compressor (chirp matched filter)](pulse_compressor.md) | `LiteDSPPulseCompressor` | 4 | 60 | Matched filter for the linear-FM pulse of :class:`~litedsp.generation.source.LiteDSPChirp` |

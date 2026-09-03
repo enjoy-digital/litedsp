@@ -197,5 +197,12 @@
       "test.test_beamformer:TestBeamformer.test_bit_exact",
       "test.test_beamformer:TestBeamformer.test_commit_atomicity_and_saturation"
     ]
+  },
+  "tvg": {
+    "reason": "The uncovered lines are the reset arms of the nested Split, Delay and Exp2 sub-blocks and the Exp2's saturating-shift arms (the gain law in the cosim stays inside the ROM range); the block is bit-exact against the composed model under backpressure and the 20 dB/decade law and saturation bounds are gated.",
+    "semantic_checks": [
+      "test.test_tvg:TestTVG.test_bit_exact",
+      "test.test_tvg:TestTVG.test_law_and_saturation"
+    ]
   }
 }

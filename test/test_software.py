@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -345,6 +345,18 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual(len(regs["bf_weight"].writes), 4)
         drv.commit()
         self.assertEqual(regs["bf_control"].value, 1)
+
+    def test_tvg(self):
+        from litedsp.radar.design import tvg_coefficients
+        regs = {f"tvg_{r}": MockCSR() for r in TVGDriver.regs}
+        regs["tvg_config"].value = 8 | (8 << 4) | (1024 << 8)
+        drv = TVGDriver(MockBus(regs), "tvg")
+        drv.set_law(40.0, 0.02, -6.0)
+        g0, k_log, k_lin = tvg_coefficients(40.0, 0.02, -6.0, gain_frac=8)
+        self.assertEqual((regs["tvg_g0"].value, regs["tvg_k_log"].value, regs["tvg_k_lin"].value),
+                         (g0 & 0xFFFFFFFF, k_log, k_lin))
+        drv.set_bypass()
+        self.assertEqual(regs["tvg_control"].value, 1)
 
     def test_target_list(self):
         regs = {f"tl_{r}": MockCSR() for r in TargetListDriver.regs}
