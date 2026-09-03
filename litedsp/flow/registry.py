@@ -130,6 +130,7 @@ from litedsp.comm.am_mod           import LiteDSPAMModulator
 from litedsp.comm.gray             import LiteDSPGrayMapper, LiteDSPGrayDemapper
 from litedsp.comm.ssb_mod          import LiteDSPSSBModulator
 from litedsp.comm.fsk_mod          import LiteDSPFSKModulator
+from litedsp.comm.line_code        import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
@@ -347,6 +348,10 @@ ENTRIES = [
     ("gray_demapper",      LiteDSPGrayDemapper,          {},                                     "comm",       "Gray demapper",         {}),
     ("ssb_modulator",      LiteDSPSSBModulator,          {},                                     "comm",       "SSB modulator",         {}),
     ("fsk_modulator",      LiteDSPFSKModulator,          {"bt": 0.5},                            "comm",       "FSK / GFSK modulator",  {"bits_per_symbol": [1, 2], "fir_architecture": ["classic", "mac"]}),
+    ("line_encoder",       LiteDSPLineEncoder,           {},                                     "comm",       "Line encoder (NRZI)",   {"code": ["nrzi_s", "nrzi_m", "manchester", "diff_manchester"]}),
+    ("line_decoder",       LiteDSPLineDecoder,           {},                                     "comm",       "Line decoder (NRZI)",   {"code": ["nrzi_s", "nrzi_m", "manchester", "diff_manchester"]}),
+    ("manchester_encoder", LiteDSPLineEncoder,           {"code": "manchester"},                 "comm",       "Manchester encoder",    {}),
+    ("manchester_decoder", LiteDSPLineDecoder,           {"code": "manchester"},                 "comm",       "Manchester decoder",    {}),
     ("pm_modulator",       LiteDSPPhaseModulator,        {},                                     "comm",       "Phase modulator",       {}),
     ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),

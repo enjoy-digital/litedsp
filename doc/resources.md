@@ -114,6 +114,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `limiter` | 2790/397/2/5/- | - | - |
 | `line_buffer` | 792/295/2/0/- | - | - |
 | `line_buffer_5x5_rgb` | 9104/1449/8/0/- | - | - |
+| `line_decoder` | 43/39/0/0/- | - | - |
+| `line_encoder` | 12/7/0/0/- | - | - |
 | `lms_equalizer` | 1773/522/0/56/58.7 | 2295/392/0/66/- | 2252/392/0/68/- |
 | `lms_equalizer_pipelined` | 5179/5397/0/60/96.9/100.0 | 2184/4404/0/63/102.3/100.0 | 2190/4386/0/63/194.4/100.0 |
 | `log2_lut` | 555/29/0/0/- | - | - |

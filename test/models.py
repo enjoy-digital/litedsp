@@ -3799,3 +3799,98 @@ def fsk_modulator_model(symbols, bits_per_symbol=1, sps=4, taps=None, deviation=
     if taps is not None:
         x = np.asarray(fir_model(x, taps, data_width), np.int64)
     return angle_modulator_model(x, "fm", phase_inc, deviation, phase_bits, data_width, lut_depth)
+
+def line_encode_model(bits, code="nrzi_s", invert=0):
+    """Reference for litedsp.comm.line_code.LiteDSPLineEncoder (level / chips start from 0)."""
+    out, level = [], 0
+    for b in bits:
+        b = int(b) & 1
+        if code == "nrzi_s":
+            level ^= (1 - b); out.append(level)
+        elif code == "nrzi_m":
+            level ^= b; out.append(level)
+        elif code == "manchester":
+            out += [b, 1 - b]
+        else:
+            start = level if b else 1 - level
+            out += [start, 1 - start]
+            level = 1 - start
+    return np.array([v ^ int(invert) for v in out], np.int64)
+
+def line_decode_model(chips, code="nrzi_s", invert=0):
+    """Reference for litedsp.comm.line_code.LiteDSPLineDecoder: bits and the violation count."""
+    chips = [(int(c) ^ int(invert)) & 1 for c in chips]
+    out, level, viol = [], 0, 0
+    if code in ("nrzi_s", "nrzi_m"):
+        for c in chips:
+            changed = c ^ level
+            out.append((1 - changed) if code == "nrzi_s" else changed)
+            level = c
+    else:
+        for k in range(0, len(chips) - 1, 2):
+            c0, c1 = chips[k], chips[k + 1]
+            out.append(c0 if code == "manchester" else 1 - (c0 ^ level))
+            viol += int(c0 == c1)
+            level = c1
+    return np.array(out, np.int64), viol
+
+def conv_interleaver_model(symbols, branches=12, depth=17, deinterleave=False):
+    """Reference for litedsp.comm.conv_interleaver: branch j delays by j * depth (or (B-1-j) *
+    depth), zero-initialised lines, commutator from branch 0."""
+    B = branches
+    delays = [(B - 1 - j)*depth if deinterleave else j*depth for j in range(B)]
+    lines  = [[0]*d for d in delays]
+    out = []
+    for k, x in enumerate(symbols):
+        j = k % B
+        if delays[j] == 0:
+            out.append(int(x))
+        else:
+            out.append(lines[j].pop(0))
+            lines[j].append(int(x))
+    return np.array(out, np.int64)
+
+def hamming_encode_model(bits, m=3, secded=False):
+    """Reference for litedsp.comm.hamming.LiteDSPHammingEncoder on whole blocks of k bits:
+    codeword = message, m parity bits (column XOR), optional overall parity."""
+    from litedsp.comm.design import hamming_columns, hamming_params
+    cols = hamming_columns(m)
+    n, k = hamming_params(m, secded)
+    out, first, last = [], [], []
+    for b in range(len(bits)//k):
+        msg = [int(v) & 1 for v in bits[b*k:(b + 1)*k]]
+        par = 0
+        for i, v in enumerate(msg):
+            if v:
+                par ^= cols[i]
+        cw = msg + [(par >> i) & 1 for i in range(m)]
+        if secded:
+            cw.append(sum(cw) & 1)
+        out += cw
+        first += [1] + [0]*(len(cw) - 1)
+        last  += [0]*(len(cw) - 1) + [1]
+    return np.array(out, np.int64), np.array(first, np.int64), np.array(last, np.int64)
+
+def hamming_decode_model(bits, m=3, secded=False):
+    """Reference for litedsp.comm.hamming.LiteDSPHammingDecoder: per block the k message bits
+    (single errors corrected, SECDED double errors passed through) and the per-block
+    (corrected, uncorrectable) flags."""
+    from litedsp.comm.design import hamming_columns, hamming_params
+    cols = hamming_columns(m)
+    n, k = hamming_params(m, secded)
+    nh = (1 << m) - 1
+    out, flags = [], []
+    for b in range(len(bits)//n):
+        cw = [int(v) & 1 for v in bits[b*n:(b + 1)*n]]
+        synd = 0
+        for i in range(nh):
+            if cw[i]:
+                synd ^= cols[i]
+        q = sum(cw) & 1
+        double = bool(secded and synd != 0 and q == 0)
+        fixed = list(cw[:nh])
+        if synd != 0 and not double:
+            fixed[cols.index(synd)] ^= 1
+        out += fixed[:k]
+        flags.append((int(synd != 0 and not double), int(double)))
+    return np.array(out, np.int64), flags

@@ -1410,6 +1410,32 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def _spec_line(code, encode):
+    from litedsp.comm.line_code import LiteDSPLineEncoder, LiteDSPLineDecoder
+    n = 300
+    if encode:
+        dut = LiteDSPLineEncoder(code=code, with_csr=False)
+        cols = _rand_cols(1, n, lo=0, hi=1)
+        n_out = (2*n if "manchester" in code else n) - 4
+        return dut, cols, n_out, lambda c: [models.line_encode_model(c[0], code)]
+    dut = LiteDSPLineDecoder(code=code, with_csr=False)
+    prng = random.Random(24)
+    bits = [prng.randint(0, 1) for _ in range(n)]
+    chips = models.line_encode_model(bits, code).tolist()
+    return dut, [chips], n - 4, lambda c: [models.line_decode_model(c[0], code)[0]]
+
+def spec_line_encoder():
+    return _spec_line("nrzi_s", True)
+
+def spec_line_decoder():
+    return _spec_line("nrzi_s", False)
+
+def spec_manchester_encoder():
+    return _spec_line("manchester", True)
+
+def spec_manchester_decoder():
+    return _spec_line("manchester", False)
+
 def spec_gray_mapper():
     from litedsp.comm.gray import LiteDSPGrayMapper
     n = 300
@@ -1965,6 +1991,10 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "line_encoder":     spec_line_encoder,
+    "line_decoder":     spec_line_decoder,
+    "manchester_encoder": spec_manchester_encoder,
+    "manchester_decoder": spec_manchester_decoder,
     "gray_mapper":      spec_gray_mapper,
     "gray_demapper":    spec_gray_demapper,
     "ssb_modulator":    spec_ssb_modulator,

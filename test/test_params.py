@@ -140,6 +140,7 @@ SPECIFIC = [
     ("ssb_modulator",   {"n_taps": 8}),
     ("fsk_modulator",   {"bt": 1.5}),
     ("gray_mapper",     {"width": 0}),
+    ("line_encoder",    {"code": "rz"}),
     ("pixel_pattern",   {"mode": "noise"}),
     ("pixel_pack",      {"format": "yuyv"}),
     ("pixel_from_video", {"width": 1}),

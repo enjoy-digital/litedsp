@@ -4215,6 +4215,34 @@
       }
     }
   },
+  "line_decoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 39,
+      "lut": 43,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 39,
+        "lut": 43
+      }
+    }
+  },
+  "line_encoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 7,
+      "lut": 12,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 7,
+        "lut": 12
+      }
+    }
+  },
   "lms_equalizer": {
     "ecp5": {
       "bram": 0,
