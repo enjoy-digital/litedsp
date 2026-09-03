@@ -40,6 +40,7 @@ CATEGORY_TITLES = {
     "stream":     "Stream Utilities",
     "motor":      "Motor Control",
     "audio":      "Audio Processing",
+    "radar":      "Radar / Sonar Processing",
 }
 
 def _root():

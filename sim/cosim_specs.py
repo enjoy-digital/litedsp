@@ -1235,6 +1235,20 @@ def spec_sigma_delta_mod():
     cols = _rand_cols(1, n, lo=-(1 << 22), hi=(1 << 22))
     return dut, cols, 64*n - 64, lambda c: [models.sigma_delta_model(c[0], 64, 2)]
 
+# Radar / Sonar ------------------------------------------------------------------------------------
+
+def spec_range_gate():
+    from litedsp.radar.timing import LiteDSPRangeGate
+    n    = 300
+    dut  = LiteDSPRangeGate(data_width=16, n_range_bins=8, n_pulses=3, pri=24, gate_start=4, with_csr=False)
+    cols = _rand_cols(2, n)
+    enable = [int(not 120 <= k < 150) for k in range(n)]           # A pause restarts the timer.
+    def model(c):
+        i, q, first, last = models.range_gate_model(c[0], c[1], 24, 4, 8, 3, enable=np.array(c[2]))
+        return [i, q, first, last]
+    n_out = len(model([cols[0], cols[1], enable])[0]) - 2
+    return dut, cols + [enable], n_out, model, False, True, (dut.enable,)
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1351,6 +1365,7 @@ SPECS = {
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
+    "range_gate":       spec_range_gate,
 }
 
 # Known failures -----------------------------------------------------------------------------------

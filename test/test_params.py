@@ -107,6 +107,8 @@ SPECIFIC = [
     ("i2s_rx",          {"slot_width": 20}),
     ("i2s_tx",          {"bclk_div": 3}),
     ("bit_reverse",     {"N": 100}),
+    ("range_gate",      {"gate_start": 1000}),
+    ("range_gate",      {"pri": 1}),
 ]
 
 class TestParams(unittest.TestCase):

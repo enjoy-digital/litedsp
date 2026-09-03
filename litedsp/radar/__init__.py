@@ -23,3 +23,5 @@ Conventions shared by the family:
   conversions) lives in :mod:`litedsp.radar.design`; waveform references shared by gateware and
   golden models in :mod:`litedsp.radar.waveform`.
 """
+
+from litedsp.radar.timing import LiteDSPRangeGate

@@ -2815,3 +2815,36 @@ def bit_reverse_model(cols, N):
         n = (len(c)//N)*N
         out.append(np.concatenate([c[f:f + N][rev] for f in range(0, n, N)]) if n else np.zeros(0, np.int64))
     return out
+
+def range_gate_model(i, q, pri, gate_start, gate_len, n_pulses, enable=1, single=0, trigger=0):
+    """Bit-exact reference for litedsp.radar.timing.LiteDSPRangeGate: a sample-domain PRI
+    counter; samples inside the gate pass framed (``first`` at the gate start, ``last`` at its
+    end). ``enable``/``trigger`` may be per-sample arrays; a trigger seen with sample k arms a
+    single CPI from sample k + 1. Returns ``(i, q, first, last)`` of the gated samples."""
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    n = len(i)
+    en, trig = _per_sample(enable, n), _per_sample(trigger, n)
+    t = pulse = 0
+    armed = 0
+    oi, oq, of, ol = [], [], [], []
+    for k in range(n):
+        running = int(en[k]) | armed
+        if running:
+            if gate_start <= t < gate_start + gate_len:
+                oi.append(int(i[k])); oq.append(int(q[k]))
+                of.append(int(t == gate_start)); ol.append(int(t == gate_start + gate_len - 1))
+            if t == pri - 1:
+                t = 0
+                if pulse == n_pulses - 1:
+                    pulse = 0
+                    if not (trig[k] and single):
+                        armed = 0
+                else:
+                    pulse += 1
+            else:
+                t += 1
+        else:
+            t = pulse = 0
+        if trig[k] and single:
+            armed = 1
+    return (np.array(oi, np.int64), np.array(oq, np.int64), np.array(of, np.int64), np.array(ol, np.int64))

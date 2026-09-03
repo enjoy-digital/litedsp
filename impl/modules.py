@@ -99,6 +99,7 @@ from litedsp.stream.route         import LiteDSPTDMMux, LiteDSPTDMDemux
 from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitter
+from litedsp.radar.timing         import LiteDSPRangeGate
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -774,6 +775,11 @@ def i2s_tx():
     d = LiteDSPI2STransmitter(data_width=24, with_csr=False)
     return d, {d.bclk, d.lrck, d.sdata, d.enable, d.clear, d.underrun} | _eps(d.sink), 10.0
 
+def range_gate():
+    d = LiteDSPRangeGate(data_width=16, with_csr=False)
+    return d, {d.pri, d.gate_start, d.gate_len, d.pulse_width, d.n_pulses_cpi, d.enable, d.single, d.trigger,
+               d.tx, d.rx_gate, d.cpi_start, d.running, d.pulse_index, d.pulse_count} | _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -841,6 +847,7 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
+    "range_gate": range_gate,
 }
 
 # Subset for the slower full place-&-route flows.

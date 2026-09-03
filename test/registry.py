@@ -183,6 +183,7 @@ VSPEC = {
     "pdm_rx":             _v("pdm_receiver_model", latency="n/a", rate=None),  # Source-only (pins).
     "i2s_rx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level source.
     "i2s_tx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level sink.
+    "range_gate":         _v("range_gate_model", latency="check", rate=None, cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

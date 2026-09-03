@@ -5232,6 +5232,20 @@
       }
     }
   },
+  "range_gate": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 96,
+      "lut": 363,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 96,
+        "lut": 363
+      }
+    }
+  },
   "resampler_farm": {
     "ecp5": {
       "bram": 2,

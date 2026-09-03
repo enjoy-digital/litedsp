@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver)
+    LoudnessDriver, RangeGateDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -264,6 +264,21 @@ class TestAudioDrivers(unittest.TestCase):
         lu.read_hop()
         self.assertAlmostEqual(lu.momentary(), -17.68, places=2)
         self.assertAlmostEqual(lu.integrated(), -17.68, places=2)
+
+class TestRadarDrivers(unittest.TestCase):
+    def test_range_gate(self):
+        regs = {f"rg_{r}": MockCSR() for r in RangeGateDriver.regs}
+        drv  = RangeGateDriver(MockBus(regs), "rg", clk_freq=10e6)
+        drv.set_pri(100e-6)
+        drv.set_gate(16, 64)
+        drv.set_pulse(8, 32)
+        drv.start()
+        self.assertEqual(regs["rg_pri"].value, 1000)
+        self.assertEqual(regs["rg_gate"].value, 16 | (64 << 24))
+        self.assertEqual(regs["rg_pulse"].value, 8 | (32 << 24))
+        self.assertEqual(regs["rg_control"].value, 1)
+        drv.trigger()
+        self.assertEqual(regs["rg_control"].value, 0b110)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

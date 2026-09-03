@@ -782,6 +782,35 @@ class LoudnessDriver(Driver):
         self.hops = []
         self.control.write(1)
 
+# Radar drivers ------------------------------------------------------------------------------------
+
+class RangeGateDriver(Driver):
+    """PRI / gate timing in seconds (``clk_freq`` = the sample rate) and CPI control."""
+    regs = ("pri", "gate", "pulse", "control", "status", "pulse_count")
+
+    def set_pri(self, seconds):
+        assert self.clk_freq is not None, "clk_freq (sample rate) required"
+        self.pri.write(int(round(seconds*self.clk_freq)))
+
+    def set_gate(self, start_bins, length_bins):
+        self.gate.write((int(start_bins) & 0xFFFFFF) | (int(length_bins) << 24))
+
+    def set_pulse(self, width_bins, n_pulses):
+        self.pulse.write((int(width_bins) & 0xFFFFFF) | (int(n_pulses) << 24))
+
+    def start(self):
+        self.control.write(1)                                  # enable.
+
+    def stop(self):
+        self.control.write(0)
+
+    def trigger(self):
+        self.control.write((1 << 1) | (1 << 2))                # single + trigger pulse.
+
+    @property
+    def running(self):
+        return self.status.read() & 1
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -808,6 +837,7 @@ TYPED = {
     "lfo":           LFODriver,
     "peak_meter":    PeakMeterDriver,
     "loudness":      LoudnessDriver,
+    "range_gate":    RangeGateDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -816,7 +846,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]
