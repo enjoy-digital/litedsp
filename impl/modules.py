@@ -106,6 +106,7 @@ from litedsp.radar.corner_turn    import LiteDSPCornerTurn
 from litedsp.radar.doppler        import LiteDSPDopplerProcessor
 from litedsp.radar.cfar           import LiteDSPCACFAR
 from litedsp.radar.cfar_2d        import LiteDSPCFAR2D
+from litedsp.radar.detect         import LiteDSPPeakExtractor
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -802,6 +803,10 @@ def cfar_2d_wide():
     d = LiteDSPCFAR2D(n_train=(6, 3), with_csr=False)
     return d, {d.alpha, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
 
+def peak_extractor():
+    d = LiteDSPPeakExtractor(with_csr=False)
+    return d, {d.local_max, d.interpolate, d.clear, d.frame_error, d.count, d.last_count, d.cpi_count, d.cpi_done} | _eps(d.sink, d.source), 10.0
+
 def doppler():
     d = LiteDSPDopplerProcessor(n_pulses=16, with_csr=False)
     return d, {d.clear, d.frame_error} | _eps(d.sink, d.source), 10.0
@@ -886,7 +891,7 @@ REGISTRY = {
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
     "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
-    "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "cfar_2d_wide": cfar_2d_wide,
+    "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor,
 }
 
 # Subset for the slower full place-&-route flows.

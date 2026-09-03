@@ -114,6 +114,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `park` | 784/189/0/4/- | - | - |
 | `pattern_source` | 114/65/0/0/463.2 | 36/65/0/0/- | 36/65/0/0/- |
 | `pdm_rx` | 1244/675/0/0/- | - | - |
+| `peak_extractor` | 1006/427/0/0/- | - | - |
 | `peak_meter` | 1109/188/0/0/- | - | - |
 | `pfb_channelizer` | 1040/212/0/11/56.5 | 490/216/0/10/- | 449/217/0/10/- |
 | `pfb_channelizer_fft` | 2477/583/0/14/96.2/100.0 | 1019/346/0/10/102.1/100.0 | 992/346/0/10/209.3/100.0 |

@@ -119,6 +119,8 @@ SPECIFIC = [
     ("ca_cfar",         {"n_guard": 9}),
     ("cfar_2d",         {"n_train": (0, 2)}),
     ("cfar_2d",         {"n_doppler_bins": 4}),
+    ("peak_extractor",  {"frac_bits": 0}),
+    ("peak_extractor",  {"index_width": 3}),
 ]
 
 class TestParams(unittest.TestCase):

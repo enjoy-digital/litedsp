@@ -3004,3 +3004,53 @@ def cfar_2d_model(x, n_range_bins=64, n_doppler_bins=16, n_train=(4, 2), n_guard
                 for col, val in zip(out, (v, thr, int(v > thr), int(c == 0), int(c == M - 1))):
                     col.append(val)
     return tuple(np.array(c, np.int64) for c in out)
+
+def parabolic_offset(y_prev, y0, y_next, frac_bits):
+    """Integer parabolic sub-bin offset used by the peak extractor (Q.frac_bits): the bit-serial
+    quotient of |y_next - y_prev| * 2^frac by 2 * (2 y0 - y_prev - y_next), clamped to +/-0.5 bin,
+    0 when the curvature is not negative."""
+    num = int(y_next) - int(y_prev)
+    den = 2*(2*int(y0) - int(y_prev) - int(y_next))
+    if den <= 0:
+        return 0
+    a = abs(num)
+    if 2*a >= den:
+        q = 1 << (frac_bits - 1)
+    else:
+        q = (a << frac_bits)//den
+    return -q if num < 0 else q
+
+def peak_extractor_model(data, detect, n_range_bins=64, n_doppler_bins=16, local_max=1, interpolate=1,
+    frac_bits=4, index_width=12):
+    """Bit-exact reference for litedsp.radar.detect.LiteDSPPeakExtractor on whole CPIs (raster
+    order): records for detected cells that are strict maxima over their raster-earlier 3x3
+    neighbours and no smaller than the later ones (all detected cells when ``local_max`` is 0),
+    with parabolic sub-bin offsets, then the terminator beat. Returns ``(range, doppler, data,
+    hit, first, last)``."""
+    N, M, F = n_range_bins, n_doppler_bins, frac_bits
+    data, detect = np.asarray(data, np.int64), np.asarray(detect, np.int64)
+    out = [[] for _ in range(6)]
+    for k in range(len(data)//(N*M)):
+        m = np.pad(data[k*N*M:(k + 1)*N*M].reshape(N, M), 1)
+        d = detect[k*N*M:(k + 1)*N*M].reshape(N, M)
+        count = 0
+        for r in range(N):
+            for c in range(M):
+                if not d[r, c]:
+                    continue
+                w  = m[r:r + 3, c:c + 3]
+                y0 = int(w[1, 1])
+                if local_max:
+                    earlier = [w[0, 0], w[0, 1], w[0, 2], w[1, 0]]
+                    later   = [w[1, 2], w[2, 0], w[2, 1], w[2, 2]]
+                    if not (all(y0 > int(v) for v in earlier) and all(y0 >= int(v) for v in later)):
+                        continue
+                dr = parabolic_offset(w[0, 1], y0, w[2, 1], F) if interpolate else 0
+                dc = parabolic_offset(w[1, 0], y0, w[1, 2], F) if interpolate else 0
+                rec = (max(0, (r << F) + dr), max(0, (c << F) + dc), y0, 1, int(count == 0), 0)
+                for col, v in zip(out, rec):
+                    col.append(int(v))
+                count += 1
+        for col, v in zip(out, (0, 0, count, 0, int(count == 0), 1)):
+            col.append(int(v))
+    return tuple(np.array(c, np.int64) for c in out)

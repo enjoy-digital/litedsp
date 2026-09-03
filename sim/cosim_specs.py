@@ -1302,6 +1302,23 @@ def spec_cfar_2d():
 def spec_cfar_2d_wide():
     return _spec_cfar_2d((3, 2))
 
+def spec_peak_extractor():
+    from litedsp.radar.detect import LiteDSPPeakExtractor
+    N, M, n_cpi = 16, 8, 2
+    n    = N*M*n_cpi
+    dut  = LiteDSPPeakExtractor(n_range_bins=N, n_doppler_bins=M, with_csr=False)
+    prng = random.Random(13)
+    data   = [prng.randint(0, 5000) for _ in range(n)]
+    detect = [int(prng.random() < 0.35) for _ in range(n)]
+    for k in (0, 5*M + 3, 5*M + 4, n - 1):
+        data[k], detect[k] = 60000, 1                                # Peaks: corners and a pair.
+    first = [int(k % M == 0) for k in range(n)]
+    last  = [int(k % M == M - 1) for k in range(n)]
+    ref   = models.peak_extractor_model(data, detect, N, M, 1, 1)
+    def model(c):
+        return list(models.peak_extractor_model(c[0], c[2], N, M, 1, 1))
+    return dut, [data, [0]*n, detect, first, last], len(ref[0]) - 1, model, True, True   # cell_layout order.
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1489,6 +1506,7 @@ SPECS = {
     "ca_cfar_go":       spec_ca_cfar_go,
     "cfar_2d":          spec_cfar_2d,
     "cfar_2d_wide":     spec_cfar_2d_wide,
+    "peak_extractor":   spec_peak_extractor,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,

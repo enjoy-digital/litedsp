@@ -4784,6 +4784,20 @@
       }
     }
   },
+  "peak_extractor": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 427,
+      "lut": 1006,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 427,
+        "lut": 1006
+      }
+    }
+  },
   "peak_meter": {
     "ecp5": {
       "bram": 0,
