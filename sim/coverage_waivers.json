@@ -253,5 +253,40 @@
       "test.test_kernel_2d:TestKernel2D.test_bit_exact",
       "test.test_kernel_2d:TestKernel2D.test_commit_and_bypass"
     ]
+  },
+  "color_matrix": {
+    "reason": "The cosim runs the build-time preset; the shadow load / commit arms, bypass and the saturation flag run in the unit tests, which are bit-exact for the identity, BT.601 / 709, JPEG and grey presets under backpressure, check the round trips and the frame-atomic reload.",
+    "semantic_checks": [
+      "test.test_image_color:TestColorMatrix.test_bit_exact",
+      "test.test_image_color:TestColorMatrix.test_round_trip_and_commit"
+    ]
+  },
+  "rgb_to_ycbcr": {
+    "reason": "The cosim runs the build-time preset; the shadow load / commit arms, bypass and the saturation flag run in the unit tests, which are bit-exact for the identity, BT.601 / 709, JPEG and grey presets under backpressure, check the round trips and the frame-atomic reload.",
+    "semantic_checks": [
+      "test.test_image_color:TestColorMatrix.test_bit_exact",
+      "test.test_image_color:TestColorMatrix.test_round_trip_and_commit"
+    ]
+  },
+  "ycbcr_to_rgb": {
+    "reason": "The cosim runs the build-time preset; the shadow load / commit arms, bypass and the saturation flag run in the unit tests, which are bit-exact for the identity, BT.601 / 709, JPEG and grey presets under backpressure, check the round trips and the frame-atomic reload.",
+    "semantic_checks": [
+      "test.test_image_color:TestColorMatrix.test_bit_exact",
+      "test.test_image_color:TestColorMatrix.test_round_trip_and_commit"
+    ]
+  },
+  "rgb_to_gray": {
+    "reason": "The cosim runs the build-time preset; the shadow load / commit arms, bypass and the saturation flag run in the unit tests, which are bit-exact for the identity, BT.601 / 709, JPEG and grey presets under backpressure, check the round trips and the frame-atomic reload.",
+    "semantic_checks": [
+      "test.test_image_color:TestColorMatrix.test_bit_exact",
+      "test.test_image_color:TestColorMatrix.test_round_trip_and_commit"
+    ]
+  },
+  "debayer": {
+    "reason": "The cosim runs one Bayer pattern with the mirror border; the other patterns, the replicate border and the phase flip run in the unit tests, bit-exact against the padded-mosaic model, with the flat-colour and gradient reconstruction bounds.",
+    "semantic_checks": [
+      "test.test_debayer:TestDebayer.test_bit_exact",
+      "test.test_debayer:TestDebayer.test_reconstruction"
+    ]
   }
 }
