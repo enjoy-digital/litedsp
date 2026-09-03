@@ -150,6 +150,25 @@ Additional contracts introduced with the harmonization:
   measured CFAR false-alarm rate, centroid error, tracking RMS error and coasting), Verilator
   co-simulation (28 configurations), ECP5 budgets and datasheets; AN011 runs the pulse-Doppler chain
   end to end (`examples/pulse_doppler_radar.py`).
+- Image / video block family (`litedsp/image/`, palette category `image`, 20 blocks / 33 palette keys, see
+  `doc/image.md`): raster pixels ride `pixel_layout` streams (unsigned codes, `first` / `eol` / `last`
+  framing, no coordinates: `LiteDSPPixelCounter` derives them, producers configure geometry CSRs);
+  `LiteDSPPixelPattern` (test frames), `LiteDSPPixelFromVideo` / `LiteDSPPixelToVideo` (LiteX
+  `video_data_layout` / timing streams, blanking, underflow and geometry flags), `LiteDSPPixelPack` /
+  `LiteDSPPixelUnpack` (rgb888 / xrgb8888 / rgb565 / mono words), `LiteDSPLineBuffer` (3x3 / 5x5 / 7x7
+  windows from line RAMs with replicate / mirror / zero borders, virtual columns / lines flush the
+  trailing outputs), `LiteDSPPixelFIFO`, `LiteDSPKernel2D` (shadow coefficients committed at the frame
+  start, presets), `LiteDSPSobel` (L1 / L-inf / approx magnitude, direction), `LiteDSPRankFilter`
+  (36-comparator sorting network: median / erode / dilate), `LiteDSPDebayer` (bilinear, runtime phase),
+  `LiteDSPThreshold` (scan-line hysteresis), `LiteDSPPixelGain`, `LiteDSPPixelLUT` (gamma, equalisation),
+  `LiteDSPColorMatrix` (BT.601 / 709 studio, JPEG, grey presets), `LiteDSPDownscaler` (exact box mean),
+  `LiteDSPCrop`, `LiteDSPPixelStats` (frame / zone statistics tap), `LiteDSPPixelHistogram` (per-bank
+  block RAMs, streamed after the frame), `LiteDSPAlphaBlend` / mask blend and `LiteDSPBoxOverlay`. The
+  flow classifies `pixel`, `pixel_rgb` and `video` ports and balances deep reconvergent paths with
+  FIFOs; `litedsp.image.design` carries the kernel / colour presets, tone tables and Bayer helpers;
+  eleven typed drivers. Every block has a bit-exact model, backpressured 16 x 12 frame tests with
+  functional bounds, Verilator co-simulation on framed rasters (31 configurations), ECP5 budgets and
+  datasheets; AN012 runs a camera pipeline end to end (`examples/image_pipeline.py`).
 - Motor-control block family (`litedsp/motor/`, palette category `motor`, 19 blocks, see
   `doc/motor_control.md`): Clarke/inverse Clarke (`LiteDSPClarke`/`LiteDSPInverseClarke`,
   amplitude-invariant, Q1.15 constants), Park/inverse Park as the complex mixer fed by a

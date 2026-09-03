@@ -52,3 +52,4 @@ map artifacts:
 | `spectrum_core.yml` | Window(hann) → FFT → PSD | `litedsp_gen examples/spectrum_core.yml` |
 | `foc_core.yml` | FOC current controller (abc currents + angle → duties) | `litedsp_gen examples/foc_core.yml` |
 | `audio_core.yml` | Stereo TDM audio: AudioEQ → Compressor → Volume → Dither(16-bit) | `litedsp_gen examples/audio_core.yml` |
+| `image_core.yml` | Camera front end: Debayer → PixelGain → RGB-to-YCbCr (pixel / pixel_rgb ports) | `litedsp_gen examples/image_core.yml` |

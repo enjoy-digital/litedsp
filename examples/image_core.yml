@@ -1,0 +1,29 @@
+# LiteDSP standalone core: camera front end (AN012).
+#
+#   litedsp_gen examples/image_core.yml
+#
+# AXI-Stream input: raw RGGB Bayer pixels (8-bit codes with first / eol / last framing);
+# output: BT.601 YCbCr pixels. Bilinear demosaic -> per-channel gain (white balance) -> colour
+# matrix. The gains and the matrix are AXI-Lite registers (PixelGainDriver / ColorDriver);
+# the line buffer inside the debayer is sized for 640-pixel lines.
+
+# Core ---------------------------------------------------------------------
+name     : image_core
+csr_base : 0x0
+
+# Flow ---------------------------------------------------------------------
+flow:
+  name       : image
+  data_width : 8
+  clock_ns   : 10.0
+  inputs     : [{id: bayer_in, layout: pixel}]
+  outputs    : [{id: ycbcr_out, layout: pixel_rgb}]
+  blocks:
+    - {id: demosaic, type: debayer,      params: {pattern: rggb, width: 640}}
+    - {id: wb,       type: pixel_gain,   params: {}}
+    - {id: csc,      type: rgb_to_ycbcr, params: {}}
+  connections:
+    - {from: bayer_in,        to: demosaic.sink}
+    - {from: demosaic.source, to: wb.sink}
+    - {from: wb.source,       to: csc.sink}
+    - {from: csc.source,      to: ycbcr_out}
