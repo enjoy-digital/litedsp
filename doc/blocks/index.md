@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-223 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+225 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -134,6 +134,8 @@
 | [Manchester decoder](manchester_decoder.md) | `LiteDSPLineDecoder` | 1 | — | Line code to bits. NRZI: a bit from each level change (rate 1:1, latency 1). Manchester |
 | [Hamming encoder](hamming_encoder.md) | `LiteDSPHammingEncoder` | var | 0 | Systematic Hamming encoder on a bit stream: ``k`` message bits in, the ``n = 2^m - 1`` |
 | [Hamming decoder](hamming_decoder.md) | `LiteDSPHammingDecoder` | var | 0 | Hamming decoder: ``n (+1)`` codeword bits in, ``k`` corrected message bits out (framed). |
+| [Convolutional interleaver](convolutional_interleaver.md) | `LiteDSPConvolutionalInterleaver` | 2 | 0 | Forney convolutional interleaver: branch ``j`` delays by ``j * depth`` symbols (DVB: |
+| [Convolutional deinterleaver](convolutional_deinterleaver.md) | `LiteDSPConvolutionalDeinterleaver` | 2 | 0 | The matching deinterleaver: branch ``j`` delays by ``(B - 1 - j) * depth``; the pair |
 | [Phase modulator](pm_modulator.md) | `LiteDSPPhaseModulator` | 2 | 2 | PM modulator: the carrier phase (``phase_inc`` per sample) plus ``d / 2**(data_width-1) * |
 
 ## Analysis / Measurement (`analysis/`)

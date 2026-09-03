@@ -1105,6 +1105,34 @@
       }
     }
   },
+  "convolutional_deinterleaver": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 157,
+      "lut": 465,
+      "synth": {
+        "bram": 1,
+        "dsp": 0,
+        "ff": 157,
+        "lut": 465
+      }
+    }
+  },
+  "convolutional_interleaver": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 157,
+      "lut": 448,
+      "synth": {
+        "bram": 1,
+        "dsp": 0,
+        "ff": 157,
+        "lut": 448
+      }
+    }
+  },
   "cordic_rot": {
     "ecp5": {
       "bram": 0,

@@ -1410,6 +1410,19 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def _spec_conv(deinterleave):
+    from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+    B, D, n = 4, 3, 300
+    dut = (LiteDSPConvolutionalDeinterleaver if deinterleave else LiteDSPConvolutionalInterleaver)(branches=B, depth=D, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=255)
+    return dut, cols, n - 4, lambda c: [models.conv_interleaver_model(c[0], B, D, deinterleave)]
+
+def spec_convolutional_interleaver():
+    return _spec_conv(False)
+
+def spec_convolutional_deinterleaver():
+    return _spec_conv(True)
+
 def spec_hamming_encoder():
     from litedsp.comm.hamming import LiteDSPHammingEncoder
     m, blocks = 3, 40
@@ -2022,6 +2035,8 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "convolutional_interleaver":   spec_convolutional_interleaver,
+    "convolutional_deinterleaver": spec_convolutional_deinterleaver,
     "hamming_encoder":  spec_hamming_encoder,
     "hamming_decoder":  spec_hamming_decoder,
     "hamming_decoder_secded": spec_hamming_decoder_secded,

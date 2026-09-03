@@ -39,6 +39,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `color_matrix` | 742/950/0/9/- | - | - |
 | `combine` | 327/33/0/0/281.6 | 134/33/0/0/- | 139/33/0/0/- |
 | `compressor` | 2639/390/1/5/- | - | - |
+| `convolutional_deinterleaver` | 465/157/1/0/- | - | - |
+| `convolutional_interleaver` | 448/157/1/0/- | - | - |
 | `cordic_rot` | 1943/907/0/2/154.8 | 970/858/0/2/- | 924/866/0/2/- |
 | `cordic_vec` | 1892/899/0/1/166.9 | 742/827/0/1/186.4 | 702/824/0/1/391.0 |
 | `corner_turn` | 166/136/4/0/- | - | - |

@@ -3894,3 +3894,55 @@ def hamming_decode_model(bits, m=3, secded=False):
         out += fixed[:k]
         flags.append((int(synd != 0 and not double), int(double)))
     return np.array(out, np.int64), flags
+
+def hdlc_frame_model(payloads, preamble=1):
+    """Reference for litedsp.comm.hdlc.LiteDSPHDLCFramer: the framed bit stream of the payload
+    bit lists with first / last on the opening / closing flag bits."""
+    from litedsp.comm.design import hdlc_frame_bits
+    bits, first, last = [], [], []
+    for payload in payloads:
+        f = hdlc_frame_bits(list(payload), preamble)
+        bits += f
+        first += [1] + [0]*(len(f) - 1)
+        last  += [0]*(len(f) - 1) + [1]
+    return np.array(bits, np.int64), np.array(first, np.int64), np.array(last, np.int64)
+
+def hdlc_deframe_model(bits):
+    """Reference for litedsp.comm.hdlc.LiteDSPHDLCDeframer: the emitted payload bits with
+    ``first`` / ``last`` / ``fcs_ok`` columns and the counters (frames, fcs_errors, aborts)."""
+    from litedsp.comm.design import HDLC_FLAG
+    out = [[], [], [], []]
+    stats = dict(frames=0, fcs_errors=0, aborts=0)
+    hist, ones, in_frame = 0, 0, False
+    crc, pending, count = 0xFFFF, [], 0
+    for b in bits:
+        b = int(b) & 1
+        window = ((hist << 1) | b) & 0xFF
+        flag = window == HDLC_FLAG
+        abort = ones == 6 and b == 1
+        stuffed = ones == 5 and b == 0
+        if flag:
+            if in_frame and count >= 17:
+                good = crc == 0xF0B8
+                stats["frames"] += 1
+                if not good:
+                    stats["fcs_errors"] += 1
+                for col, v in zip(out, (pending[0], 0, 1, int(good))):
+                    col.append(v)
+            in_frame, crc, count, pending = True, 0xFFFF, 0, []
+        elif abort:
+            if in_frame and count:
+                stats["aborts"] += 1
+            in_frame, count, pending = False, 0, []
+        elif in_frame and not stuffed:
+            if count >= 17:
+                for col, v in zip(out, (pending[0], int(count == 17), 0, 0)):
+                    col.append(v)
+                pending = pending[1:]
+            mix = (crc ^ b) & 1
+            crc = (crc >> 1) ^ (0x8408 if mix else 0)
+            pending.append(b)
+            count += 1
+        hist = window
+        ones = ones + 1 if b else 0
+    return tuple(np.array(c, np.int64) for c in out), stats
