@@ -84,6 +84,20 @@
       }
     }
   },
+  "alpha_blend": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 6,
+      "ff": 28,
+      "lut": 155,
+      "synth": {
+        "bram": 0,
+        "dsp": 6,
+        "ff": 28,
+        "lut": 155
+      }
+    }
+  },
   "angle_ramp": {
     "ecp5": {
       "bram": 0,
@@ -275,6 +289,20 @@
         "dsp": 0,
         "ff": 55,
         "lut": 86
+      }
+    }
+  },
+  "box_overlay": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 637,
+      "lut": 1145,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 637,
+        "lut": 1145
       }
     }
   },
@@ -5353,6 +5381,20 @@
       }
     }
   },
+  "pixel_histogram": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 10879,
+      "lut": 31128,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 10879,
+        "lut": 31128
+      }
+    }
+  },
   "pixel_lut": {
     "ecp5": {
       "bram": 3,
@@ -5392,6 +5434,20 @@
         "dsp": 0,
         "ff": 108,
         "lut": 538
+      }
+    }
+  },
+  "pixel_stats": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 1101,
+      "lut": 1771,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 1101,
+        "lut": 1771
       }
     }
   },

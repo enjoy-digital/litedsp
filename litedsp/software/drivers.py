@@ -1204,6 +1204,55 @@ class CropDriver(Driver):
         self.size.write((int(width) & 0xFFFF) | (int(height) << 16))
         self.control.write(1)
 
+class PixelStatsDriver(Driver):
+    """Frame statistics readback for exposure / white-balance loops."""
+    regs = ("control", "zone_size", "sum", "minmax", "count", "zone_index", "zone_sum")
+
+    def read_frame(self):
+        mm = self.minmax.read()
+        count = self.count.read()
+        s = self.sum.read()
+        return dict(sum=s, min=mm & 0xFFFF, max=(mm >> 16) & 0xFFFF, count=count, mean=(s/count if count else 0.0))
+
+    def zones(self, n):
+        out = []
+        for k in range(n*n):
+            self.zone_index.write(k)
+            out.append(self.zone_sum.read())
+        return out
+
+    def exposure_error(self, target, data_width=8):
+        """Log2 ratio of the target mean to the frame mean (positive = under-exposed)."""
+        import math
+        mean = self.read_frame()["mean"]
+        return math.log2(target/max(mean, 1e-9))
+
+class AlphaBlendDriver(Driver):
+    """Blend factor 0.0 .. 1.0 (256 = 1.0)."""
+    regs = ("alpha",)
+
+    def set_alpha(self, alpha):
+        self.alpha.write(max(0, min(256, int(round(float(alpha)*256)))))
+
+class BoxOverlayDriver(Driver):
+    """Box table (x0, y0, x1, y1, colour, enable) with a frame-atomic commit."""
+    regs = ("box_index", "box_origin", "box_corner", "box_color", "control", "status")
+
+    def set_boxes(self, boxes, n_channels=3, data_width=8):
+        for k, (x0, y0, x1, y1, color, enable) in enumerate(boxes):
+            packed = int(color) if n_channels == 1 else sum(int(v) << (i*data_width) for i, v in enumerate(color))
+            self.box_index.write(k)
+            self.box_origin.write((int(x0) & 0xFFFF) | (int(y0) << 16))
+            self.box_corner.write((int(x1) & 0xFFFF) | (int(y1) << 16))
+            self.box_color.write((packed & 0x7FFFFFFF) | (int(bool(enable)) << 31))
+        return self
+
+    def commit(self):
+        self.control.write((self.control.read() & ~1) | 1)
+
+    def set_thickness(self, thickness):
+        self.control.write((self.control.read() & ~0xF0) | ((int(thickness) & 0xF) << 4))
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -1241,6 +1290,9 @@ TYPED = {
     "pixel_lut":     PixelLUTDriver, "gamma": PixelLUTDriver,
     "color_matrix":  ColorDriver, "rgb_to_ycbcr": ColorDriver, "ycbcr_to_rgb": ColorDriver, "rgb_to_gray": ColorDriver,
     "crop":          CropDriver,
+    "pixel_stats":   PixelStatsDriver,
+    "alpha_blend":   AlphaBlendDriver, "mask_blend": AlphaBlendDriver,
+    "box_overlay":   BoxOverlayDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
     "os_cfar":       OSCFARDriver,
@@ -1259,7 +1311,8 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
            LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver,
-           PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver]
+           PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver, PixelStatsDriver, AlphaBlendDriver,
+           BoxOverlayDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

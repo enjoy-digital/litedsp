@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver, PixelStatsDriver, AlphaBlendDriver, BoxOverlayDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -468,6 +468,22 @@ class TestImageDrivers(unittest.TestCase):
         regs = {f"cr_{r}": MockCSR() for r in CropDriver.regs}
         CropDriver(MockBus(regs), "cr").set_roi(10, 20, 320, 240)
         self.assertEqual((regs["cr_origin"].value, regs["cr_size"].value, regs["cr_control"].value), (10 | (20 << 16), 320 | (240 << 16), 1))
+
+    def test_stats_blend_overlay(self):
+        regs = {f"st_{r}": MockCSR() for r in PixelStatsDriver.regs}
+        regs["st_sum"].value, regs["st_count"].value, regs["st_minmax"].value = 19200, 192, 10 | (200 << 16)
+        drv = PixelStatsDriver(MockBus(regs), "st")
+        fr = drv.read_frame()
+        self.assertEqual((fr["mean"], fr["min"], fr["max"]), (100.0, 10, 200))
+        self.assertAlmostEqual(drv.exposure_error(200), 1.0)
+        regs = {f"ab_{r}": MockCSR() for r in AlphaBlendDriver.regs}
+        AlphaBlendDriver(MockBus(regs), "ab").set_alpha(0.5)
+        self.assertEqual(regs["ab_alpha"].value, 128)
+        regs = {f"bo_{r}": MockCSR() for r in BoxOverlayDriver.regs}
+        BoxOverlayDriver(MockBus(regs), "bo").set_boxes([(1, 2, 30, 40, (255, 0, 128), 1)]).commit()
+        self.assertEqual(regs["bo_box_origin"].value, 1 | (2 << 16))
+        self.assertEqual(regs["bo_box_color"].value, (255 | (128 << 16)) | (1 << 31))
+        self.assertEqual(regs["bo_control"].value, 1)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

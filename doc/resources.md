@@ -8,6 +8,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 |---|---|---|---|
 | `agc` | 390/126/0/4/113.8/100.0 | 231/126/0/2/114.7/100.0 | 203/122/0/2/246.6/100.0 |
 | `alpha_beta_tracker` | 2474/981/0/8/- | - | - |
+| `alpha_blend` | 155/28/0/6/- | - | - |
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |
@@ -17,6 +18,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `bitstream_decimator` | 677/240/0/0/- | - | - |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- | 86/55/1/0/- |
+| `box_overlay` | 1145/637/0/0/- | - | - |
 | `ca_cfar` | 1266/625/0/2/- | - | - |
 | `ccsds_rs_decoder` | 3741/1482/1/0/102.9/100.0 | 1756/1482/0/0/117.9/100.0 | 1801/1490/0/0/210.3/100.0 |
 | `ccsds_rs_encoder` | 573/265/0/0/223.4 | 255/267/0/0/222.0 | 254/267/0/0/527.3 |
@@ -140,9 +142,11 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `pixel_fifo` | 695/26/0/0/- | - | - |
 | `pixel_from_video` | 258/89/0/0/- | - | - |
 | `pixel_gain` | 158/97/0/3/- | - | - |
+| `pixel_histogram` | 31128/10879/0/0/- | - | - |
 | `pixel_lut` | 147/72/3/0/- | - | - |
 | `pixel_pack` | 0/0/0/0/- | - | - |
 | `pixel_pattern` | 538/108/0/0/- | - | - |
+| `pixel_stats` | 1771/1101/0/0/- | - | - |
 | `pixel_to_video` | 109/94/0/0/- | - | - |
 | `pixel_unpack` | 66/40/0/0/- | - | - |
 | `power` | 959/106/0/2/138.8 | 189/106/0/2/- | 189/106/0/2/- |

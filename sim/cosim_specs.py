@@ -1410,6 +1410,56 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def spec_pixel_histogram():
+    from litedsp.image.histogram import LiteDSPPixelHistogram
+    w, h, bl = 16, 8, 4
+    dut = LiteDSPPixelHistogram(bins_log2=bl, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2)
+    nb = 1 << bl
+    def model(c):
+        hs = [models.histogram_model(np.array(c[0][f*w*h:(f + 1)*w*h]).reshape(h, w), 0, bl) for f in range(2)]
+        return [np.concatenate(hs), np.array([int(k % nb == 0) for k in range(2*nb)]), np.array([int(k % nb == nb - 1) for k in range(2*nb)])]
+    return dut, cols + [eol, first, last], 2*nb - 2, model, True, True
+
+def _spec_blend(mask):
+    from litedsp.image.blend import LiteDSPAlphaBlend
+    w, h = 16, 8
+    dut = LiteDSPAlphaBlend(alpha=77, with_alpha_sink=mask, with_csr=False)
+    prng = random.Random(23)
+    n = 2*w*h
+    a = [[prng.randint(0, 255) for _ in range(n)] for _ in range(3)]
+    b = [[prng.randint(0, 255) for _ in range(n)] for _ in range(3)]
+    m = [prng.choice([0, 255, 255, 64, 200]) for _ in range(n)]
+    eol   = [int(k % w == w - 1) for k in range(n)]
+    first = [int(k % (w*h) == 0) for k in range(n)]
+    last  = [int(k % (w*h) == w*h - 1) for k in range(n)]
+    tags  = [eol, first, last]
+    # Sink columns follow the harness's discovery order: sink_a, sink_alpha, sink_b.
+    cols  = a + tags + ([m] + tags if mask else []) + b + tags
+    ob    = 10 if mask else 6
+    def model(c):
+        A = np.stack([np.array(c[k]) for k in range(3)], axis=-1).reshape(h*2, w, 3)
+        B = np.stack([np.array(c[ob + k]) for k in range(3)], axis=-1).reshape(h*2, w, 3)
+        al = np.array(c[6]).reshape(h*2, w) if mask else 77
+        y = models.alpha_blend_model(A, B, al).reshape(-1, 3)
+        return [y[:, k] for k in range(3)] + [np.array(t) for t in tags]
+    return dut, cols, n - 2, model, True, True
+
+def spec_alpha_blend():
+    return _spec_blend(False)
+
+def spec_mask_blend():
+    return _spec_blend(True)
+
+def spec_box_overlay():
+    from litedsp.image.overlay import LiteDSPBoxOverlay
+    w, h = 16, 8
+    boxes = [(2, 1, 9, 6, (255, 0, 0), 1), (6, 3, 14, 7, (0, 255, 0), 1), (12, 5, 20, 12, (0, 0, 255), 1)]
+    dut = LiteDSPBoxOverlay(n_boxes=4, thickness=2, boxes=boxes, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
+    return dut, cols + [eol, first, last], 2*w*h - 2, \
+        lambda c: _frames_model(lambda i: models.box_overlay_model(i, boxes, 2), c, w, h, 3, 3, (eol, first, last)), True, True
+
 def spec_line_buffer():
     from litedsp.image.linebuffer import LiteDSPLineBuffer
     w, h = 16, 8
@@ -1850,6 +1900,10 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "pixel_histogram":  spec_pixel_histogram,
+    "alpha_blend":      spec_alpha_blend,
+    "mask_blend":       spec_mask_blend,
+    "box_overlay":      spec_box_overlay,
     "line_buffer":      spec_line_buffer,
     "pixel_from_video": spec_pixel_from_video,
     "pixel_pattern":    spec_pixel_pattern,

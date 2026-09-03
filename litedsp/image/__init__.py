@@ -25,3 +25,7 @@ from litedsp.image.lut     import LiteDSPPixelLUT
 from litedsp.image.color   import LiteDSPColorMatrix
 from litedsp.image.debayer import LiteDSPDebayer
 from litedsp.image.scale   import LiteDSPDownscaler, LiteDSPCrop
+from litedsp.image.stats     import LiteDSPPixelStats
+from litedsp.image.histogram import LiteDSPPixelHistogram
+from litedsp.image.blend     import LiteDSPAlphaBlend
+from litedsp.image.overlay   import LiteDSPBoxOverlay

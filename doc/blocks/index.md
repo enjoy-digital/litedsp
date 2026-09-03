@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-205 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+210 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -246,6 +246,11 @@
 | [Debayer (bilinear)](debayer.md) | `LiteDSPDebayer` | 71 | 0 | Bilinear demosaic of a raw Bayer (mono) stream into RGB. |
 | [Box downscaler](downscaler.md) | `LiteDSPDownscaler` | 2 | 0 | Exact box-mean downscaling by ``decimation`` (2, 4 or 8) in both directions. |
 | [Crop (ROI)](crop.md) | `LiteDSPCrop` | 1 | 0 | Pass a rectangular region of interest, consume everything else. |
+| [Frame statistics tap](pixel_stats.md) | `LiteDSPPixelStats` | 0 | 0 | Zero-latency passthrough that measures one channel per frame. |
+| [Frame histogram](pixel_histogram.md) | `LiteDSPPixelHistogram` | var | 0 | Histogram of one channel per frame into ``2**bins_log2`` bins (the code's top bits). |
+| [Alpha blend](alpha_blend.md) | `LiteDSPAlphaBlend` | 1 | 6 | ``y = rounded(a * A + (256 - a) * B, 8)`` per channel over two lock-stepped pixel streams. |
+| [Mask blend](mask_blend.md) | `LiteDSPAlphaBlend` | 1 | — | ``y = rounded(a * A + (256 - a) * B, 8)`` per channel over two lock-stepped pixel streams. |
+| [Box overlay](box_overlay.md) | `LiteDSPBoxOverlay` | 1 | 0 | Draw up to ``n_boxes`` rectangle outlines on a pixel stream. |
 | [Pixel FIFO](pixel_fifo.md) | `LiteDSPPixelFIFO` | 0 | 0 | Elastic buffer for a pixel stream (``pixel_layout``, tags carried). |
 | [Pixel pack](pixel_pack.md) | `LiteDSPPixelPack` | 0 | 0 | Pack pixels into memory words: ``rgb888`` (``r`` in the low byte, then ``g``, ``b``), |
 | [Pixel unpack](pixel_unpack.md) | `LiteDSPPixelUnpack` | 1 | 0 | Unpack memory words back into pixels (inverse of :class:`LiteDSPPixelPack`; ``rgb565`` |

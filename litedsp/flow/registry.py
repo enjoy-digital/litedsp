@@ -153,6 +153,10 @@ from litedsp.image.color           import LiteDSPColorMatrix
 from litedsp.image.debayer         import LiteDSPDebayer
 from litedsp.image.scale           import LiteDSPDownscaler, LiteDSPCrop
 from litedsp.image.design          import color_preset
+from litedsp.image.stats           import LiteDSPPixelStats
+from litedsp.image.histogram       import LiteDSPPixelHistogram
+from litedsp.image.blend           import LiteDSPAlphaBlend
+from litedsp.image.overlay         import LiteDSPBoxOverlay
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -356,6 +360,11 @@ ENTRIES = [
     ("debayer",            LiteDSPDebayer,               {"data_width": 8, "width": 64},         "image",      "Debayer (bilinear)",    {"pattern": ["rggb", "bggr", "grbg", "gbrg"], "border": ["mirror", "replicate", "zero"]}),
     ("downscaler",         LiteDSPDownscaler,            {"data_width": 8, "width": 64, "height": 48}, "image", "Box downscaler",        {"decimation": [2, 4, 8], "n_channels": [1, 3]}),
     ("crop",               LiteDSPCrop,                  {"data_width": 8, "roi_width": 32, "roi_height": 24}, "image", "Crop (ROI)",     {"n_channels": [1, 3]}),
+    ("pixel_stats",        LiteDSPPixelStats,            {"data_width": 8},                      "image",      "Frame statistics tap",  {"zones": [1, 2, 4, 8], "n_channels": [1, 3]}),
+    ("pixel_histogram",    LiteDSPPixelHistogram,        {"data_width": 8},                      "image",      "Frame histogram",       {"bins_log2": [4, 5, 6, 7, 8], "n_channels": [1, 3]}),
+    ("alpha_blend",        LiteDSPAlphaBlend,            {"data_width": 8},                      "image",      "Alpha blend",           {"n_channels": [1, 3]}),
+    ("mask_blend",         LiteDSPAlphaBlend,            {"data_width": 8, "with_alpha_sink": True}, "image",  "Mask blend",            {"n_channels": [1, 3]}),
+    ("box_overlay",        LiteDSPBoxOverlay,            {"data_width": 8},                      "image",      "Box overlay",           {"n_channels": [1, 3]}),
     ("pixel_fifo",         LiteDSPPixelFIFO,             {"data_width": 8, "depth": 256},        "image",      "Pixel FIFO",            {"n_channels": [1, 3]}),
     ("pixel_pack",         LiteDSPPixelPack,             {"data_width": 8},                      "image",      "Pixel pack",            {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pixel_unpack",       LiteDSPPixelUnpack,           {"data_width": 8, "width": 64},         "image",      "Pixel unpack",          {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
