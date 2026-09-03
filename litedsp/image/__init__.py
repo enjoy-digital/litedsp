@@ -17,3 +17,4 @@ from litedsp.image.adapt   import LiteDSPPixelPack, LiteDSPPixelUnpack
 from litedsp.image.video   import LiteDSPPixelFromVideo, LiteDSPPixelToVideo
 from litedsp.image.linebuffer import LiteDSPLineBuffer
 from litedsp.image.stream  import LiteDSPPixelFIFO
+from litedsp.image.kernel  import LiteDSPKernel2D

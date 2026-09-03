@@ -3631,6 +3631,48 @@
       }
     }
   },
+  "kernel_2d": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 9,
+      "ff": 676,
+      "lut": 1611,
+      "synth": {
+        "bram": 2,
+        "dsp": 9,
+        "ff": 676,
+        "lut": 1611
+      }
+    }
+  },
+  "kernel_2d_rgb": {
+    "ecp5": {
+      "bram": 4,
+      "dsp": 27,
+      "ff": 1386,
+      "lut": 3666,
+      "synth": {
+        "bram": 4,
+        "dsp": 27,
+        "ff": 1386,
+        "lut": 3666
+      }
+    }
+  },
+  "kernel_5x5": {
+    "ecp5": {
+      "bram": 4,
+      "dsp": 25,
+      "ff": 1575,
+      "lut": 3571,
+      "synth": {
+        "bram": 4,
+        "dsp": 25,
+        "ff": 1575,
+        "lut": 3571
+      }
+    }
+  },
   "ldpc_decoder": {
     "ecp5": {
       "bram": 2,

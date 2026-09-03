@@ -187,6 +187,11 @@ VSPEC = {
     "pixel_from_video":   _v("pixel_from_video_model", latency=1, rate=None, cosim=True),
     "pixel_to_video":     _v(latency=1, rate=None),
     "line_buffer":        _v("line_buffer_model", latency=68, cosim=True),   # P*(64+P)+P+3 at the registry width.
+    "kernel_2d":          _v("kernel2d_model", latency=70, cosim=True),
+    "kernel_5x5":         _v("kernel2d_model", latency=139, cosim=True),
+    "gaussian_blur":      _v("kernel2d_model", latency=70, cosim=True),
+    "sharpen":            _v("kernel2d_model", latency=70, cosim=True),
+    "laplacian":          _v("kernel2d_model", latency=70, cosim=True),
     "pixel_fifo":         _v(latency=0),
     "pixel_pack":         _v(latency=0),
     "pixel_unpack":       _v(latency=1),

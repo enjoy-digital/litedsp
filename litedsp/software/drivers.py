@@ -1062,6 +1062,42 @@ class PixelPatternDriver(Driver):
     def stop(self):
         self.control.write(self.control.read() & ~1)
 
+class ImageKernelDriver(Driver):
+    """2-D kernel coefficients (row-major), presets, shift / offset and frame-atomic commit."""
+    regs = ("coeff_index", "coeff_value", "shift_offset", "control", "status", "config")
+
+    @property
+    def geometry(self):
+        cfg = self.config.read()
+        return cfg & 0xF, (cfg >> 8) & 0x1F                           # (kernel_size, coeff_width).
+
+    def set_coefficients(self, coefficients, shift=None, offset=None):
+        K, cw = self.geometry
+        assert len(coefficients) == K*K, f"expected {K*K} coefficients"
+        self.coeff_index.write(0)
+        for c in coefficients:
+            self.coeff_value.write(int(c) & ((1 << cw) - 1))
+        if shift is not None or offset is not None:
+            cur = self.shift_offset.read()
+            sh  = (cur & 0xF) if shift is None else int(shift)
+            off = ((cur >> 8) & 0x1FF) if offset is None else (int(offset) & 0x1FF)
+            self.shift_offset.write(sh | (off << 8))
+
+    def set_preset(self, name, data_width=8):
+        from litedsp.image.design import kernel_preset
+        coefficients, shift, offset = kernel_preset(name, self.geometry[0], data_width)
+        self.set_coefficients(coefficients, shift, offset)
+
+    def commit(self, now=False):
+        self.control.write((self.control.read() & 0b100) | (1 << (1 if now else 0)))
+
+    def set_bypass(self, bypass=True):
+        self.control.write((self.control.read() & ~0b100) | (int(bool(bypass)) << 2))
+
+    @property
+    def saturated(self):
+        return (self.status.read() >> 1) & 1
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -1091,6 +1127,8 @@ TYPED = {
     "range_gate":    RangeGateDriver,
     "pulse_generator": PulseGeneratorDriver,
     "pixel_pattern": PixelPatternDriver,
+    "kernel_2d":     ImageKernelDriver, "kernel_5x5": ImageKernelDriver, "gaussian_blur": ImageKernelDriver,
+    "sharpen":       ImageKernelDriver, "laplacian": ImageKernelDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
     "os_cfar":       OSCFARDriver,
@@ -1108,7 +1146,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

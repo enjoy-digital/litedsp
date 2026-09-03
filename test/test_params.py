@@ -139,6 +139,8 @@ SPECIFIC = [
     ("pixel_pack",      {"format": "yuyv"}),
     ("pixel_from_video", {"width": 1}),
     ("line_buffer",     {"kernel_size": 4}),
+    ("kernel_2d",       {"coefficients": [1]*8}),
+    ("kernel_2d",       {"shift": 16}),
     ("line_buffer",     {"width": 32, "max_width": 16}),
     ("pixel_fifo",      {"depth": 1}),
     ("pixel_unpack",    {"width": 1}),

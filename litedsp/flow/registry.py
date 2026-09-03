@@ -143,6 +143,8 @@ from litedsp.image.adapt           import LiteDSPPixelPack, LiteDSPPixelUnpack
 from litedsp.image.video           import LiteDSPPixelFromVideo, LiteDSPPixelToVideo
 from litedsp.image.linebuffer      import LiteDSPLineBuffer
 from litedsp.image.stream          import LiteDSPPixelFIFO
+from litedsp.image.kernel          import LiteDSPKernel2D
+from litedsp.image.design          import kernel_preset
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -326,6 +328,11 @@ ENTRIES = [
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),
     ("pixel_to_video",     LiteDSPPixelToVideo,          {"data_width": 8},                      "image",      "Pixels to LiteX video", {}),
     ("line_buffer",        LiteDSPLineBuffer,            {"data_width": 8, "width": 64},         "image",      "Line buffer (window)",  {"kernel_size": [3, 5, 7], "border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("kernel_2d", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("identity")[0], shift=kernel_preset("identity")[1], offset=kernel_preset("identity")[2]), "image", "2-D kernel (3x3)", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("kernel_5x5", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=5, coefficients=kernel_preset("gaussian5")[0], shift=kernel_preset("gaussian5")[1], offset=kernel_preset("gaussian5")[2]), "image", "2-D kernel (5x5)", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("gaussian_blur", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("gaussian3")[0], shift=kernel_preset("gaussian3")[1], offset=kernel_preset("gaussian3")[2]), "image", "Gaussian blur", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("sharpen", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("sharpen")[0], shift=kernel_preset("sharpen")[1], offset=kernel_preset("sharpen")[2]), "image", "Sharpen", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("laplacian", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("laplacian")[0], shift=kernel_preset("laplacian")[1], offset=kernel_preset("laplacian")[2]), "image", "Laplacian", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
     ("pixel_fifo",         LiteDSPPixelFIFO,             {"data_width": 8, "depth": 256},        "image",      "Pixel FIFO",            {"n_channels": [1, 3]}),
     ("pixel_pack",         LiteDSPPixelPack,             {"data_width": 8},                      "image",      "Pixel pack",            {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pixel_unpack",       LiteDSPPixelUnpack,           {"data_width": 8, "width": 64},         "image",      "Pixel unpack",          {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),

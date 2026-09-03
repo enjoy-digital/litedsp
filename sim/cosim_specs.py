@@ -1249,6 +1249,39 @@ def spec_sigma_delta_mod():
 
 # Radar / Sonar ------------------------------------------------------------------------------------
 
+def _spec_kernel(preset="gaussian3", K=3, nc=1, w=16, h=8):
+    from litedsp.image.kernel import LiteDSPKernel2D
+    from litedsp.image.design import kernel_preset
+    c, sh, off = kernel_preset(preset)
+    dut = LiteDSPKernel2D(n_channels=nc, kernel_size=K, coefficients=c, shift=sh, offset=off, width=w, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=nc)
+    def model(cc):
+        outs = []
+        for f in range(2):
+            img = np.stack([np.array(cc[k][f*w*h:(f + 1)*w*h]).reshape(h, w) for k in range(nc)], axis=-1)
+            if nc == 1:
+                img = img[:, :, 0]
+            y, _ = models.kernel2d_model(img, c, sh, off, K, "replicate")
+            outs.append(y.reshape(w*h, -1) if nc == 3 else y.reshape(-1, 1))
+        y = np.concatenate(outs)
+        return [y[:, k] for k in range(nc)] + [np.array(eol), np.array(first), np.array(last)]
+    return dut, cols + [eol, first, last], 2*w*h - 4, model, True, True
+
+def spec_kernel_2d():
+    return _spec_kernel("identity")
+
+def spec_kernel_5x5():
+    return _spec_kernel("gaussian5", K=5)
+
+def spec_gaussian_blur():
+    return _spec_kernel("gaussian3", nc=3)
+
+def spec_sharpen():
+    return _spec_kernel("sharpen")
+
+def spec_laplacian():
+    return _spec_kernel("laplacian")
+
 def spec_line_buffer():
     from litedsp.image.linebuffer import LiteDSPLineBuffer
     w, h = 16, 8
@@ -1669,6 +1702,11 @@ SPECS = {
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
+    "kernel_2d":        spec_kernel_2d,
+    "kernel_5x5":       spec_kernel_5x5,
+    "gaussian_blur":    spec_gaussian_blur,
+    "sharpen":          spec_sharpen,
+    "laplacian":        spec_laplacian,
     "line_buffer":      spec_line_buffer,
     "pixel_from_video": spec_pixel_from_video,
     "pixel_pattern":    spec_pixel_pattern,

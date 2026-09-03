@@ -3486,3 +3486,28 @@ def line_buffer_model(img, kernel_size=3, border="replicate", data_width=8):
     out["first"] = np.array([int(k == 0) for k in range(w*h)], np.int64)
     out["last"]  = np.array([int(k == w*h - 1) for k in range(w*h)], np.int64)
     return out
+
+def kernel2d_model(img, coefficients, shift=0, offset=0, kernel_size=3, border="replicate", data_width=8, bypass=0):
+    """Bit-exact reference for litedsp.image.kernel.LiteDSPKernel2D on one frame (per channel):
+    correlation of the padded image with the row-major coefficients, ``clamp(rounded(acc, shift)
+    + offset)``. Returns the (H, W[, 3]) image and the saturation flag."""
+    K, P = kernel_size, kernel_size//2
+    img  = np.asarray(img, np.int64)
+    mono = img.ndim == 2
+    src  = img[:, :, None] if mono else img
+    if bypass:
+        return img, 0
+    h, w, nc = src.shape
+    out = np.zeros((h, w, nc), np.int64)
+    sat = 0
+    for c in range(nc):
+        padded = np_pad_border(src[:, :, c], P, border)
+        acc = np.zeros((h, w), np.int64)
+        for i in range(K):
+            for j in range(K):
+                acc += int(coefficients[i*K + j])*padded[i:i + h, j:j + w]
+        r = acc if shift == 0 else (acc + (1 << (shift - 1))) >> shift
+        y = r + int(offset)
+        sat |= int(np.any(y < 0) or np.any(y > (1 << data_width) - 1))
+        out[:, :, c] = np.clip(y, 0, (1 << data_width) - 1)
+    return (out[:, :, 0] if mono else out), sat

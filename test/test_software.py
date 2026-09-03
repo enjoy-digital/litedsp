@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -416,6 +416,21 @@ class TestImageDrivers(unittest.TestCase):
         self.assertEqual(regs["pat_const"].value, 0x563412)
         drv.trigger()
         self.assertEqual(regs["pat_control"].value, (3 << 4) | (1 << 1))
+
+    def test_image_kernel(self):
+        from litedsp.image.design import kernel_preset
+        regs = {f"k_{r}": MockCSR() for r in ImageKernelDriver.regs}
+        regs["k_config"].value = 3 | (10 << 8) | (1 << 16)
+        drv = ImageKernelDriver(MockBus(regs), "k")
+        drv.set_preset("sobel_x")
+        coefficients, shift, offset = kernel_preset("sobel_x", 3, 8)
+        self.assertEqual(len(regs["k_coeff_value"].writes), 9)
+        self.assertEqual(regs["k_coeff_value"].writes[0], (-1) & 0x3FF)
+        self.assertEqual(regs["k_shift_offset"].value, shift | (offset << 8))
+        drv.commit()
+        self.assertEqual(regs["k_control"].value, 1)
+        drv.set_bypass()
+        self.assertEqual(regs["k_control"].value & 0b100, 0b100)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

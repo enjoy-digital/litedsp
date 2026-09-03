@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-185 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+190 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -226,6 +226,11 @@
 | [Pixels from LiteX video](pixel_from_video.md) | `LiteDSPPixelFromVideo` | 1 | 0 | LiteX ``video_data_layout`` stream to a framed RGB pixel stream. |
 | [Pixels to LiteX video](pixel_to_video.md) | `LiteDSPPixelToVideo` | 1 | 0 | Framed RGB pixels onto a LiteX timing-generator stream (``video_timing_layout``) as a |
 | [Line buffer (window)](line_buffer.md) | `LiteDSPLineBuffer` | 69 | 0 | Sliding ``kernel_size x kernel_size`` window over a raster pixel stream. |
+| [2-D kernel (3x3)](kernel_2d.md) | `LiteDSPKernel2D` | 71 | 9 | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
+| [2-D kernel (5x5)](kernel_5x5.md) | `LiteDSPKernel2D` | 139 | 25 | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
+| [Gaussian blur](gaussian_blur.md) | `LiteDSPKernel2D` | 71 | — | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
+| [Sharpen](sharpen.md) | `LiteDSPKernel2D` | 71 | — | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
+| [Laplacian](laplacian.md) | `LiteDSPKernel2D` | 71 | — | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
 | [Pixel FIFO](pixel_fifo.md) | `LiteDSPPixelFIFO` | 0 | 0 | Elastic buffer for a pixel stream (``pixel_layout``, tags carried). |
 | [Pixel pack](pixel_pack.md) | `LiteDSPPixelPack` | 0 | 0 | Pack pixels into memory words: ``rgb888`` (``r`` in the low byte, then ``g``, ``b``), |
 | [Pixel unpack](pixel_unpack.md) | `LiteDSPPixelUnpack` | 1 | 0 | Unpack memory words back into pixels (inverse of :class:`LiteDSPPixelPack`; ``rgb565`` |
