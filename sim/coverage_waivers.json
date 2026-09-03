@@ -288,5 +288,11 @@
       "test.test_debayer:TestDebayer.test_bit_exact",
       "test.test_debayer:TestDebayer.test_reconstruction"
     ]
+  },
+  "box_overlay": {
+    "reason": "The cosim draws a build-time box table; the shadow load / commit arms and bypass run in the unit tests, which draw three overlapping boxes loaded through the table after a frame-atomic commit and check bypass.",
+    "semantic_checks": [
+      "test.test_image_blend:TestBoxOverlay.test_boxes"
+    ]
   }
 }

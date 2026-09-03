@@ -5383,15 +5383,15 @@
   },
   "pixel_histogram": {
     "ecp5": {
-      "bram": 0,
+      "bram": 2,
       "dsp": 0,
-      "ff": 10879,
-      "lut": 31128,
+      "ff": 160,
+      "lut": 362,
       "synth": {
-        "bram": 0,
+        "bram": 2,
         "dsp": 0,
-        "ff": 10879,
-        "lut": 31128
+        "ff": 160,
+        "lut": 362
       }
     }
   },

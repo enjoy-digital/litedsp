@@ -22,8 +22,8 @@ from litedsp.common import check, pixel_layout, pixel_fields, bits_for
 class LiteDSPPixelHistogram(LiteXModule):
     """Histogram of one channel per frame into ``2**bins_log2`` bins (the code's top bits).
 
-    Counts accumulate in a ping-pong RAM at one pixel per clock (read-modify-write with a
-    same-bin forwarding register); ``last`` seals a bank and the block streams its bins out
+    Counts accumulate in one RAM per bank (ping-pong, one read and one write port each) at one
+    pixel per clock (read-modify-write with a same-bin forwarding register); ``last`` seals a bank and the block streams its bins out
     (``data`` = count, ``first`` on bin 0, ``last`` on the final bin, one beat per bin) while
     clearing them for reuse. A frame ending before the previous histogram drained sets the
     sticky ``overrun``. ``max_pixels`` sizes the counts. ``latency = None``; one output beat
@@ -47,11 +47,13 @@ class LiteDSPPixelHistogram(LiteXModule):
 
         NB = 1 << bins_log2
         fields = pixel_fields(n_channels)
-        self.specials.mem = mem = Memory(CW, 2*NB)
-        rp = mem.get_port(has_re=True)
-        wp = mem.get_port(write_capable=True)
-        orp = mem.get_port(has_re=True)
-        self.specials += rp, wp, orp
+        # One RAM per bank (a single write and read port each, block-RAM friendly): the input
+        # side owns the bank being counted, the readout the sealed one; the port sources are
+        # muxed by the bank bits.
+        mems = [Memory(CW, NB, name=f"bank{b}") for b in range(2)]
+        rps  = [m.get_port(has_re=True) for m in mems]
+        wps  = [m.get_port(write_capable=True) for m in mems]
+        self.specials += mems + rps + wps
         # Input side: RMW at one pixel per clock (S0 read, S1 write with forwarding).
         xfer = Signal()
         self.comb += [self.sink.ready.eq(1), xfer.eq(self.sink.valid)]
@@ -59,15 +61,16 @@ class LiteDSPPixelHistogram(LiteXModule):
         self.comb += x.eq(Array([getattr(self.sink, f) for f in fields])[self.channel] if n_channels > 1 else self.sink.data)
         bin0 = Signal(bins_log2)
         wbank = Signal()
-        self.comb += [bin0.eq(x[data_width - bins_log2:]), rp.adr.eq(Cat(bin0, wbank)), rp.re.eq(1)]
+        self.comb += bin0.eq(x[data_width - bins_log2:])
         v1, last1 = Signal(), Signal()
         bin1, bank1 = Signal(bins_log2), Signal()
         fwd_bin, fwd_cnt, fwd_v = Signal(bins_log2), Signal(CW), Signal()
         cnt_new = Signal(CW)
+        in_rd = Signal(CW)
         self.sync += [v1.eq(xfer), last1.eq(xfer & self.sink.last), bin1.eq(bin0), bank1.eq(wbank)]
         self.comb += [
-            cnt_new.eq(Mux(fwd_v & (fwd_bin == bin1), fwd_cnt, rp.dat_r) + 1),
-            wp.adr.eq(Cat(bin1, bank1)), wp.dat_w.eq(cnt_new), wp.we.eq(v1),
+            in_rd.eq(Array([rp.dat_r for rp in rps])[bank1]),
+            cnt_new.eq(Mux(fwd_v & (fwd_bin == bin1), fwd_cnt, in_rd) + 1),
         ]
         self.sync += [
             fwd_v.eq(v1), fwd_bin.eq(bin1), fwd_cnt.eq(cnt_new),
@@ -86,9 +89,6 @@ class LiteDSPPixelHistogram(LiteXModule):
         self.comb += adv.eq(self.source.ready | ~self.source.valid)
         rbank = Signal()
         ri = Signal(bins_log2)
-        owp = mem.get_port(write_capable=True)
-        self.specials += owp
-        self.comb += [orp.adr.eq(Cat(ri, rbank)), orp.re.eq(adv)]
         rec_a = Signal()
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
@@ -111,17 +111,25 @@ class LiteDSPPixelHistogram(LiteXModule):
             NextValue(rbank, ~rbank),
             NextState("IDLE"),
         )
-        # The read data lands one cycle after the address (with the registered valid / tags);
-        # the bin is cleared while it is presented.
-        b_addr = Signal(bins_log2 + 1)
+        b_addr = Signal(bins_log2)
+        b_bank = Signal()
         self.sync += If(adv,
             self.source.valid.eq(rec_a), self.source.first.eq(ri == 0), self.source.last.eq(rlast),
-            b_addr.eq(Cat(ri, rbank)),
+            b_addr.eq(ri), b_bank.eq(rbank),
         )
-        self.comb += [
-            self.source.data.eq(orp.dat_r),
-            owp.adr.eq(b_addr), owp.dat_w.eq(0), owp.we.eq(adv & self.source.valid),
-        ]
+        out_rd = Signal(CW)
+        self.comb += [out_rd.eq(Array([rp.dat_r for rp in rps])[b_bank]), self.source.data.eq(out_rd)]
+        # Port muxes per bank: reads (input at bin0 while counting, readout at ri) and writes
+        # (the count while counting, the clear while draining).
+        for b in range(2):
+            counting = (wbank == b)
+            self.comb += [
+                rps[b].adr.eq(Mux(counting, bin0, ri)),
+                rps[b].re.eq(Mux(counting, 1, adv)),
+                wps[b].adr.eq(Mux(bank1 == b, bin1, b_addr)),
+                wps[b].dat_w.eq(Mux(bank1 == b, cnt_new, 0)),
+                wps[b].we.eq(Mux(bank1 == b, v1, adv & self.source.valid & (b_bank == b))),
+            ]
 
         # CSR.
         # ----

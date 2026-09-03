@@ -142,7 +142,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `pixel_fifo` | 695/26/0/0/- | - | - |
 | `pixel_from_video` | 258/89/0/0/- | - | - |
 | `pixel_gain` | 158/97/0/3/- | - | - |
-| `pixel_histogram` | 31128/10879/0/0/- | - | - |
+| `pixel_histogram` | 362/160/2/0/- | - | - |
 | `pixel_lut` | 147/72/3/0/- | - | - |
 | `pixel_pack` | 0/0/0/0/- | - | - |
 | `pixel_pattern` | 538/108/0/0/- | - | - |

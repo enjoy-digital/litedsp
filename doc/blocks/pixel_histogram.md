@@ -8,8 +8,8 @@ latency: variable (data-dependent) · CSR: yes · bypass: no
 
 Histogram of one channel per frame into ``2**bins_log2`` bins (the code's top bits).
 
-Counts accumulate in a ping-pong RAM at one pixel per clock (read-modify-write with a
-same-bin forwarding register); ``last`` seals a bank and the block streams its bins out
+Counts accumulate in one RAM per bank (ping-pong, one read and one write port each) at one
+pixel per clock (read-modify-write with a same-bin forwarding register); ``last`` seals a bank and the block streams its bins out
 (``data`` = count, ``first`` on bin 0, ``last`` on the final bin, one beat per bin) while
 clearing them for reuse. A frame ending before the previous histogram drained sets the
 sticky ``overrun``. ``max_pixels`` sizes the counts. ``latency = None``; one output beat
@@ -63,6 +63,6 @@ Frames counted.
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 31128 | 10879 | 0 | 0 | — | — |
+| ecp5 | 362 | 160 | 2 | 0 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
