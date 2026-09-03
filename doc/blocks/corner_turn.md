@@ -14,6 +14,7 @@ The block-transpose engine of the interleavers (``rows = n_pulses``, ``cols = n_
 ping-pong RAM of two CPIs) is fed in arrival order, so throughput is one sample per cycle
 once the first CPI has filled; the output is framed per column (``first`` on pulse 0,
 ``last`` on pulse ``n_pulses - 1``). Input framing is checked against the arrival position:
+beats before the first ``first`` are dropped (upstream pipeline fill), then
 a misplaced ``first`` or ``last`` sets the sticky ``frame_error`` (``clear`` resets it) — the
 transpose itself counts from reset. ``latency = None`` (a CPI is buffered).
 
@@ -60,7 +61,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 138 | 135 | 4 | 0 | — | — |
+| ecp5 | 166 | 136 | 4 | 0 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

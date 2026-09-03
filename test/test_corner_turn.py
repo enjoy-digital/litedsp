@@ -73,5 +73,24 @@ class TestCornerTurn(unittest.TestCase):
             with self.assertRaises(ValueError, msg=str(kwargs)):
                 LiteDSPCornerTurn(with_csr=False, **kwargs)
 
+    # verify-tier: model — beats arriving before the first frame tag (an upstream FIR's pipeline
+    # fill) are consumed and dropped; the CPI that follows transposes exactly.
+    def test_leading_beats_dropped(self):
+        import random
+        from test.common import run_stream, column
+        from test.models import corner_turn_model
+        N, M = 8, 4
+        prng  = random.Random(9)
+        i = [prng.randint(-1000, 1000) for _ in range(N*M)]
+        q = [prng.randint(-1000, 1000) for _ in range(N*M)]
+        lead  = [{"i": 777, "q": -777, "first": 0, "last": 0} for _ in range(5)]
+        beats = lead + [{"i": i[k], "q": q[k], "first": int(k % N == 0), "last": int(k % N == N - 1)} for k in range(N*M)]
+        dut = LiteDSPCornerTurn(n_range_bins=N, n_pulses=M, with_csr=False)
+        cap = run_stream(dut, beats, N*M, ["i", "q", "first", "last"], ["i", "q", "first", "last"],
+            sink_throttle=0.2, source_ready_rate=0.7)
+        ref_i, ref_q = corner_turn_model(i, q, N, M)[:2]
+        self.assertEqual(column(cap, "i", 16).tolist(), list(ref_i))
+        self.assertEqual(column(cap, "q", 16).tolist(), list(ref_q))
+
 if __name__ == "__main__":
     unittest.main()

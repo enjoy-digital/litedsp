@@ -28,6 +28,7 @@ class LiteDSPCornerTurn(LiteXModule):
     ping-pong RAM of two CPIs) is fed in arrival order, so throughput is one sample per cycle
     once the first CPI has filled; the output is framed per column (``first`` on pulse 0,
     ``last`` on pulse ``n_pulses - 1``). Input framing is checked against the arrival position:
+    beats before the first ``first`` are dropped (upstream pipeline fill), then
     a misplaced ``first`` or ``last`` sets the sticky ``frame_error`` (``clear`` resets it) — the
     transpose itself counts from reset. ``latency = None`` (a CPI is buffered).
     """
@@ -52,13 +53,19 @@ class LiteDSPCornerTurn(LiteXModule):
         xfer_in = Signal()
         pos     = Signal(max=n_range_bins*n_pulses)
         col     = Signal(max=n_range_bins)
+        synced  = Signal()                                              # Seen the first frame start.
+        accept  = Signal()
         self.comb += [
-            perm.sink.valid.eq(self.sink.valid),
+            # Beats before the first 'first' (an upstream filter's pipeline fill) are consumed and
+            # dropped so the CPI starts on a pulse boundary.
+            accept.eq(synced | self.sink.first),
+            perm.sink.valid.eq(self.sink.valid & accept),
             perm.sink.data.eq(Cat(self.sink.i, self.sink.q)),
-            self.sink.ready.eq(perm.sink.ready),
-            xfer_in.eq(self.sink.valid & self.sink.ready),
+            self.sink.ready.eq(Mux(accept, perm.sink.ready, 1)),
+            xfer_in.eq(self.sink.valid & self.sink.ready & accept),
         ]
         self.sync += [
+            If(xfer_in & self.sink.first, synced.eq(1)),
             If(xfer_in,
                 If(col == n_range_bins - 1, col.eq(0)).Else(col.eq(col + 1)),
                 If(self.clear,
