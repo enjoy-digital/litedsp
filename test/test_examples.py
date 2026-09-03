@@ -64,6 +64,10 @@ class TestAppNoteExamples(unittest.TestCase):
         # Three passes (EQ + dither, dynamics, I2S transport), ~70 k cycles, ~3 min locally.
         self._run_example("audio_processor.py", timeout=900)
 
+    def test_pulse_doppler_radar_smoke(self):  # AN011.
+        # Three RTL passes (FIR-based compression dominates): extra timeout headroom.
+        self._run_example("pulse_doppler_radar.py", timeout=900)
+
     def test_ccsds_telemetry_smoke(self):   # AN005.
         # ~3.5 min locally (staged RTL FEC chain, Viterbi-dominated): extra timeout headroom.
         self._run_example("ccsds_telemetry.py", timeout=900)
