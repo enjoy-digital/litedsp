@@ -2978,3 +2978,29 @@ def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_
             for _ in range(H + 1):
                 push(0, 0, 0, 0)
     return tuple(np.array(c, np.int64) for c in out)
+
+def cfar_2d_model(x, n_range_bins=64, n_doppler_bins=16, n_train=(4, 2), n_guard=(1, 1), alpha=512,
+    data_width=17, threshold_frac=8):
+    """Bit-exact reference for litedsp.radar.cfar_2d.LiteDSPCFAR2D on whole CPIs of
+    ``n_range_bins`` rows x ``n_doppler_bins`` cells (raster order, zero padded): box sum minus
+    guard-box sum, threshold and decision. Returns ``(data, threshold, detect, first, last)``."""
+    N, M   = n_range_bins, n_doppler_bins
+    R, C   = n_train[0] + n_guard[0], n_train[1] + n_guard[1]
+    gr, gd = n_guard
+    n_tr   = (2*R + 1)*(2*C + 1) - (2*gr + 1)*(2*gd + 1)
+    recip  = int(round((1 << 16)/n_tr))
+    x      = np.asarray(x, np.int64)
+    n_cpi  = len(x)//(N*M)
+    out    = [[] for _ in range(5)]
+    for k in range(n_cpi):
+        m   = x[k*N*M:(k + 1)*N*M].reshape(N, M)
+        pad = np.pad(m, ((R, R), (C, C)))
+        for r in range(N):
+            for c in range(M):
+                big   = int(pad[r:r + 2*R + 1, c:c + 2*C + 1].sum())
+                guard = int(pad[r + R - gr:r + R + gr + 1, c + C - gd:c + C + gd + 1].sum())
+                thr   = cfar_threshold(big - guard, alpha, recip, data_width, threshold_frac)
+                v     = int(m[r, c])
+                for col, val in zip(out, (v, thr, int(v > thr), int(c == 0), int(c == M - 1))):
+                    col.append(val)
+    return tuple(np.array(c, np.int64) for c in out)

@@ -117,6 +117,8 @@ SPECIFIC = [
     ("doppler",         {"magnitude": "cordic"}),
     ("ca_cfar",         {"n_train": 0}),
     ("ca_cfar",         {"n_guard": 9}),
+    ("cfar_2d",         {"n_train": (0, 2)}),
+    ("cfar_2d",         {"n_doppler_bins": 4}),
 ]
 
 class TestParams(unittest.TestCase):

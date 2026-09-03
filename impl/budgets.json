@@ -353,6 +353,34 @@
       }
     }
   },
+  "cfar_2d": {
+    "ecp5": {
+      "bram": 4,
+      "dsp": 5,
+      "ff": 723,
+      "lut": 1321,
+      "synth": {
+        "bram": 4,
+        "dsp": 5,
+        "ff": 723,
+        "lut": 1321
+      }
+    }
+  },
+  "cfar_2d_wide": {
+    "ecp5": {
+      "bram": 4,
+      "dsp": 5,
+      "ff": 812,
+      "lut": 1521,
+      "synth": {
+        "bram": 4,
+        "dsp": 5,
+        "ff": 812,
+        "lut": 1521
+      }
+    }
+  },
   "cfo_estimator": {
     "ecp5": {
       "bram": 0,

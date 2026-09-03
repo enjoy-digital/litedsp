@@ -189,6 +189,7 @@ VSPEC = {
     "corner_turn":        _v("corner_turn_model", latency="variable", cosim=True),
     "doppler":            _v("doppler_model", latency="variable", cosim=True),
     "ca_cfar":            _v("ca_cfar_model", latency="variable", cosim=True),
+    "cfar_2d":            _v("cfar_2d_model", latency="variable", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

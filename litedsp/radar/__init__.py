@@ -30,3 +30,4 @@ from litedsp.radar.mti      import LiteDSPMTICanceller
 from litedsp.radar.corner_turn import LiteDSPCornerTurn
 from litedsp.radar.doppler  import LiteDSPDopplerProcessor
 from litedsp.radar.cfar     import LiteDSPCACFAR
+from litedsp.radar.cfar_2d  import LiteDSPCFAR2D

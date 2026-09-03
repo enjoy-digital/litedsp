@@ -816,8 +816,9 @@ class CFARDriver(Driver):
     regs = ("alpha", "control", "config", "detections")
 
     @property
-    def n_train(self):
-        return self.config.read() & 0xFF
+    def n_training(self):
+        cfg = self.config.read()
+        return (cfg & 0xFFFF) if (cfg >> 24) & 1 else 2*(cfg & 0xFF)   # 2-D box count / 1-D 2T.
 
     @property
     def frac_bits(self):
@@ -829,7 +830,7 @@ class CFARDriver(Driver):
     def set_pfa(self, pfa, domain="power", n_train_cells=None):
         from litedsp.radar.design import cfar_alpha
         if n_train_cells is None:
-            n_train_cells = 2*self.n_train
+            n_train_cells = self.n_training
         self.alpha.write(cfar_alpha(pfa, n_train_cells, domain, frac_bits=self.frac_bits))
 
     def set_mode(self, mode):
@@ -867,6 +868,7 @@ TYPED = {
     "loudness":      LoudnessDriver,
     "range_gate":    RangeGateDriver,
     "ca_cfar":       CFARDriver,
+    "cfar_2d":       CFARDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
