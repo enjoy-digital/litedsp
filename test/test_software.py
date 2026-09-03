@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -317,6 +317,21 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual((regs["cm_alpha"].value, regs["cm_threshold_min"].value, regs["cm_control"].value), (640, 30, 1))
         drv.clear()
         self.assertEqual(regs["cm_control"].value, 1 | (1 << 2))
+
+    def test_kalman_tracker(self):
+        regs = {f"kt_{r}": MockCSR() for r in KalmanTrackerDriver.regs}
+        regs["kt_config"].value = 4 | (4 << 8) | (8 << 12) | (8 << 16)
+        drv = KalmanTrackerDriver(MockBus(regs), "kt")
+        drv.set_noise(0.05, 0.5)
+        self.assertEqual(regs["kt_noise"].value, 13 | (128 << 16))
+        drv.set_tracking_index(0.5)
+        self.assertEqual(regs["kt_noise"].value, 32 | (128 << 16))
+        with self.assertRaises(NotImplementedError):
+            drv.set_gains(0.5, 0.1)
+        regs["kt_cov_status"].value = 1
+        self.assertEqual(drv.cov_sat, 1)
+        drv.clear_cov_sat()
+        self.assertEqual(regs["kt_cov"].value, 1)
 
     def test_target_list(self):
         regs = {f"tl_{r}": MockCSR() for r in TargetListDriver.regs}

@@ -128,6 +128,8 @@ SPECIFIC = [
     ("target_list",     {"max_targets": 1}),
     ("alpha_beta_tracker", {"n_tracks": 17}),
     ("alpha_beta_tracker", {"frac_bits": 9}),
+    ("kalman_tracker",  {"cov_frac": 2}),
+    ("kalman_tracker",  {"cov_width": 8}),
 ]
 
 class TestParams(unittest.TestCase):

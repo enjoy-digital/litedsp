@@ -936,6 +936,29 @@ class TrackerDriver(Driver):
     def confirmed(self):
         return (self.status.read() >> 8) & 0x1F
 
+class KalmanTrackerDriver(TrackerDriver):
+    """Kalman tracker: the tracker driver with process / measurement noise instead of gains."""
+    regs = TrackerDriver.regs + ("noise", "p_vel0", "cov", "cov_status")
+
+    def set_noise(self, q_bins2, r_bins2):
+        _, cf = self._fracs
+        q = max(0, min(0xFFFF, int(round(q_bins2*(1 << cf)))))
+        r = max(1, min(0xFFFF, int(round(r_bins2*(1 << cf)))))
+        self.noise.write(q | (r << 16))
+
+    def set_tracking_index(self, lam, r_bins2=0.5):
+        self.set_noise(lam*lam*r_bins2, r_bins2)
+
+    def set_gains(self, alpha, beta):
+        raise NotImplementedError("Kalman gains follow from set_noise / set_tracking_index")
+
+    @property
+    def cov_sat(self):
+        return self.cov_status.read() & 1
+
+    def clear_cov_sat(self):
+        self.cov.write(1)
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -969,6 +992,7 @@ TYPED = {
     "clutter_map":   ClutterMapDriver,
     "target_list":   TargetListDriver,
     "alpha_beta_tracker": TrackerDriver,
+    "kalman_tracker": KalmanTrackerDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -977,7 +1001,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

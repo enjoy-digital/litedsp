@@ -1374,6 +1374,17 @@ def spec_alpha_beta_tracker():
         return list(models.alpha_beta_tracker_model(c[0], c[1], c[3], emit_tentative=1)[0])
     return dut, cols, len(ref[0]) - 1, model, True, True
 
+def spec_kalman_tracker():
+    from litedsp.radar.kalman import LiteDSPKalmanTracker
+    dut = LiteDSPKalmanTracker(with_csr=False)
+    dut.emit_tentative.reset = 1
+    beats, _ = models.tracker_scenario(n_cpi=12, seed=4)
+    cols = [[b[f] for b in beats] for f in ("range", "doppler", "data", "hit", "first", "last")]
+    ref, _ = models.kalman_tracker_model(cols[0], cols[1], cols[3], emit_tentative=1)
+    def model(c):
+        return list(models.kalman_tracker_model(c[0], c[1], c[3], emit_tentative=1)[0])
+    return dut, cols, len(ref[0]) - 1, model, True, True
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1566,6 +1577,7 @@ SPECS = {
     "peak_extractor":   spec_peak_extractor,
     "target_list":      spec_target_list,
     "alpha_beta_tracker": spec_alpha_beta_tracker,
+    "kalman_tracker":   spec_kalman_tracker,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,

@@ -42,6 +42,9 @@ class _LiteDSPTracker(LiteXModule):
     ``hits`` field is the active track count; ``ev.update`` fires with it.
     ``latency = None``; rate data dependent.
     """
+    def _new_track_init(self, k):                                   # Extra per-slot initialisation.
+        return []
+
     def __init__(self, n_tracks=4, index_width=12, frac_bits=4, velocity_frac=8, gain_frac=8,
         data_width=17, with_csr=True, with_irq=False):
         check(1 <= n_tracks <= 16, "expected 1 <= n_tracks <= 16")
@@ -177,6 +180,7 @@ class _LiteDSPTracker(LiteXModule):
                     NextValue(meas_r[k], mr), NextValue(meas_d[k], md), NextValue(V_r[k], 0), NextValue(V_d[k], 0),
                     NextValue(assigned[k], 1), NextValue(hits[k], 0), NextValue(misses[k], 0),   # The update counts the hit.
                     NextValue(state[k], TRACK_TENTATIVE),
+                    *self._new_track_init(k),
                 ) for k in range(T)],
             ).Else(
                 NextValue(self.dropped, self.dropped + 1),
@@ -330,6 +334,9 @@ class LiteDSPAlphaBetaTracker(_LiteDSPTracker):
     ``hits`` field is the active track count; ``ev.update`` fires with it.
     ``latency = None``; rate data dependent.
     """
+    def _new_track_init(self, k):
+        return []
+
     def _add_controls(self):
         GF = self.gain_frac
         self.alpha = Signal(GF + 1, reset=int(round(0.5*(1 << GF))))

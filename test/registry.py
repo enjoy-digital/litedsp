@@ -195,6 +195,7 @@ VSPEC = {
     "peak_extractor":     _v("peak_extractor_model", latency="variable", cosim=True),
     "target_list":        _v("target_list_model", latency="variable", cosim=True),
     "alpha_beta_tracker": _v("alpha_beta_tracker_model", latency="variable", cosim=True),
+    "kalman_tracker":     _v("kalman_tracker_model", latency="variable", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

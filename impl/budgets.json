@@ -3589,6 +3589,20 @@
       }
     }
   },
+  "kalman_tracker": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 20,
+      "ff": 1940,
+      "lut": 5884,
+      "synth": {
+        "bram": 0,
+        "dsp": 20,
+        "ff": 1940,
+        "lut": 5884
+      }
+    }
+  },
   "ldpc_decoder": {
     "ecp5": {
       "bram": 2,

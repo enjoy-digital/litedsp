@@ -135,6 +135,7 @@ from litedsp.radar.clutter         import LiteDSPClutterMap
 from litedsp.radar.cfar_2d         import LiteDSPCFAR2D
 from litedsp.radar.detect          import LiteDSPPeakExtractor, LiteDSPTargetList
 from litedsp.radar.track           import LiteDSPAlphaBetaTracker
+from litedsp.radar.kalman          import LiteDSPKalmanTracker
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -323,6 +324,7 @@ ENTRIES = [
     ("cfar_2d",            LiteDSPCFAR2D,                {},                                     "radar",      "2-D CA-CFAR detector",  {}),
     ("peak_extractor",     LiteDSPPeakExtractor,         {},                                     "radar",      "Peak extractor",        {}),
     ("target_list",        LiteDSPTargetList,            {},                                     "radar",      "Target list",           {}),
+    ("kalman_tracker",     LiteDSPKalmanTracker,         {},                                     "radar",      "Kalman tracker",        {}),
     ("alpha_beta_tracker", LiteDSPAlphaBetaTracker,      {},                                     "radar",      "Alpha-beta tracker",    {}),
     ("doppler",            LiteDSPDopplerProcessor,      {},                                     "radar",      "Doppler processor",     {"window": ["rect", "hann", "hamming", "blackman"], "magnitude": ["approx", "power"]}),
     ("pulse_compressor",   LiteDSPPulseCompressor,       {},                                     "radar",      "Pulse compressor (chirp matched filter)", {"window": ["rect", "hann", "hamming", "blackman"], "fir_architecture": ["classic", "pipelined", "mac"]}),

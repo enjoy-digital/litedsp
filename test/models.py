@@ -3221,3 +3221,90 @@ def clutter_map_model(x, first, last, n_cells=64, alpha=1024, avg_shift=3, learn
             init = False
         addr = (addr + 1) % n_cells
     return tuple(np.array(c, np.int64) for c in out)
+
+def _clampc(x, width):
+    return max(0, min((1 << width) - 1, int(x)))
+
+def kalman_tracker_model(rng, dop, hit, n_tracks=4, q=13, r=128, p_vel0=1024, gate_r=32, gate_d=32,
+    confirm_hits=3, max_misses=2, emit_tentative=0, index_width=12, frac_bits=4, velocity_frac=8,
+    cov_frac=8, cov_width=24):
+    """Bit-exact reference for litedsp.radar.kalman.LiteDSPKalmanTracker: the tracker engine of
+    :func:`alpha_beta_tracker_model` with a constant-velocity Kalman update per axis (predicted
+    covariance with process noise q, restoring-division gains, clamped covariance). Returns the
+    track burst columns and a dict with the counters, the sticky ``cov_sat`` and the last gains
+    per track."""
+    F, VF, CF, CW, T = frac_bits, velocity_frac, cov_frac, cov_width, n_tracks
+    PW, PV, VW   = index_width + F, index_width + VF + 2, index_width + VF
+    NB, KW = CW + CF, CF + 4
+    gr, gd = int(gate_r) << (VF - F), int(gate_d) << (VF - F)
+    def new(m):
+        return dict(state=1, P=list(m), pred=list(m), V=[0, 0], meas=list(m), assigned=1, hits=0, misses=0,
+                    cov=[[int(r), 0, int(p_vel0)], [int(r), 0, int(p_vel0)]], gains=[[0, 0], [0, 0]])
+    trk = [dict(state=0, P=[0, 0], pred=[0, 0], V=[0, 0], meas=[0, 0], assigned=0, hits=0, misses=0,
+                cov=[[0, 0, 0], [0, 0, 0]], gains=[[0, 0], [0, 0]]) for _ in range(T)]
+    out = [[] for _ in range(8)]
+    stats = dict(dropped=0, cpi_count=0, cov_sat=0)
+    for rr, dd, h in zip(rng, dop, hit):
+        if h:
+            m = [int(rr) << (VF - F), int(dd) << (VF - F)]
+            best, best_s = None, None
+            for k, t in enumerate(trk):
+                if t["state"] == 0 or t["assigned"]:
+                    continue
+                adr, add = abs(m[0] - t["pred"][0]), abs(m[1] - t["pred"][1])
+                if adr <= gr and add <= gd and (best is None or adr + add < best_s):
+                    best, best_s = k, adr + add
+            if best is not None:
+                trk[best]["meas"], trk[best]["assigned"] = list(m), 1
+            else:
+                free = [k for k, t in enumerate(trk) if t["state"] == 0]
+                if free:
+                    trk[free[0]] = new(m)
+                else:
+                    stats["dropped"] += 1
+            continue
+        for t in trk:
+            if t["state"] != 0:
+                for a in range(2):
+                    P11, P12, P22 = t["cov"][a]
+                    s11, s12, s22 = P11 + 2*P12 + P22 + (int(q) >> 2), P12 + P22 + (int(q) >> 1), P22 + int(q)
+                    if max(s11, s12, s22) > (1 << CW) - 1:
+                        stats["cov_sat"] = 1
+                    p11p, p12p, p22p = _clampc(s11, CW), _clampc(s12, CW), _clampc(s22, CW)
+                    if t["assigned"]:
+                        S  = p11p + int(r)
+                        k1 = min((p11p << CF)//S, (1 << KW) - 1)
+                        k2 = min((p12p << CF)//S, (1 << KW) - 1)
+                        e  = t["meas"][a] - t["pred"][a]
+                        t["P"][a] = _sat(t["pred"][a] + _rnd(e*k1, CF), PV)
+                        t["V"][a] = _sat(t["V"][a] + _rnd(e*k2, CF), VW)
+                        one = (1 << CF) - k1
+                        t["cov"][a] = [_clampc(_rnd(p11p*one, CF), CW), _clampc(_rnd(p12p*one, CF), CW),
+                                       _clampc(p22p - _rnd(p12p*k2, CF), CW)]
+                        t["gains"][a] = [k1, k2]
+                    else:
+                        t["P"][a] = t["pred"][a]
+                        t["cov"][a] = [p11p, p12p, p22p]
+                if t["assigned"]:
+                    t["hits"], t["misses"] = min(15, t["hits"] + 1), 0
+                    if t["state"] == 1 and t["hits"] >= confirm_hits:
+                        t["state"] = 2
+                else:
+                    t["misses"] += 1
+                    if t["misses"] > max_misses:
+                        t["state"] = 0
+            t["assigned"] = 0
+            t["pred"] = [_sat(t["P"][a] + t["V"][a], PV) for a in range(2)]
+        active = sum(t["state"] != 0 for t in trk)
+        n = 0
+        for k, t in enumerate(trk):
+            if t["state"] == 2 or (emit_tentative and t["state"] == 1):
+                pos = [max(0, min((1 << PW) - 1, _rnd(t["P"][a], VF - F))) for a in range(2)]
+                for col, v in zip(out, (pos[0], pos[1], t["V"][0], k, t["hits"], 1, int(n == 0), 0)):
+                    col.append(v)
+                n += 1
+        for col, v in zip(out, (0, 0, 0, 0, active, 0, int(n == 0), 1)):
+            col.append(v)
+        stats["cpi_count"] += 1
+    stats["gains"] = [t["gains"] for t in trk]
+    return tuple(np.array(c, np.int64) for c in out), stats
