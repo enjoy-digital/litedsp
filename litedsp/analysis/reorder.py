@@ -54,7 +54,7 @@ class LiteDSPBitReverse(LiteXModule):
         width = len(self.sink.payload)
         mem   = Memory(width, 2*N)
         wp    = mem.get_port(write_capable=True)
-        rp    = mem.get_port(async_read=True)
+        rp    = mem.get_port(has_re=True)                              # Registered read: block RAM.
         self.specials += mem, wp, rp
 
         # Write side: skip the FFT fill, then one frame per bank at bit-reversed addresses.
@@ -81,21 +81,26 @@ class LiteDSPBitReverse(LiteXModule):
             If(wr_pos == N - 1, wr_pos.eq(0), wr_bank.eq(~wr_bank)).Else(wr_pos.eq(wr_pos + 1)),
         )
 
-        # Read side: sequential, framed.
-        # ------------------------------
+        # Read side: sequential, framed; the RAM's registered read port is the output register
+        # (read enable = the elastic advance, so the data holds through stalls).
+        # -----------------------------------------------------------------------------------
         rd_bank, rd_pos = Signal(), Signal(bits)
-        rd_xfer, rd_done = Signal(), Signal()
+        adv, rd_issue, rd_done = Signal(), Signal(), Signal()
         self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            rd_issue.eq(adv & (self.filled != 0)),
+            rd_done.eq(rd_issue & (rd_pos == N - 1)),
             rp.adr.eq(Cat(rd_pos, rd_bank)),
-            self.source.valid.eq(self.filled != 0),
+            rp.re.eq(adv),
             self.source.payload.raw_bits().eq(rp.dat_r),
-            self.source.first.eq(rd_pos == 0),
-            self.source.last.eq(rd_pos == N - 1),
-            rd_xfer.eq(self.source.valid & self.source.ready),
-            rd_done.eq(rd_xfer & (rd_pos == N - 1)),
         ]
         self.sync += [
-            If(rd_xfer,
+            If(adv,
+                self.source.valid.eq(self.filled != 0),
+                self.source.first.eq(rd_pos == 0),
+                self.source.last.eq(rd_pos == N - 1),
+            ),
+            If(rd_issue,
                 If(rd_pos == N - 1, rd_pos.eq(0), rd_bank.eq(~rd_bank)).Else(rd_pos.eq(rd_pos + 1)),
             ),
             self.filled.eq(self.filled + wr_done - rd_done),

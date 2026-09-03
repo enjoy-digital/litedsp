@@ -10,7 +10,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `angle_ramp` | 33/33/0/0/- | - | - |
 | `angle_tracker` | 677/97/0/0/- | - | - |
 | `audio_eq` | 780/163/0/4/- | - | - |
-| `bit_reverse` | 1383/29/0/0/- | - | - |
+| `bit_reverse` | 141/74/1/0/- | - | - |
 | `bitstream_decimator` | 677/240/0/0/- | - | - |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- | 86/55/1/0/- |

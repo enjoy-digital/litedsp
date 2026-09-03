@@ -114,15 +114,15 @@
   },
   "bit_reverse": {
     "ecp5": {
-      "bram": 0,
+      "bram": 1,
       "dsp": 0,
-      "ff": 29,
-      "lut": 1383,
+      "ff": 74,
+      "lut": 141,
       "synth": {
-        "bram": 0,
+        "bram": 1,
         "dsp": 0,
-        "ff": 29,
-        "lut": 1383
+        "ff": 74,
+        "lut": 141
       }
     }
   },
