@@ -141,7 +141,7 @@ class LiteDSPCFAR2D(LiteXModule):
         def slot_back(k):                                               # (wslot - k) mod slots.
             s = Signal(max=slots)
             d = Signal((wslot.nbits + 2, True))
-            self.comb += [d.eq(wslot - (k % slots)), If(d < 0, s.eq(d + slots)).Else(s.eq(d))]
+            self.comb += [d.eq(wslot - (k % slots)), If(d < 0, s.eq((d + slots)[:s.nbits])).Else(s.eq(d[:s.nbits]))]
             return s
         # Rows relative to the incoming row: the one leaving the box, entering / leaving the guard
         # box and the centre row.
@@ -161,7 +161,7 @@ class LiteDSPCFAR2D(LiteXModule):
         gs_rp = gsum.get_port(has_re=True)
         gs_wp = gsum.get_port(write_capable=True)
         self.specials += wp, cs_rp, cs_wp, gs_rp, gs_wp
-        self.comb += [cs_rp.adr.eq(col), cs_rp.re.eq(adv), gs_rp.adr.eq(col), gs_rp.re.eq(adv)]
+        self.comb += [cs_rp.adr.eq(col[:cs_rp.adr.nbits]), cs_rp.re.eq(adv), gs_rp.adr.eq(col[:gs_rp.adr.nbits]), gs_rp.re.eq(adv)]
 
         # S1: registered beat + read masks.
         # ---------------------------------
@@ -197,8 +197,8 @@ class LiteDSPCFAR2D(LiteXModule):
             # Writes: the incoming real cell (after the S0 read of the leaving value at the same
             # address), the slid column sums for real columns.
             wp.adr.eq(wslot1*M + col1), wp.dat_w.eq(x1), wp.we.eq(adv & v1 & real1 & colok1),
-            cs_wp.adr.eq(col1), cs_wp.dat_w.eq(cs_new), cs_wp.we.eq(adv & v1 & colok1),
-            gs_wp.adr.eq(col1), gs_wp.dat_w.eq(gs_new), gs_wp.we.eq(adv & v1 & colok1),
+            cs_wp.adr.eq(col1[:cs_wp.adr.nbits]), cs_wp.dat_w.eq(cs_new), cs_wp.we.eq(adv & v1 & colok1),
+            gs_wp.adr.eq(col1[:gs_wp.adr.nbits]), gs_wp.dat_w.eq(gs_new), gs_wp.we.eq(adv & v1 & colok1),
         ]
         # Row validity: latched at the end of each row (a real row validates its slot, a virtual
         # row invalidates the row it replaced) so the leaving-row reads of the row in progress
@@ -264,8 +264,8 @@ class LiteDSPCFAR2D(LiteXModule):
         detect   = Signal()
         self.comb += [
             thr_full.eq(p2 + (1 << (threshold_frac + 15))),
-            thr_r.eq(thr_full >> (threshold_frac + 16)),
-            thr.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r)),
+            thr_r.eq(thr_full[threshold_frac + 16:]),
+            thr.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r[:data_width])),
             detect.eq(x6 > thr),
         ]
         self.sync += [
