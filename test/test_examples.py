@@ -68,6 +68,11 @@ class TestAppNoteExamples(unittest.TestCase):
         # Two passes over a 32 x 24 frame pair through three line-buffered blocks (~1 min).
         self._run_example("image_pipeline.py", timeout=900)
 
+
+    def test_fsk_hamming_link_smoke(self):    # AN013.
+        # Two passes over a 32 x 24 frame pair through three line-buffered blocks (~1 min).
+        self._run_example("fsk_hamming_link.py", timeout=900)
+
     def test_pulse_doppler_radar_smoke(self):  # AN011.
         # Three RTL passes (FIR-based compression dominates): extra timeout headroom.
         self._run_example("pulse_doppler_radar.py", timeout=900)

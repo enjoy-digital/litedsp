@@ -169,6 +169,20 @@ Additional contracts introduced with the harmonization:
   eleven typed drivers. Every block has a bit-exact model, backpressured 16 x 12 frame tests with
   functional bounds, Verilator co-simulation on framed rasters (31 configurations), ECP5 budgets and
   datasheets; AN012 runs a camera pipeline end to end (`examples/image_pipeline.py`).
+- Communications extras (`litedsp/comm/`, 21 palette keys): angle modulators `LiteDSPFrequencyModulator` /
+  `LiteDSPPhaseModulator` (shared engine on a quarter-wave ROM), `LiteDSPAMModulator` (baseband or embedded
+  carrier), `LiteDSPSSBModulator` (phasing method on the Hilbert block), `LiteDSPFSKModulator` (symbol hold,
+  Gaussian pulse filter from `gaussian_coefficients`, GFSK / GMSK), `LiteDSPGrayMapper` / `LiteDSPGrayDemapper`,
+  `LiteDSPLineEncoder` / `LiteDSPLineDecoder` (NRZI-S / M, Manchester, differential Manchester with violation
+  counting), `LiteDSPConvolutionalInterleaver` / `LiteDSPConvolutionalDeinterleaver` (Forney, one RAM),
+  `LiteDSPHammingEncoder` / `LiteDSPHammingDecoder` (optional SECDED), bit-serial `LiteDSPBCHEncoder` /
+  `LiteDSPBCHDecoder` (Berlekamp-Massey + Chien, uncorrectable pass-through), `LiteDSPHDLCFramer` /
+  `LiteDSPHDLCDeframer` (stuffing, X.25 FCS, withheld-bit release with `last` / `fcs_ok`); `litedsp.comm.design`
+  (GF(2^m) tables, BCH generators with known answers, Hamming columns, Gray, FSK deviation, HDLC helpers) and
+  the modulator / FEC drivers. Bit-exact models, backpressured tests with functional bounds (demodulator
+  loopbacks, sideband rejection, GMSK phase steps, minimum distances, burst spreading, exhaustive BCH error
+  patterns), Verilator co-simulation (26 configurations), ECP5 budgets and datasheets; AN013 runs a
+  GFSK + Hamming + HDLC text link (`examples/fsk_hamming_link.py`).
 - Motor-control block family (`litedsp/motor/`, palette category `motor`, 19 blocks, see
   `doc/motor_control.md`): Clarke/inverse Clarke (`LiteDSPClarke`/`LiteDSPInverseClarke`,
   amplitude-invariant, Q1.15 constants), Park/inverse Park as the complex mixer fed by a
