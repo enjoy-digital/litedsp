@@ -58,8 +58,18 @@ class _FlowSplit(LiteXModule):
                 source.valid.eq(self.sink.valid & all_ready),
             ]
 
+FIFO_DELAY_THRESHOLD = 32   # Deeper balancing delays use a FIFO (joins are lock-step, so a
+                            # buffer that runs ahead preserves the pairing without 2-D-block
+                            # register chains of hundreds of stages).
+
 class _FlowDelay(LiteXModule):
-    """Globally stalled elastic delay retaining payload, params, and frame markers."""
+    """Globally stalled elastic delay retaining payload, params, and frame markers.
+
+    Depths above ``FIFO_DELAY_THRESHOLD`` are implemented as a ``stream.SyncFIFO`` of that depth
+    (plus slack): the branch runs ahead of the slower one and the downstream lock-step join
+    pairs beat k with beat k, exactly as with the register chain, at a fraction of the flops
+    (a 640-wide image kernel needs a 640-beat delay on the parallel path).
+    """
     def __init__(self, description, depth):
         if depth < 0:
             raise ValueError("expected depth >= 0")
@@ -69,6 +79,10 @@ class _FlowDelay(LiteXModule):
         self.source = stream.Endpoint(description)
         if depth == 0:
             self.comb += self.sink.connect(self.source)
+            return
+        if depth > FIFO_DELAY_THRESHOLD:
+            self.fifo = stream.SyncFIFO(description, depth + 4, buffered=True)
+            self.comb += [self.sink.connect(self.fifo.sink), self.fifo.source.connect(self.source)]
             return
 
         advance = Signal()

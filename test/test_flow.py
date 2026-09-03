@@ -7,6 +7,7 @@
 """Tests for the flow (block-graph -> gateware) tooling."""
 
 import os
+import random
 import unittest
 
 import numpy as np
@@ -210,6 +211,81 @@ class TestAutoDelay(unittest.TestCase):
         b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
         self.assertTrue(np.array_equal(column(a, "i", 16), column(b, "i", 16)))
         self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
+
+
+    def test_fifo_delay_matches_pixel_fifo(self):
+        # A 64-wide 3x3 kernel branch (latency 69 > the FIFO threshold) blended with the direct
+        # pixels: the flow's auto-inserted delay is a FIFO and the chain is bit-exact against a
+        # hand-built Split -> {Kernel2D | PixelFIFO} -> AlphaBlend.
+        from litedsp.common           import pixel_layout
+        from litedsp.image.kernel     import LiteDSPKernel2D
+        from litedsp.image.stream     import LiteDSPPixelFIFO
+        from litedsp.image.blend      import LiteDSPAlphaBlend
+        from litedsp.stream.split     import LiteDSPSplit
+        from litedsp.flow.glue        import FIFO_DELAY_THRESHOLD
+        from test.common import run_frames, beats_to_image
+        # (Port layouts are validated from the registry defaults, so the channel count stays RGB.)
+        w, h = 64, 6
+        nl = nlmod.from_dict({
+            "name": "blendnl", "data_width": 8,
+            "inputs": [{"id": "in0", "layout": "pixel_rgb"}], "outputs": [{"id": "out0", "layout": "pixel_rgb"}],
+            "blocks": [{"id": "k",  "type": "gaussian_blur", "params": {"width": w, "n_channels": 3}},
+                       {"id": "bl", "type": "alpha_blend",   "params": {"alpha": 64}}],
+            "connections": [{"from": "in0",      "to": "k.sink"},
+                            {"from": "k.source", "to": "bl.sink_a"},
+                            {"from": "in0",      "to": "bl.sink_b"},
+                            {"from": "bl.source", "to": "out0"}],
+        })
+        flow = LiteDSPFlowChain(nl, with_csr=False)
+        self.assertIn("delay_bl_sink_b", flow.flow_inserted)             # (plus the fan-out split)
+        self.assertGreater(getattr(flow, "delay_bl_sink_b").depth, FIFO_DELAY_THRESHOLD)
+        self.assertTrue(hasattr(getattr(flow, "delay_bl_sink_b"), "fifo"))
+
+        class Manual(LiteXModule):
+            def __init__(self):
+                from litedsp.image.design import kernel_preset
+                c, sh, off = kernel_preset("gaussian3")
+                self.split = LiteDSPSplit(2, layout=pixel_layout(8, 3))
+                self.k     = LiteDSPKernel2D(n_channels=3, coefficients=c, shift=sh, offset=off, width=w, with_csr=False)
+                self.fifo  = LiteDSPPixelFIFO(depth=128, n_channels=3, with_csr=False)
+                self.bl    = LiteDSPAlphaBlend(alpha=64, with_csr=False)
+                self.sink, self.source = self.split.sink, self.bl.source
+                self.comb += [
+                    self.split.sources[0].connect(self.k.sink), self.split.sources[1].connect(self.fifo.sink),
+                    self.k.source.connect(self.bl.sink_a), self.fifo.source.connect(self.bl.sink_b),
+                ]
+
+        prng = random.Random(5)
+        imgs = [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(h)]) for _ in range(2)]
+        a = run_frames(flow,     imgs, 2*w*h, 3, sink_throttle=0.2, source_ready_rate=0.7)
+        b = run_frames(Manual(), imgs, 2*w*h, 3, sink_throttle=0.2, source_ready_rate=0.7)
+        for k in range(2):
+            self.assertTrue(np.array_equal(beats_to_image(a[k*w*h:], w, h, 3), beats_to_image(b[k*w*h:], w, h, 3)), f"frame {k}")
+
+
+    def test_param_dependent_layouts(self):
+        # A channel-count parameter changes a block's port layouts: the validator reflects the
+        # block with its own params (mono kernel into a mono blend), and still rejects a real
+        # mismatch (mono kernel into the RGB default blend).
+        nl = nlmod.from_dict({
+            "name": "mononl", "data_width": 8,
+            "inputs": [{"id": "in0", "layout": "pixel"}], "outputs": [{"id": "out0", "layout": "pixel"}],
+            "blocks": [{"id": "k",  "type": "gaussian_blur", "params": {"width": 16}},
+                       {"id": "bl", "type": "alpha_blend",   "params": {"n_channels": 1}}],
+            "connections": [{"from": "in0", "to": "k.sink"}, {"from": "k.source", "to": "bl.sink_a"},
+                            {"from": "in0", "to": "bl.sink_b"}, {"from": "bl.source", "to": "out0"}],
+        })
+        LiteDSPFlowChain(nl, with_csr=False)
+        bad = nlmod.from_dict({
+            "name": "badnl", "data_width": 8,
+            "inputs": [{"id": "in0", "layout": "pixel"}], "outputs": [{"id": "out0", "layout": "pixel_rgb"}],
+            "blocks": [{"id": "k",  "type": "gaussian_blur", "params": {"width": 16}},
+                       {"id": "bl", "type": "alpha_blend",   "params": {}}],
+            "connections": [{"from": "in0", "to": "k.sink"}, {"from": "k.source", "to": "bl.sink_a"},
+                            {"from": "in0", "to": "bl.sink_b"}, {"from": "bl.source", "to": "out0"}],
+        })
+        with self.assertRaises(nlmod.NetlistError):
+            LiteDSPFlowChain(bad, with_csr=False)
 
 
 class TestGenericFlowGlue(unittest.TestCase):

@@ -171,6 +171,21 @@ def validate(nl, reg=None):
 
     # Connections: resolve endpoints, check direction + layout, single driver per sink.
     driven = {}     # sink ref -> count.
+    # Per-block specs: parameters that change a port layout (a channel count) are reflected on
+    # an instance built with the block's own params before the layout checks.
+    from litedsp.flow import metadata as _metadata
+    _specs = {}
+    def _block_spec(b):
+        if b.id not in _specs:
+            base = reg[b.type]
+            if b.params:
+                _specs[b.id] = _metadata.reflect(b.type, base.cls, {**dict(base.kwargs), **dict(b.params)},
+                    category=getattr(base, "category", "misc"), display_name=getattr(base, "display_name", None),
+                    choices=getattr(base, "choices", None), doc=getattr(base, "doc", None))
+            else:
+                _specs[b.id] = base
+        return _specs[b.id]
+
     def layout_of(ref, want_dir):
         bid, port = split_ref(ref)
         if port is None:
@@ -188,9 +203,9 @@ def validate(nl, reg=None):
         if b is None or b.type not in reg:
             errors.append(f"connection references unknown block '{bid}'")
             return None
-        p = reg[b.type].port(port)
+        p = _block_spec(b).port(port)
         if p is None:
-            ports = ", ".join(pp.name for pp in reg[b.type].ports)
+            ports = ", ".join(pp.name for pp in _block_spec(b).ports)
             errors.append(f"block '{bid}' ({b.type}) has no port '{port}' (ports: {ports})")
             return None
         if p.direction != want_dir:
