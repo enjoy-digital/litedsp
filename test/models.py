@@ -2848,3 +2848,66 @@ def range_gate_model(i, q, pri, gate_start, gate_len, n_pulses, enable=1, single
         if trig[k] and single:
             armed = 1
     return (np.array(oi, np.int64), np.array(oq, np.int64), np.array(of, np.int64), np.array(ol, np.int64))
+
+def pulse_compressor_model(i, q, first, last, pulse_len=16, bandwidth=0.5, data_width=16, window="rect",
+    shift=None, phase_bits=32, lut_depth=1024):
+    """Bit-exact reference for litedsp.radar.compress.LiteDSPPulseCompressor: the two real-tap
+    complex FIRs (Re h on I/Q, Im h on I/Q) recombined with saturation, the framing tags delayed
+    by ``pulse_len - 1`` beats (zeros before). Returns ``(i, q, first, last)``."""
+    from litedsp.radar.waveform import pulse_compressor_taps
+    if shift is None:
+        shift = (data_width - 1) + (pulse_len - 1).bit_length()
+    re_t, im_t = pulse_compressor_taps(pulse_len, bandwidth, data_width, window, phase_bits, lut_depth)
+    ri, rq = fir_complex_model(i, q, re_t, data_width, shift)
+    mi, mq = fir_complex_model(i, q, im_t, data_width, shift)
+    oi = np_saturated(np.asarray(ri, np.int64) - np.asarray(mq, np.int64), data_width)
+    oq = np_saturated(np.asarray(rq, np.int64) + np.asarray(mi, np.int64), data_width)
+    n  = len(oi)
+    d  = pulse_len - 1
+    of = np.concatenate([np.zeros(min(d, n), np.int64), np.asarray(first, np.int64)[:max(0, n - d)]])
+    ol = np.concatenate([np.zeros(min(d, n), np.int64), np.asarray(last, np.int64)[:max(0, n - d)]])
+    return oi, oq, of, ol
+
+def mti_model(i, q, first, n_range_bins, mode=1, shift=None, data_width=16):
+    """Bit-exact reference for litedsp.radar.mti.LiteDSPMTICanceller: per range bin (counter
+    reset by ``first``) ``y = x - x1`` (mode 0, rescaled by 1/2) or ``x - 2 x1 + x2`` (mode 1,
+    rescaled by 1/4) against the previous pulses' samples (zero history after reset). ``mode``
+    may be a per-sample array. Returns ``(i, q)``."""
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    n = len(i)
+    md = _per_sample(mode, n)
+    h1 = np.zeros((n_range_bins, 2), np.int64)
+    h2 = np.zeros((n_range_bins, 2), np.int64)
+    oi, oq = np.zeros(n, np.int64), np.zeros(n, np.int64)
+    r = 0
+    for k in range(n):
+        if first[k]:
+            r = 0
+        x = np.array([i[k], q[k]])
+        m = int(md[k])
+        diff = x - 2*h1[r] + h2[r] if m else x - h1[r]
+        sh = (m + 1) if shift is None else shift
+        y = np_scaled(diff, sh, data_width)
+        oi[k], oq[k] = y[0], y[1]
+        h2[r] = h1[r]
+        h1[r] = x
+        r = 0 if r == n_range_bins - 1 else r + 1
+    return oi, oq
+
+def corner_turn_model(i, q, n_range_bins, n_pulses):
+    """Bit-exact reference for litedsp.radar.corner_turn.LiteDSPCornerTurn: each complete CPI
+    (``n_pulses`` pulses of ``n_range_bins`` samples, arrival order) is transposed into
+    ``n_range_bins`` columns of ``n_pulses`` samples. Returns ``(i, q, first, last)``."""
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    n_cpi = len(i)//(n_range_bins*n_pulses)
+    oi, oq = [], []
+    for c in range(n_cpi):
+        blk_i = i[c*n_range_bins*n_pulses:(c + 1)*n_range_bins*n_pulses].reshape(n_pulses, n_range_bins)
+        blk_q = q[c*n_range_bins*n_pulses:(c + 1)*n_range_bins*n_pulses].reshape(n_pulses, n_range_bins)
+        oi.append(blk_i.T.reshape(-1)); oq.append(blk_q.T.reshape(-1))
+    n_out = n_cpi*n_range_bins*n_pulses
+    first = np.array([int(k % n_pulses == 0) for k in range(n_out)], np.int64)
+    last  = np.array([int(k % n_pulses == n_pulses - 1) for k in range(n_out)], np.int64)
+    if n_cpi == 0:
+        return np.zeros(0, np.int64), np.zeros(0, np.int64), first, last
+    return np.concatenate(oi), np.concatenate(oq), first, last

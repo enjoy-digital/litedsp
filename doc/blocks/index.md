@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-162 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+164 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -223,3 +223,5 @@
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
 | [Range gate (PRI timer)](range_gate.md) | `LiteDSPRangeGate` | 1 | 0 | PRI / CPI timer and receive gate: turns a continuous I/Q stream into framed pulses. |
+| [MTI canceller](mti.md) | `LiteDSPMTICanceller` | 1 | 0 | Two- or three-pulse MTI canceller on framed pulses (one frame = ``n_range_bins`` beats). |
+| [Pulse compressor (chirp matched filter)](pulse_compressor.md) | `LiteDSPPulseCompressor` | 4 | 60 | Matched filter for the linear-FM pulse of :class:`~litedsp.generation.source.LiteDSPChirp` |

@@ -4304,6 +4304,20 @@
       }
     }
   },
+  "mti": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 43,
+      "lut": 1673,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 43,
+        "lut": 1673
+      }
+    }
+  },
   "nco": {
     "ecp5": {
       "bram": 2,
@@ -5082,6 +5096,34 @@
         "dsp": 2,
         "ff": 31,
         "lut": 320
+      }
+    }
+  },
+  "pulse_compressor": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 60,
+      "ff": 3018,
+      "lut": 4236,
+      "synth": {
+        "bram": 0,
+        "dsp": 60,
+        "ff": 3018,
+        "lut": 4236
+      }
+    }
+  },
+  "pulse_compressor_mac": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 16,
+      "ff": 4280,
+      "lut": 4777,
+      "synth": {
+        "bram": 0,
+        "dsp": 16,
+        "ff": 4280,
+        "lut": 4777
       }
     }
   },

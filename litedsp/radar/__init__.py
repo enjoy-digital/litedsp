@@ -25,3 +25,6 @@ Conventions shared by the family:
 """
 
 from litedsp.radar.timing import LiteDSPRangeGate
+from litedsp.radar.compress import LiteDSPPulseCompressor
+from litedsp.radar.mti      import LiteDSPMTICanceller
+from litedsp.radar.corner_turn import LiteDSPCornerTurn

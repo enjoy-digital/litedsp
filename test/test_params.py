@@ -109,6 +109,9 @@ SPECIFIC = [
     ("bit_reverse",     {"N": 100}),
     ("range_gate",      {"gate_start": 1000}),
     ("range_gate",      {"pri": 1}),
+    ("pulse_compressor", {"pulse_len": 1}),
+    ("pulse_compressor", {"window": "kaiser"}),
+    ("mti",             {"order": 4}),
 ]
 
 class TestParams(unittest.TestCase):

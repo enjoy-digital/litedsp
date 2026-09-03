@@ -1249,6 +1249,51 @@ def spec_range_gate():
     n_out = len(model([cols[0], cols[1], enable])[0]) - 2
     return dut, cols + [enable], n_out, model, False, True, (dut.enable,)
 
+def spec_mti():
+    from litedsp.radar.mti import LiteDSPMTICanceller
+    n, N = 320, 32                                                 # 10 pulses of 32 bins.
+    dut  = LiteDSPMTICanceller(n_range_bins=N, order=3, with_csr=False)
+    cols = _rand_cols(2, n)
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    mode  = [int(k < 160) for k in range(n)]
+    bypass = [int(224 <= k < 256) for k in range(n)]
+    def model(c):
+        i, q = models.mti_model(c[0], c[1], c[2], N, mode=np.array(c[4]))
+        i, q = np.array(i), np.array(q)
+        byp  = np.array(c[5], bool)
+        i[byp], q[byp] = np.array(c[0])[byp], np.array(c[1])[byp]
+        return [i, q, c[2], c[3]]
+    return dut, cols + [first, last, mode, bypass], n - 4, model, True, True, (dut.mode, dut.bypass)
+
+def _spec_pulse_compressor(window="rect", fir_architecture="classic"):
+    from litedsp.radar.compress import LiteDSPPulseCompressor
+    from litedsp.radar.waveform import chirp_reference
+    n, P = 300, 16
+    dut  = LiteDSPPulseCompressor(pulse_len=P, bandwidth=0.5, window=window,
+        fir_architecture=fir_architecture, with_csr=False)
+    prng = random.Random(7)
+    s    = chirp_reference(P, 0.5)
+    x    = np.array([complex(prng.randint(-500, 500), prng.randint(-500, 500)) for _ in range(n)])
+    for d, a in ((40, 0.7), (150, 0.4), (220, 0.9)):
+        x[d:d + P] += a*s
+    cols  = [np.clip(x.real, -32767, 32767).astype(int).tolist(), np.clip(x.imag, -32767, 32767).astype(int).tolist()]
+    first = [int(k % 100 == 0) for k in range(n)]
+    last  = [int(k % 100 == 99) for k in range(n)]
+    def model(c):
+        i, q, f, l = models.pulse_compressor_model(c[0], c[1], c[2], c[3], P, 0.5, window=window)
+        return [i, q, f, l]
+    return dut, cols + [first, last], n - 4, model, True, True
+
+def spec_pulse_compressor():
+    return _spec_pulse_compressor()
+
+def spec_pulse_compressor_hamming():
+    return _spec_pulse_compressor("hamming")
+
+def spec_pulse_compressor_mac():
+    return _spec_pulse_compressor("rect", "mac")
+
 # Table --------------------------------------------------------------------------------------------
 
 SPECS = {
@@ -1366,6 +1411,10 @@ SPECS = {
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
     "range_gate":       spec_range_gate,
+    "mti":              spec_mti,
+    "pulse_compressor": spec_pulse_compressor,
+    "pulse_compressor_hamming": spec_pulse_compressor_hamming,
+    "pulse_compressor_mac":     spec_pulse_compressor_mac,
 }
 
 # Known failures -----------------------------------------------------------------------------------
@@ -1415,6 +1464,8 @@ def check_coverage():
         "log2_lut":                  "log2",
         "compressor_limiter":        "compressor",
         "compressor_gate":           "compressor",
+            "pulse_compressor_hamming": "pulse_compressor",
+        "pulse_compressor_mac":     "pulse_compressor",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

@@ -100,6 +100,8 @@ from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.radar.timing         import LiteDSPRangeGate
+from litedsp.radar.compress       import LiteDSPPulseCompressor
+from litedsp.radar.mti            import LiteDSPMTICanceller
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -780,6 +782,18 @@ def range_gate():
     return d, {d.pri, d.gate_start, d.gate_len, d.pulse_width, d.n_pulses_cpi, d.enable, d.single, d.trigger,
                d.tx, d.rx_gate, d.cpi_start, d.running, d.pulse_index, d.pulse_count} | _eps(d.sink, d.source), 10.0
 
+def mti():
+    d = LiteDSPMTICanceller(n_range_bins=256, order=3, with_csr=False)
+    return d, {d.mode, d.bypass} | _eps(d.sink, d.source), 10.0
+
+def pulse_compressor():
+    d = LiteDSPPulseCompressor(pulse_len=16, with_csr=False)
+    return d, {d.clear, d.saturated} | _eps(d.sink, d.source), 10.0
+
+def pulse_compressor_mac():
+    d = LiteDSPPulseCompressor(pulse_len=32, fir_architecture="mac", n_macs=4, with_csr=False)
+    return d, {d.clear, d.saturated} | _eps(d.sink, d.source), 10.0
+
 # Registry -----------------------------------------------------------------------------------------
 
 REGISTRY = {
@@ -847,7 +861,8 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
-    "range_gate": range_gate,
+    "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
+    "mti": mti,
 }
 
 # Subset for the slower full place-&-route flows.
