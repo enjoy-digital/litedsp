@@ -122,6 +122,27 @@ Additional contracts introduced with the harmonization:
   metrics, AN010 (EQ within 0.3 dB of the design, compressor static curve bit-exact vs the model,
   limiter ceiling, 16-bit in-band THD+N -95 dB, I2S transport over pins) and
   `examples/audio_core.yml`.
+- Radar / sonar block family (`litedsp/radar/`, palette category `radar`, 10 blocks + `LiteDSPBitReverse`, see
+  `doc/radar.md`): `LiteDSPRangeGate` (sample-domain PRI/CPI timer, gated and framed receive
+  window, IRQ), `LiteDSPPulseCompressor` (chirp matched filter on two `LiteDSPFIRFilterComplex`
+  with rect/Hamming taper, `classic` or `mac`, tag re-alignment; PSLR gates), `LiteDSPMTICanceller`
+  (2/3-pulse canceller with history RAMs, bypass), `LiteDSPCornerTurn` (N x M ping-pong RAM,
+  frame monitor), `LiteDSPDopplerProcessor` (window -> scaled FFT -> alpha-max-beta-min magnitude
+  or power -> natural order through the new `LiteDSPBitReverse` in `analysis/`), `LiteDSPCACFAR`
+  (CA/GO/SO with zero-padded flush) and `LiteDSPCFAR2D` (box CFAR on streamed map rows: 4-port line
+  buffer, sliding column sums), `LiteDSPPeakExtractor` (3x3 local maxima, bit-serial parabolic
+  sub-bin interpolation, per-CPI target bursts with terminators, IRQ), `LiteDSPTargetList`
+  (ping-pong list, overflow, CSR readback) and `LiteDSPAlphaBetaTracker` (serial gated nearest-
+  neighbour association, alpha-beta update, confirmation / coasting / deletion, track bursts).
+  New stream kinds `cell_layout`, `target_layout`, `track_layout` (one burst per CPI closed by a
+  terminator beat) classified by the flow; design helpers (`litedsp.radar.design`: `cfar_alpha`,
+  `alpha_beta_from_index`, `steering_weights`, unit conversions, `tvg_coefficients`) and chirp
+  helpers (`litedsp.radar.waveform`: `chirp_words`, bit-exact `chirp_reference`,
+  `pulse_compressor_taps`); typed drivers `RangeGateDriver`, `CFARDriver`, `TargetListDriver`,
+  `TrackerDriver`. Every block has a bit-exact integer model, backpressured tests with functional
+  bounds (compression sidelobes, exact clutter cancellation, Doppler bin position and sidelobes,
+  measured CFAR false-alarm rate, centroid error, tracking RMS error and coasting), Verilator
+  co-simulation (18 configurations), ECP5 budgets and datasheets.
 - Motor-control block family (`litedsp/motor/`, palette category `motor`, 19 blocks, see
   `doc/motor_control.md`): Clarke/inverse Clarke (`LiteDSPClarke`/`LiteDSPInverseClarke`,
   amplitude-invariant, Q1.15 constants), Park/inverse Park as the complex mixer fed by a

@@ -36,7 +36,7 @@ tooling below).
 
 It is meant both as a ready-to-use library for RF processing on FPGA (mixers, NCO, filters,
 rate conversion, gain/AGC, power, corrections, analysis), motor control (field-oriented
-control, PWM, sensor interfaces, observers), audio processing (I2S/PDM converters, EQ,
+control, PWM, sensor interfaces, observers), radar/sonar processing (pulse compression, MTI, Doppler, CFAR, tracking), audio processing (I2S/PDM converters, EQ,
 dynamics, effects, metering, dither) and as a clean base to customize from for
 client-specific requirements.
 
@@ -52,7 +52,7 @@ client-specific requirements.
   `doc/fixed_point.md`.
 - **Tested**: numerical datapaths have NumPy golden reference models; simulation output is
   compared bit-exact or against an SNR threshold under `unittest` and CI. The generic Verilator
-  harness additionally co-simulates 46 representative RTL configurations under randomized
+  harness additionally co-simulates 128 representative RTL configurations under randomized
   backpressure.
 
 ![LiteDSP architecture](doc/architecture.svg)
@@ -74,6 +74,7 @@ client-specific requirements.
 | `frontend/`     | `LiteDSPADCInterface`/`LiteDSPDACInterface` (raw converter words), `LiteDSPBitstreamInterface` (sigma-delta / PDM modulator clock + data pins), `LiteDSPIQPacketizer`/`LiteDSPIQDepacketizer` (framed host-link words, LitePCIe-ready, optional timestamp header), `LiteDSPUDPIQStreamer`/`LiteDSPUDPIQReceiver` (I/Q packets over LiteEth UDP) |
 | `motor/`        | `LiteDSPClarke`/`LiteDSPInverseClarke`, `LiteDSPPark`/`LiteDSPInversePark` (complex-mixer rotation), `LiteDSPSinCos`, `LiteDSPAngleRamp`, `LiteDSPPIController` (anti-windup, feed-forward, setpoint stream), `LiteDSPDQController` (d/q current loops, decoupling), `LiteDSPSlewLimiter`, `LiteDSPSVPWM` (min/max injection), `LiteDSPPWM` (center-aligned 3-phase, dead time, fault latch, ADC trigger), `LiteDSPQuadratureDecoder`, `LiteDSPHallDecoder` (interpolated), `LiteDSPSigmaDeltaFilter` (sinc³ current sense + fast over-current path), `LiteDSPOvercurrentTrip`, `LiteDSPAngleTracker` (type-II angle PLL), `LiteDSPSMObserver` (sensorless sliding-mode back-EMF), `LiteDSPResolverDigital`, `LiteDSPFOC` composite; shared `LiteDSPBitstreamDecimator` in `filter/`. See `doc/motor_control.md` |
 | `audio/`        | `LiteDSPI2SReceiver`/`LiteDSPI2STransmitter` (I2S, left/right-justified, TDM; master or slave), `LiteDSPPDMReceiver` (PDM microphones: clocked bitstream interface, sinc decimators, DC blocking, droop compensation), `LiteDSPSigmaDeltaModulator`/`LiteDSPSigmaDeltaDAC`, `LiteDSPAudioEQ` (time-multiplexed DF1 biquad cascade with error feedback, shadow coefficient set), `LiteDSPCompressor` (compressor / limiter / gate presets, log-domain gain computer, lookahead), `LiteDSPVolume` (ramped per-channel gains, mute), `LiteDSPStereoMatrix`, `LiteDSPDither` (TPDF, 1st/2nd-order noise shaping), `LiteDSPLFO`, `LiteDSPDelayLine` (echo / chorus with modulation), `LiteDSPReverb` (Freeverb-style combs + allpasses), `LiteDSPWetDryMix`, `LiteDSPPeakMeter`, `LiteDSPLoudness` (BS.1770 K-weighting); channel-tagged TDM streams (`tdm_layout`), `LiteDSPTDMMux`/`LiteDSPTDMDemux` in `stream/`. See `doc/audio.md` |
+| `radar/`        | `LiteDSPRangeGate` (PRI/CPI timer, gated framed receive window), `LiteDSPPulseCompressor` (chirp matched filter on two complex FIRs, tag re-alignment), `LiteDSPMTICanceller` (2/3-pulse), `LiteDSPCornerTurn` (fast-time to slow-time RAM), `LiteDSPDopplerProcessor` (window, FFT, magnitude/power, natural order), `LiteDSPCACFAR` (CA/GO/SO), `LiteDSPCFAR2D` (box CFAR on map rows), `LiteDSPPeakExtractor` (local maxima, sub-bin centroids, per-CPI target bursts), `LiteDSPTargetList` (CSR readback), `LiteDSPAlphaBetaTracker` (gated association, alpha-beta tracks); `LiteDSPBitReverse` in `analysis/`; design helpers (`litedsp.radar.design`: CFAR alpha, Kalata gains, units) and chirp helpers (`litedsp.radar.waveform`). See `doc/radar.md` |
 | parallel (*)    | `LiteDSPParallelNCO`, `LiteDSPParallelMixer`, `LiteDSPParallelFIRFilter`/`LiteDSPParallelFIRFilterComplex`, `LiteDSPParallelCICDecimator`, `LiteDSPParallelFFT` (radix-2 DIF split, 2 samples/clk), `LiteDSPParallelDDC` composite + `LiteDSPIQSerialToParallel`/`LiteDSPIQParallelToSerial` adapters |
 | misc            | `LiteDSPISqrt` (`numeric.py`), `LiteDSPPILoop` (`control.py`)                 |
 
@@ -137,6 +138,7 @@ Assembled-chain demos live in `examples/`.
 | `doc/timestamps.md`       | Timestamped streams: edge tagging, latency back-computation, packet header |
 | `doc/motor_control.md`    | Motor-control family: per-unit conventions, PWM-paced loop, bring-up, protection |
 | `doc/audio.md`            | Audio family: channel-tagged TDM streams, serial engines and clock budgets, converters, host math |
+| `doc/radar.md`            | Radar / sonar family: stream kinds and framing (cells, target and track bursts), zero padding and flush, units, host math |
 | `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |
 | `doc/flow.md`             | Netlist format, flow/GUI usage, IP core generation          |
 | `doc/resources.md`        | Per-block LUT/FF/BRAM/DSP + fmax table (generated)          |
