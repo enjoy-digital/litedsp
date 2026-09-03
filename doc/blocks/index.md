@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-221 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+223 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -132,6 +132,8 @@
 | [Line decoder (NRZI)](line_decoder.md) | `LiteDSPLineDecoder` | 1 | 0 | Line code to bits. NRZI: a bit from each level change (rate 1:1, latency 1). Manchester |
 | [Manchester encoder](manchester_encoder.md) | `LiteDSPLineEncoder` | 1 | — | Bit stream to line code (``[("data", 1)]`` in and out). |
 | [Manchester decoder](manchester_decoder.md) | `LiteDSPLineDecoder` | 1 | — | Line code to bits. NRZI: a bit from each level change (rate 1:1, latency 1). Manchester |
+| [Hamming encoder](hamming_encoder.md) | `LiteDSPHammingEncoder` | var | 0 | Systematic Hamming encoder on a bit stream: ``k`` message bits in, the ``n = 2^m - 1`` |
+| [Hamming decoder](hamming_decoder.md) | `LiteDSPHammingDecoder` | var | 0 | Hamming decoder: ``n (+1)`` codeword bits in, ``k`` corrected message bits out (framed). |
 | [Phase modulator](pm_modulator.md) | `LiteDSPPhaseModulator` | 2 | 2 | PM modulator: the carrier phase (``phase_inc`` per sample) plus ``d / 2**(data_width-1) * |
 
 ## Analysis / Measurement (`analysis/`)

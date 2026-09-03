@@ -3434,6 +3434,34 @@
       }
     }
   },
+  "hamming_decoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 141,
+      "lut": 284,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 141,
+        "lut": 284
+      }
+    }
+  },
+  "hamming_encoder": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 48,
+      "lut": 111,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 48,
+        "lut": 111
+      }
+    }
+  },
   "histogram": {
     "ecp5": {
       "bram": 0,

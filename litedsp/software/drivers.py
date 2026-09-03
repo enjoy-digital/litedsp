@@ -1286,11 +1286,29 @@ class BoxOverlayDriver(Driver):
     def set_thickness(self, thickness):
         self.control.write((self.control.read() & ~0xF0) | ((int(thickness) & 0xF) << 4))
 
+class FECDecoderDriver(Driver):
+    """Block FEC decoder statistics (Hamming / BCH): corrected and uncorrectable counts, clear."""
+    regs = ("config", "control", "status", "corrected_total", "uncorrectable_count", "blocks")
+
+    def stats(self):
+        st = self.status.read()
+        return dict(blocks=self.blocks.read(), corrected=self.corrected_total.read(),
+                    uncorrectable=self.uncorrectable_count.read(), uncorrectable_flag=(st >> 1) & 1)
+
+    def clear(self):
+        self.control.write(1)
+
+    @property
+    def geometry(self):
+        cfg = self.config.read()
+        return cfg & 0xFF, (cfg >> 8) & 0xFF                            # (n, k).
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
     "fm_modulator": FMModulatorDriver, "pm_modulator": PhaseModulatorDriver, "am_modulator": AMModulatorDriver,
     "fsk_modulator": FSKModulatorDriver,
+    "hamming_decoder": FECDecoderDriver,
     "capture":  CaptureDriver,
     "csr_sink": CSRReaderDriver,
     "squelch":  SquelchDriver,
@@ -1341,7 +1359,7 @@ TYPED = {
 
 # Discovery ----------------------------------------------------------------------------------------
 
-DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
+DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, FECDecoderDriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,

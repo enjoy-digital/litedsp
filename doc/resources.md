@@ -92,6 +92,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `gray_mapper` | 7/11/0/0/- | - | - |
 | `halfband` | 453/157/0/2/95.8/100.0 | 231/94/0/2/124.8/100.0 | 225/94/0/2/278.5/100.0 |
 | `hall_decoder` | 379/187/0/0/- | - | - |
+| `hamming_decoder` | 284/141/0/0/- | - | - |
+| `hamming_encoder` | 111/48/0/0/- | - | - |
 | `histogram` | 389/22/0/0/100.1 | 110/22/0/0/- | 116/21/0/0/- |
 | `i2s_rx` | 81/71/0/0/- | - | - |
 | `i2s_tx` | 109/111/0/0/- | - | - |

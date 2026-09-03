@@ -1410,6 +1410,37 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def spec_hamming_encoder():
+    from litedsp.comm.hamming import LiteDSPHammingEncoder
+    m, blocks = 3, 40
+    dut = LiteDSPHammingEncoder(m=m, with_csr=False)
+    cols = _rand_cols(1, blocks*dut.k, lo=0, hi=1)
+    return dut, cols, blocks*dut.n - 2, lambda c: list(models.hamming_encode_model(c[0], m)), False, True
+
+def _spec_hamming_decoder(secded):
+    from litedsp.comm.hamming import LiteDSPHammingDecoder
+    m, blocks = 3, 40
+    dut = LiteDSPHammingDecoder(m=m, secded=secded, with_csr=False)
+    prng = random.Random(25)
+    bits = [prng.randint(0, 1) for _ in range(blocks*dut.k)]
+    cw = models.hamming_encode_model(bits, m, secded)[0].tolist()
+    n = dut.n
+    for b in range(blocks):                                          # 0, 1 or 2 errors per block.
+        for i in range(b % 3):
+            cw[b*n + (i*3 + b) % n] ^= 1
+    k = dut.k
+    def model(c):
+        data, _ = models.hamming_decode_model(c[0], m, secded)
+        nb = len(data)//k
+        return [data, np.array([int(i % k == 0) for i in range(nb*k)]), np.array([int(i % k == k - 1) for i in range(nb*k)])]
+    return dut, [cw], blocks*k - 2, model, False, True
+
+def spec_hamming_decoder():
+    return _spec_hamming_decoder(False)
+
+def spec_hamming_decoder_secded():
+    return _spec_hamming_decoder(True)
+
 def _spec_line(code, encode):
     from litedsp.comm.line_code import LiteDSPLineEncoder, LiteDSPLineDecoder
     n = 300
@@ -1991,6 +2022,9 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "hamming_encoder":  spec_hamming_encoder,
+    "hamming_decoder":  spec_hamming_decoder,
+    "hamming_decoder_secded": spec_hamming_decoder_secded,
     "line_encoder":     spec_line_encoder,
     "line_decoder":     spec_line_decoder,
     "manchester_encoder": spec_manchester_encoder,
@@ -2091,6 +2125,7 @@ def check_coverage():
             "beamformer_2beams":        "beamformer",
             "am_modulator_nco":         "am_modulator",
             "fsk_modulator_rect":       "fsk_modulator",
+            "hamming_decoder_secded":   "hamming_decoder",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

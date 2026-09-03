@@ -35,3 +35,4 @@ from litedsp.comm.gray    import LiteDSPGrayMapper, LiteDSPGrayDemapper
 from litedsp.comm.ssb_mod import LiteDSPSSBModulator
 from litedsp.comm.fsk_mod import LiteDSPFSKModulator
 from litedsp.comm.line_code import LiteDSPLineEncoder, LiteDSPLineDecoder
+from litedsp.comm.hamming import LiteDSPHammingEncoder, LiteDSPHammingDecoder

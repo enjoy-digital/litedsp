@@ -131,6 +131,7 @@ from litedsp.comm.gray             import LiteDSPGrayMapper, LiteDSPGrayDemapper
 from litedsp.comm.ssb_mod          import LiteDSPSSBModulator
 from litedsp.comm.fsk_mod          import LiteDSPFSKModulator
 from litedsp.comm.line_code        import LiteDSPLineEncoder, LiteDSPLineDecoder
+from litedsp.comm.hamming          import LiteDSPHammingEncoder, LiteDSPHammingDecoder
 from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
@@ -352,6 +353,8 @@ ENTRIES = [
     ("line_decoder",       LiteDSPLineDecoder,           {},                                     "comm",       "Line decoder (NRZI)",   {"code": ["nrzi_s", "nrzi_m", "manchester", "diff_manchester"]}),
     ("manchester_encoder", LiteDSPLineEncoder,           {"code": "manchester"},                 "comm",       "Manchester encoder",    {}),
     ("manchester_decoder", LiteDSPLineDecoder,           {"code": "manchester"},                 "comm",       "Manchester decoder",    {}),
+    ("hamming_encoder",    LiteDSPHammingEncoder,        {},                                     "comm",       "Hamming encoder",       {"m": [3, 4, 5, 6], "secded": [False, True]}),
+    ("hamming_decoder",    LiteDSPHammingDecoder,        {},                                     "comm",       "Hamming decoder",       {"m": [3, 4, 5, 6], "secded": [False, True]}),
     ("pm_modulator",       LiteDSPPhaseModulator,        {},                                     "comm",       "Phase modulator",       {}),
     ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),

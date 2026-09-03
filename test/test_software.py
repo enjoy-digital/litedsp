@@ -8,7 +8,7 @@
 
 import unittest
 
-from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, phase_inc_from_freq, freq_from_phase_inc, discover,
+from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, FECDecoderDriver, phase_inc_from_freq, freq_from_phase_inc, discover,
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
@@ -285,6 +285,16 @@ class TestCommExtraDrivers(unittest.TestCase):
         regs["fsk_config"].value = 1 | (8 << 4)
         FSKModulatorDriver(MockBus(regs), "fsk", clk_freq=1e6).set_modulation_index(0.5)
         self.assertEqual(regs["fsk_deviation"].value, fsk_deviation(0.5, 8, 1))
+
+    def test_fec_decoder(self):
+        regs = {f"fec_{r}": MockCSR() for r in FECDecoderDriver.regs}
+        regs["fec_config"].value = 7 | (4 << 8)
+        regs["fec_corrected_total"].value, regs["fec_uncorrectable_count"].value, regs["fec_blocks"].value, regs["fec_status"].value = 5, 1, 40, 2
+        drv = FECDecoderDriver(MockBus(regs), "fec")
+        self.assertEqual(drv.geometry, (7, 4))
+        self.assertEqual(drv.stats(), dict(blocks=40, corrected=5, uncorrectable=1, uncorrectable_flag=1))
+        drv.clear()
+        self.assertEqual(regs["fec_control"].value, 1)
 
 class TestRadarDrivers(unittest.TestCase):
     def test_range_gate(self):
