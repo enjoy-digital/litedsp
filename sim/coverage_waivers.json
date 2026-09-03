@@ -141,5 +141,40 @@
       "test.test_dynamics:TestCompressor.test_bit_exact_peak_stereo",
       "test.test_dynamics:TestCompressor.test_limiter_ceiling_with_lookahead"
     ]
+  },
+  "pulse_compressor": {
+    "reason": "The uncovered lines are the reset arms and unused bypass/coefficient-load arms of the two nested complex FIR filters (the composite ties their controls off); the compressor is bit-exact against the two-FIR model under backpressure and its echo position / peak-to-sidelobe bounds are gated.",
+    "semantic_checks": [
+      "test.test_pulse_compressor:TestPulseCompressor.test_bit_exact",
+      "test.test_pulse_compressor:TestPulseCompressor.test_peaks_and_sidelobes"
+    ]
+  },
+  "pulse_compressor_hamming": {
+    "reason": "The uncovered lines are the reset arms and unused bypass/coefficient-load arms of the two nested complex FIR filters (the composite ties their controls off); the compressor is bit-exact against the two-FIR model under backpressure and its echo position / peak-to-sidelobe bounds are gated.",
+    "semantic_checks": [
+      "test.test_pulse_compressor:TestPulseCompressor.test_bit_exact",
+      "test.test_pulse_compressor:TestPulseCompressor.test_peaks_and_sidelobes"
+    ]
+  },
+  "pulse_compressor_mac": {
+    "reason": "The uncovered lines are the reset arms and unused bypass/coefficient-load arms of the two nested complex FIR filters (the composite ties their controls off); the compressor is bit-exact against the two-FIR model under backpressure and its echo position / peak-to-sidelobe bounds are gated.",
+    "semantic_checks": [
+      "test.test_pulse_compressor:TestPulseCompressor.test_bit_exact",
+      "test.test_pulse_compressor:TestPulseCompressor.test_peaks_and_sidelobes"
+    ]
+  },
+  "doppler": {
+    "reason": "The uncovered lines are the reset arms of the nested window, FFT, magnitude and reorder sub-blocks (tied off by the composite) and the FFT's unused block-floating-point arms; the processor is bit-exact against the composed models under backpressure and the target-bin / sidelobe bounds are gated.",
+    "semantic_checks": [
+      "test.test_doppler:TestDopplerProcessor.test_bit_exact",
+      "test.test_doppler:TestDopplerProcessor.test_target_bin_and_sidelobes"
+    ]
+  },
+  "doppler_power": {
+    "reason": "The uncovered lines are the reset arms of the nested window, FFT, magnitude and reorder sub-blocks (tied off by the composite) and the FFT's unused block-floating-point arms; the processor is bit-exact against the composed models under backpressure and the target-bin / sidelobe bounds are gated.",
+    "semantic_checks": [
+      "test.test_doppler:TestDopplerProcessor.test_bit_exact",
+      "test.test_doppler:TestDopplerProcessor.test_target_bin_and_sidelobes"
+    ]
   }
 }

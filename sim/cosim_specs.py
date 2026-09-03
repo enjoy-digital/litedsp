@@ -1259,6 +1259,25 @@ def spec_corner_turn():
     last  = [int(k % N == N - 1) for k in range(n)]
     return dut, cols + [first, last], n - 4, lambda c: list(models.corner_turn_model(c[0], c[1], N, M)), True, True
 
+def _spec_doppler(magnitude="approx", window="hann"):
+    from litedsp.radar.doppler import LiteDSPDopplerProcessor
+    M, n_cols = 16, 7                                              # 6 columns + a flush column.
+    n    = M*n_cols
+    dut  = LiteDSPDopplerProcessor(n_pulses=M, window=window, magnitude=magnitude, with_csr=False)
+    cols = _rand_cols(2, n, lo=-20000, hi=20000)
+    first = [int(k % M == 0) for k in range(n)]
+    last  = [int(k % M == M - 1) for k in range(n)]
+    def model(c):
+        data, f, l = models.doppler_model(c[0], c[1], M, window, magnitude)
+        return [data, f, l]
+    return dut, cols + [first, last], (n_cols - 1)*M - 2, model, True, True
+
+def spec_doppler():
+    return _spec_doppler()
+
+def spec_doppler_power():
+    return _spec_doppler("power", "rect")
+
 def spec_mti():
     from litedsp.radar.mti import LiteDSPMTICanceller
     n, N = 320, 32                                                 # 10 pulses of 32 bins.
@@ -1423,6 +1442,8 @@ SPECS = {
     "range_gate":       spec_range_gate,
     "mti":              spec_mti,
     "corner_turn":      spec_corner_turn,
+    "doppler":          spec_doppler,
+    "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,
     "pulse_compressor_hamming": spec_pulse_compressor_hamming,
     "pulse_compressor_mac":     spec_pulse_compressor_mac,
@@ -1477,6 +1498,7 @@ def check_coverage():
         "compressor_gate":           "compressor",
             "pulse_compressor_hamming": "pulse_compressor",
         "pulse_compressor_mac":     "pulse_compressor",
+            "doppler_power":            "doppler",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

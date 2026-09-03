@@ -2911,3 +2911,30 @@ def corner_turn_model(i, q, n_range_bins, n_pulses):
     if n_cpi == 0:
         return np.zeros(0, np.int64), np.zeros(0, np.int64), first, last
     return np.concatenate(oi), np.concatenate(oq), first, last
+
+def doppler_model(i, q, n_pulses, window="hann", magnitude="approx", data_width=16, twiddle_width=16,
+    beta_shift=2):
+    """Bit-exact reference for litedsp.radar.doppler.LiteDSPDopplerProcessor: per column of
+    ``n_pulses`` beats (counted from the start of the stream) the window (``rect`` = none), the
+    scaled fixed-point FFT, the magnitude (alpha-max-beta-min) or power, in natural bin order.
+    Returns ``(data, first, last)`` for the complete columns."""
+    from litedsp.analysis.window import window_coefficients
+    i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
+    if window != "rect":
+        i, q = window_model(i, q, window_coefficients(n_pulses, window, data_width), data_width)
+    n_cols = len(i)//n_pulses
+    out = []
+    for c in range(n_cols):
+        fi, fq = fft_fixed_model(i[c*n_pulses:(c + 1)*n_pulses], q[c*n_pulses:(c + 1)*n_pulses],
+            data_width, twiddle_width)
+        fi, fq = np.asarray(fi, np.int64), np.asarray(fq, np.int64)
+        if magnitude == "approx":
+            m = magnitude_model(fi, fq, beta_shift)
+        else:
+            m = fi*fi + fq*fq
+        out.append(bit_reverse_model([np.asarray(m, np.int64)], n_pulses)[0])
+    n_out = n_cols*n_pulses
+    first = np.array([int(k % n_pulses == 0) for k in range(n_out)], np.int64)
+    last  = np.array([int(k % n_pulses == n_pulses - 1) for k in range(n_out)], np.int64)
+    data  = np.concatenate(out) if out else np.zeros(0, np.int64)
+    return data, first, last

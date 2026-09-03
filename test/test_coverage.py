@@ -23,6 +23,9 @@ class TestCoverageWaivers(unittest.TestCase):
             # bypass paths and the limiter's peak-only sidechain (see the waiver reasons).
             "sincos_cordic", "park", "inverse_park", "dq_controller", "bitstream_decimator",
             "sigma_delta_filter", "smo_observer", "foc", "reverb", "compressor_limiter",
+            # Radar composites (nested FIR / window / FFT / magnitude / reorder arms).
+            "pulse_compressor", "pulse_compressor_hamming", "pulse_compressor_mac", "doppler",
+            "doppler_power",
         })
         self.assertGreaterEqual(len(waivers["ldpc_decoder"]["semantic_checks"]), 5)
 

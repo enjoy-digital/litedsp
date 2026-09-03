@@ -103,6 +103,7 @@ from litedsp.radar.timing         import LiteDSPRangeGate
 from litedsp.radar.compress       import LiteDSPPulseCompressor
 from litedsp.radar.mti            import LiteDSPMTICanceller
 from litedsp.radar.corner_turn    import LiteDSPCornerTurn
+from litedsp.radar.doppler        import LiteDSPDopplerProcessor
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -787,6 +788,10 @@ def corner_turn():
     d = LiteDSPCornerTurn(n_range_bins=64, n_pulses=16, with_csr=False)
     return d, {d.clear, d.frame_error, d.filled} | _eps(d.sink, d.source), 10.0
 
+def doppler():
+    d = LiteDSPDopplerProcessor(n_pulses=16, with_csr=False)
+    return d, {d.clear, d.frame_error} | _eps(d.sink, d.source), 10.0
+
 def mti():
     d = LiteDSPMTICanceller(n_range_bins=256, order=3, with_csr=False)
     return d, {d.mode, d.bypass} | _eps(d.sink, d.source), 10.0
@@ -867,11 +872,11 @@ REGISTRY = {
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
     "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
-    "mti": mti, "corner_turn": corner_turn,
+    "mti": mti, "corner_turn": corner_turn, "doppler": doppler,
 }
 
 # Subset for the slower full place-&-route flows.
-PNR_SUBSET = ["nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
+PNR_SUBSET = ["doppler", "nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "ddc",
               "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
               "viterbi_decoder_acs32",

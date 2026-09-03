@@ -187,6 +187,7 @@ VSPEC = {
     "pulse_compressor":   _v("pulse_compressor_model", cosim=True),
     "mti":                _v("mti_model", cosim=True),
     "corner_turn":        _v("corner_turn_model", latency="variable", cosim=True),
+    "doppler":            _v("doppler_model", latency="variable", cosim=True),
     # stream.
     "combine":            _v("combine_model", cosim=True),
     "split":              _v(),

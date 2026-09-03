@@ -42,6 +42,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `delay_line` | 13118/236/0/2/- | - | - |
 | `depuncturer` | 31/16/0/0/474.3 | 12/16/0/0/- | 13/16/0/0/- |
 | `dither` | 285/133/0/0/- | - | - |
+| `doppler` | 1768/307/0/14/- | - | - |
 | `dpd` | 1559/634/0/12/92.9/100.0 | 679/180/0/14/88.7/100.0 | 614/180/0/14/181.0/100.0 |
 | `dq_controller` | 925/98/0/4/- | - | - |
 | `dq_controller_decoupling` | 1191/165/0/10/- | - | - |
