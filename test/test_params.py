@@ -133,6 +133,8 @@ SPECIFIC = [
     ("beamformer",      {"n_elements": 17}),
     ("beamformer",      {"weight_frac": 16}),
     ("tvg",             {"gain_frac": 0}),
+    ("pulse_generator", {"pulse_len": 128}),
+    ("pulse_generator", {"n_pulses": 0}),
     ("tvg",             {"max_gain_log2": 13}),
 ]
 

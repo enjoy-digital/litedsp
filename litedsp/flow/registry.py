@@ -125,7 +125,7 @@ from litedsp.audio.effects         import LiteDSPLFO, LiteDSPDelayLine, LiteDSPW
 from litedsp.audio.meter           import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm             import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.audio.i2s             import LiteDSPI2SReceiver, LiteDSPI2STransmitter
-from litedsp.radar.timing          import LiteDSPRangeGate
+from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
 from litedsp.radar.corner_turn     import LiteDSPCornerTurn
@@ -317,6 +317,7 @@ ENTRIES = [
     ("pdm_rx",             LiteDSPPDMReceiver,           {},                                     "audio",      "PDM receiver",          None),
     ("i2s_rx",             LiteDSPI2SReceiver,           {},                                     "audio",      "I2S receiver",          {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["slave", "master"]}),
     # Radar / sonar.
+    ("pulse_generator",    LiteDSPPulseGenerator,        {},                                     "radar",      "Pulse generator",       {}),
     ("range_gate",         LiteDSPRangeGate,             {},                                     "radar",      "Range gate (PRI timer)", None),
     ("mti",                LiteDSPMTICanceller,          {},                                     "radar",      "MTI canceller",         None),
     ("corner_turn",        LiteDSPCornerTurn,            {},                                     "radar",      "Corner turn (fast to slow time)", None),

@@ -3359,3 +3359,18 @@ def tvg_model(i, q, first, n_range_bins=1024, g0=0, k_log=0, k_lin=0, gain_frac=
             oi.append(_sat(_rnd(int(i[k])*gain, OF), data_width)); oq.append(_sat(_rnd(int(q[k])*gain, OF), data_width))
         r = 1 if first[k] else min(N - 1, r + 1)
     return np.array(oi, np.int64), np.array(oq, np.int64)
+
+def pulse_generator_model(n_pulses=2, pulse_len=32, pri=128, bandwidth=0.5, data_width=16, phase_bits=32,
+    lut_depth=1024):
+    """Bit-exact reference for litedsp.radar.timing.LiteDSPPulseGenerator: ``n_pulses`` framed
+    chirps (``chirp_reference``) each followed by zeros up to the PRI. Returns ``(i, q, first,
+    last)``."""
+    from litedsp.radar.waveform import chirp_reference
+    pulse = chirp_reference(pulse_len, bandwidth, data_width, phase_bits, lut_depth)
+    i, q, first, last = [], [], [], []
+    for _ in range(n_pulses):
+        for k in range(pri):
+            v = pulse[k] if k < pulse_len else 0
+            i.append(int(round(v.real))); q.append(int(round(v.imag)))
+            first.append(int(k == 0)); last.append(int(k == pulse_len - 1))
+    return tuple(np.array(c, np.int64) for c in (i, q, first, last))

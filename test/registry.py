@@ -183,6 +183,7 @@ VSPEC = {
     "pdm_rx":             _v("pdm_receiver_model", latency="n/a", rate=None),  # Source-only (pins).
     "i2s_rx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level source.
     "i2s_tx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level sink.
+    "pulse_generator":    _v("pulse_generator_model", latency="n/a", rate=None, cosim=True),
     "range_gate":         _v("range_gate_model", latency="check", rate=None, cosim=True),
     "pulse_compressor":   _v("pulse_compressor_model", cosim=True),
     "mti":                _v("mti_model", cosim=True),

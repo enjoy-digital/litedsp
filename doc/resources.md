@@ -132,6 +132,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `psd` | 864/32/0/2/90.3 | 343/30/0/2/- | 320/31/0/2/- |
 | `pulse_compressor` | 4236/3018/0/60/- | - | - |
 | `pulse_compressor_mac` | 4777/4280/0/16/- | - | - |
+| `pulse_generator` | 402/143/2/0/- | - | - |
 | `puncturer` | 21/8/0/0/363.9 | 12/8/0/0/- | 9/8/0/0/- |
 | `pwm` | 310/223/0/1/- | - | - |
 | `qpsk_receiver_ip` | 2083/1000/2/22/100.0/100.0 | 1085/634/1/12/112.5/100.0 | 1083/634/1/12/201.5/100.0 |

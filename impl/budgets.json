@@ -5309,6 +5309,20 @@
       }
     }
   },
+  "pulse_generator": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 143,
+      "lut": 402,
+      "synth": {
+        "bram": 2,
+        "dsp": 0,
+        "ff": 143,
+        "lut": 402
+      }
+    }
+  },
   "puncturer": {
     "ecp5": {
       "bram": 0,

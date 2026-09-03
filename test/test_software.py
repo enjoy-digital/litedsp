@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -357,6 +357,18 @@ class TestRadarDrivers(unittest.TestCase):
                          (g0 & 0xFFFFFFFF, k_log, k_lin))
         drv.set_bypass()
         self.assertEqual(regs["tvg_control"].value, 1)
+
+    def test_pulse_generator(self):
+        from litedsp.radar.waveform import chirp_words
+        regs = {f"pg_{r}": MockCSR() for r in PulseGeneratorDriver.regs}
+        drv  = PulseGeneratorDriver(MockBus(regs), "pg", clk_freq=1e6)
+        drv.set_waveform(250e3, 32e-6, 200e-6, n_pulses=8)
+        start, rate = chirp_words(0.25, 32)
+        self.assertEqual((regs["pg_start"].value, regs["pg_rate"].value), (start, rate))
+        self.assertEqual(regs["pg_timing"].value, 32 | (8 << 16))
+        self.assertEqual(regs["pg_pri"].value, 200)
+        drv.single()
+        self.assertEqual(regs["pg_control"].value, 0b110)
 
     def test_target_list(self):
         regs = {f"tl_{r}": MockCSR() for r in TargetListDriver.regs}

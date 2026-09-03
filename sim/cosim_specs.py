@@ -1237,6 +1237,13 @@ def spec_sigma_delta_mod():
 
 # Radar / Sonar ------------------------------------------------------------------------------------
 
+def spec_pulse_generator():
+    from litedsp.radar.timing import LiteDSPPulseGenerator
+    P, PRI, n_pulses = 16, 48, 3
+    dut = LiteDSPPulseGenerator(pulse_len=P, bandwidth=0.5, pri=PRI, n_pulses=n_pulses, with_csr=False)
+    dut.enable.reset = 1
+    return dut, [], n_pulses*PRI, lambda c: list(models.pulse_generator_model(n_pulses, P, PRI, 0.5)), False, True
+
 def spec_range_gate():
     from litedsp.radar.timing import LiteDSPRangeGate
     n    = 300
@@ -1609,6 +1616,7 @@ SPECS = {
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
+    "pulse_generator":  spec_pulse_generator,
     "range_gate":       spec_range_gate,
     "mti":              spec_mti,
     "corner_turn":      spec_corner_turn,

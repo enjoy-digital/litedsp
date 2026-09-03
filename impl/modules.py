@@ -99,7 +99,7 @@ from litedsp.stream.route         import LiteDSPTDMMux, LiteDSPTDMDemux
 from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
 from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
 from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitter
-from litedsp.radar.timing         import LiteDSPRangeGate
+from litedsp.radar.timing         import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress       import LiteDSPPulseCompressor
 from litedsp.radar.mti            import LiteDSPMTICanceller
 from litedsp.radar.corner_turn    import LiteDSPCornerTurn
@@ -787,6 +787,11 @@ def i2s_tx():
     d = LiteDSPI2STransmitter(data_width=24, with_csr=False)
     return d, {d.bclk, d.lrck, d.sdata, d.enable, d.clear, d.underrun} | _eps(d.sink), 10.0
 
+def pulse_generator():
+    d = LiteDSPPulseGenerator(with_csr=False)
+    return d, {d.start, d.rate, d.pulse_len, d.pri, d.n_pulses, d.enable, d.single, d.trigger, d.tx, d.pulse_start, d.running,
+               d.pulse_count} | _eps(d.source), 10.0
+
 def range_gate():
     d = LiteDSPRangeGate(data_width=16, with_csr=False)
     return d, {d.pri, d.gate_start, d.gate_len, d.pulse_width, d.n_pulses_cpi, d.enable, d.single, d.trigger,
@@ -935,7 +940,7 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
-    "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
+    "range_gate": range_gate, "pulse_generator": pulse_generator, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
     "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker, "beamformer": beamformer, "beamformer_4beams": beamformer_4beams, "monopulse": monopulse, "tvg": tvg,
 }
 

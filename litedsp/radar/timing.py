@@ -172,3 +172,145 @@ class LiteDSPRangeGate(LiteXModule):
             self._status.fields.pulse_index.eq(self.pulse_index),
             self._pulse_count.status.eq(self.pulse_count),
         ]
+
+# Pulse Generator ----------------------------------------------------------------------------------
+
+from litedsp.generation.source import LiteDSPChirp
+from litedsp.radar.waveform    import chirp_words
+
+@ResetInserter()
+class LiteDSPPulseGenerator(LiteXModule):
+    """Transmit pulse train: a linear-FM chirp of ``pulse_len`` samples every ``pri`` samples.
+
+    Source-only block: an internal :class:`LiteDSPChirp` (held in reset between pulses, so each
+    pulse restarts from the ``start`` / ``rate`` words, see
+    ``litedsp.radar.waveform.chirp_words``) is framed (``first`` on the first chirp sample,
+    ``last`` on the last) and followed by zeros up to the PRI. ``enable`` runs CPIs of
+    ``n_pulses`` back to back; ``single`` with a ``trigger`` pulse sends one pulse. Outputs:
+    ``tx`` (during the pulse), ``pulse_start`` (one cycle at the first sample), ``running``
+    and ``pulse_count``. ``pulse_len``, ``pri`` and ``n_pulses`` are runtime. One bubble per
+    pulse start (the chirp's first sample follows its reset release).
+    """
+    def __init__(self, data_width=16, pulse_len=32, bandwidth=0.5, pri=128, n_pulses=16, pri_width=24,
+        phase_bits=32, lut_depth=1024, with_csr=True):
+        check(2 <= pulse_len < pri, "expected 2 <= pulse_len < pri")
+        check(pri < 2**pri_width, "expected pri < 2**pri_width")
+        check(n_pulses >= 1, "expected n_pulses >= 1")
+        start, rate = chirp_words(bandwidth, pulse_len, phase_bits)
+        self.data_width = data_width
+        self.phase_bits = phase_bits
+        self.pri_width  = pri_width
+        self.source = stream.Endpoint(iq_layout(data_width))
+        self.start     = Signal(phase_bits, reset=start)
+        self.rate      = Signal(phase_bits, reset=rate)
+        self.pulse_len = Signal(pri_width, reset=pulse_len)
+        self.pri       = Signal(pri_width, reset=pri)
+        self.n_pulses  = Signal(16, reset=n_pulses)
+        self.enable    = Signal()
+        self.single    = Signal()
+        self.trigger   = Signal()
+        self.tx          = Signal()
+        self.pulse_start = Signal()
+        self.running     = Signal()
+        self.pulse_count = Signal(32)
+
+        # # #
+
+        self.chirp = chirp = LiteDSPChirp(phase_bits=phase_bits, data_width=data_width, lut_depth=lut_depth,
+            with_csr=False)                                             # Has its own reset control.
+        self.comb += [chirp.start.eq(self.start), chirp.rate.eq(self.rate)]
+        adv  = Signal()
+        t    = Signal(pri_width)                                        # Sample index in the PRI.
+        idx  = Signal(16)                                               # Pulse index in the CPI.
+        beat = Signal()                                                 # An output sample is formed.
+        self.comb += adv.eq(self.source.ready | ~self.source.valid)
+        self.fsm = fsm = FSM(reset_state="IDLE")
+        fsm.act("IDLE",
+            chirp.reset.eq(1),
+            If(self.enable | (self.single & self.trigger),
+                NextValue(t, 0), NextValue(idx, 0),
+                NextState("PULSE"),
+            ),
+        )
+        fsm.act("PULSE",
+            self.running.eq(1),
+            self.tx.eq(1),
+            chirp.source.ready.eq(adv),
+            beat.eq(chirp.source.valid),
+            If(adv & beat,
+                If(t == self.pulse_len - 1,
+                    NextState("GAP"),
+                ),
+                NextValue(t, t + 1),
+            ),
+        )
+        fsm.act("GAP",
+            self.running.eq(1),
+            chirp.reset.eq(1),
+            beat.eq(1),
+            If(adv,
+                If(t == self.pri - 1,
+                    NextValue(t, 0),
+                    If(self.single & ~self.enable,
+                        NextState("IDLE"),
+                    ).Elif(idx == self.n_pulses - 1,
+                        NextValue(idx, 0),
+                        If(self.enable, NextState("PULSE")).Else(NextState("IDLE")),
+                    ).Else(
+                        NextValue(idx, idx + 1),
+                        NextState("PULSE"),
+                    ),
+                ).Else(
+                    NextValue(t, t + 1),
+                ),
+            ),
+        )
+        in_pulse = Signal()
+        self.comb += in_pulse.eq(fsm.ongoing("PULSE"))
+        self.sync += [
+            self.pulse_start.eq(0),
+            If(adv,
+                self.source.valid.eq(beat),
+                self.source.i.eq(Mux(in_pulse, chirp.source.i, 0)),
+                self.source.q.eq(Mux(in_pulse, chirp.source.q, 0)),
+                self.source.first.eq(in_pulse & (t == 0)),
+                self.source.last.eq(in_pulse & (t == self.pulse_len - 1)),
+                If(beat & in_pulse & (t == 0),
+                    self.pulse_start.eq(1),
+                    self.pulse_count.eq(self.pulse_count + 1),
+                ),
+            ),
+        ]
+
+        # CSR.
+        # ----
+        if with_csr:
+            self.add_csr()
+
+    def add_csr(self):
+        self._start = CSRStorage(self.phase_bits, reset=self.start.reset.value, name="start", description="Chirp start frequency word.")
+        self._rate  = CSRStorage(self.phase_bits, reset=self.rate.reset.value, name="rate", description="Chirp frequency increment per sample.")
+        self._timing = CSRStorage(fields=[
+            CSRField("pulse_len", size=16, offset=0,  reset=self.pulse_len.reset.value, description="Pulse length (samples)."),
+            CSRField("n_pulses",  size=16, offset=16, reset=self.n_pulses.reset.value,  description="Pulses per CPI."),
+        ])
+        self._pri = CSRStorage(self.pri_width, reset=self.pri.reset.value, name="pri", description="Pulse repetition interval (samples).")
+        self._control = CSRStorage(fields=[
+            CSRField("enable",  size=1, offset=0, description="Run CPIs continuously."),
+            CSRField("single",  size=1, offset=1, description="One pulse per trigger."),
+            CSRField("trigger", size=1, offset=2, pulse=True, description="Start a single pulse."),
+        ])
+        self._status = CSRStatus(fields=[
+            CSRField("running", size=1, offset=0, description="A pulse train is in progress."),
+            CSRField("tx",      size=1, offset=1, description="Transmitting."),
+        ])
+        self._pulse_count = CSRStatus(32, name="pulse_count", description="Pulses sent since reset.")
+        self.comb += [
+            self.start.eq(self._start.storage), self.rate.eq(self._rate.storage),
+            self.pulse_len.eq(self._timing.fields.pulse_len), self.n_pulses.eq(self._timing.fields.n_pulses),
+            self.pri.eq(self._pri.storage),
+            self.enable.eq(self._control.fields.enable), self.single.eq(self._control.fields.single),
+            self.trigger.eq(self._control.fields.trigger),
+            self._status.fields.running.eq(self.running), self._status.fields.tx.eq(self.tx),
+            self._pulse_count.status.eq(self.pulse_count),
+        ]
