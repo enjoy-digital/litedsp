@@ -18,3 +18,6 @@ from litedsp.image.video   import LiteDSPPixelFromVideo, LiteDSPPixelToVideo
 from litedsp.image.linebuffer import LiteDSPLineBuffer
 from litedsp.image.stream  import LiteDSPPixelFIFO
 from litedsp.image.kernel  import LiteDSPKernel2D
+from litedsp.image.edge    import LiteDSPSobel
+from litedsp.image.rank    import LiteDSPRankFilter
+from litedsp.image.point   import LiteDSPThreshold, LiteDSPPixelGain

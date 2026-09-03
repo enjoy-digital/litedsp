@@ -3511,3 +3511,75 @@ def kernel2d_model(img, coefficients, shift=0, offset=0, kernel_size=3, border="
         sat |= int(np.any(y < 0) or np.any(y > (1 << data_width) - 1))
         out[:, :, c] = np.clip(y, 0, (1 << data_width) - 1)
     return (out[:, :, 0] if mono else out), sat
+
+def sobel_model(img, mode="l1", shift=3, border="replicate", data_width=8, with_direction=False, bypass=0):
+    """Bit-exact reference for litedsp.image.edge.LiteDSPSobel: gradients from the padded image,
+    L1 / L-inf / alpha-max-beta-min magnitude, ``clamp(rounded(mag, shift))`` and the quantised
+    direction. Returns the (H, W) magnitude image (and the direction image)."""
+    img = np.asarray(img, np.int64)
+    h, w = img.shape
+    if bypass:
+        return (img, np.zeros_like(img)) if with_direction else img
+    p = np_pad_border(img, 1, border)
+    gx = (p[0:h, 2:] - p[0:h, :w]) + 2*(p[1:h + 1, 2:] - p[1:h + 1, :w]) + (p[2:, 2:] - p[2:, :w])
+    gy = (p[2:, 0:w] - p[0:h, 0:w]) + 2*(p[2:, 1:w + 1] - p[0:h, 1:w + 1]) + (p[2:, 2:] - p[0:h, 2:])
+    ax, ay = np.abs(gx), np.abs(gy)
+    mx, mn = np.maximum(ax, ay), np.minimum(ax, ay)
+    mag = {"l1": ax + ay, "linf": mx, "approx": mx + (mn >> 2)}[mode]
+    r = mag if shift == 0 else (mag + (1 << (shift - 1))) >> shift
+    out = np.clip(r, 0, (1 << data_width) - 1)
+    if not with_direction:
+        return out
+    diag = (mn << 7) > mx*53
+    same = (gx < 0) == (gy < 0)
+    direction = np.where(diag, np.where(same, 1, 3), np.where(ax > ay, 2, 0))
+    return out, direction
+
+def rank_filter_model(img, rank=4, border="replicate", data_width=8, bypass=0):
+    """Bit-exact reference for litedsp.image.rank.LiteDSPRankFilter: the ``rank``-th smallest of
+    each 3x3 neighbourhood per channel (0 erode, 4 median, 8 dilate)."""
+    img = np.asarray(img, np.int64)
+    if bypass:
+        return img
+    mono = img.ndim == 2
+    src  = img[:, :, None] if mono else img
+    h, w, nc = src.shape
+    out = np.zeros_like(src)
+    for c in range(nc):
+        p = np_pad_border(src[:, :, c], 1, border)
+        win = np.stack([p[i:i + h, j:j + w] for i in range(3) for j in range(3)], axis=-1)
+        out[:, :, c] = np.sort(win, axis=-1)[:, :, rank]
+    return out[:, :, 0] if mono else out
+
+def threshold_model(img, high=128, low=None, invert=0, data_width=8, bypass=0):
+    """Bit-exact reference for litedsp.image.point.LiteDSPThreshold: scan-line Schmitt trigger
+    (set at >= high, reset below low, state cleared at every line start)."""
+    img = np.asarray(img, np.int64)
+    if bypass:
+        return img
+    low = high if low is None else low
+    full = (1 << data_width) - 1
+    out = np.zeros_like(img)
+    for y in range(img.shape[0]):
+        state = 0
+        for x in range(img.shape[1]):
+            v = img[y, x]
+            state = 1 if v >= high else (0 if v < low else state)
+            out[y, x] = full if (state ^ int(invert)) else 0
+    return out
+
+def pixel_gain_model(img, gains, offsets, gain_frac=8, data_width=8, bypass=0):
+    """Bit-exact reference for litedsp.image.point.LiteDSPPixelGain: per channel
+    ``clamp(rounded(x * gain, gain_frac) + offset)``. Returns the image and the saturation flag."""
+    img = np.asarray(img, np.int64)
+    if bypass:
+        return img, 0
+    mono = img.ndim == 2
+    src  = img[:, :, None] if mono else img
+    out  = np.zeros_like(src)
+    sat  = 0
+    for c in range(src.shape[2]):
+        y = ((src[:, :, c]*int(gains[c]) + (1 << (gain_frac - 1))) >> gain_frac) + int(offsets[c])
+        sat |= int(np.any(y < 0) or np.any(y > (1 << data_width) - 1))
+        out[:, :, c] = np.clip(y, 0, (1 << data_width) - 1)
+    return (out[:, :, 0] if mono else out), sat

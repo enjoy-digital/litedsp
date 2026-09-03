@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-190 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+196 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -231,6 +231,12 @@
 | [Gaussian blur](gaussian_blur.md) | `LiteDSPKernel2D` | 71 | — | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
 | [Sharpen](sharpen.md) | `LiteDSPKernel2D` | 71 | — | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
 | [Laplacian](laplacian.md) | `LiteDSPKernel2D` | 71 | — | ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel). |
+| [Sobel edge magnitude](sobel.md) | `LiteDSPSobel` | 72 | 1 | Sobel edge magnitude on a mono raster stream. |
+| [Rank filter (median)](rank_filter.md) | `LiteDSPRankFilter` | 73 | 0 | Rank-order filter on a 3x3 neighbourhood (per channel). |
+| [Erosion (3x3 min)](erode.md) | `LiteDSPRankFilter` | 73 | — | Rank-order filter on a 3x3 neighbourhood (per channel). |
+| [Dilation (3x3 max)](dilate.md) | `LiteDSPRankFilter` | 73 | — | Rank-order filter on a 3x3 neighbourhood (per channel). |
+| [Threshold (hysteresis)](threshold.md) | `LiteDSPThreshold` | 1 | 0 | Binary threshold with hysteresis along the scan line (mono). |
+| [Pixel gain / offset](pixel_gain.md) | `LiteDSPPixelGain` | 2 | 3 | Per-channel gain and offset: ``y = clamped(rounded(x * gain, gain_frac) + offset)``. |
 | [Pixel FIFO](pixel_fifo.md) | `LiteDSPPixelFIFO` | 0 | 0 | Elastic buffer for a pixel stream (``pixel_layout``, tags carried). |
 | [Pixel pack](pixel_pack.md) | `LiteDSPPixelPack` | 0 | 0 | Pack pixels into memory words: ``rgb888`` (``r`` in the low byte, then ``g``, ``b``), |
 | [Pixel unpack](pixel_unpack.md) | `LiteDSPPixelUnpack` | 1 | 0 | Unpack memory words back into pixels (inverse of :class:`LiteDSPPixelPack`; ``rgb565`` |

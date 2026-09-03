@@ -5283,6 +5283,20 @@
       }
     }
   },
+  "pixel_gain": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 3,
+      "ff": 97,
+      "lut": 158,
+      "synth": {
+        "bram": 0,
+        "dsp": 3,
+        "ff": 97,
+        "lut": 158
+      }
+    }
+  },
   "pixel_pack": {
     "ecp5": {
       "bram": 0,
@@ -5635,6 +5649,20 @@
         "dsp": 0,
         "ff": 96,
         "lut": 363
+      }
+    }
+  },
+  "rank_filter": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 559,
+      "lut": 1741,
+      "synth": {
+        "bram": 2,
+        "dsp": 0,
+        "ff": 559,
+        "lut": 1741
       }
     }
   },
@@ -6121,6 +6149,20 @@
       }
     }
   },
+  "sobel": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 1,
+      "ff": 372,
+      "lut": 1163,
+      "synth": {
+        "bram": 2,
+        "dsp": 1,
+        "ff": 372,
+        "lut": 1163
+      }
+    }
+  },
   "soft_demapper": {
     "ecp5": {
       "bram": 0,
@@ -6332,6 +6374,20 @@
         "dsp": 0,
         "ff": 1,
         "lut": 31
+      }
+    }
+  },
+  "threshold": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 13,
+      "lut": 85,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 13,
+        "lut": 85
       }
     }
   },

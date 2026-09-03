@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -431,6 +431,22 @@ class TestImageDrivers(unittest.TestCase):
         self.assertEqual(regs["k_control"].value, 1)
         drv.set_bypass()
         self.assertEqual(regs["k_control"].value & 0b100, 0b100)
+
+    def test_point_drivers(self):
+        regs = {f"rk_{r}": MockCSR() for r in RankFilterDriver.regs}
+        RankFilterDriver(MockBus(regs), "rk").set_mode("dilate")
+        self.assertEqual(regs["rk_control"].value, 8)
+        regs = {f"th_{r}": MockCSR() for r in ThresholdDriver.regs}
+        ThresholdDriver(MockBus(regs), "th").set_levels(160, 96)
+        self.assertEqual(regs["th_levels"].value, 160 | (96 << 16))
+        regs = {f"pg_{r}": MockCSR() for r in PixelGainDriver.regs}
+        drv = PixelGainDriver(MockBus(regs), "pg")
+        drv.set_white_balance(1.25, 0.5)
+        self.assertEqual((regs["pg_gain0"].value, regs["pg_gain1"].value, regs["pg_gain2"].value), (320, 256, 128))
+        drv.gray_world((100.0, 120.0, 80.0))
+        self.assertEqual(regs["pg_gain0"].value, int(round(1.2*256)))
+        drv.set_brightness_contrast(0.1, 1.5)
+        self.assertEqual(regs["pg_gain0"].value & 0xFFF, 384)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

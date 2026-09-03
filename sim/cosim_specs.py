@@ -1282,6 +1282,63 @@ def spec_sharpen():
 def spec_laplacian():
     return _spec_kernel("laplacian")
 
+def _frames_model(fn, cols, w, h, nc_in, nc_out, extra_cols=()):
+    """Apply an image model frame by frame to raster columns; returns the pixel columns + tags."""
+    n = w*h
+    n_frames = len(cols[0])//n
+    outs = []
+    for f in range(n_frames):
+        img = np.stack([np.array(cols[k][f*n:(f + 1)*n]).reshape(h, w) for k in range(nc_in)], axis=-1)
+        img = img[:, :, 0] if nc_in == 1 else img
+        y = fn(img)
+        outs.append(y.reshape(n, -1) if nc_out == 3 else y.reshape(-1, 1))
+    y = np.concatenate(outs)
+    return [y[:, k] for k in range(nc_out)] + [np.array(c) for c in extra_cols]
+
+def spec_sobel():
+    from litedsp.image.edge import LiteDSPSobel
+    w, h = 16, 8
+    dut = LiteDSPSobel(width=w, mode="approx", with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2)
+    return dut, cols + [eol, first, last], 2*w*h - 4, \
+        lambda c: _frames_model(lambda i: models.sobel_model(i, "approx"), c, w, h, 1, 1, (eol, first, last)), True, True
+
+def _spec_rank(rank, nc):
+    from litedsp.image.rank import LiteDSPRankFilter
+    w, h = 16, 8
+    dut = LiteDSPRankFilter(n_channels=nc, rank=rank, width=w, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=nc)
+    return dut, cols + [eol, first, last], 2*w*h - 4, \
+        lambda c: _frames_model(lambda i: models.rank_filter_model(i, rank), c, w, h, nc, nc, (eol, first, last)), True, True
+
+def spec_rank_filter():
+    return _spec_rank(4, 3)
+
+def spec_erode():
+    return _spec_rank(0, 1)
+
+def spec_dilate():
+    return _spec_rank(8, 1)
+
+def spec_threshold():
+    from litedsp.image.point import LiteDSPThreshold
+    w, h = 16, 8
+    dut = LiteDSPThreshold(high=160, low=96, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2)
+    return dut, cols + [eol, first, last], 2*w*h - 2, \
+        lambda c: _frames_model(lambda i: models.threshold_model(i, 160, 96), c, w, h, 1, 1, (eol, first, last)), True, True
+
+def spec_pixel_gain():
+    from litedsp.image.point import LiteDSPPixelGain
+    w, h = 16, 8
+    dut = LiteDSPPixelGain(with_csr=False)
+    gains, offsets = (300, 256, 180), (-10, 0, 25)
+    for c in range(3):
+        dut.gain[c].reset, dut.offset[c].reset = gains[c], offsets[c]
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
+    return dut, cols + [eol, first, last], 2*w*h - 2, \
+        lambda c: _frames_model(lambda i: models.pixel_gain_model(i, gains, offsets)[0], c, w, h, 3, 3, (eol, first, last)), True, True
+
 def spec_line_buffer():
     from litedsp.image.linebuffer import LiteDSPLineBuffer
     w, h = 16, 8
@@ -1707,6 +1764,12 @@ SPECS = {
     "gaussian_blur":    spec_gaussian_blur,
     "sharpen":          spec_sharpen,
     "laplacian":        spec_laplacian,
+    "sobel":            spec_sobel,
+    "rank_filter":      spec_rank_filter,
+    "erode":            spec_erode,
+    "dilate":           spec_dilate,
+    "threshold":        spec_threshold,
+    "pixel_gain":       spec_pixel_gain,
     "line_buffer":      spec_line_buffer,
     "pixel_from_video": spec_pixel_from_video,
     "pixel_pattern":    spec_pixel_pattern,

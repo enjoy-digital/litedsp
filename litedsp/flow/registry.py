@@ -145,6 +145,9 @@ from litedsp.image.linebuffer      import LiteDSPLineBuffer
 from litedsp.image.stream          import LiteDSPPixelFIFO
 from litedsp.image.kernel          import LiteDSPKernel2D
 from litedsp.image.design          import kernel_preset
+from litedsp.image.edge            import LiteDSPSobel
+from litedsp.image.rank            import LiteDSPRankFilter
+from litedsp.image.point           import LiteDSPThreshold, LiteDSPPixelGain
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -333,6 +336,12 @@ ENTRIES = [
     ("gaussian_blur", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("gaussian3")[0], shift=kernel_preset("gaussian3")[1], offset=kernel_preset("gaussian3")[2]), "image", "Gaussian blur", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
     ("sharpen", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("sharpen")[0], shift=kernel_preset("sharpen")[1], offset=kernel_preset("sharpen")[2]), "image", "Sharpen", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
     ("laplacian", LiteDSPKernel2D, dict(data_width=8, width=64, n_channels=1, kernel_size=3, coefficients=kernel_preset("laplacian")[0], shift=kernel_preset("laplacian")[1], offset=kernel_preset("laplacian")[2]), "image", "Laplacian", {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("sobel",              LiteDSPSobel,                 {"data_width": 8, "width": 64},         "image",      "Sobel edge magnitude",  {"mode": ["l1", "linf", "approx"], "border": ["replicate", "mirror", "zero"]}),
+    ("rank_filter",        LiteDSPRankFilter,            {"data_width": 8, "width": 64},         "image",      "Rank filter (median)",  {"border": ["replicate", "mirror", "zero"], "n_channels": [1, 3]}),
+    ("erode",              LiteDSPRankFilter,            {"data_width": 8, "width": 64, "rank": 0}, "image",   "Erosion (3x3 min)",     {"n_channels": [1, 3]}),
+    ("dilate",             LiteDSPRankFilter,            {"data_width": 8, "width": 64, "rank": 8}, "image",   "Dilation (3x3 max)",    {"n_channels": [1, 3]}),
+    ("threshold",          LiteDSPThreshold,             {"data_width": 8},                      "image",      "Threshold (hysteresis)", {}),
+    ("pixel_gain",         LiteDSPPixelGain,             {"data_width": 8},                      "image",      "Pixel gain / offset",   {"n_channels": [1, 3]}),
     ("pixel_fifo",         LiteDSPPixelFIFO,             {"data_width": 8, "depth": 256},        "image",      "Pixel FIFO",            {"n_channels": [1, 3]}),
     ("pixel_pack",         LiteDSPPixelPack,             {"data_width": 8},                      "image",      "Pixel pack",            {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pixel_unpack",       LiteDSPPixelUnpack,           {"data_width": 8, "width": 64},         "image",      "Pixel unpack",          {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),

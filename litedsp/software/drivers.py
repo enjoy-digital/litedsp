@@ -1098,6 +1098,58 @@ class ImageKernelDriver(Driver):
     def saturated(self):
         return (self.status.read() >> 1) & 1
 
+class RankFilterDriver(Driver):
+    """3x3 rank filter: median / erode / dilate or an explicit rank."""
+    regs  = ("control", "status")
+    MODES = {"erode": 0, "median": 4, "dilate": 8}
+
+    def set_mode(self, mode):
+        rank = self.MODES[mode] if isinstance(mode, str) else int(mode)
+        self.control.write((self.control.read() & ~0xF) | (rank & 0xF))
+
+    def set_bypass(self, bypass=True):
+        self.control.write((self.control.read() & ~(1 << 4)) | (int(bool(bypass)) << 4))
+
+class ThresholdDriver(Driver):
+    """Threshold levels (hysteresis) and inversion."""
+    regs = ("levels", "control", "bypass")
+
+    def set_levels(self, high, low=None):
+        low = high if low is None else low
+        assert 0 <= low <= high, "expected 0 <= low <= high"
+        self.levels.write((int(high) & 0xFFFF) | (int(low) << 16))
+
+    def set_invert(self, invert=True):
+        self.control.write(int(bool(invert)))
+
+class PixelGainDriver(Driver):
+    """Per-channel gain / offset: white balance, brightness and contrast in code units."""
+    regs = ("gain0", "gain1", "gain2", "control", "status")
+
+    def __init__(self, bus, name, clk_freq=None, gain_frac=8, data_width=8):
+        Driver.__init__(self, bus, name, clk_freq)
+        self.gain_frac, self.data_width = gain_frac, data_width
+
+    def set_gains(self, gains, offsets=(0, 0, 0)):
+        for c, (g, o) in enumerate(zip(gains, offsets)):
+            word = max(0, min((1 << (self.gain_frac + 4)) - 1, int(round(g*(1 << self.gain_frac)))))
+            getattr(self, f"gain{c}").write(word | ((int(round(o)) & ((1 << (self.data_width + 1)) - 1)) << 16))
+
+    def set_brightness_contrast(self, brightness=0.0, contrast=1.0):
+        """``y = contrast * (x - mid) + mid + brightness * full`` on every channel."""
+        full = (1 << self.data_width) - 1
+        mid  = full/2
+        off  = mid - contrast*mid + brightness*full
+        self.set_gains((contrast,)*3, (off,)*3)
+
+    def set_white_balance(self, r_gain, b_gain, g_gain=1.0):
+        self.set_gains((r_gain, g_gain, b_gain))
+
+    def gray_world(self, means):
+        """Gains that equalise the channel means (``means`` = (r, g, b))."""
+        g = float(means[1])
+        self.set_white_balance(g/max(float(means[0]), 1e-9), g/max(float(means[2]), 1e-9))
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -1129,6 +1181,9 @@ TYPED = {
     "pixel_pattern": PixelPatternDriver,
     "kernel_2d":     ImageKernelDriver, "kernel_5x5": ImageKernelDriver, "gaussian_blur": ImageKernelDriver,
     "sharpen":       ImageKernelDriver, "laplacian": ImageKernelDriver,
+    "rank_filter":   RankFilterDriver, "erode": RankFilterDriver, "dilate": RankFilterDriver,
+    "threshold":     ThresholdDriver,
+    "pixel_gain":    PixelGainDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
     "os_cfar":       OSCFARDriver,
@@ -1146,7 +1201,8 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver,
+           PixelGainDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

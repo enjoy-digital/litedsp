@@ -135,6 +135,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `pi_controller` | 514/50/0/2/- | - | - |
 | `pixel_fifo` | 695/26/0/0/- | - | - |
 | `pixel_from_video` | 258/89/0/0/- | - | - |
+| `pixel_gain` | 158/97/0/3/- | - | - |
 | `pixel_pack` | 0/0/0/0/- | - | - |
 | `pixel_pattern` | 538/108/0/0/- | - | - |
 | `pixel_to_video` | 109/94/0/0/- | - | - |
@@ -149,6 +150,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `qpsk_receiver_ip` | 2083/1000/2/22/100.0/100.0 | 1085/634/1/12/112.5/100.0 | 1083/634/1/12/201.5/100.0 |
 | `quadrature_decoder` | 568/140/0/2/- | - | - |
 | `range_gate` | 363/96/0/0/- | - | - |
+| `rank_filter` | 1741/559/2/0/- | - | - |
 | `resampler_farm` | 550/189/2/2/129.9/100.0 | 558/109/0/2/155.1/100.0 | 535/109/0/2/295.4/100.0 |
 | `resampler_farm_banked` | 554/214/3/2/112.8/100.0 | 599/109/0/2/145.8/100.0 | 574/109/0/2/327.3/100.0 |
 | `resolver` | 5509/1825/0/5/- | - | - |
@@ -164,6 +166,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `sincos_cordic` | 1824/924/0/2/- | - | - |
 | `slew_limiter` | 141/35/0/0/- | - | - |
 | `smo_observer` | 2775/873/0/4/- | - | - |
+| `sobel` | 1163/372/2/1/- | - | - |
 | `soft_demapper` | 211/44/0/2/87.3 | 46/10/0/2/- | 47/10/0/2/- |
 | `stats` | 273/186/0/2/114.2 | 92/114/0/3/- | 92/114/0/3/- |
 | `stereo_matrix` | 617/171/0/2/- | - | - |
@@ -172,6 +175,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `target_list` | 263/112/0/0/- | - | - |
 | `tdm_demux` | 55/0/0/0/- | - | - |
 | `tdm_mux` | 31/1/0/0/- | - | - |
+| `threshold` | 85/13/0/0/- | - | - |
 | `timing_recovery` | 1430/561/0/18/96.4/100.0 | 762/331/0/8/108.0/100.0 | 787/331/0/8/201.2/100.0 |
 | `tvg` | 896/374/2/6/- | - | - |
 | `viterbi_decoder` | 6634/864/2/0/90.1/100.0 | 4171/802/1/0/90.6/100.0 | 4257/805/0/0/191.9/100.0 |
