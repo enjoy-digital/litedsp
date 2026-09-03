@@ -1249,6 +1249,21 @@ def spec_sigma_delta_mod():
 
 # Radar / Sonar ------------------------------------------------------------------------------------
 
+def spec_pixel_pattern():
+    from litedsp.image.pattern import LiteDSPPixelPattern
+    w, h = 20, 6
+    dut = LiteDSPPixelPattern(data_width=8, n_channels=3, width=w, height=h, mode="bars", with_csr=False)
+    dut.enable.reset = 1
+    def model(c):
+        img = models.pixel_pattern_model("bars", w, h, 8, 3)
+        n = w*h
+        cols = [np.concatenate([img[:, :, k].reshape(-1)]*2) for k in range(3)]
+        eol   = np.array([int(k % w == w - 1) for k in range(2*n)])
+        first = np.array([int(k % n == 0) for k in range(2*n)])
+        last  = np.array([int(k % n == n - 1) for k in range(2*n)])
+        return cols + [eol, first, last]
+    return dut, [], 2*w*h, model, False, True
+
 def spec_pulse_generator():
     from litedsp.radar.timing import LiteDSPPulseGenerator
     P, PRI, n_pulses = 16, 48, 3
@@ -1628,6 +1643,7 @@ SPECS = {
     "wet_dry_mix":      spec_wet_dry_mix,
     "reverb":           spec_reverb,
     "sigma_delta_mod":  spec_sigma_delta_mod,
+    "pixel_pattern":    spec_pixel_pattern,
     "pulse_generator":  spec_pulse_generator,
     "range_gate":       spec_range_gate,
     "mti":              spec_mti,

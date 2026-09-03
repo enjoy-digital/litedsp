@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -403,6 +403,19 @@ class TestRadarDrivers(unittest.TestCase):
         a, b = alpha_beta_from_index(0.5)
         drv.set_tracking_index(0.5)
         self.assertEqual(regs["trk_gains"].value, int(round(a*256)) | (int(round(b*256)) << 16))
+
+class TestImageDrivers(unittest.TestCase):
+    def test_pixel_pattern(self):
+        regs = {f"pat_{r}": MockCSR() for r in PixelPatternDriver.regs}
+        drv  = PixelPatternDriver(MockBus(regs), "pat")
+        drv.set_mode("checker", enable=True)
+        self.assertEqual(regs["pat_control"].value, 1 | (3 << 4))
+        drv.set_geometry(640, 480)
+        self.assertEqual(regs["pat_geometry"].value, 640 | (480 << 16))
+        drv.set_const(0x12, 0x34, 0x56)
+        self.assertEqual(regs["pat_const"].value, 0x563412)
+        drv.trigger()
+        self.assertEqual(regs["pat_control"].value, (3 << 4) | (1 << 1))
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

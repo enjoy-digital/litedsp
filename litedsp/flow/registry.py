@@ -138,6 +138,8 @@ from litedsp.radar.track           import LiteDSPAlphaBetaTracker
 from litedsp.radar.kalman          import LiteDSPKalmanTracker
 from litedsp.radar.beamform        import LiteDSPBeamformer, LiteDSPMonopulse
 from litedsp.radar.sonar           import LiteDSPTVG
+from litedsp.image.pattern         import LiteDSPPixelPattern
+from litedsp.image.adapt           import LiteDSPPixelPack, LiteDSPPixelUnpack
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -317,6 +319,9 @@ ENTRIES = [
     ("pdm_rx",             LiteDSPPDMReceiver,           {},                                     "audio",      "PDM receiver",          None),
     ("i2s_rx",             LiteDSPI2SReceiver,           {},                                     "audio",      "I2S receiver",          {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["slave", "master"]}),
     # Radar / sonar.
+    ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
+    ("pixel_pack",         LiteDSPPixelPack,             {"data_width": 8},                      "image",      "Pixel pack",            {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
+    ("pixel_unpack",       LiteDSPPixelUnpack,           {"data_width": 8, "width": 64},         "image",      "Pixel unpack",          {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pulse_generator",    LiteDSPPulseGenerator,        {},                                     "radar",      "Pulse generator",       {}),
     ("range_gate",         LiteDSPRangeGate,             {},                                     "radar",      "Range gate (PRI timer)", None),
     ("mti",                LiteDSPMTICanceller,          {},                                     "radar",      "MTI canceller",         None),

@@ -5185,6 +5185,48 @@
       }
     }
   },
+  "pixel_pack": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 0,
+      "lut": 0,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 0,
+        "lut": 0
+      }
+    }
+  },
+  "pixel_pattern": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 108,
+      "lut": 538,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 108,
+        "lut": 538
+      }
+    }
+  },
+  "pixel_unpack": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 40,
+      "lut": 66,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 40,
+        "lut": 66
+      }
+    }
+  },
   "power": {
     "ecp5": {
       "bram": 0,

@@ -12,3 +12,5 @@ LiteX video streams enter and leave through the adapters in ``video.py``. See ``
 """
 
 from litedsp.image.common import LiteDSPPixelCounter
+from litedsp.image.pattern import LiteDSPPixelPattern
+from litedsp.image.adapt   import LiteDSPPixelPack, LiteDSPPixelUnpack

@@ -3374,3 +3374,41 @@ def pulse_generator_model(n_pulses=2, pulse_len=32, pri=128, bandwidth=0.5, data
             i.append(int(round(v.real))); q.append(int(round(v.imag)))
             first.append(int(k == 0)); last.append(int(k == pulse_len - 1))
     return tuple(np.array(c, np.int64) for c in (i, q, first, last))
+
+# Image models -------------------------------------------------------------------------------------
+
+PIXEL_BARS = [(1, 1, 1), (1, 1, 0), (0, 1, 1), (0, 1, 0), (1, 0, 1), (1, 0, 0), (0, 0, 1), (0, 0, 0)]
+
+def pixel_pattern_model(mode="bars", width=16, height=12, data_width=8, n_channels=3, const=None):
+    """Bit-exact reference for litedsp.image.pattern.LiteDSPPixelPattern: one frame as an
+    (H, W) or (H, W, 3) array."""
+    full  = (1 << data_width) - 1
+    const = const or (full, full, full)
+    bar_w = width >> 3
+    img   = np.zeros((height, width, 3), np.int64)
+    count = 0
+    for y in range(height):
+        bar = px = 0
+        for x in range(width):
+            bars = tuple(full if on else 0 for on in PIXEL_BARS[bar])
+            if mode == "const":
+                v = const
+            elif mode == "ramp":
+                v = (x & full, y & full, (x + y) & full)
+            elif mode == "bars":
+                v = bars
+            elif mode == "checker":
+                c = full if ((x >> 3) & 1) ^ ((y >> 3) & 1) else 0
+                v = (c, c, c)
+            elif mode == "counter":
+                v = (count & full,)*3
+            else:
+                b = bars[2] if (y & 1 and x & 1) else bars[1] if (y & 1) ^ (x & 1) else bars[0]
+                v = (b, b, b)
+            img[y, x] = v
+            count += 1
+            if px == bar_w - 1 and bar != 7:
+                px, bar = 0, bar + 1
+            else:
+                px += 1
+    return img if n_channels == 3 else img[:, :, 0]

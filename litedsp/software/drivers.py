@@ -1034,6 +1034,34 @@ class PulseGeneratorDriver(Driver):
     def running(self):
         return self.status.read() & 1
 
+class PixelPatternDriver(Driver):
+    """Test-pattern source: mode, geometry, constant colour, one-shot / continuous."""
+    regs  = ("control", "geometry", "const", "status", "frames")
+    MODES = ("const", "ramp", "bars", "checker", "counter", "bayer")
+
+    def set_mode(self, mode, enable=None):
+        m = self.MODES.index(mode) if isinstance(mode, str) else int(mode)
+        cur = self.control.read()
+        en  = (cur & 1) if enable is None else int(bool(enable))
+        self.control.write(en | (m << 4))
+
+    def set_geometry(self, width, height):
+        self.geometry.write((int(width) & 0xFFFF) | (int(height) << 16))
+
+    def set_const(self, r, g=None, b=None):
+        g = r if g is None else g
+        b = r if b is None else b
+        self.const.write((int(r) & 0xFF) | ((int(g) & 0xFF) << 8) | ((int(b) & 0xFF) << 16))
+
+    def trigger(self):
+        self.control.write((self.control.read() & ~1) | (1 << 1))
+
+    def start(self):
+        self.control.write(self.control.read() | 1)
+
+    def stop(self):
+        self.control.write(self.control.read() & ~1)
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -1062,6 +1090,7 @@ TYPED = {
     "loudness":      LoudnessDriver,
     "range_gate":    RangeGateDriver,
     "pulse_generator": PulseGeneratorDriver,
+    "pixel_pattern": PixelPatternDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
     "os_cfar":       OSCFARDriver,
@@ -1079,7 +1108,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

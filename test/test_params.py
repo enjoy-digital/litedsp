@@ -134,6 +134,10 @@ SPECIFIC = [
     ("beamformer",      {"weight_frac": 16}),
     ("tvg",             {"gain_frac": 0}),
     ("pulse_generator", {"pulse_len": 128}),
+    ("pixel_pattern",   {"width": 4}),
+    ("pixel_pattern",   {"mode": "noise"}),
+    ("pixel_pack",      {"format": "yuyv"}),
+    ("pixel_unpack",    {"width": 1}),
     ("pulse_generator", {"n_pulses": 0}),
     ("tvg",             {"max_gain_log2": 13}),
 ]

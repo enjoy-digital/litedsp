@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-178 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+181 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -217,6 +217,14 @@
 | [PDM receiver](pdm_rx.md) | `LiteDSPPDMReceiver` | var | 0 | PDM microphone receiver: :class:`LiteDSPBitstreamInterface` (``mclk`` out at ``sys_clk / |
 | [I2S receiver](i2s_rx.md) | `LiteDSPI2SReceiver` | var | 0 | Serial audio receiver (I2S, left/right-justified, TDM) to a channel-tagged TDM stream. |
 | [I2S transmitter](i2s_tx.md) | `LiteDSPI2STransmitter` | var | 0 | Channel-tagged TDM stream to serial audio (I2S, left/right-justified, TDM); the mirror of |
+
+## Image / Video Processing (`image/`)
+
+| Block | Class | Latency | DSP | Description |
+|---|---|---|---|---|
+| [Pixel pattern source](pixel_pattern.md) | `LiteDSPPixelPattern` | var | 0 | Framed raster test-pattern source (``pixel_layout``), geometry from CSRs. |
+| [Pixel pack](pixel_pack.md) | `LiteDSPPixelPack` | 0 | 0 | Pack pixels into memory words: ``rgb888`` (``r`` in the low byte, then ``g``, ``b``), |
+| [Pixel unpack](pixel_unpack.md) | `LiteDSPPixelUnpack` | 1 | 0 | Unpack memory words back into pixels (inverse of :class:`LiteDSPPixelPack`; ``rgb565`` |
 
 ## Radar / Sonar Processing (`radar/`)
 
