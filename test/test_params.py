@@ -142,6 +142,7 @@ SPECIFIC = [
     ("gray_mapper",     {"width": 0}),
     ("line_encoder",    {"code": "rz"}),
     ("hamming_encoder", {"m": 2}),
+    ("hdlc_framer",     {"preamble": 0}),
     ("convolutional_interleaver", {"branches": 1}),
     ("pixel_pattern",   {"mode": "noise"}),
     ("pixel_pack",      {"format": "yuyv"}),

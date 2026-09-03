@@ -107,6 +107,7 @@ from litedsp.comm.fsk_mod         import LiteDSPFSKModulator
 from litedsp.comm.line_code       import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming         import LiteDSPHammingEncoder, LiteDSPHammingDecoder
 from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+from litedsp.comm.hdlc            import LiteDSPHDLCFramer, LiteDSPHDLCDeframer
 from litedsp.radar.timing         import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress       import LiteDSPPulseCompressor
 from litedsp.radar.mti            import LiteDSPMTICanceller
@@ -862,6 +863,14 @@ def convolutional_deinterleaver():
     d = LiteDSPConvolutionalDeinterleaver(with_csr=False)
     return d, {d.phase_rst, d.bypass} | _eps(d.sink, d.source), 10.0
 
+def hdlc_framer():
+    d = LiteDSPHDLCFramer(with_csr=False)
+    return d, {d.frames} | _eps(d.sink, d.source), 10.0
+
+def hdlc_deframer():
+    d = LiteDSPHDLCDeframer(with_csr=False)
+    return d, {d.fcs_ok, d.fcs_error, d.frames, d.fcs_errors, d.aborts, d.clear} | _eps(d.sink, d.source), 10.0
+
 def pm_modulator():
     d = LiteDSPPhaseModulator(with_csr=False)
     return d, {d.phase_inc, d.deviation} | _eps(d.sink, d.source), 10.0
@@ -1120,7 +1129,7 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
-    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "fm_modulator": fm_modulator, "am_modulator": am_modulator, "gray_mapper": gray_mapper, "line_encoder": line_encoder, "hamming_encoder": hamming_encoder, "convolutional_interleaver": convolutional_interleaver, "convolutional_deinterleaver": convolutional_deinterleaver, "hamming_decoder": hamming_decoder, "line_decoder": line_decoder, "gray_demapper": gray_demapper, "ssb_modulator": ssb_modulator, "fsk_modulator": fsk_modulator, "pm_modulator": pm_modulator, "pixel_pack": pixel_pack, "line_buffer": line_buffer, "line_buffer_5x5_rgb": line_buffer_5x5_rgb, "pixel_fifo": pixel_fifo, "pixel_stats": pixel_stats, "pixel_histogram": pixel_histogram, "alpha_blend": alpha_blend, "box_overlay": box_overlay, "pixel_lut": pixel_lut, "color_matrix": color_matrix, "debayer": debayer, "downscaler": downscaler, "crop": crop, "sobel": sobel, "rank_filter": rank_filter, "threshold": threshold, "pixel_gain": pixel_gain, "kernel_2d": kernel_2d, "kernel_5x5": kernel_5x5, "kernel_2d_rgb": kernel_2d_rgb, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
+    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "fm_modulator": fm_modulator, "am_modulator": am_modulator, "gray_mapper": gray_mapper, "line_encoder": line_encoder, "hamming_encoder": hamming_encoder, "hdlc_framer": hdlc_framer, "hdlc_deframer": hdlc_deframer, "convolutional_interleaver": convolutional_interleaver, "convolutional_deinterleaver": convolutional_deinterleaver, "hamming_decoder": hamming_decoder, "line_decoder": line_decoder, "gray_demapper": gray_demapper, "ssb_modulator": ssb_modulator, "fsk_modulator": fsk_modulator, "pm_modulator": pm_modulator, "pixel_pack": pixel_pack, "line_buffer": line_buffer, "line_buffer_5x5_rgb": line_buffer_5x5_rgb, "pixel_fifo": pixel_fifo, "pixel_stats": pixel_stats, "pixel_histogram": pixel_histogram, "alpha_blend": alpha_blend, "box_overlay": box_overlay, "pixel_lut": pixel_lut, "color_matrix": color_matrix, "debayer": debayer, "downscaler": downscaler, "crop": crop, "sobel": sobel, "rank_filter": rank_filter, "threshold": threshold, "pixel_gain": pixel_gain, "kernel_2d": kernel_2d, "kernel_5x5": kernel_5x5, "kernel_2d_rgb": kernel_2d_rgb, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
     "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker, "beamformer": beamformer, "beamformer_4beams": beamformer_4beams, "monopulse": monopulse, "tvg": tvg,
 }
 

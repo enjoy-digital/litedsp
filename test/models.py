@@ -3909,8 +3909,11 @@ def hdlc_frame_model(payloads, preamble=1):
 
 def hdlc_deframe_model(bits):
     """Reference for litedsp.comm.hdlc.LiteDSPHDLCDeframer: the emitted payload bits with
-    ``first`` / ``last`` / ``fcs_ok`` columns and the counters (frames, fcs_errors, aborts)."""
+    ``first`` / ``last`` / ``fcs_ok`` columns and the counters (frames, fcs_errors, aborts).
+    Accepted bits are withheld by 24 (16 FCS + 7 flag-prefix bits) and the CRC runs 7 bits
+    behind the newest accepted bit."""
     from litedsp.comm.design import HDLC_FLAG
+    PEND = 24
     out = [[], [], [], []]
     stats = dict(frames=0, fcs_errors=0, aborts=0)
     hist, ones, in_frame = 0, 0, False
@@ -3922,7 +3925,7 @@ def hdlc_deframe_model(bits):
         abort = ones == 6 and b == 1
         stuffed = ones == 5 and b == 0
         if flag:
-            if in_frame and count >= 17:
+            if in_frame and count >= PEND:
                 good = crc == 0xF0B8
                 stats["frames"] += 1
                 if not good:
@@ -3935,14 +3938,95 @@ def hdlc_deframe_model(bits):
                 stats["aborts"] += 1
             in_frame, count, pending = False, 0, []
         elif in_frame and not stuffed:
-            if count >= 17:
-                for col, v in zip(out, (pending[0], int(count == 17), 0, 0)):
+            if count >= PEND:
+                for col, v in zip(out, (pending[0], int(count == PEND), 0, 0)):
                     col.append(v)
                 pending = pending[1:]
-            mix = (crc ^ b) & 1
-            crc = (crc >> 1) ^ (0x8408 if mix else 0)
+            if count >= 7:
+                lag = pending[len(pending) - 7]
+                mix = (crc ^ lag) & 1
+                crc = (crc >> 1) ^ (0x8408 if mix else 0)
             pending.append(b)
             count += 1
         hist = window
         ones = ones + 1 if b else 0
     return tuple(np.array(c, np.int64) for c in out), stats
+
+def _poly_divmod_bits(msg_bits, g, r):
+    """Remainder of msg(x) * x^r divided by g(x) over GF(2), bit-serial (MSB first)."""
+    lfsr = 0
+    for b in msg_bits:
+        fb = ((lfsr >> (r - 1)) & 1) ^ int(b)
+        lfsr = ((lfsr << 1) & ((1 << r) - 1)) ^ ((g & ((1 << r) - 1)) if fb else 0)
+    return lfsr
+
+def bch_encode_model(bits, m=4, t=2):
+    """Reference for litedsp.comm.bch.LiteDSPBCHEncoder: systematic codewords (message then the
+    n - k parity bits, MSB of the remainder first) with first / last."""
+    from litedsp.comm.design import bch_generator
+    g, n, k = bch_generator(m, t)
+    r = n - k
+    out, first, last = [], [], []
+    for b in range(len(bits)//k):
+        msg = [int(v) & 1 for v in bits[b*k:(b + 1)*k]]
+        rem = _poly_divmod_bits(msg, g, r)
+        cw  = msg + [(rem >> (r - 1 - i)) & 1 for i in range(r)]
+        out += cw
+        first += [1] + [0]*(n - 1)
+        last  += [0]*(n - 1) + [1]
+    return np.array(out, np.int64), np.array(first, np.int64), np.array(last, np.int64)
+
+def bch_decode_model(bits, m=4, t=2):
+    """Reference for litedsp.comm.bch.LiteDSPBCHDecoder: syndromes, binary Berlekamp-Massey,
+    Chien search; returns the k message bits per block and (corrected, uncorrectable) flags.
+    Codeword bit i (first received) has degree n - 1 - i."""
+    from litedsp.comm.design import bch_generator, gf_tables, gf_mul_int
+    g, n, k = bch_generator(m, t)
+    exp, log = gf_tables(m)
+    N = (1 << m) - 1
+    def mul(a, b): return gf_mul_int(a, b, m)
+    def inv(a): return exp[(N - log[a]) % N]
+    out, flags = [], []
+    for blk in range(len(bits)//n):
+        cw = [int(v) & 1 for v in bits[blk*n:(blk + 1)*n]]
+        # Syndromes S_i = r(alpha^(i+1)), Horner from the highest degree (first received bit).
+        S = []
+        for i in range(2*t):
+            a = exp[i + 1]
+            acc = 0
+            for b in cw:
+                acc = mul(acc, a) ^ b
+            S.append(acc)
+        if not any(S):
+            out += cw[:k]; flags.append((0, 0)); continue
+        # Binary Berlekamp-Massey (all 2t iterations, generic form).
+        lam, B, L = [1] + [0]*(2*t), [1] + [0]*(2*t), 0
+        for r_ in range(2*t):
+            d = 0
+            for j in range(L + 1):
+                d ^= mul(lam[j], S[r_ - j])
+            if d != 0:
+                T = list(lam)
+                for j in range(1, 2*t + 1):
+                    lam[j] ^= mul(d, B[j - 1])
+                if 2*L <= r_:
+                    B = [mul(x, inv(d)) for x in T]
+                    L = r_ + 1 - L
+                    continue
+            B = [0] + B[:-1]
+        if L > t:
+            out += cw[:k]; flags.append((0, 1)); continue
+        # Chien: roots alpha^(-e) for error degrees e -> position i = n - 1 - e.
+        fixed = list(cw); roots = 0
+        for j in range(n):
+            val = 0
+            for i in range(L + 1):
+                val ^= mul(lam[i], exp[(i*j) % N])
+            if val == 0:
+                roots += 1
+                e = (-j) % N
+                fixed[n - 1 - e] ^= 1
+        if roots != L:
+            out += cw[:k]; flags.append((0, 1)); continue
+        out += fixed[:k]; flags.append((1, 0))
+    return np.array(out, np.int64), flags

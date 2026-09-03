@@ -37,3 +37,4 @@ from litedsp.comm.fsk_mod import LiteDSPFSKModulator
 from litedsp.comm.line_code import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming import LiteDSPHammingEncoder, LiteDSPHammingDecoder
 from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+from litedsp.comm.hdlc import LiteDSPHDLCFramer, LiteDSPHDLCDeframer

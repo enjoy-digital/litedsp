@@ -1410,6 +1410,32 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def spec_hdlc_framer():
+    from litedsp.comm.hdlc import LiteDSPHDLCFramer
+    dut = LiteDSPHDLCFramer(preamble=1, with_csr=False)
+    prng = random.Random(26)
+    payloads = [[prng.randint(0, 1) for _ in range(40)], [1]*11 + [0] + [1]*9, [prng.randint(0, 1) for _ in range(64)]]
+    bits, first, last = [], [], []
+    for p in payloads:
+        bits += p; first += [1] + [0]*(len(p) - 1); last += [0]*(len(p) - 1) + [1]
+    ref = models.hdlc_frame_model(payloads, 1)
+    return dut, [bits, first, last], len(ref[0]) - 2, lambda c: list(models.hdlc_frame_model(payloads, 1)), True, True
+
+def spec_hdlc_deframer():
+    from litedsp.comm.hdlc import LiteDSPHDLCDeframer
+    from litedsp.comm.design import hdlc_frame_bits, HDLC_FLAG
+    dut = LiteDSPHDLCDeframer(with_csr=False)
+    prng = random.Random(27)
+    flag = [(HDLC_FLAG >> i) & 1 for i in range(8)]
+    p1, p2 = [prng.randint(0, 1) for _ in range(48)], [prng.randint(0, 1) for _ in range(40)]
+    corrupt = hdlc_frame_bits(p1); corrupt[20] ^= 1
+    line = hdlc_frame_bits(p1) + flag + corrupt + flag*2 + flag + p2[:10] + [1]*8 + flag + hdlc_frame_bits(p2) + flag*3
+    (data, f, l, ok), _ = models.hdlc_deframe_model(line)
+    def model(c):
+        (d, ff, ll, oo), _ = models.hdlc_deframe_model(c[0])
+        return [d, oo, ff, ll]
+    return dut, [line], len(data) - 1, model, False, True
+
 def _spec_conv(deinterleave):
     from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
     B, D, n = 4, 3, 300
@@ -2035,6 +2061,8 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "hdlc_framer":      spec_hdlc_framer,
+    "hdlc_deframer":    spec_hdlc_deframer,
     "convolutional_interleaver":   spec_convolutional_interleaver,
     "convolutional_deinterleaver": spec_convolutional_deinterleaver,
     "hamming_encoder":  spec_hamming_encoder,

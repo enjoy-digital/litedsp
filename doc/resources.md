@@ -96,6 +96,8 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `hall_decoder` | 379/187/0/0/- | - | - |
 | `hamming_decoder` | 284/141/0/0/- | - | - |
 | `hamming_encoder` | 111/48/0/0/- | - | - |
+| `hdlc_deframer` | 221/170/0/0/- | - | - |
+| `hdlc_framer` | 188/63/0/0/- | - | - |
 | `histogram` | 389/22/0/0/100.1 | 110/22/0/0/- | 116/21/0/0/- |
 | `i2s_rx` | 81/71/0/0/- | - | - |
 | `i2s_tx` | 109/111/0/0/- | - | - |

@@ -197,6 +197,8 @@ VSPEC = {
     "hamming_decoder":    _v("hamming_decode_model", latency="variable", rate=None, cosim=True),
     "convolutional_interleaver":   _v("conv_interleaver_model", latency=2, cosim=True),
     "convolutional_deinterleaver": _v("conv_interleaver_model", latency=2, cosim=True),
+    "hdlc_framer":        _v("hdlc_frame_model", latency="variable", rate=None, cosim=True),
+    "hdlc_deframer":      _v("hdlc_deframe_model", latency="variable", rate=None, cosim=True),
     "pm_modulator":       _v("pm_modulator_model", latency=2, cosim=True),
     "pixel_pattern":      _v("pixel_pattern_model", latency="n/a", rate=None, cosim=True),
     "pixel_from_video":   _v("pixel_from_video_model", latency=1, rate=None, cosim=True),

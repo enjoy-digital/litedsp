@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-225 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+227 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -136,6 +136,8 @@
 | [Hamming decoder](hamming_decoder.md) | `LiteDSPHammingDecoder` | var | 0 | Hamming decoder: ``n (+1)`` codeword bits in, ``k`` corrected message bits out (framed). |
 | [Convolutional interleaver](convolutional_interleaver.md) | `LiteDSPConvolutionalInterleaver` | 2 | 0 | Forney convolutional interleaver: branch ``j`` delays by ``j * depth`` symbols (DVB: |
 | [Convolutional deinterleaver](convolutional_deinterleaver.md) | `LiteDSPConvolutionalDeinterleaver` | 2 | 0 | The matching deinterleaver: branch ``j`` delays by ``(B - 1 - j) * depth``; the pair |
+| [HDLC framer](hdlc_framer.md) | `LiteDSPHDLCFramer` | var | 0 | Payload bits (LSB first, framed by ``last``) to an HDLC bit stream: ``preamble`` opening |
+| [HDLC deframer](hdlc_deframer.md) | `LiteDSPHDLCDeframer` | var | 0 | HDLC bit stream to payload bits: flag detection, unstuffing, the X.25 FCS check. |
 | [Phase modulator](pm_modulator.md) | `LiteDSPPhaseModulator` | 2 | 2 | PM modulator: the carrier phase (``phase_inc`` per sample) plus ``d / 2**(data_width-1) * |
 
 ## Analysis / Measurement (`analysis/`)

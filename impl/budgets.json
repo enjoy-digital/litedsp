@@ -3490,6 +3490,34 @@
       }
     }
   },
+  "hdlc_deframer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 170,
+      "lut": 221,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 170,
+        "lut": 221
+      }
+    }
+  },
+  "hdlc_framer": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 63,
+      "lut": 188,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 63,
+        "lut": 188
+      }
+    }
+  },
   "histogram": {
     "ecp5": {
       "bram": 0,
