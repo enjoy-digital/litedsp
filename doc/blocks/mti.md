@@ -2,7 +2,7 @@
 
 `LiteDSPMTICanceller` — `litedsp.radar.mti` — category `radar`
 
-latency: 1 sample · CSR: yes · bypass: yes
+latency: 2 samples · CSR: yes · bypass: yes
 
 ## Overview
 
@@ -14,7 +14,7 @@ by a range counter that ``first`` resets. Runtime ``mode`` 0 subtracts the previ
 ``order == 3``); the difference is rescaled by ``shift`` (default ``mode + 1``, the
 canceller's DC gain, so the output never saturates). Stationary clutter cancels exactly;
 a target moving ``f`` cycles per pulse is weighted ``|2 sin(pi f)|`` (``4 sin^2(pi f)``).
-Latency 1; ``bypass`` passes pulses through unchanged.
+Latency 2 (the history RAMs' registered read); ``bypass`` passes pulses through unchanged.
 
 ## Parameters
 
@@ -50,7 +50,7 @@ Bypass block (passthrough).
 
 | Device | LUT | FF | BRAM | DSP | Fmax floor (MHz) | Fmax target (MHz) |
 |---|---|---|---|---|---|---|
-| ecp5 | 1673 | 43 | 0 | 0 | — | — |
+| ecp5 | 688 | 191 | 2 | 0 | — | — |
 
 Resources are measured by the `impl/` flows at the registry configuration; the fmax floor is the regression guard (85% of baseline P&R); an optional target is the independent engineering objective. Regenerate with `python3 impl/report.py` (budget-gated in CI).
 

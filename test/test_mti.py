@@ -38,7 +38,7 @@ class TestMTICanceller(unittest.TestCase):
                 self.assertTrue(np.array_equal(column(cap, "i", 16), ri))
                 self.assertTrue(np.array_equal(column(cap, "q", 16), rq))
                 self.assertEqual(column(cap, "first").tolist(), [b["first"] for b in beats])
-                self.assertEqual(dut.latency, 1)
+                self.assertEqual(dut.latency, 2)
 
     # verify-tier: bound — stationary clutter cancels exactly; a target rotating f cycles per
     # pulse is weighted |2 sin(pi f)| (2-pulse) / 4 sin^2(pi f) (3-pulse) within 1 LSB after

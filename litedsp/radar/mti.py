@@ -27,7 +27,7 @@ class LiteDSPMTICanceller(LiteXModule):
     ``order == 3``); the difference is rescaled by ``shift`` (default ``mode + 1``, the
     canceller's DC gain, so the output never saturates). Stationary clutter cancels exactly;
     a target moving ``f`` cycles per pulse is weighted ``|2 sin(pi f)|`` (``4 sin^2(pi f)``).
-    Latency 1; ``bypass`` passes pulses through unchanged.
+    Latency 2 (the history RAMs' registered read); ``bypass`` passes pulses through unchanged.
     """
     def __init__(self, n_range_bins=64, data_width=16, order=3, shift=None, with_csr=True):
         check(n_range_bins >= 1, "expected n_range_bins >= 1")
@@ -36,7 +36,7 @@ class LiteDSPMTICanceller(LiteXModule):
         self.n_range_bins = n_range_bins
         self.data_width   = data_width
         self.order        = order
-        self.latency      = 1
+        self.latency      = 2
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
         self.mode   = Signal(reset=int(order == 3))                    # 0: 2-pulse, 1: 3-pulse.
@@ -44,34 +44,46 @@ class LiteDSPMTICanceller(LiteXModule):
 
         # # #
 
+        # Stage 0: bin address of the incoming beat (a range counter that ``first`` resets), the
+        # history RAMs read at that address; stage 1: the registered beat meets the histories,
+        # the difference is rescaled and the RAMs are written (read-before-write on the same
+        # bin, addresses of consecutive beats always differ for n_range_bins >= 2).
+        # ----------------------------------------------------------------------------------
         adv, xfer = Signal(), Signal()
-        r = Signal(max=n_range_bins)
+        r    = Signal(max=n_range_bins)
+        addr = Signal(max=n_range_bins)
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
+            addr.eq(Mux(self.sink.first, 0, r)),
         ]
-        addr = Signal(max=n_range_bins)                                 # Bin of this beat.
-        self.comb += addr.eq(Mux(self.sink.first, 0, r))
         self.sync += If(xfer,
             If(addr == n_range_bins - 1, r.eq(0)).Else(r.eq(addr + 1)),
         )
         W = 2*data_width
-        x = Cat(self.sink.i, self.sink.q)
-        # History RAMs (previous pulses at this range bin): read before write on every transfer.
+        x1_v, first1, last1, addr1 = Signal(), Signal(), Signal(), Signal(max=n_range_bins)
+        xi1, xq1 = Signal((data_width, True)), Signal((data_width, True))
+        self.sync += If(adv,
+            x1_v.eq(self.sink.valid), first1.eq(self.sink.first), last1.eq(self.sink.last),
+            addr1.eq(addr), xi1.eq(self.sink.i), xq1.eq(self.sink.q),
+        )
         hist = []
-        prev = x
+        prev = Cat(xi1, xq1)
         for k in range(order - 1):
             mem = Memory(W, n_range_bins)
-            rp  = mem.get_port(async_read=True)
+            rp  = mem.get_port(has_re=True)
             wp  = mem.get_port(write_capable=True)
             self.specials += mem, rp, wp
-            self.comb += [rp.adr.eq(addr), wp.adr.eq(addr), wp.we.eq(xfer), wp.dat_w.eq(prev)]
+            self.comb += [
+                rp.adr.eq(addr), rp.re.eq(adv),
+                wp.adr.eq(addr1), wp.we.eq(adv & x1_v), wp.dat_w.eq(prev),
+            ]
             hist.append(rp.dat_r)
             prev = rp.dat_r                                             # RAM k+1 <- old RAM k value.
         mode3 = self.mode if order == 3 else Constant(0)
-        for c, sl in (("i", slice(0, data_width)), ("q", slice(data_width, W))):
-            xi  = getattr(self.sink, c)
+        for c, xi in (("i", xi1), ("q", xq1)):
+            sl  = slice(0, data_width) if c == "i" else slice(data_width, W)
             x1i = Signal((data_width, True))
             self.comb += x1i.eq(hist[0][sl])
             diff = Signal((data_width + 2, True))
@@ -86,9 +98,9 @@ class LiteDSPMTICanceller(LiteXModule):
                 out = scaled(diff, shift, data_width)[0]
             self.sync += If(adv, getattr(self.source, c).eq(out))
         self.sync += If(adv,
-            self.source.valid.eq(self.sink.valid),
-            self.source.first.eq(self.sink.first),
-            self.source.last.eq(self.sink.last),
+            self.source.valid.eq(x1_v),
+            self.source.first.eq(first1),
+            self.source.last.eq(last1),
         )
 
         # Bypass / CSR.
