@@ -128,6 +128,7 @@ from litedsp.audio.i2s             import LiteDSPI2SReceiver, LiteDSPI2STransmit
 from litedsp.radar.timing          import LiteDSPRangeGate
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
+from litedsp.radar.corner_turn     import LiteDSPCornerTurn
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -309,6 +310,7 @@ ENTRIES = [
     # Radar / sonar.
     ("range_gate",         LiteDSPRangeGate,             {},                                     "radar",      "Range gate (PRI timer)", None),
     ("mti",                LiteDSPMTICanceller,          {},                                     "radar",      "MTI canceller",         None),
+    ("corner_turn",        LiteDSPCornerTurn,            {},                                     "radar",      "Corner turn (fast to slow time)", None),
     ("pulse_compressor",   LiteDSPPulseCompressor,       {},                                     "radar",      "Pulse compressor (chirp matched filter)", {"window": ["rect", "hann", "hamming", "blackman"], "fir_architecture": ["classic", "pipelined", "mac"]}),
     ("i2s_tx",             LiteDSPI2STransmitter,        {},                                     "audio",      "I2S transmitter",       {"fmt": ["i2s", "left_justified", "right_justified", "tdm"], "mode": ["master", "slave"]}),
 ]

@@ -1249,6 +1249,16 @@ def spec_range_gate():
     n_out = len(model([cols[0], cols[1], enable])[0]) - 2
     return dut, cols + [enable], n_out, model, False, True, (dut.enable,)
 
+def spec_corner_turn():
+    from litedsp.radar.corner_turn import LiteDSPCornerTurn
+    N, M, n_cpi = 8, 16, 2
+    n    = N*M*n_cpi
+    dut  = LiteDSPCornerTurn(n_range_bins=N, n_pulses=M, with_csr=False)
+    cols = _rand_cols(2, n)
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    return dut, cols + [first, last], n - 4, lambda c: list(models.corner_turn_model(c[0], c[1], N, M)), True, True
+
 def spec_mti():
     from litedsp.radar.mti import LiteDSPMTICanceller
     n, N = 320, 32                                                 # 10 pulses of 32 bins.
@@ -1412,6 +1422,7 @@ SPECS = {
     "sigma_delta_mod":  spec_sigma_delta_mod,
     "range_gate":       spec_range_gate,
     "mti":              spec_mti,
+    "corner_turn":      spec_corner_turn,
     "pulse_compressor": spec_pulse_compressor,
     "pulse_compressor_hamming": spec_pulse_compressor_hamming,
     "pulse_compressor_mac":     spec_pulse_compressor_mac,

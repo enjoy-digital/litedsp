@@ -112,6 +112,7 @@ SPECIFIC = [
     ("pulse_compressor", {"pulse_len": 1}),
     ("pulse_compressor", {"window": "kaiser"}),
     ("mti",             {"order": 4}),
+    ("corner_turn",     {"n_pulses": 1}),
 ]
 
 class TestParams(unittest.TestCase):

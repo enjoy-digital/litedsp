@@ -102,6 +102,7 @@ from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitt
 from litedsp.radar.timing         import LiteDSPRangeGate
 from litedsp.radar.compress       import LiteDSPPulseCompressor
 from litedsp.radar.mti            import LiteDSPMTICanceller
+from litedsp.radar.corner_turn    import LiteDSPCornerTurn
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -782,6 +783,10 @@ def range_gate():
     return d, {d.pri, d.gate_start, d.gate_len, d.pulse_width, d.n_pulses_cpi, d.enable, d.single, d.trigger,
                d.tx, d.rx_gate, d.cpi_start, d.running, d.pulse_index, d.pulse_count} | _eps(d.sink, d.source), 10.0
 
+def corner_turn():
+    d = LiteDSPCornerTurn(n_range_bins=64, n_pulses=16, with_csr=False)
+    return d, {d.clear, d.frame_error, d.filled} | _eps(d.sink, d.source), 10.0
+
 def mti():
     d = LiteDSPMTICanceller(n_range_bins=256, order=3, with_csr=False)
     return d, {d.mode, d.bypass} | _eps(d.sink, d.source), 10.0
@@ -862,7 +867,7 @@ REGISTRY = {
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
     "range_gate": range_gate, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
-    "mti": mti,
+    "mti": mti, "corner_turn": corner_turn,
 }
 
 # Subset for the slower full place-&-route flows.

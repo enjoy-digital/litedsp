@@ -1065,6 +1065,20 @@
       }
     }
   },
+  "corner_turn": {
+    "ecp5": {
+      "bram": 4,
+      "dsp": 0,
+      "ff": 135,
+      "lut": 138,
+      "synth": {
+        "bram": 4,
+        "dsp": 0,
+        "ff": 135,
+        "lut": 138
+      }
+    }
+  },
   "correlator": {
     "ecp5": {
       "bram": 0,
