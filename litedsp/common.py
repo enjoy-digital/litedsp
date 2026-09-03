@@ -105,6 +105,40 @@ def tdm_channel(endpoint):
     """The ``channel`` tag of a TDM endpoint, or constant 0 for a mono (real) endpoint."""
     return getattr(endpoint, "channel", Constant(0, 1))
 
+def cell_layout(data_width=17):
+    """Detector cell stream (radar): the unsigned cell value ``data`` (a magnitude or power),
+    the ``threshold`` the detector computed for it and its ``detect`` decision, one beat per
+    cell with the framing of the profile/map it was derived from."""
+    return [("data", data_width), ("threshold", data_width), ("detect", 1)]
+
+def target_layout(data_width=17, index_width=12, frac_bits=4):
+    """Sparse detection records (radar): sub-bin ``range`` and ``doppler`` positions (unsigned
+    Q(index_width).frac_bits), the cell value ``data`` and ``hit``.
+
+    Per CPI the stream carries exactly one burst: the records (``hit = 1``) followed by one
+    terminator beat (``hit = 0``, ``data`` = record count, ``last``); ``first`` marks the first
+    beat of the burst, so an empty CPI is a single ``first & last`` terminator.
+    """
+    return [
+        ("range",   index_width + frac_bits),
+        ("doppler", index_width + frac_bits),
+        ("data",    data_width),
+        ("hit",     1),
+    ]
+
+def track_layout(index_width=12, frac_bits=4, velocity_frac=8, n_tracks=4):
+    """Track records (radar): sub-bin ``range``/``doppler``, signed ``velocity`` in bins per CPI
+    (Q.velocity_frac), the track ``id``, its ``hits`` count and ``hit``; one burst per CPI closed
+    by a terminator beat as in :func:`target_layout` (its ``hits`` = active track count)."""
+    return [
+        ("range",    index_width + frac_bits),
+        ("doppler",  index_width + frac_bits),
+        ("velocity", (index_width + velocity_frac, True)),
+        ("id",       max(1, bits_for(n_tracks - 1))),
+        ("hits",     4),
+        ("hit",      1),
+    ]
+
 # Timestamps (see litedsp/stream/timestamp.py and doc/timestamps.md).
 TIMESTAMP_WIDTH = 64
 

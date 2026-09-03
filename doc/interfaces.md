@@ -16,6 +16,10 @@ new block.
   - multi-channel audio: `tdm_layout(data_width, n_channels)` → field `data` (signed) plus an
     unsigned `channel` tag; frames are consecutive beats, channel 0 first (`n_channels=1` is a
     plain `real_layout`). `tdm_channel(endpoint)` reads the tag (or a constant 0 for mono).
+  - radar detector cells: `cell_layout(data_width)` → unsigned `data`, `threshold`, `detect`.
+  - radar detections / tracks: `target_layout(...)` (`range`, `doppler` sub-bin positions, `data`,
+    `hit`) and `track_layout(...)` (+ signed `velocity`, `id`, `hits`): one burst per CPI closed by
+    a terminator beat (`hit = 0`, count in `data`/`hits`, `last`).
 - Time-shared multi-channel engines (resampler farm) take per-channel `sinks` served in
   round-robin TDM and emit one *channel-tagged* stream: `iq_layout` plus a `channel` payload
   field. Fan back out with a `LiteDSPChannelDemux` whose `sel` is driven by the tag

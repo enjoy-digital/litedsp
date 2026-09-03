@@ -223,6 +223,12 @@ def _layout(ep):
         return "abc"
     if fields == ["angle"]:
         return "angle"
+    if set(fields) == {"data", "threshold", "detect"}:
+        return "cell"
+    if "velocity" in fields and {"range", "doppler", "hit"} <= set(fields):
+        return "track"
+    if {"range", "doppler", "hit"} <= set(fields):
+        return "target"
     return "raw"
 
 def _ports(dut):

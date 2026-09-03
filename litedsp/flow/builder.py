@@ -19,7 +19,7 @@ from litex.gen import *
 from litex.soc.interconnect import stream
 
 from litedsp.common      import (iq_layout, iq_symbol_layout, real_layout, tdm_layout,
-    abc_layout, angle_layout)
+    abc_layout, angle_layout, cell_layout, target_layout, track_layout)
 from litedsp.flow        import registry, glue
 from litedsp.flow.netlist import validate, split_ref, NetlistError
 
@@ -36,6 +36,12 @@ def _layout(kind, data_width):
         return abc_layout(data_width)
     if kind == "angle":
         return angle_layout(data_width)        # angle_width follows the chain data_width.
+    if kind == "cell":
+        return cell_layout(data_width + 1)     # Magnitude width of data_width I/Q.
+    if kind == "target":
+        return target_layout(data_width + 1)
+    if kind == "track":
+        return track_layout()
     return iq_layout(data_width)
 
 def _build_kwargs(spec, params, data_width, with_csr):
