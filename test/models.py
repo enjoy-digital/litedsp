@@ -3583,3 +3583,134 @@ def pixel_gain_model(img, gains, offsets, gain_frac=8, data_width=8, bypass=0):
         sat |= int(np.any(y < 0) or np.any(y > (1 << data_width) - 1))
         out[:, :, c] = np.clip(y, 0, (1 << data_width) - 1)
     return (out[:, :, 0] if mono else out), sat
+
+def pixel_lut_model(img, tables, bypass=0):
+    """Bit-exact reference for litedsp.image.lut.LiteDSPPixelLUT: ``tables`` is one list (shared)
+    or one per channel."""
+    img = np.asarray(img, np.int64)
+    if bypass:
+        return img
+    if img.ndim == 2:
+        return np.asarray(tables[0] if isinstance(tables[0], (list, np.ndarray)) else tables, np.int64)[img]
+    out = np.zeros_like(img)
+    for c in range(3):
+        t = tables[c] if isinstance(tables[0], (list, np.ndarray)) and len(tables) == 3 else (tables[0] if isinstance(tables[0], (list, np.ndarray)) else tables)
+        out[:, :, c] = np.asarray(t, np.int64)[img[:, :, c]]
+    return out
+
+def color_matrix_model(img, coefficients, in_offsets=(0, 0, 0), out_offsets=(0, 0, 0), coeff_frac=12, data_width=8, bypass=0):
+    """Bit-exact reference for litedsp.image.color.LiteDSPColorMatrix: ``clamp(rounded(sum_k m[c][k]
+    * (x_k - in_k), frac) + out_c)`` per pixel. Returns the image ((H, W, 3) or (H, W)) and the
+    saturation flag."""
+    img = np.asarray(img, np.int64)
+    if bypass:
+        return img, 0
+    n_out = len(coefficients)//3
+    x = [img[:, :, k] - int(in_offsets[k]) for k in range(3)]
+    outs, sat = [], 0
+    for c in range(n_out):
+        acc = sum(int(coefficients[c*3 + k])*x[k] for k in range(3))
+        y = ((acc + (1 << (coeff_frac - 1))) >> coeff_frac) + int(out_offsets[c])
+        sat |= int(np.any(y < 0) or np.any(y > (1 << data_width) - 1))
+        outs.append(np.clip(y, 0, (1 << data_width) - 1))
+    return (outs[0] if n_out == 1 else np.stack(outs, axis=-1)), sat
+
+def debayer_model(raw, pattern="rggb", border="mirror", phase=(0, 0)):
+    """Bit-exact reference for litedsp.image.debayer.LiteDSPDebayer: bilinear interpolation on
+    the padded mosaic with the colour site from the pixel parity (XOR ``phase`` = (col, row))."""
+    from litedsp.image.design import bayer_phase
+    raw = np.asarray(raw, np.int64)
+    h, w = raw.shape
+    p = np_pad_border(raw, 1, border)
+    ph = bayer_phase(pattern)
+    out = np.zeros((h, w, 3), np.int64)
+    for y in range(h):
+        for x in range(w):
+            rp, cp = (y & 1) ^ phase[1], (x & 1) ^ phase[0]
+            site = ph[2*rp + cp]
+            red_row = ph[2*rp] == 0 or ph[2*rp + 1] == 0
+            c  = p[y + 1, x + 1]
+            e4 = (p[y, x + 1] + p[y + 1, x] + p[y + 1, x + 2] + p[y + 2, x + 1] + 2) >> 2
+            c4 = (p[y, x] + p[y, x + 2] + p[y + 2, x] + p[y + 2, x + 2] + 2) >> 2
+            hh = (p[y + 1, x] + p[y + 1, x + 2] + 1) >> 1
+            vv = (p[y, x + 1] + p[y + 2, x + 1] + 1) >> 1
+            if site == 0:
+                out[y, x] = (c, e4, c4)
+            elif site == 2:
+                out[y, x] = (c4, e4, c)
+            else:
+                out[y, x] = (hh, c, vv) if red_row else (vv, c, hh)
+    return out
+
+def downscaler_model(img, decimation=2):
+    """Bit-exact reference for litedsp.image.scale.LiteDSPDownscaler: rounded box means over
+    full D x D tiles (partial edge tiles dropped)."""
+    img = np.asarray(img, np.int64)
+    D = decimation
+    h, w = img.shape[:2]
+    th, tw = h//D, w//D
+    src = img[:th*D, :tw*D]
+    if img.ndim == 2:
+        s = src.reshape(th, D, tw, D).sum(axis=(1, 3))
+    else:
+        s = src.reshape(th, D, tw, D, 3).sum(axis=(1, 3))
+    return (s + (D*D)//2) >> (2*int(np.log2(D)))
+
+def crop_model(img, x0=0, y0=0, roi_width=None, roi_height=None):
+    """Reference for litedsp.image.scale.LiteDSPCrop: the region of interest."""
+    img = np.asarray(img, np.int64)
+    roi_width = img.shape[1] - x0 if roi_width is None else roi_width
+    roi_height = img.shape[0] - y0 if roi_height is None else roi_height
+    return img[y0:y0 + roi_height, x0:x0 + roi_width]
+
+def pixel_stats_model(img, channel=0, zones=4, zone_width=None, zone_height=None):
+    """Reference for litedsp.image.stats.LiteDSPPixelStats: frame sum / min / max / count and the
+    zone sums (zone index from the pixel position against the zone size, clamped)."""
+    img = np.asarray(img, np.int64)
+    ch  = img if img.ndim == 2 else img[:, :, channel]
+    h, w = ch.shape
+    zone_width  = zone_width or max(1, w//zones)
+    zone_height = zone_height or max(1, h//zones)
+    zsum = [0]*(zones*zones)
+    for y in range(h):
+        for x in range(w):
+            zx, zy = min(zones - 1, x//zone_width), min(zones - 1, y//zone_height)
+            zsum[zy*zones + zx] += int(ch[y, x])
+    return dict(sum=int(ch.sum()), min=int(ch.min()), max=int(ch.max()), count=w*h, zones=zsum)
+
+def histogram_model(img, channel=0, bins_log2=8, data_width=8):
+    """Reference for litedsp.image.histogram.LiteDSPPixelHistogram: counts of the code's top
+    ``bins_log2`` bits."""
+    img = np.asarray(img, np.int64)
+    ch  = img if img.ndim == 2 else img[:, :, channel]
+    return np.bincount((ch >> (data_width - bins_log2)).reshape(-1), minlength=1 << bins_log2).astype(np.int64)
+
+def alpha_blend_model(a, b, alpha, data_width=8):
+    """Bit-exact reference for litedsp.image.blend.LiteDSPAlphaBlend: ``rounded(alpha * A +
+    (256 - alpha) * B, 8)`` with ``alpha`` an int (256 = 1.0) or a mono mask image (full scale
+    = 256, else the top 8 bits)."""
+    a, b = np.asarray(a, np.int64), np.asarray(b, np.int64)
+    if np.ndim(alpha) == 0:
+        al = np.full(a.shape[:2], int(alpha), np.int64)
+    else:
+        m  = np.asarray(alpha, np.int64)
+        al = np.where(m == (1 << data_width) - 1, 256, m >> max(0, data_width - 8) if data_width >= 8 else m << (8 - data_width))
+    if a.ndim == 3:
+        al = al[:, :, None]
+    return (al*a + (256 - al)*b + 128) >> 8
+
+def box_overlay_model(img, boxes, thickness=1):
+    """Reference for litedsp.image.overlay.LiteDSPBoxOverlay: ``boxes`` = [(x0, y0, x1, y1, color,
+    enable)] with inclusive corners and ``color`` a channel tuple (or int for mono); the lowest
+    enabled box wins."""
+    out = np.asarray(img, np.int64).copy()
+    h, w = out.shape[:2]
+    for y in range(h):
+        for x in range(w):
+            for (x0, y0, x1, y1, color, en) in boxes:
+                if not en or not (x0 <= x <= x1 and y0 <= y <= y1):
+                    continue
+                if x - x0 < thickness or x1 - x < thickness or y - y0 < thickness or y1 - y < thickness:
+                    out[y, x] = color
+                    break
+    return out

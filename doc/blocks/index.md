@@ -1,6 +1,6 @@
 # LiteDSP Block Catalog
 
-196 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
+205 blocks, generated from the block registry by `litedsp/flow/docgen.py` (do not edit by hand — regenerate with `python3 -m litedsp.flow.docgen`).
 
 ## Signal Generation (`generation/`)
 
@@ -237,6 +237,15 @@
 | [Dilation (3x3 max)](dilate.md) | `LiteDSPRankFilter` | 73 | — | Rank-order filter on a 3x3 neighbourhood (per channel). |
 | [Threshold (hysteresis)](threshold.md) | `LiteDSPThreshold` | 1 | 0 | Binary threshold with hysteresis along the scan line (mono). |
 | [Pixel gain / offset](pixel_gain.md) | `LiteDSPPixelGain` | 2 | 3 | Per-channel gain and offset: ``y = clamped(rounded(x * gain, gain_frac) + offset)``. |
+| [Pixel LUT](pixel_lut.md) | `LiteDSPPixelLUT` | 1 | 0 | Code-to-code lookup on every channel (``2**data_width`` entries per table). |
+| [Gamma (LUT)](gamma.md) | `LiteDSPPixelLUT` | 1 | — | Code-to-code lookup on every channel (``2**data_width`` entries per table). |
+| [Colour matrix](color_matrix.md) | `LiteDSPColorMatrix` | 3 | 9 | ``y_c = clamped(rounded(sum_k m[c][k] * (x_k - in_off_k), coeff_frac) + out_off_c)`` on RGB |
+| [RGB to YCbCr (601)](rgb_to_ycbcr.md) | `LiteDSPColorMatrix` | 3 | — | ``y_c = clamped(rounded(sum_k m[c][k] * (x_k - in_off_k), coeff_frac) + out_off_c)`` on RGB |
+| [YCbCr to RGB (601)](ycbcr_to_rgb.md) | `LiteDSPColorMatrix` | 3 | — | ``y_c = clamped(rounded(sum_k m[c][k] * (x_k - in_off_k), coeff_frac) + out_off_c)`` on RGB |
+| [RGB to grey (601)](rgb_to_gray.md) | `LiteDSPColorMatrix` | 3 | — | ``y_c = clamped(rounded(sum_k m[c][k] * (x_k - in_off_k), coeff_frac) + out_off_c)`` on RGB |
+| [Debayer (bilinear)](debayer.md) | `LiteDSPDebayer` | 71 | 0 | Bilinear demosaic of a raw Bayer (mono) stream into RGB. |
+| [Box downscaler](downscaler.md) | `LiteDSPDownscaler` | 2 | 0 | Exact box-mean downscaling by ``decimation`` (2, 4 or 8) in both directions. |
+| [Crop (ROI)](crop.md) | `LiteDSPCrop` | 1 | 0 | Pass a rectangular region of interest, consume everything else. |
 | [Pixel FIFO](pixel_fifo.md) | `LiteDSPPixelFIFO` | 0 | 0 | Elastic buffer for a pixel stream (``pixel_layout``, tags carried). |
 | [Pixel pack](pixel_pack.md) | `LiteDSPPixelPack` | 0 | 0 | Pack pixels into memory words: ``rgb888`` (``r`` in the low byte, then ``g``, ``b``), |
 | [Pixel unpack](pixel_unpack.md) | `LiteDSPPixelUnpack` | 1 | 0 | Unpack memory words back into pixels (inverse of :class:`LiteDSPPixelPack`; ``rgb565`` |

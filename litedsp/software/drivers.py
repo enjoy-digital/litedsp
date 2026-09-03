@@ -1150,6 +1150,60 @@ class PixelGainDriver(Driver):
         g = float(means[1])
         self.set_white_balance(g/max(float(means[0]), 1e-9), g/max(float(means[2]), 1e-9))
 
+class PixelLUTDriver(Driver):
+    """Tone-curve tables: gamma, contrast, histogram equalisation, or a raw table."""
+    regs = ("lut_addr", "lut_data", "bypass")
+
+    def load(self, table, channel=3):
+        self.lut_addr.write(0)
+        for v in table:
+            self.lut_data.write((int(v) & 0xFFFF) | ((int(channel) & 3) << 16))
+
+    def set_gamma(self, gamma=2.2, data_width=8, channel=3):
+        from litedsp.image.design import gamma_table
+        self.load(gamma_table(gamma, data_width), channel)
+
+    def equalize(self, histogram, data_width=8, channel=3):
+        from litedsp.image.design import equalize_table
+        self.load(equalize_table(histogram, data_width), channel)
+
+class ColorDriver(Driver):
+    """Colour matrix presets / raw matrices with the frame-atomic commit."""
+    regs = ("coeff_index", "coeff_value", "control", "status", "config")
+
+    def set_matrix(self, coefficients, in_offsets=(0, 0, 0), out_offsets=(0, 0, 0)):
+        entries = list(coefficients)
+        self.coeff_index.write(0)
+        for v in entries:
+            self.coeff_value.write(int(v) & 0xFFFF)
+        self.coeff_index.write(9)
+        for v in in_offsets:
+            self.coeff_value.write(int(v) & 0xFFFF)
+        self.coeff_index.write(12)
+        for v in out_offsets:
+            self.coeff_value.write(int(v) & 0xFFFF)
+
+    def set_preset(self, name, data_width=8):
+        from litedsp.image.design import color_preset
+        cf = (self.config.read() >> 8) & 0x1F
+        self.set_matrix(*color_preset(name, data_width, cf))
+
+    def commit(self, now=False):
+        self.control.write(1 << (1 if now else 0))
+
+    @property
+    def saturated(self):
+        return (self.status.read() >> 1) & 1
+
+class CropDriver(Driver):
+    """Region of interest, applied at the next frame."""
+    regs = ("origin", "size", "control", "status")
+
+    def set_roi(self, x0, y0, width, height):
+        self.origin.write((int(x0) & 0xFFFF) | (int(y0) << 16))
+        self.size.write((int(width) & 0xFFFF) | (int(height) << 16))
+        self.control.write(1)
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -1184,6 +1238,9 @@ TYPED = {
     "rank_filter":   RankFilterDriver, "erode": RankFilterDriver, "dilate": RankFilterDriver,
     "threshold":     ThresholdDriver,
     "pixel_gain":    PixelGainDriver,
+    "pixel_lut":     PixelLUTDriver, "gamma": PixelLUTDriver,
+    "color_matrix":  ColorDriver, "rgb_to_ycbcr": ColorDriver, "ycbcr_to_rgb": ColorDriver, "rgb_to_gray": ColorDriver,
+    "crop":          CropDriver,
     "ca_cfar":       CFARDriver,
     "cfar_2d":       CFARDriver,
     "os_cfar":       OSCFARDriver,
@@ -1202,7 +1259,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
            LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver,
-           PixelGainDriver]
+           PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

@@ -30,7 +30,7 @@ from test.registry import VSPEC
 # Blocks excluded from the generic cycle-latency check (layout/rate/semantic reasons; each
 # has its latency pinned by its own golden-model test instead).
 EXCLUDED = {
-    "pixel_from_video", "pixel_to_video", "line_buffer", "kernel_2d", "kernel_5x5", "gaussian_blur", "sharpen", "laplacian", "sobel", "rank_filter", "erode", "dilate",
+    "pixel_from_video", "pixel_to_video", "line_buffer", "kernel_2d", "kernel_5x5", "gaussian_blur", "sharpen", "laplacian", "sobel", "rank_filter", "erode", "dilate", "debayer", "downscaler", "crop",
     "cordic_rot", "cordic_vec", "hilbert", "fm_demod", "am_demod", "phase_detect", "slicer",
     "symbol_mapper", "correlator", "carrier_loop", "scrambler", "descrambler", "conv_encoder",
     "viterbi_decoder", "crc", "diff_encoder", "diff_decoder", "stats", "fft", "fft_iter",

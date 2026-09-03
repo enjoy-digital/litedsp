@@ -122,6 +122,11 @@ from litedsp.image.design         import kernel_preset
 from litedsp.image.edge           import LiteDSPSobel
 from litedsp.image.rank           import LiteDSPRankFilter
 from litedsp.image.point          import LiteDSPThreshold, LiteDSPPixelGain
+from litedsp.image.lut            import LiteDSPPixelLUT
+from litedsp.image.color          import LiteDSPColorMatrix
+from litedsp.image.debayer        import LiteDSPDebayer
+from litedsp.image.scale          import LiteDSPDownscaler, LiteDSPCrop
+from litedsp.image.design         import color_preset
 from litedsp.filter.bitstream     import LiteDSPBitstreamDecimator
 from litedsp.flow.ipcore          import LiteDSPFlowIPCore
 from litedsp.gen                  import parse_config
@@ -848,6 +853,27 @@ def pixel_gain():
     d = LiteDSPPixelGain(with_csr=False)
     return d, {*d.gain, *d.offset, d.sat, d.clear_sat, d.bypass} | _eps(d.sink, d.source), 10.0
 
+def pixel_lut():
+    d = LiteDSPPixelLUT(n_channels=3, gamma=2.2, with_csr=False)
+    return d, {d.lut_addr, d.lut_data, d.lut_channel, d.lut_we, d.bypass} | _eps(d.sink, d.source), 10.0
+
+def color_matrix():
+    c, i, o = color_preset("rgb_to_ycbcr_601")
+    d = LiteDSPColorMatrix(coefficients=c, in_offsets=i, out_offsets=o, with_csr=False)
+    return d, {d.coeff_index, d.coeff_value, d.coeff_we, d.commit, d.commit_now, d.commit_pending, d.sat, d.clear_sat, d.bypass} | _eps(d.sink, d.source), 10.0
+
+def debayer():
+    d = LiteDSPDebayer(width=640, with_csr=False)
+    return d, {d.phase, d.clear, d.geometry_error} | _eps(d.sink, d.source), 10.0
+
+def downscaler():
+    d = LiteDSPDownscaler(n_channels=3, width=640, height=480, with_csr=False)
+    return d, {d.width, d.height} | _eps(d.sink, d.source), 10.0
+
+def crop():
+    d = LiteDSPCrop(with_csr=False)
+    return d, {d.x0, d.y0, d.roi_width, d.roi_height, d.commit, d.commit_pending, d.clear, d.geometry_error} | _eps(d.sink, d.source), 10.0
+
 def pixel_fifo():
     d = LiteDSPPixelFIFO(depth=256, with_csr=False)
     return d, {d.level, d.overflow} | _eps(d.sink, d.source), 10.0
@@ -1013,7 +1039,7 @@ REGISTRY = {
     "reverb": reverb, "peak_meter": peak_meter, "loudness": loudness,
     "sigma_delta_mod": sigma_delta_mod, "sigma_delta_dac": sigma_delta_dac, "pdm_rx": pdm_rx,
     "i2s_rx": i2s_rx, "i2s_tx": i2s_tx,
-    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "pixel_pack": pixel_pack, "line_buffer": line_buffer, "line_buffer_5x5_rgb": line_buffer_5x5_rgb, "pixel_fifo": pixel_fifo, "sobel": sobel, "rank_filter": rank_filter, "threshold": threshold, "pixel_gain": pixel_gain, "kernel_2d": kernel_2d, "kernel_5x5": kernel_5x5, "kernel_2d_rgb": kernel_2d_rgb, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
+    "range_gate": range_gate, "pulse_generator": pulse_generator, "pixel_pattern": pixel_pattern, "pixel_pack": pixel_pack, "line_buffer": line_buffer, "line_buffer_5x5_rgb": line_buffer_5x5_rgb, "pixel_fifo": pixel_fifo, "pixel_lut": pixel_lut, "color_matrix": color_matrix, "debayer": debayer, "downscaler": downscaler, "crop": crop, "sobel": sobel, "rank_filter": rank_filter, "threshold": threshold, "pixel_gain": pixel_gain, "kernel_2d": kernel_2d, "kernel_5x5": kernel_5x5, "kernel_2d_rgb": kernel_2d_rgb, "pixel_from_video": pixel_from_video, "pixel_to_video": pixel_to_video, "pixel_unpack": pixel_unpack, "pulse_compressor": pulse_compressor, "pulse_compressor_mac": pulse_compressor_mac,
     "mti": mti, "corner_turn": corner_turn, "doppler": doppler, "ca_cfar": ca_cfar, "cfar_2d": cfar_2d, "os_cfar": os_cfar, "clutter_map": clutter_map, "cfar_2d_wide": cfar_2d_wide, "peak_extractor": peak_extractor, "target_list": target_list, "alpha_beta_tracker": alpha_beta_tracker, "kalman_tracker": kalman_tracker, "beamformer": beamformer, "beamformer_4beams": beamformer_4beams, "monopulse": monopulse, "tvg": tvg,
 }
 

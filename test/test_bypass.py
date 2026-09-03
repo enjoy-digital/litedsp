@@ -20,7 +20,7 @@ from test.common import run_stream, column
 # in test_mixer.py; the capture scope's bypass in test_capture.py).
 BYPASS_BLOCKS = [
     "gain", "fir_real", "fir_complex", "cfr", "clipper", "saturate", "dc_offset", "iq_balance",
-    "dc_blocker", "dc_blocker_real", "mti", "tvg", "threshold", "pixel_gain", "moving_average", "iir_biquad", "notch", "comb_filter", "allpass", "dpd",
+    "dc_blocker", "dc_blocker_real", "mti", "tvg", "threshold", "pixel_gain", "pixel_lut", "gamma", "color_matrix", "moving_average", "iir_biquad", "notch", "comb_filter", "allpass", "dpd",
     "slew_limiter", "volume", "stereo_matrix", "dither", "audio_eq", "compressor", "delay_line",
 ]
 

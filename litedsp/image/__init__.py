@@ -21,3 +21,7 @@ from litedsp.image.kernel  import LiteDSPKernel2D
 from litedsp.image.edge    import LiteDSPSobel
 from litedsp.image.rank    import LiteDSPRankFilter
 from litedsp.image.point   import LiteDSPThreshold, LiteDSPPixelGain
+from litedsp.image.lut     import LiteDSPPixelLUT
+from litedsp.image.color   import LiteDSPColorMatrix
+from litedsp.image.debayer import LiteDSPDebayer
+from litedsp.image.scale   import LiteDSPDownscaler, LiteDSPCrop

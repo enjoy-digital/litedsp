@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -447,6 +447,27 @@ class TestImageDrivers(unittest.TestCase):
         self.assertEqual(regs["pg_gain0"].value, int(round(1.2*256)))
         drv.set_brightness_contrast(0.1, 1.5)
         self.assertEqual(regs["pg_gain0"].value & 0xFFF, 384)
+
+    def test_lut_color_crop(self):
+        from litedsp.image.design import gamma_table, color_preset
+        regs = {f"lut_{r}": MockCSR() for r in PixelLUTDriver.regs}
+        drv = PixelLUTDriver(MockBus(regs), "lut")
+        drv.set_gamma(2.2, channel=1)
+        self.assertEqual(len(regs["lut_lut_data"].writes), 256)
+        self.assertEqual(regs["lut_lut_data"].writes[128], gamma_table(2.2)[128] | (1 << 16))
+        regs = {f"cm_{r}": MockCSR() for r in ColorDriver.regs}
+        regs["cm_config"].value = 3 | (12 << 8)
+        drv = ColorDriver(MockBus(regs), "cm")
+        drv.set_preset("rgb_to_ycbcr_601")
+        c, i, o = color_preset("rgb_to_ycbcr_601")
+        self.assertEqual(len(regs["cm_coeff_value"].writes), 15)
+        self.assertEqual(regs["cm_coeff_value"].writes[0], c[0] & 0xFFFF)
+        self.assertEqual(regs["cm_coeff_value"].writes[12], o[0])
+        drv.commit()
+        self.assertEqual(regs["cm_control"].value, 1)
+        regs = {f"cr_{r}": MockCSR() for r in CropDriver.regs}
+        CropDriver(MockBus(regs), "cr").set_roi(10, 20, 320, 240)
+        self.assertEqual((regs["cr_origin"].value, regs["cr_size"].value, regs["cr_control"].value), (10 | (20 << 16), 320 | (240 << 16), 1))
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

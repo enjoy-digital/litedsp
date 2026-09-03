@@ -987,6 +987,20 @@
       }
     }
   },
+  "color_matrix": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 9,
+      "ff": 950,
+      "lut": 742,
+      "synth": {
+        "bram": 0,
+        "dsp": 9,
+        "ff": 950,
+        "lut": 742
+      }
+    }
+  },
   "combine": {
     "ecp5": {
       "bram": 0,
@@ -1222,6 +1236,20 @@
         "dsp": 14,
         "ff": 198,
         "lut": 66
+      }
+    }
+  },
+  "crop": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 102,
+      "lut": 342,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 102,
+        "lut": 342
       }
     }
   },
@@ -1563,6 +1591,20 @@
       }
     }
   },
+  "debayer": {
+    "ecp5": {
+      "bram": 2,
+      "dsp": 0,
+      "ff": 376,
+      "lut": 905,
+      "synth": {
+        "bram": 2,
+        "dsp": 0,
+        "ff": 376,
+        "lut": 905
+      }
+    }
+  },
   "delay_line": {
     "ecp5": {
       "bram": 0,
@@ -1650,6 +1692,20 @@
         "dsp": 14,
         "ff": 307,
         "lut": 1768
+      }
+    }
+  },
+  "downscaler": {
+    "ecp5": {
+      "bram": 1,
+      "dsp": 0,
+      "ff": 172,
+      "lut": 339,
+      "synth": {
+        "bram": 1,
+        "dsp": 0,
+        "ff": 172,
+        "lut": 339
       }
     }
   },
@@ -5294,6 +5350,20 @@
         "dsp": 3,
         "ff": 97,
         "lut": 158
+      }
+    }
+  },
+  "pixel_lut": {
+    "ecp5": {
+      "bram": 3,
+      "dsp": 0,
+      "ff": 72,
+      "lut": 147,
+      "synth": {
+        "bram": 3,
+        "dsp": 0,
+        "ff": 72,
+        "lut": 147
       }
     }
   },

@@ -1291,7 +1291,7 @@ def _frames_model(fn, cols, w, h, nc_in, nc_out, extra_cols=()):
         img = np.stack([np.array(cols[k][f*n:(f + 1)*n]).reshape(h, w) for k in range(nc_in)], axis=-1)
         img = img[:, :, 0] if nc_in == 1 else img
         y = fn(img)
-        outs.append(y.reshape(n, -1) if nc_out == 3 else y.reshape(-1, 1))
+        outs.append(y.reshape(-1, nc_out))                              # Rate changers: own size.
     y = np.concatenate(outs)
     return [y[:, k] for k in range(nc_out)] + [np.array(c) for c in extra_cols]
 
@@ -1338,6 +1338,77 @@ def spec_pixel_gain():
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
     return dut, cols + [eol, first, last], 2*w*h - 2, \
         lambda c: _frames_model(lambda i: models.pixel_gain_model(i, gains, offsets)[0], c, w, h, 3, 3, (eol, first, last)), True, True
+
+def _spec_lut(nc, gamma):
+    from litedsp.image.lut import LiteDSPPixelLUT
+    from litedsp.image.design import gamma_table
+    w, h = 16, 8
+    dut = LiteDSPPixelLUT(n_channels=nc, gamma=gamma, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=nc)
+    table = gamma_table(gamma, 8)
+    return dut, cols + [eol, first, last], 2*w*h - 2, \
+        lambda c: _frames_model(lambda i: models.pixel_lut_model(i, table), c, w, h, nc, nc, (eol, first, last)), True, True
+
+def spec_pixel_lut():
+    return _spec_lut(1, 1.0)
+
+def spec_gamma():
+    return _spec_lut(3, 2.2)
+
+def _spec_color(preset):
+    from litedsp.image.color import LiteDSPColorMatrix
+    from litedsp.image.design import color_preset
+    w, h = 16, 8
+    c, i, o = color_preset(preset)
+    n_out = len(c)//3
+    dut = LiteDSPColorMatrix(n_out=n_out, coefficients=c, in_offsets=i, out_offsets=o, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
+    return dut, cols + [eol, first, last], 2*w*h - 4, \
+        lambda cc: _frames_model(lambda im: models.color_matrix_model(im, c, i, o)[0], cc, w, h, 3, n_out, (eol, first, last)), True, True
+
+def spec_color_matrix():
+    return _spec_color("rgb_to_ycbcr_jpeg")
+
+def spec_rgb_to_ycbcr():
+    return _spec_color("rgb_to_ycbcr_601")
+
+def spec_ycbcr_to_rgb():
+    return _spec_color("ycbcr_to_rgb_601")
+
+def spec_rgb_to_gray():
+    return _spec_color("rgb_to_gray_601")
+
+def spec_debayer():
+    from litedsp.image.debayer import LiteDSPDebayer
+    w, h = 16, 8
+    dut = LiteDSPDebayer(pattern="grbg", width=w, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2)
+    return dut, cols + [eol, first, last], 2*w*h - 4, \
+        lambda c: _frames_model(lambda i: models.debayer_model(i, "grbg", "mirror"), c, w, h, 1, 3, (eol, first, last)), True, True
+
+def spec_downscaler():
+    from litedsp.image.scale import LiteDSPDownscaler
+    w, h = 16, 8
+    dut = LiteDSPDownscaler(n_channels=3, decimation=2, width=w, height=h, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
+    tw, th = w//2, h//2
+    oeol   = [int(k % tw == tw - 1) for k in range(2*tw*th)]
+    ofirst = [int(k % (tw*th) == 0) for k in range(2*tw*th)]
+    olast  = [int(k % (tw*th) == tw*th - 1) for k in range(2*tw*th)]
+    return dut, cols + [eol, first, last], 2*tw*th - 2, \
+        lambda c: _frames_model(lambda i: models.downscaler_model(i, 2), c, w, h, 3, 3, (oeol, ofirst, olast)), True, True
+
+def spec_crop():
+    from litedsp.image.scale import LiteDSPCrop
+    w, h = 16, 8
+    x0, y0, rw, rh = 3, 2, 8, 4
+    dut = LiteDSPCrop(n_channels=1, x0=x0, y0=y0, roi_width=rw, roi_height=rh, with_csr=False)
+    cols, eol, first, last = _raster_cols(w, h, n_frames=2)
+    oeol   = [int(k % rw == rw - 1) for k in range(2*rw*rh)]
+    ofirst = [int(k % (rw*rh) == 0) for k in range(2*rw*rh)]
+    olast  = [int(k % (rw*rh) == rw*rh - 1) for k in range(2*rw*rh)]
+    return dut, cols + [eol, first, last], 2*rw*rh - 2, \
+        lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
 def spec_line_buffer():
     from litedsp.image.linebuffer import LiteDSPLineBuffer
@@ -1770,6 +1841,15 @@ SPECS = {
     "dilate":           spec_dilate,
     "threshold":        spec_threshold,
     "pixel_gain":       spec_pixel_gain,
+    "pixel_lut":        spec_pixel_lut,
+    "gamma":            spec_gamma,
+    "color_matrix":     spec_color_matrix,
+    "rgb_to_ycbcr":     spec_rgb_to_ycbcr,
+    "ycbcr_to_rgb":     spec_ycbcr_to_rgb,
+    "rgb_to_gray":      spec_rgb_to_gray,
+    "debayer":          spec_debayer,
+    "downscaler":       spec_downscaler,
+    "crop":             spec_crop,
     "line_buffer":      spec_line_buffer,
     "pixel_from_video": spec_pixel_from_video,
     "pixel_pattern":    spec_pixel_pattern,

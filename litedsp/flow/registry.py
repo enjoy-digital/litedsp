@@ -148,6 +148,11 @@ from litedsp.image.design          import kernel_preset
 from litedsp.image.edge            import LiteDSPSobel
 from litedsp.image.rank            import LiteDSPRankFilter
 from litedsp.image.point           import LiteDSPThreshold, LiteDSPPixelGain
+from litedsp.image.lut             import LiteDSPPixelLUT
+from litedsp.image.color           import LiteDSPColorMatrix
+from litedsp.image.debayer         import LiteDSPDebayer
+from litedsp.image.scale           import LiteDSPDownscaler, LiteDSPCrop
+from litedsp.image.design          import color_preset
 
 _METHOD  = {"method": ["cic", "fir"]}
 _WINDOW  = {"window": ["hann", "hamming", "blackman", "rect"]}
@@ -342,6 +347,15 @@ ENTRIES = [
     ("dilate",             LiteDSPRankFilter,            {"data_width": 8, "width": 64, "rank": 8}, "image",   "Dilation (3x3 max)",    {"n_channels": [1, 3]}),
     ("threshold",          LiteDSPThreshold,             {"data_width": 8},                      "image",      "Threshold (hysteresis)", {}),
     ("pixel_gain",         LiteDSPPixelGain,             {"data_width": 8},                      "image",      "Pixel gain / offset",   {"n_channels": [1, 3]}),
+    ("pixel_lut",          LiteDSPPixelLUT,              {"data_width": 8},                      "image",      "Pixel LUT",             {"n_channels": [1, 3], "shared": [True, False]}),
+    ("gamma",              LiteDSPPixelLUT,              {"data_width": 8, "n_channels": 3, "gamma": 2.2}, "image", "Gamma (LUT)",      {}),
+    ("color_matrix", LiteDSPColorMatrix, dict(data_width=8, n_out=3, coefficients=color_preset("identity")[0], in_offsets=color_preset("identity")[1], out_offsets=color_preset("identity")[2]), "image", "Colour matrix", {}),
+    ("rgb_to_ycbcr", LiteDSPColorMatrix, dict(data_width=8, n_out=3, coefficients=color_preset("rgb_to_ycbcr_601")[0], in_offsets=color_preset("rgb_to_ycbcr_601")[1], out_offsets=color_preset("rgb_to_ycbcr_601")[2]), "image", "RGB to YCbCr (601)", {}),
+    ("ycbcr_to_rgb", LiteDSPColorMatrix, dict(data_width=8, n_out=3, coefficients=color_preset("ycbcr_to_rgb_601")[0], in_offsets=color_preset("ycbcr_to_rgb_601")[1], out_offsets=color_preset("ycbcr_to_rgb_601")[2]), "image", "YCbCr to RGB (601)", {}),
+    ("rgb_to_gray", LiteDSPColorMatrix, dict(data_width=8, n_out=1, coefficients=color_preset("rgb_to_gray_601")[0], in_offsets=color_preset("rgb_to_gray_601")[1], out_offsets=color_preset("rgb_to_gray_601")[2]), "image", "RGB to grey (601)", {}),
+    ("debayer",            LiteDSPDebayer,               {"data_width": 8, "width": 64},         "image",      "Debayer (bilinear)",    {"pattern": ["rggb", "bggr", "grbg", "gbrg"], "border": ["mirror", "replicate", "zero"]}),
+    ("downscaler",         LiteDSPDownscaler,            {"data_width": 8, "width": 64, "height": 48}, "image", "Box downscaler",        {"decimation": [2, 4, 8], "n_channels": [1, 3]}),
+    ("crop",               LiteDSPCrop,                  {"data_width": 8, "roi_width": 32, "roi_height": 24}, "image", "Crop (ROI)",     {"n_channels": [1, 3]}),
     ("pixel_fifo",         LiteDSPPixelFIFO,             {"data_width": 8, "depth": 256},        "image",      "Pixel FIFO",            {"n_channels": [1, 3]}),
     ("pixel_pack",         LiteDSPPixelPack,             {"data_width": 8},                      "image",      "Pixel pack",            {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
     ("pixel_unpack",       LiteDSPPixelUnpack,           {"data_width": 8, "width": 64},         "image",      "Pixel unpack",          {"format": ["rgb888", "xrgb8888", "rgb565", "mono"]}),
