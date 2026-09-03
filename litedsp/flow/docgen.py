@@ -41,6 +41,7 @@ CATEGORY_TITLES = {
     "motor":      "Motor Control",
     "audio":      "Audio Processing",
     "radar":      "Radar / Sonar Processing",
+    "image":      "Image / Video Processing",
 }
 
 def _root():

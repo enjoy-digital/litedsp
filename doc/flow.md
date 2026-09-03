@@ -50,7 +50,7 @@ all code generation is headless and reused identically by the CLI, tests, and th
 Port refs are `"<block_id>.<port>"` (e.g. `mix.sink_a`, `split0.sources[0]`); top-level I/O are
 referenced by their bare id. See `litedsp/flow/examples/`.
 
-The JSON `layout` value (`iq`, `iq_symbol`, `real`, `tdm`, `abc`, `angle`, `cell`, `target`,
+The JSON `layout` value (`iq`, `iq_symbol`, `real`, `tdm`, `abc`, `angle`, `cell`, `target`, `pixel`, `pixel_rgb`, `video`,
 `track`, or `raw`) is a compatibility category. The
 builder derives each top-level endpoint's concrete field widths, signedness, and parameter layout
 from its connected block port. This permits, for example, one-bit FEC streams, wider statistic

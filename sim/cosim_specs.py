@@ -48,6 +48,18 @@ def _conv_symbols(bits, constraint=7, polys=(0o171, 0o133)):
 
 # Generation ---------------------------------------------------------------------------------------
 
+def _raster_cols(w, h, n_frames=2, n_channels=1, data_width=8, seed=21):
+    """Random raster frames as cosim columns: the pixel fields, then ``eol``, ``first``, ``last``
+    (the sink-tag order)."""
+    prng = random.Random(seed)
+    n    = w*h*n_frames
+    lim  = (1 << data_width) - 1
+    cols = [[prng.randint(0, lim) for _ in range(n)] for _ in range(n_channels)]
+    eol   = [int(k % w == w - 1) for k in range(n)]
+    first = [int(k % (w*h) == 0) for k in range(n)]
+    last  = [int(k % (w*h) == w*h - 1) for k in range(n)]
+    return cols, eol, first, last
+
 def spec_nco():
     from litedsp.generation.nco import LiteDSPNCO
     n, phase_inc = 256, 0x01234567

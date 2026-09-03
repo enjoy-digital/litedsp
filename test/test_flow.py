@@ -75,7 +75,7 @@ class TestRegistry(unittest.TestCase):
             for p in spec.ports:
                 self.assertIn(p.direction, ("sink", "source"))
                 self.assertIn(p.layout, ("iq", "iq_symbol", "real", "tdm", "abc", "angle", "cell",
-                                         "target", "track", "raw"))
+                                         "target", "track", "pixel", "pixel_rgb", "video", "raw"))
 
     def test_categories(self):
         cats = registry.by_category()

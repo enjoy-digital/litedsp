@@ -211,6 +211,12 @@ def _csr_spec(csr):
 
 def _layout(ep):
     fields = [n for n, *_ in ep.description.payload_layout]
+    if {"hsync", "vsync", "de", "r", "g", "b"} <= set(fields):
+        return "video"
+    if set(fields) == {"r", "g", "b", "eol"}:
+        return "pixel_rgb"
+    if fields == ["data", "eol"]:
+        return "pixel"
     if set(fields) >= {"i", "q", "symbol"}:
         return "iq_symbol"
     if set(fields) >= {"i", "q"}:

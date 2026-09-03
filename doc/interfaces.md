@@ -16,6 +16,11 @@ new block.
   - multi-channel audio: `tdm_layout(data_width, n_channels)` → field `data` (signed) plus an
     unsigned `channel` tag; frames are consecutive beats, channel 0 first (`n_channels=1` is a
     plain `real_layout`). `tdm_channel(endpoint)` reads the tag (or a constant 0 for mono).
+  - image pixels: `pixel_layout(data_width, n_channels)` → unsigned `data` (mono) or `r`, `g`, `b`
+    plus `eol` (last pixel of a line); `first` / `last` frame the image, no coordinates ride the
+    stream (`LiteDSPPixelCounter` derives them). `window_layout(...)` carries a K x K neighbourhood
+    (`w{row}{col}` + `eol`); `video_layout(...)` / `video_timing_layout(...)` are field-compatible
+    with LiteX `video_data_layout` / `video_timing_layout` (timed streams with blanking).
   - radar detector cells: `cell_layout(data_width)` → unsigned `data`, `threshold`, `detect`.
   - radar detections / tracks: `target_layout(...)` (`range`, `doppler` sub-bin positions, `data`,
     `hit`) and `track_layout(...)` (+ signed `velocity`, `id`, `hits`): one burst per CPI closed by

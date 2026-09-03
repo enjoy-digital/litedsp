@@ -267,6 +267,55 @@ def scaled(value, shift, out_width):
     r = rounded(value, shift)
     return saturated(r, out_width), overflow(r, out_width)
 
+# Image / video layouts ----------------------------------------------------------------------------
+
+def pixel_fields(n_channels=1):
+    """Payload field names of a pixel stream: ``data`` (mono) or ``r``, ``g``, ``b``."""
+    check(n_channels in (1, 3), "expected n_channels in (1, 3)")
+    return ["data"] if n_channels == 1 else ["r", "g", "b"]
+
+def pixel_layout(data_width=8, n_channels=1):
+    """Raster pixel stream (image processing): unsigned codes plus the end-of-line tag.
+
+    Framing: ``first`` marks the first pixel of a frame, ``last`` its last pixel and ``eol`` the
+    last pixel of every line; there are no coordinates in the payload (consumers derive them
+    with :class:`litedsp.image.common.LiteDSPPixelCounter`). Three-channel streams carry
+    ``r``, ``g``, ``b`` (Y, Cb, Cr ride on the same fields); a raw Bayer mosaic is a mono stream.
+    """
+    check(4 <= data_width <= 16, "expected 4 <= data_width <= 16")
+    return [(f, data_width) for f in pixel_fields(n_channels)] + [("eol", 1)]
+
+def pixel_channels(endpoint):
+    """Number of colour channels of a pixel-layout endpoint (1 or 3)."""
+    names = [n for n, *_ in endpoint.description.payload_layout]
+    return 3 if "r" in names else 1
+
+def window_layout(data_width=8, n_channels=1, kernel_size=3):
+    """``kernel_size x kernel_size`` pixel neighbourhood: fields ``w{row}{col}`` (channels packed
+    LSB-first, ``n_channels * data_width`` bits each) plus ``eol``; ``w{P}{P}`` is the centre."""
+    check(kernel_size in (3, 5, 7), "expected kernel_size in (3, 5, 7)")
+    return [(f"w{i}{j}", n_channels*data_width) for i in range(kernel_size) for j in range(kernel_size)] + [("eol", 1)]
+
+def video_layout(data_width=8):
+    """Timed video stream, field-compatible with LiteX ``video_data_layout``: ``hsync``,
+    ``vsync``, ``de`` and the ``r``, ``g``, ``b`` codes (blanking beats carry ``de = 0``)."""
+    return [("hsync", 1), ("vsync", 1), ("de", 1), ("r", data_width), ("g", data_width), ("b", data_width)]
+
+def video_timing_layout(coord_bits=12):
+    """Video timing generator stream, field-compatible with LiteX ``video_timing_layout``."""
+    return [("hsync", 1), ("vsync", 1), ("de", 1),
+            ("hres", coord_bits), ("vres", coord_bits), ("hcount", coord_bits), ("vcount", coord_bits)]
+
+def clamped(value, out_width):
+    """Clamp a signed expression to the unsigned ``[0, 2**out_width - 1]`` code range."""
+    hi = (1 << out_width) - 1
+    return Mux(value < 0, 0, Mux(value > hi, hi, value[:out_width]))
+
+def pixel_signed(value, data_width):
+    """Signed copy of an unsigned pixel code (``data_width + 1`` bits) for signed arithmetic."""
+    s = Signal((data_width + 1, True))
+    return s, s.eq(value)
+
 # Bypass -------------------------------------------------------------------------------------------
 
 def add_bypass(module, output_registered=True):

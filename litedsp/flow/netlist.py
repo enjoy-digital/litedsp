@@ -165,9 +165,9 @@ def validate(nl, reg=None):
         if not _ID_RE.match(io.id):
             errors.append(f"io id '{io.id}' is not a valid identifier")
         if io.layout not in ("iq", "iq_symbol", "real", "tdm", "abc", "angle", "cell", "target",
-                             "track", "raw"):
+                             "track", "pixel", "pixel_rgb", "video", "raw"):
             errors.append(f"io '{io.id}' has unknown layout '{io.layout}' "
-                          f"(expected iq, iq_symbol, real, tdm, abc, angle, cell, target, track, or raw)")
+                          f"(expected iq, iq_symbol, real, tdm, abc, angle, cell, target, track, pixel, pixel_rgb, video, or raw)")
 
     # Connections: resolve endpoints, check direction + layout, single driver per sink.
     driven = {}     # sink ref -> count.

@@ -175,3 +175,40 @@ def measure_lag(reference, measured, max_lag=None):
         max_lag = n - 1
     corr = [np.dot(measured[lag:n], reference[:n - lag]) for lag in range(max_lag + 1)]
     return int(np.argmax(corr))
+
+# Image harness ------------------------------------------------------------------------------------
+
+def np_clamped(value, out_width):
+    """Unsigned clamp of a NumPy array / int to ``[0, 2**out_width - 1]`` (mirror of ``clamped``)."""
+    return np.clip(np.asarray(value, np.int64), 0, (1 << out_width) - 1)
+
+def raster_beats(img, n_channels=1):
+    """Beat dicts for one frame: ``img`` is (H, W) for mono or (H, W, 3) for RGB; ``first``,
+    ``eol`` and ``last`` framing."""
+    img = np.asarray(img)
+    h, w = img.shape[:2]
+    beats = []
+    for y in range(h):
+        for x in range(w):
+            beat = {"eol": int(x == w - 1), "first": int(x == 0 and y == 0), "last": int(x == w - 1 and y == h - 1)}
+            if n_channels == 1:
+                beat["data"] = int(img[y, x])
+            else:
+                beat["r"], beat["g"], beat["b"] = (int(v) for v in img[y, x])
+            beats.append(beat)
+    return beats
+
+def beats_to_image(beats, width, height, n_channels=1, field=None):
+    """Reshape captured beats into an (H, W) or (H, W, 3) array (``field`` overrides the payload
+    name for single-field layouts)."""
+    if n_channels == 1:
+        f = field or "data"
+        return np.array([b[f] for b in beats[:width*height]], np.int64).reshape(height, width)
+    return np.array([[b["r"], b["g"], b["b"]] for b in beats[:width*height]], np.int64).reshape(height, width, 3)
+
+def run_frames(dut, frames, n_out, n_channels=1, source_fields=None, **kwargs):
+    """Drive ``frames`` (list of images) as framed raster beats through ``dut`` and capture
+    ``n_out`` output beats (``source_fields`` default to the input pixel fields + framing)."""
+    fields = (["data"] if n_channels == 1 else ["r", "g", "b"]) + ["eol", "first", "last"]
+    beats  = [b for f in frames for b in raster_beats(f, n_channels)]
+    return run_stream(dut, beats, n_out, fields, source_fields or fields, **kwargs)
