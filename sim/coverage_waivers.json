@@ -218,5 +218,40 @@
       "test.test_line_buffer:TestLineBuffer.test_bit_exact",
       "test.test_line_buffer:TestLineBuffer.test_geometry_and_latency"
     ]
+  },
+  "kernel_2d": {
+    "reason": "The cosim runs the build-time coefficient set; the shadow load / commit arms, bypass, the saturation flag and the geometry path run in the unit tests, which are bit-exact for several presets under backpressure and check the edge / constant / saturation bounds, the frame-atomic commit and bypass.",
+    "semantic_checks": [
+      "test.test_kernel_2d:TestKernel2D.test_bit_exact",
+      "test.test_kernel_2d:TestKernel2D.test_commit_and_bypass"
+    ]
+  },
+  "kernel_5x5": {
+    "reason": "The cosim runs the build-time coefficient set; the shadow load / commit arms, bypass, the saturation flag and the geometry path run in the unit tests, which are bit-exact for several presets under backpressure and check the edge / constant / saturation bounds, the frame-atomic commit and bypass.",
+    "semantic_checks": [
+      "test.test_kernel_2d:TestKernel2D.test_bit_exact",
+      "test.test_kernel_2d:TestKernel2D.test_commit_and_bypass"
+    ]
+  },
+  "gaussian_blur": {
+    "reason": "The cosim runs the build-time coefficient set; the shadow load / commit arms, bypass, the saturation flag and the geometry path run in the unit tests, which are bit-exact for several presets under backpressure and check the edge / constant / saturation bounds, the frame-atomic commit and bypass.",
+    "semantic_checks": [
+      "test.test_kernel_2d:TestKernel2D.test_bit_exact",
+      "test.test_kernel_2d:TestKernel2D.test_commit_and_bypass"
+    ]
+  },
+  "sharpen": {
+    "reason": "The cosim runs the build-time coefficient set; the shadow load / commit arms, bypass, the saturation flag and the geometry path run in the unit tests, which are bit-exact for several presets under backpressure and check the edge / constant / saturation bounds, the frame-atomic commit and bypass.",
+    "semantic_checks": [
+      "test.test_kernel_2d:TestKernel2D.test_bit_exact",
+      "test.test_kernel_2d:TestKernel2D.test_commit_and_bypass"
+    ]
+  },
+  "laplacian": {
+    "reason": "The cosim runs the build-time coefficient set; the shadow load / commit arms, bypass, the saturation flag and the geometry path run in the unit tests, which are bit-exact for several presets under backpressure and check the edge / constant / saturation bounds, the frame-atomic commit and bypass.",
+    "semantic_checks": [
+      "test.test_kernel_2d:TestKernel2D.test_bit_exact",
+      "test.test_kernel_2d:TestKernel2D.test_commit_and_bypass"
+    ]
   }
 }
