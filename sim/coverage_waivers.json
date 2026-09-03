@@ -211,5 +211,12 @@
       "test.test_pixel_pattern:TestPixelPattern.test_modes",
       "test.test_pixel_pattern:TestPixelPattern.test_trigger"
     ]
+  },
+  "line_buffer": {
+    "reason": "The cosim streams the mirror border; the replicate and zero border arms, the geometry-error path and the width re-learning run in the unit tests, which are bit-exact against the padded-image model for the three borders (3x3 mono and 5x5 RGB) and check the geometry error and the declared latency.",
+    "semantic_checks": [
+      "test.test_line_buffer:TestLineBuffer.test_bit_exact",
+      "test.test_line_buffer:TestLineBuffer.test_geometry_and_latency"
+    ]
   }
 }
