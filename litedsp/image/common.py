@@ -47,7 +47,7 @@ class LiteDSPPixelCounter(LiteXModule):
         self.sync += If(self.xfer,
             If(self.eol,
                 ncol.eq(0), nrow.eq(self.row + 1),
-                If(~self.width_valid | self.first, self.width.eq(self.col + 1), self.width_valid.eq(1)),
+                If(self.row == 0, self.width.eq(self.col + 1), self.width_valid.eq(1)),   # Every first line.
             ).Else(
                 ncol.eq(self.col + 1), nrow.eq(self.row),
             ),
