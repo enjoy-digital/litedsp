@@ -319,5 +319,12 @@
     "semantic_checks": [
       "test.test_hamming:TestHamming.test_codes"
     ]
+  },
+  "hdlc_framer": {
+    "reason": "The cosim frames three payloads with one preamble flag; the multi-flag preamble path and the FCS-stuffing arms run in the unit tests (two preamble flags, payloads with stuffed runs, bit-exact framing round trip).",
+    "semantic_checks": [
+      "test.test_hdlc:TestHDLC.test_round_trip",
+      "test.test_hdlc:TestHDLC.test_errors_and_abort"
+    ]
   }
 }

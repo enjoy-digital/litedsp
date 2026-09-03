@@ -27,7 +27,7 @@ class TestCoverageWaivers(unittest.TestCase):
             "pulse_compressor", "pulse_compressor_hamming", "pulse_compressor_mac", "doppler",
             "doppler_power", "monopulse", "beamformer", "beamformer_2beams", "tvg", "pixel_pattern", "line_buffer", "kernel_2d", "kernel_5x5", "gaussian_blur",
             "sharpen", "laplacian", "color_matrix", "rgb_to_ycbcr", "ycbcr_to_rgb", "rgb_to_gray", "debayer", "box_overlay", "manchester_decoder", "hamming_encoder", "hamming_decoder",
-            "hamming_decoder_secded",
+            "hamming_decoder_secded", "hdlc_framer",
         })
         self.assertGreaterEqual(len(waivers["ldpc_decoder"]["semantic_checks"]), 5)
 
