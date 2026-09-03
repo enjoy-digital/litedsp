@@ -96,6 +96,16 @@ class AMModulatorDriver(NCODriver):
     def set_index(self, index, data_width=16):
         self.index.write(max(0, min((1 << (data_width - 1)), int(round(float(index)*(1 << (data_width - 1)))))))
 
+class FSKModulatorDriver(NCODriver):
+    """FSK modulator: centre frequency in Hz and the modulation index h."""
+    regs = ("phase_inc", "deviation", "config")
+
+    def set_modulation_index(self, h):
+        from litedsp.comm.design import fsk_deviation
+        cfg = self.config.read()
+        bps, sps = cfg & 0x7, (cfg >> 4) & 0x7F
+        self.deviation.write(fsk_deviation(h, sps, bps, self.phase_bits))
+
 class CaptureDriver(Driver):
     """Scope-like Capture block: trigger and status."""
     regs = ("threshold", "force", "status")
@@ -1280,6 +1290,7 @@ class BoxOverlayDriver(Driver):
 TYPED = {
     "nco":      NCODriver,
     "fm_modulator": FMModulatorDriver, "pm_modulator": PhaseModulatorDriver, "am_modulator": AMModulatorDriver,
+    "fsk_modulator": FSKModulatorDriver,
     "capture":  CaptureDriver,
     "csr_sink": CSRReaderDriver,
     "squelch":  SquelchDriver,
@@ -1330,7 +1341,7 @@ TYPED = {
 
 # Discovery ----------------------------------------------------------------------------------------
 
-DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
+DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,

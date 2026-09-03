@@ -3140,6 +3140,20 @@
       }
     }
   },
+  "fsk_modulator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 7,
+      "ff": 481,
+      "lut": 1222,
+      "synth": {
+        "bram": 0,
+        "dsp": 7,
+        "ff": 481,
+        "lut": 1222
+      }
+    }
+  },
   "gain": {
     "ecp5": {
       "bram": 0,
@@ -3304,6 +3318,34 @@
         "dsp": 12,
         "ff": 671,
         "lut": 864
+      }
+    }
+  },
+  "gray_demapper": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 11,
+      "lut": 7,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 11,
+        "lut": 7
+      }
+    }
+  },
+  "gray_mapper": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 0,
+      "ff": 11,
+      "lut": 7,
+      "synth": {
+        "bram": 0,
+        "dsp": 0,
+        "ff": 11,
+        "lut": 7
       }
     }
   },
@@ -6376,6 +6418,20 @@
         "dsp": 2,
         "ff": 10,
         "lut": 47
+      }
+    }
+  },
+  "ssb_modulator": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 17,
+      "ff": 1230,
+      "lut": 1118,
+      "synth": {
+        "bram": 0,
+        "dsp": 17,
+        "ff": 1230,
+        "lut": 1118
       }
     }
   },

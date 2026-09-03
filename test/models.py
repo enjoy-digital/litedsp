@@ -3788,3 +3788,14 @@ def ssb_modulator_model(x, n_taps=31, sideband=0, data_width=16):
     if sideband:
         q = np.where(q == -(1 << (data_width - 1)), (1 << (data_width - 1)) - 1, -q)
     return i, q
+
+def fsk_modulator_model(symbols, bits_per_symbol=1, sps=4, taps=None, deviation=0, phase_inc=0, data_width=16,
+    phase_bits=32, lut_depth=1024):
+    """Bit-exact reference for litedsp.comm.fsk_mod.LiteDSPFSKModulator: levels ``(2 s - (L-1)) *
+    2^(dw-1-bps)`` held for ``sps`` samples, the Gaussian FIR (``taps``, Q1.15) when given, then
+    the FM engine."""
+    L = 1 << bits_per_symbol
+    x = np.repeat([(2*int(s) - (L - 1)) << (data_width - 1 - bits_per_symbol) for s in symbols], sps)
+    if taps is not None:
+        x = np.asarray(fir_model(x, taps, data_width), np.int64)
+    return angle_modulator_model(x, "fm", phase_inc, deviation, phase_bits, data_width, lut_depth)

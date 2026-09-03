@@ -1410,6 +1410,43 @@ def spec_crop():
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
         lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
 
+def spec_gray_mapper():
+    from litedsp.comm.gray import LiteDSPGrayMapper
+    n = 300
+    dut = LiteDSPGrayMapper(width=4, n_lanes=2, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=255)
+    return dut, cols, n - 2, lambda c: [models.gray_model(c[0], 4, 2, True)]
+
+def spec_gray_demapper():
+    from litedsp.comm.gray import LiteDSPGrayDemapper
+    n = 300
+    dut = LiteDSPGrayDemapper(width=4, n_lanes=2, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=255)
+    return dut, cols, n - 2, lambda c: [models.gray_model(c[0], 4, 2, False)]
+
+def spec_ssb_modulator():
+    from litedsp.comm.ssb_mod import LiteDSPSSBModulator
+    n = 300
+    dut = LiteDSPSSBModulator(with_csr=False)
+    dut.sideband.reset = 1
+    cols = _rand_cols(1, n, lo=-20000, hi=20000)
+    return dut, cols, n - 4, lambda c: list(models.ssb_modulator_model(c[0], 31, 1))
+
+def _spec_fsk(bt):
+    from litedsp.comm.fsk_mod import LiteDSPFSKModulator
+    n = 80
+    dut = LiteDSPFSKModulator(bits_per_symbol=2, sps=4, bt=bt, with_csr=False)
+    cols = _rand_cols(1, n, lo=0, hi=3)
+    dev = dut.deviation.reset.value
+    taps = dut.taps
+    return dut, cols, 4*n - 8, lambda c: list(models.fsk_modulator_model(c[0], 2, 4, taps, dev, 0))
+
+def spec_fsk_modulator():
+    return _spec_fsk(0.5)
+
+def spec_fsk_modulator_rect():
+    return _spec_fsk(None)
+
 def _spec_am(carrier):
     from litedsp.comm.am_mod import LiteDSPAMModulator
     n = 300
@@ -1928,6 +1965,11 @@ SPECS = {
     "debayer":          spec_debayer,
     "downscaler":       spec_downscaler,
     "crop":             spec_crop,
+    "gray_mapper":      spec_gray_mapper,
+    "gray_demapper":    spec_gray_demapper,
+    "ssb_modulator":    spec_ssb_modulator,
+    "fsk_modulator":    spec_fsk_modulator,
+    "fsk_modulator_rect": spec_fsk_modulator_rect,
     "am_modulator":     spec_am_modulator,
     "am_modulator_nco": spec_am_modulator_nco,
     "fm_modulator":     spec_fm_modulator,
@@ -2018,6 +2060,7 @@ def check_coverage():
             "cfar_2d_wide":             "cfar_2d",
             "beamformer_2beams":        "beamformer",
             "am_modulator_nco":         "am_modulator",
+            "fsk_modulator_rect":       "fsk_modulator",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

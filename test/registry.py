@@ -185,6 +185,10 @@ VSPEC = {
     "i2s_tx":             _v("i2s_frame_model", latency="n/a", rate=None),     # Pin-level sink.
     "fm_modulator":       _v("fm_modulator_model", latency=2, cosim=True),
     "am_modulator":       _v("am_modulator_model", latency=2, cosim=True),
+    "gray_mapper":        _v("gray_model", latency=1, cosim=True),
+    "gray_demapper":      _v("gray_model", latency=1, cosim=True),
+    "ssb_modulator":      _v("ssb_modulator_model", latency=3, cosim=True),
+    "fsk_modulator":      _v("fsk_modulator_model", latency=6, rate=(4, 1), cosim=True),
     "pm_modulator":       _v("pm_modulator_model", latency=2, cosim=True),
     "pixel_pattern":      _v("pixel_pattern_model", latency="n/a", rate=None, cosim=True),
     "pixel_from_video":   _v("pixel_from_video_model", latency=1, rate=None, cosim=True),

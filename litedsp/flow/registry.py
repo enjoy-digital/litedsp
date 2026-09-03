@@ -127,6 +127,9 @@ from litedsp.audio.pdm             import LiteDSPSigmaDeltaModulator, LiteDSPSig
 from litedsp.audio.i2s             import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.comm.fm_mod           import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
 from litedsp.comm.am_mod           import LiteDSPAMModulator
+from litedsp.comm.gray             import LiteDSPGrayMapper, LiteDSPGrayDemapper
+from litedsp.comm.ssb_mod          import LiteDSPSSBModulator
+from litedsp.comm.fsk_mod          import LiteDSPFSKModulator
 from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator
 from litedsp.radar.compress        import LiteDSPPulseCompressor
 from litedsp.radar.mti             import LiteDSPMTICanceller
@@ -340,6 +343,10 @@ ENTRIES = [
     # Radar / sonar.
     ("fm_modulator",       LiteDSPFrequencyModulator,    {},                                     "comm",       "FM modulator",          {}),
     ("am_modulator",       LiteDSPAMModulator,           {},                                     "comm",       "AM modulator",          {"carrier": ["baseband", "nco"]}),
+    ("gray_mapper",        LiteDSPGrayMapper,            {},                                     "comm",       "Gray mapper",           {}),
+    ("gray_demapper",      LiteDSPGrayDemapper,          {},                                     "comm",       "Gray demapper",         {}),
+    ("ssb_modulator",      LiteDSPSSBModulator,          {},                                     "comm",       "SSB modulator",         {}),
+    ("fsk_modulator",      LiteDSPFSKModulator,          {"bt": 0.5},                            "comm",       "FSK / GFSK modulator",  {"bits_per_symbol": [1, 2], "fir_architecture": ["classic", "mac"]}),
     ("pm_modulator",       LiteDSPPhaseModulator,        {},                                     "comm",       "Phase modulator",       {}),
     ("pixel_pattern",      LiteDSPPixelPattern,          {"data_width": 8, "width": 64, "height": 48}, "image", "Pixel pattern source", {"mode": ["const", "ramp", "bars", "checker", "counter", "bayer"], "n_channels": [1, 3]}),
     ("pixel_from_video",   LiteDSPPixelFromVideo,        {"data_width": 8, "width": 64, "height": 48}, "image", "Pixels from LiteX video", {}),
