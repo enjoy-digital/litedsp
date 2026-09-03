@@ -14,6 +14,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `bitstream_decimator` | 677/240/0/0/- | - | - |
 | `block_deinterleaver` | 164/85/2/0/198.1 | 85/55/1/0/- | 85/55/1/0/- |
 | `block_interleaver` | 165/85/2/0/199.6 | 86/55/1/0/- | 86/55/1/0/- |
+| `ca_cfar` | 1152/625/0/2/- | - | - |
 | `ccsds_rs_decoder` | 3741/1482/1/0/102.9/100.0 | 1756/1482/0/0/117.9/100.0 | 1801/1490/0/0/210.3/100.0 |
 | `ccsds_rs_encoder` | 573/265/0/0/223.4 | 255/267/0/0/222.0 | 254/267/0/0/527.3 |
 | `cfo_estimator` | 4805/1764/0/4/115.0 | 1527/1650/0/5/- | 1523/1650/0/5/- |

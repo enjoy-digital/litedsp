@@ -12,7 +12,7 @@ from litedsp.software.drivers import (phase_inc_from_freq, freq_from_phase_inc, 
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -279,6 +279,20 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual(regs["rg_control"].value, 1)
         drv.trigger()
         self.assertEqual(regs["rg_control"].value, 0b110)
+
+    def test_cfar(self):
+        from litedsp.radar.design import cfar_alpha
+        regs = {f"cfar_{r}": MockCSR() for r in CFARDriver.regs}
+        regs["cfar_config"].value = 8 | (2 << 8) | (8 << 16)
+        drv  = CFARDriver(MockBus(regs), "cfar")
+        drv.set_alpha(2.5)
+        self.assertEqual(regs["cfar_alpha"].value, 640)
+        drv.set_pfa(1e-3)
+        self.assertEqual(regs["cfar_alpha"].value, cfar_alpha(1e-3, 16, "power", frac_bits=8))
+        drv.set_mode("go")
+        self.assertEqual(regs["cfar_control"].value, 1)
+        regs["cfar_detections"].value = 7
+        self.assertEqual(drv.detection_count, 7)
 
 class TestDiscover(unittest.TestCase):
     def test_discovers_blocks(self):

@@ -29,3 +29,4 @@ from litedsp.radar.compress import LiteDSPPulseCompressor
 from litedsp.radar.mti      import LiteDSPMTICanceller
 from litedsp.radar.corner_turn import LiteDSPCornerTurn
 from litedsp.radar.doppler  import LiteDSPDopplerProcessor
+from litedsp.radar.cfar     import LiteDSPCACFAR

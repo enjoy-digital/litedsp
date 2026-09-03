@@ -811,6 +811,34 @@ class RangeGateDriver(Driver):
     def running(self):
         return self.status.read() & 1
 
+class CFARDriver(Driver):
+    """CFAR threshold factor from a false-alarm probability, statistic mode and detection count."""
+    regs = ("alpha", "control", "config", "detections")
+
+    @property
+    def n_train(self):
+        return self.config.read() & 0xFF
+
+    @property
+    def frac_bits(self):
+        return (self.config.read() >> 16) & 0xFF
+
+    def set_alpha(self, alpha):
+        self.alpha.write(int(round(float(alpha)*(1 << self.frac_bits))))
+
+    def set_pfa(self, pfa, domain="power", n_train_cells=None):
+        from litedsp.radar.design import cfar_alpha
+        if n_train_cells is None:
+            n_train_cells = 2*self.n_train
+        self.alpha.write(cfar_alpha(pfa, n_train_cells, domain, frac_bits=self.frac_bits))
+
+    def set_mode(self, mode):
+        self.control.write({"ca": 0, "go": 1, "so": 2}[mode] if isinstance(mode, str) else int(mode))
+
+    @property
+    def detection_count(self):
+        return self.detections.read()
+
 # Registry-key -> handwritten driver (preferred over the generic one in manifest discovery).
 TYPED = {
     "nco":      NCODriver,
@@ -838,6 +866,7 @@ TYPED = {
     "peak_meter":    PeakMeterDriver,
     "loudness":      LoudnessDriver,
     "range_gate":    RangeGateDriver,
+    "ca_cfar":       CFARDriver,
 }
 
 # Discovery ----------------------------------------------------------------------------------------
@@ -846,7 +875,7 @@ DRIVERS = [NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, 
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver]
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver]
 
 def _reg_names(bus):
     return [k for k, v in vars(bus.regs).items() if hasattr(v, "read")]

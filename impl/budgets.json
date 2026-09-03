@@ -236,6 +236,20 @@
       }
     }
   },
+  "ca_cfar": {
+    "ecp5": {
+      "bram": 0,
+      "dsp": 2,
+      "ff": 625,
+      "lut": 1152,
+      "synth": {
+        "bram": 0,
+        "dsp": 2,
+        "ff": 625,
+        "lut": 1152
+      }
+    }
+  },
   "ccsds_rs_decoder": {
     "ecp5": {
       "bram": 1,

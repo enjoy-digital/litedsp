@@ -115,6 +115,8 @@ SPECIFIC = [
     ("corner_turn",     {"n_pulses": 1}),
     ("doppler",         {"n_pulses": 12}),
     ("doppler",         {"magnitude": "cordic"}),
+    ("ca_cfar",         {"n_train": 0}),
+    ("ca_cfar",         {"n_guard": 9}),
 ]
 
 class TestParams(unittest.TestCase):

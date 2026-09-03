@@ -1259,6 +1259,28 @@ def spec_corner_turn():
     last  = [int(k % N == N - 1) for k in range(n)]
     return dut, cols + [first, last], n - 4, lambda c: list(models.corner_turn_model(c[0], c[1], N, M)), True, True
 
+def _spec_ca_cfar(mode=0):
+    from litedsp.radar.cfar import LiteDSPCACFAR
+    N, n_frames = 64, 3
+    n   = N*n_frames
+    dut = LiteDSPCACFAR(n_train=8, n_guard=2, with_csr=False)
+    dut.mode.reset = mode
+    prng  = random.Random(11)
+    cells = [min(int(prng.expovariate(1/3000)), 2**17 - 1) for _ in range(n)]
+    for k in (5, 70, 191):
+        cells[k] = 100000                                        # Strong targets, one on an edge.
+    first = [int(k % N == 0) for k in range(n)]
+    last  = [int(k % N == N - 1) for k in range(n)]
+    def model(c):
+        return list(models.ca_cfar_model(c[0], c[1], c[2], 8, 2, alpha=512, mode=mode))
+    return dut, [cells, first, last], n - 2, model, True, True
+
+def spec_ca_cfar():
+    return _spec_ca_cfar(0)
+
+def spec_ca_cfar_go():
+    return _spec_ca_cfar(1)
+
 def _spec_doppler(magnitude="approx", window="hann"):
     from litedsp.radar.doppler import LiteDSPDopplerProcessor
     M, n_cols = 16, 7                                              # 6 columns + a flush column.
@@ -1442,6 +1464,8 @@ SPECS = {
     "range_gate":       spec_range_gate,
     "mti":              spec_mti,
     "corner_turn":      spec_corner_turn,
+    "ca_cfar":          spec_ca_cfar,
+    "ca_cfar_go":       spec_ca_cfar_go,
     "doppler":          spec_doppler,
     "doppler_power":    spec_doppler_power,
     "pulse_compressor": spec_pulse_compressor,
@@ -1499,6 +1523,7 @@ def check_coverage():
             "pulse_compressor_hamming": "pulse_compressor",
         "pulse_compressor_mac":     "pulse_compressor",
             "doppler_power":            "doppler",
+            "ca_cfar_go":               "ca_cfar",
     }
     eligible = {k for k, v in VSPEC.items() if v["cosim"]}
     missing  = eligible - set(SPECS)

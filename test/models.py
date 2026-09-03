@@ -2938,3 +2938,43 @@ def doppler_model(i, q, n_pulses, window="hann", magnitude="approx", data_width=
     last  = np.array([int(k % n_pulses == n_pulses - 1) for k in range(n_out)], np.int64)
     data  = np.concatenate(out) if out else np.zeros(0, np.int64)
     return data, first, last
+
+def cfar_threshold(stat, alpha, recip, data_width, threshold_frac):
+    """Threshold pipeline shared by the CFAR models: ``sat(rounded(stat*alpha*recip, frac+16))``."""
+    p2  = int(stat)*int(alpha)*int(recip)
+    thr = (p2 + (1 << (threshold_frac + 15))) >> (threshold_frac + 16)
+    return min(thr, (1 << data_width) - 1)
+
+def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_width=17, threshold_frac=8):
+    """Bit-exact reference for litedsp.radar.cfar.LiteDSPCACFAR: the sliding window with the
+    cell under test in the centre, zero padded at frame edges (``first`` clears the window, the
+    trailing cells are flushed after ``last``), CA / GO / SO statistic, threshold and decision.
+    Returns ``(data, threshold, detect, first, last)``, one beat per input cell."""
+    T, G  = n_train, n_guard
+    H, L  = T + G, 2*(T + G) + 1
+    recip = int(round((1 << 16)/(2*T)))
+    cells, real, firsts, lasts = [0]*L, [0]*L, [0]*L, [0]*L
+    out = [[] for _ in range(5)]
+    def evaluate():
+        if real[H]:
+            lead, lag = sum(cells[0:T]), sum(cells[H + G + 1:H + G + 1 + T])
+            stat = {0: lead + lag, 1: 2*max(lead, lag), 2: 2*min(lead, lag)}[int(mode)]
+            thr  = cfar_threshold(stat, alpha, recip, data_width, threshold_frac)
+            for col, v in zip(out, (cells[H], thr, int(cells[H] > thr), firsts[H], lasts[H])):
+                col.append(v)
+    def push(cell, is_real, f, l):
+        nonlocal cells, real, firsts, lasts
+        evaluate()
+        if is_real and f:
+            cells, real, firsts, lasts = [int(cell)] + [0]*(L - 1), [1] + [0]*(L - 1), [1] + [0]*(L - 1), [int(l)] + [0]*(L - 1)
+        else:
+            cells  = [int(cell) if is_real else 0] + cells[:-1]
+            real   = [int(is_real)] + real[:-1]
+            firsts = [int(is_real and f)] + firsts[:-1]
+            lasts  = [int(is_real and l)] + lasts[:-1]
+    for k in range(len(x)):
+        push(x[k], 1, first[k], last[k])
+        if last[k]:
+            for _ in range(H + 1):
+                push(0, 0, 0, 0)
+    return tuple(np.array(c, np.int64) for c in out)
