@@ -208,9 +208,10 @@ class LiteDSPCFAR2D(LiteXModule):
                 *[valid[k].eq(0) for k in range(slots)],
             ),
             If(col1 == M - 1,
-                valid[wslot1].eq(real1),
-            ),
-        )
+                *[If(wslot1 == k, valid[k].eq(real1)) for k in range(slots)],   # Explicit decode:
+            ),                                                                  # Array writes lower to
+        )                                                                       # blocking temporaries.
+
 
         # S2: horizontal shift registers (2C+1 wide) of column sums, centre cells and tags.
         # ---------------------------------------------------------------------------------
