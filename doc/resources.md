@@ -120,7 +120,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `ldpc_encoder` | 4719/446/0/0/177.4 | 1271/458/0/0/- | 1277/459/0/0/- |
 | `lfo` | 318/58/0/1/- | - | - |
 | `limiter` | 2790/397/2/5/- | - | - |
-| `line_buffer` | 792/295/2/0/- | - | - |
+| `line_buffer` | 1340/295/2/0/- | - | - |
 | `line_buffer_5x5_rgb` | 9104/1449/8/0/- | - | - |
 | `line_decoder` | 43/39/0/0/- | - | - |
 | `line_encoder` | 12/7/0/0/- | - | - |
@@ -175,7 +175,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `qpsk_receiver_ip` | 2083/1000/2/22/100.0/100.0 | 1085/634/1/12/112.5/100.0 | 1083/634/1/12/201.5/100.0 |
 | `quadrature_decoder` | 568/140/0/2/- | - | - |
 | `range_gate` | 363/96/0/0/- | - | - |
-| `rank_filter` | 1741/559/2/0/- | - | - |
+| `rank_filter` | 2010/559/2/0/- | - | - |
 | `resampler_farm` | 550/189/2/2/129.9/100.0 | 558/109/0/2/155.1/100.0 | 535/109/0/2/295.4/100.0 |
 | `resampler_farm_banked` | 554/214/3/2/112.8/100.0 | 599/109/0/2/145.8/100.0 | 574/109/0/2/327.3/100.0 |
 | `resolver` | 5509/1825/0/5/- | - | - |
@@ -191,9 +191,9 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `sincos_cordic` | 1824/924/0/2/- | - | - |
 | `slew_limiter` | 141/35/0/0/- | - | - |
 | `smo_observer` | 2775/873/0/4/- | - | - |
-| `sobel` | 1163/372/2/1/- | - | - |
+| `sobel` | 1821/372/2/1/- | - | - |
 | `soft_demapper` | 211/44/0/2/87.3 | 46/10/0/2/- | 47/10/0/2/- |
-| `ssb_modulator` | 1118/1230/0/17/- | - | - |
+| `ssb_modulator` | 1438/1230/0/17/- | - | - |
 | `stats` | 273/186/0/2/114.2 | 92/114/0/3/- | 92/114/0/3/- |
 | `stereo_matrix` | 617/171/0/2/- | - | - |
 | `stream_fifo` | 32/14/0/0/231.8 | 40/14/0/0/- | 36/14/0/0/- |
