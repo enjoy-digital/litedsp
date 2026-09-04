@@ -24,7 +24,7 @@ from litedsp.level.cfr import LiteDSPCFR, cfr_pulse
 from test.common import run_stream, column
 from test.models import cfr_model
 
-# Stimulus -------------------------------------------------------------------------------------------
+# Stimulus -----------------------------------------------------------------------------------------
 
 def ofdm_like(n, bw=0.2, rms=4000, seed=0):
     """OFDM-like Gaussian I/Q: random-phase subcarriers over |f| <= bw (PAPR ~10-11 dB)."""
@@ -47,7 +47,7 @@ def multi_peak(n, seed=7, floor=9000, spacing=37):
         xi[p], xq[p] = int(a*np.cos(ph)), int(a*np.sin(ph))
     return xi, xq
 
-# Metrics --------------------------------------------------------------------------------------------
+# Metrics ------------------------------------------------------------------------------------------
 
 def papr_db(i, q):
     p = np.asarray(i, float)**2 + np.asarray(q, float)**2
@@ -73,7 +73,7 @@ def evm_below_pct(in_i, in_q, out_i, out_q, threshold, delay):
     err    = (yi - xi)[sel]**2 + (yq - xq)[sel]**2
     return 100*np.sqrt(err.mean()/np.mean(xi**2 + xq**2))
 
-# Tests ----------------------------------------------------------------------------------------------
+# Tests --------------------------------------------------------------------------------------------
 
 class TestCFR(unittest.TestCase):
     def run_cfr(self, xi, xq, threshold, pulse_span=16, cutoff=0.2, throttle=0.25,

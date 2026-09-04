@@ -38,7 +38,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Bits | Field | Reset | Description |
 |---|---|---|---|
-| `[0]` | `injection` | `1` |  ``0b0``: Sinusoidal modulation (no zero sequence).; ``0b1``: Space-vector (min/max zero-sequence injection). |
+| `[0]` | `injection` | `1` | Zero-sequence injection. ``0b0``: Sinusoidal modulation (no zero sequence).; ``0b1``: Space-vector (min/max zero-sequence injection). |
 
 ## FPGA Resources
 

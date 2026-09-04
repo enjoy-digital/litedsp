@@ -5,8 +5,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 import importlib.util
-import pathlib
 import random
+import pathlib
 import unittest
 
 import numpy as np

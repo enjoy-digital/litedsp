@@ -34,7 +34,7 @@ from litedsp.analysis.fft import LiteDSPFFT, bit_reverse
 from test.common import run_stream, stream_driver, stream_capture, column
 from test.models import ofdm_equalizer_model
 
-# Helpers --------------------------------------------------------------------------------------------
+# Helpers ------------------------------------------------------------------------------------------
 
 def load_ref(eq, codes):
     """Load the 2-bit-per-bin reference RAM through the sequential write interface."""
@@ -91,7 +91,7 @@ def reorder_bitrev(frame, bits):
     """Reorder a bit-reversed FFT-order frame into natural bin order."""
     return np.array([frame[bit_reverse(k, bits)] for k in range(len(frame))])
 
-# Model comparison -------------------------------------------------------------------------------------
+# Model comparison ---------------------------------------------------------------------------------
 
 class TestOFDMEqualizer(unittest.TestCase):
     # verify-tier: model — untrained block is a unit-gain passthrough (H = 1.0, csi = 1.0).
@@ -137,7 +137,7 @@ class TestOFDMEqualizer(unittest.TestCase):
         self.assertEqual([k for k, c in enumerate(cap) if c["first"]],
                          [f*N for f in range(F - sum(train))])
 
-# End-to-end OFDM link ---------------------------------------------------------------------------------
+# End-to-end OFDM link -----------------------------------------------------------------------------
 
 class DropWarmup(LiteXModule):
     """Test shim: drop the FFT's ``N - 1`` pipeline-fill beats so the equalizer's reset-

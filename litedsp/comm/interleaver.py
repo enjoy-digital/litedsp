@@ -39,7 +39,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check
 
-# Helpers --------------------------------------------------------------------------------------------
+# Helpers ------------------------------------------------------------------------------------------
 
 def _check_geometry(rows, cols, width):
     check(rows >= 1, "expected rows >= 1 (CCSDS interleaving depth I)")
@@ -160,7 +160,7 @@ class _LiteDSPBlockPermuter(LiteXModule):
             self._status.fields.filled.eq(self.filled),
         ]
 
-# Block Interleaver ----------------------------------------------------------------------------------
+# Block Interleaver --------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPBlockInterleaver(_LiteDSPBlockPermuter):
@@ -189,7 +189,7 @@ class LiteDSPBlockInterleaver(_LiteDSPBlockPermuter):
         if with_csr:
             self.add_csr()
 
-# Block Deinterleaver --------------------------------------------------------------------------------
+# Block Deinterleaver ------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPBlockDeinterleaver(_LiteDSPBlockPermuter):

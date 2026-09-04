@@ -8,9 +8,9 @@
 
 """AIS GMSK/NRZI receiver with HDLC flags, bit unstuffing, and FCS (AN007)."""
 
-import argparse
 import os
 import sys
+import argparse
 
 import numpy as np
 

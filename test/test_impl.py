@@ -12,11 +12,11 @@ just guards portability/compile-cleanliness in the normal test run. Skipped with
 
 import os
 import json
-import tempfile
-import threading
 import time
-import unittest
 import yaml
+import tempfile
+import unittest
+import threading
 from unittest import mock
 
 from impl import budgets, ecp5, xilinx, wrap, modules
@@ -139,7 +139,7 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_push_workflow_routes_every_stability_sentinel(self):
         path = os.path.join(os.path.dirname(os.path.dirname(__file__)),
             ".github", "workflows", "impl.yml")
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             workflow = yaml.safe_load(f)
         matrix = workflow["jobs"]["ecp5-pnr-stability"]["strategy"]["matrix"]["module"]
         self.assertEqual(matrix, modules.PNR_STABILITY)
@@ -206,7 +206,7 @@ class TestImplementationBudgets(unittest.TestCase):
                         "pnr": {"fmax_mhz": 123.456},
                     },
                 }, flow="pnr")
-                with open(path) as f:
+                with open(path, encoding="utf-8") as f:
                     entry = json.load(f)["example"]["ecp5"]
         self.assertEqual(entry["fmax_mhz"], 123.5)
         self.assertEqual(entry["fmax_min"], 104.9)
@@ -215,7 +215,7 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_update_preserves_explicit_target(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump({"example": {"ecp5": {"fmax_target": 150.0}}}, f)
             with mock.patch.object(budgets, "PATH", path):
                 budgets.update("ecp5", {"example": {"pnr": {"fmax_mhz": 123.456}}},
@@ -227,7 +227,7 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_new_device_inherits_the_reviewed_target_not_the_regression_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump({"example": {"ecp5": {
                     "fmax_target": 100.0, "fmax_min": 85.0,
                 }}}, f)
@@ -242,7 +242,7 @@ class TestImplementationBudgets(unittest.TestCase):
     def test_target_check_is_separate_from_regression_floor(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "budgets.json")
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump({"example": {"ecp5": {
                     "fmax_min": 80.0, "fmax_target": 100.0,
                 }}}, f)

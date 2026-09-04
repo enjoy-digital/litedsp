@@ -71,7 +71,7 @@ def _pnr_tcl(checkpoint, clock_ns, strategy):
     ]) + "\n"
 
 def _parse_util(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         text = f.read()
     def row(*labels):
         for lab in labels:
@@ -90,16 +90,16 @@ def synth(verilog, top, build_dir, impl=False, clock_ns=10.0, timeout=1800, part
           checkpoint=None):
     """Run Vivado OOC synth (and impl if ``impl``); return a resource dict (+ pnr fmax if impl)."""
     tcl = os.path.join(build_dir, top + "_vivado.tcl")
-    with open(tcl, "w") as f:
+    with open(tcl, "w", encoding="utf-8") as f:
         f.write(_tcl(verilog, top, clock_ns, impl, part=part, checkpoint=checkpoint))
     log = os.path.join(build_dir, top + "_vivado.log")
-    with open(log, "w") as f:
+    with open(log, "w", encoding="utf-8") as f:
         subprocess.run(["vivado", "-mode", "batch", "-source", os.path.basename(tcl),
             "-nojournal", "-log", top + "_vivado.log"], cwd=build_dir,
             stdout=f, stderr=subprocess.STDOUT, check=True, timeout=timeout)
     res = _parse_util(os.path.join(build_dir, "util.rpt"))
     if impl:
-        with open(log) as f:
+        with open(log, encoding="utf-8") as f:
             m = re.search(r"WNS:\s*(-?[\d.]+)", f.read())
         if m:
             wns = float(m.group(1))
@@ -115,11 +115,11 @@ def pnr(checkpoint, top, build_dir, clock_ns=10.0, strategy="default", timeout=1
         raise ValueError(f"unknown Vivado strategy: {strategy}")
     os.makedirs(build_dir, exist_ok=True)
     tcl = os.path.join(build_dir, top + "_vivado.tcl")
-    with open(tcl, "w") as f:
+    with open(tcl, "w", encoding="utf-8") as f:
         f.write(_pnr_tcl(os.path.abspath(checkpoint), clock_ns, strategy))
     log = os.path.join(build_dir, top + "_vivado.log")
     try:
-        with open(log, "w") as f:
+        with open(log, "w", encoding="utf-8") as f:
             subprocess.run(["vivado", "-mode", "batch", "-source", os.path.basename(tcl),
                 "-nojournal", "-log", top + "_vivado.log"], cwd=build_dir,
                 stdout=f, stderr=subprocess.STDOUT, check=True, timeout=timeout)
@@ -129,7 +129,7 @@ def pnr(checkpoint, top, build_dir, clock_ns=10.0, strategy="default", timeout=1
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Vivado P&R failed (strategy={strategy}, log={log})") from e
     res = _parse_util(os.path.join(build_dir, "util.rpt"))
-    with open(log) as f:
+    with open(log, encoding="utf-8") as f:
         m = re.search(r"WNS:\s*(-?[\d.]+)", f.read())
     if not m:
         raise RuntimeError(f"Vivado P&R produced no timing result (strategy={strategy}, log={log})")

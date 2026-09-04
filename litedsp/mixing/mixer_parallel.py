@@ -101,7 +101,7 @@ class LiteDSPParallelMixer(LiteXModule):
 
     def add_csr(self):
         self._control = CSRStorage(fields=[
-            CSRField("mode", size=1, offset=0, values=[
+            CSRField("mode", size=1, offset=0, description="Mixing direction.", values=[
                 ("``0b0``", "Down-conversion (a * conj(b))."),
                 ("``0b1``", "Up-conversion (a * b)."),
             ]),

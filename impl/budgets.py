@@ -15,12 +15,12 @@ METRICS   = ["lut", "ff", "bram", "dsp"]
 
 def load():
     if os.path.exists(PATH):
-        with open(PATH) as f:
+        with open(PATH, encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def save(data):
-    with open(PATH, "w") as f:
+    with open(PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=True)
         f.write("\n")
 

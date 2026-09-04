@@ -14,8 +14,8 @@ wrapper that packs each endpoint payload into byte-aligned ``TDATA``, maps ``fir
 the original core, ROM initialization files and software register maps as a checked IP-XACT core.
 """
 
-import json
 import os
+import json
 import shutil
 import subprocess
 

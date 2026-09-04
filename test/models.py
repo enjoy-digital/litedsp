@@ -246,7 +246,7 @@ def clipper_model(i, q, threshold, data_width=16):
     i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
     return np.clip(i, -threshold, threshold), np.clip(q, -threshold, threshold)
 
-# CFR (Peak Cancellation) ---------------------------------------------------------------------------
+# CFR (Peak Cancellation) --------------------------------------------------------------------------
 
 def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
     recip_frac=15, pipeline=0, correction_pipeline=False):
@@ -978,7 +978,7 @@ def viterbi_model(data, constraint=7, polys=(0o171, 0o133), traceback=None, llr_
             out.append(int((survs[best] >> (traceback - 1)) & 1))
     return out
 
-# Puncturer / Depuncturer ----------------------------------------------------------------------------
+# Puncturer / Depuncturer --------------------------------------------------------------------------
 
 def puncture_model(symbols, pattern, n=2, phase=0):
     """Reference for litedsp.comm.puncture.LiteDSPPuncturer: serial kept bits (row 0 first)."""
@@ -1011,7 +1011,7 @@ def depuncture_model(llrs, pattern, n=2, llr_bits=4, phase=0):
         t = (t + 1) % period
     return out
 
-# Reed-Solomon (GF(2^8)) ----------------------------------------------------------------------------
+# Reed-Solomon (GF(2^8)) ---------------------------------------------------------------------------
 #
 # Conventional-basis RS over GF(2^8), plus the CCSDS 131.0-B-5 dual-basis profile.
 
@@ -1611,7 +1611,7 @@ def cordic_vectoring_model(x, y, data_width=16, angle_width=16, stages=None):
             x, y, z = wx(x + sh_y), wx(y - sh_x), wz(z + atan[i])
     return _wrapper(angle_width)(z)
 
-# Coarse CFO Estimator ------------------------------------------------------------------------------
+# Coarse CFO Estimator -----------------------------------------------------------------------------
 
 def cfo_estimator_model(i, q, delay=16, span_log2=8, angle_width=16, phase_bits=32,
     data_width=16):
@@ -1646,7 +1646,7 @@ def cfo_estimator_model(i, q, delay=16, span_log2=8, angle_width=16, phase_bits=
             acc_i = acc_q = 0
     return angles, phase_incs
 
-# OFDM Equalizer ------------------------------------------------------------------------------------
+# OFDM Equalizer -----------------------------------------------------------------------------------
 
 def ofdm_equalizer_model(i, q, train, fft_size=64, ref=None, coeff_frac=14, data_width=16):
     """Bit-exact reference for litedsp.comm.ofdm_eq.LiteDSPOFDMEqualizer.
@@ -1699,7 +1699,7 @@ def interpolate_model(x, factor, mode="repeat"):
         return out
     return np.repeat(x, factor)
 
-# Block Interleaver / Deinterleaver ------------------------------------------------------------------
+# Block Interleaver / Deinterleaver ----------------------------------------------------------------
 
 def block_interleave_model(data, rows=5, cols=255):
     """Reference for litedsp.comm.interleaver.LiteDSPBlockInterleaver: row-wise in, column-wise out.
@@ -1729,7 +1729,7 @@ def block_deinterleave_model(data, rows=5, cols=255):
         out  += [int(x) for x in block.T.reshape(-1)]
     return out
 
-# LDPC (802.11n rate-1/2, n=648, z=27) ---------------------------------------------------------------
+# LDPC (802.11n rate-1/2, n=648, z=27) -------------------------------------------------------------
 
 # IEEE 802.11-2012 Annex F, Table F-1 (n = 648, rate 1/2, z = 27) base matrix — deliberately
 # duplicated from litedsp.comm.ldpc (models stay independent of the gateware): -1 = zero
@@ -2368,7 +2368,7 @@ def pmsm_steady_state(omega_pu, iq_pu, r_pu=0.05, l_pu=0.3, psi_pu=0.6, n=2000, 
     return (q(i_ab.real), q(i_ab.imag), q(v_ab.real), q(v_ab.imag),
             np.round(theta/(2*np.pi)*(1 << 16)).astype(np.int64))
 
-# Motor Control: Resolver ----------------------------------------------------------------------------
+# Motor Control: Resolver --------------------------------------------------------------------------
 
 def resolver_model(sin_in, cos_in, decimation=32, phase_offset=0, data_width=16, angle_width=16,
     kp_shift=3, ki_shift=8, frac_bits=14, stages=None):

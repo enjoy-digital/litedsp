@@ -32,7 +32,7 @@ Saleh + memory PA for closed-loop testing without hardware.
 
 import numpy as np
 
-# Fixed-point helpers (mirror litedsp.level.dpd / test.models bit-for-bit) ---------------------------
+# Fixed-point helpers (mirror litedsp.level.dpd / test.models bit-for-bit) -------------------------
 
 def _saturated(value, width):
     hi = (1 << (width - 1)) - 1
@@ -50,7 +50,7 @@ def _delayed(x, m):
     x = np.asarray(x, np.int64)
     return np.concatenate([np.zeros(m, np.int64), x[:len(x) - m]]) if m else x
 
-# DPD Adapter ----------------------------------------------------------------------------------------
+# DPD Adapter --------------------------------------------------------------------------------------
 
 class DPDAdapter:
     """Indirect-learning least-squares adaptation for the ``LiteDSPDPD`` actuator.
@@ -167,7 +167,7 @@ class DPDAdapter:
         """Write the fitted LUTs to the actuator through a ``DPDDriver``."""
         driver.load(self.luts, coeff_frac=self.coeff_frac)
 
-# Synthetic PA ---------------------------------------------------------------------------------------
+# Synthetic PA -------------------------------------------------------------------------------------
 
 def simulate_pa(x, alpha_a=1.9638, beta_a=0.9945, alpha_p=2.5293, beta_p=2.8168,
     memory=(1.0, 0.08, 0.02)):

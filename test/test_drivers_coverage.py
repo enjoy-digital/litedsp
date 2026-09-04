@@ -18,7 +18,7 @@ from litedsp.flow import registry as flow_registry
 
 from litedsp.software.drivers import discover, make_driver, TYPED
 
-# Mock bus -------------------------------------------------------------------------------------------
+# Mock bus -----------------------------------------------------------------------------------------
 
 class MockCSR:
     def __init__(self):

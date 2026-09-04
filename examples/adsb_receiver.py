@@ -8,9 +8,9 @@
 
 """ADS-B / Mode-S DF17 acquisition, PPM decode, field parse, and CRC-24 (AN006)."""
 
-import argparse
 import os
 import sys
+import argparse
 
 import numpy as np
 

@@ -15,7 +15,7 @@ import math
 
 import numpy as np
 
-# Biquads (Audio EQ Cookbook, R. Bristow-Johnson) -------------------------------------------------
+# Biquads (Audio EQ Cookbook, R. Bristow-Johnson) --------------------------------------------------
 
 RBJ_KINDS = ("lowpass", "highpass", "bandpass", "notch", "allpass", "peaking", "lowshelf", "highshelf")
 
@@ -72,7 +72,7 @@ def k_weighting_sos(sample_rate=48000):
     hp    = rbj_biquad("highpass", 38.13547087602444, q=0.5003270373238773, sample_rate=sample_rate)
     return [shelf, hp]
 
-# Levels and time constants -------------------------------------------------------------------------
+# Levels and time constants ------------------------------------------------------------------------
 
 def db_to_linear(db):
     return 10**(np.asarray(db, float)/20)

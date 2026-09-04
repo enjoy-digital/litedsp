@@ -39,7 +39,7 @@ Phase increment per sample (frequency = phase_inc * f_s / 2**phase_bits).
 
 | Bits | Field | Reset | Description |
 |---|---|---|---|
-| `[1:0]` | `shape` | `0` |  ``0b00``: Sine.; ``0b01``: Triangle.; ``0b10``: Saw.; ``0b11``: Square. |
+| `[1:0]` | `shape` | `0` | LFO waveform. ``0b00``: Sine.; ``0b01``: Triangle.; ``0b10``: Saw.; ``0b11``: Square. |
 
 ### `amplitude` (read-write, 16 bits, reset `0x7fff`)
 

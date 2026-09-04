@@ -95,7 +95,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root, "impl", "budgets.json")) as f:
+    with open(os.path.join(root, "impl", "budgets.json"), encoding="utf-8") as f:
         budgets = json.load(f)
     path    = os.path.join(root, "doc", "resources.md")
     content = budgets_markdown(budgets)

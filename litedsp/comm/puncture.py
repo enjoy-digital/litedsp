@@ -34,7 +34,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check
 
-# Puncturing Patterns (DVB-S / ETSI EN 300 421) ------------------------------------------------------
+# Puncturing Patterns (DVB-S / ETSI EN 300 421) ----------------------------------------------------
 
 PUNCTURE_1_2 = [[1],                   [1]]
 PUNCTURE_2_3 = [[1, 0],                [1, 1]]
@@ -42,7 +42,7 @@ PUNCTURE_3_4 = [[1, 0, 1],             [1, 1, 0]]
 PUNCTURE_5_6 = [[1, 0, 1, 0, 1],       [1, 1, 0, 1, 0]]
 PUNCTURE_7_8 = [[1, 0, 0, 0, 1, 0, 1], [1, 1, 1, 1, 0, 1, 0]]
 
-# Helpers --------------------------------------------------------------------------------------------
+# Helpers ------------------------------------------------------------------------------------------
 
 def _kept(pattern, n):
     """Validate ``pattern`` and return per-column kept row indices ``[[j, ...], ...]``."""
@@ -55,7 +55,7 @@ def _kept(pattern, n):
     check(all(kept), "expected every pattern column to keep at least one bit")
     return kept
 
-# Puncturer ------------------------------------------------------------------------------------------
+# Puncturer ----------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPPuncturer(LiteXModule):
@@ -159,7 +159,7 @@ class LiteDSPPuncturer(LiteXModule):
             self._config.fields.n.eq(self.n),
         ]
 
-# Depuncturer ----------------------------------------------------------------------------------------
+# Depuncturer --------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPDepuncturer(LiteXModule):

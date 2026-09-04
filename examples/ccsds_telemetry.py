@@ -82,7 +82,7 @@ def burst_position(rows):
     """Burst start (channel symbols): centered in codeword rows-1's span (the last row)."""
     return (rows - 1)*RS_N*8 + 460
 
-# TX / RX chains -------------------------------------------------------------------------------------
+# TX / RX chains -----------------------------------------------------------------------------------
 
 class CCSDSTx(LiteXModule):
     """RS encode (I codewords) -> byte interleave -> serialize -> conv K=7 -> QPSK map."""
@@ -121,7 +121,7 @@ class CCSDSRxBackend(LiteXModule):
             path.append(self.dilv.source)
         self.comb += path[-1].connect(self.rsd.sink, omit={"first", "last"})
 
-# Golden-model chain ---------------------------------------------------------------------------------
+# Golden-model chain -------------------------------------------------------------------------------
 
 def conv_encode(bits, constraint=7, polys=(0o171, 0o133)):
     """Reference K=7 convolutional encoder (mirrors LiteDSPConvEncoder)."""
@@ -204,7 +204,7 @@ def run_point(msg, burst_len, interleave, rows=SWEEP_I, seed=7):
             for c in range(rows)]
     return out == list(msg), max(errs), any(u for _, u in stats)
 
-# RTL end-to-end run ---------------------------------------------------------------------------------
+# RTL end-to-end run -------------------------------------------------------------------------------
 
 def _rtl(dut, samples, n_out, in_fields, out_fields):
     """One full-rate stage simulation (no artificial throttle: RTL runtime matters here)."""
@@ -266,7 +266,7 @@ def run_rtl(msg, rows, burst_len):
           f"({time.time() - t0:.0f}s)")
     return [c["data"] for c in cap]
 
-# Plot -------------------------------------------------------------------------------------------------
+# Plot ---------------------------------------------------------------------------------------------
 
 def save_plot(plot_dir, lengths, res_plain, res_ilv):
     try:
@@ -307,7 +307,7 @@ def save_plot(plot_dir, lengths, res_plain, res_ilv):
     plt.close(fig)
     print(f"  plot -> {os.path.join(plot_dir, 'an005_burst.png')}")
 
-# Demo -------------------------------------------------------------------------------------------------
+# Demo ---------------------------------------------------------------------------------------------
 
 def main():
     default_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

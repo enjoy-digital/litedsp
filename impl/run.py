@@ -242,7 +242,7 @@ def main():
         budgets.update(args.device, results, flow=args.flow)
         print(f"\n[budgets] baseline updated for {args.device}/{args.flow} ({len(results)} modules)")
     if args.report:
-        with open(args.report, "w") as f:
+        with open(args.report, "w", encoding="utf-8") as f:
             f.write(report.markdown({args.device: results}))
 
     gated = any(violations.values()) or targets_fail_gate(target_misses,

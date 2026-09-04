@@ -241,7 +241,7 @@ def _port_dirs(verilog_path):
     contract, or the solver would drive them as free variables and "fail" the DUT.
     """
     dirs = {}
-    with open(verilog_path) as f:
+    with open(verilog_path, encoding="utf-8") as f:
         for line in f:
             m = re.match(r"\s*(input|output)\s+(?:signed\s+)?(?:\[[^\]]+\]\s*)?(\w+),?\s*$", line)
             if m:
@@ -396,7 +396,7 @@ def emit_formal_top(name, spec, path, dirs):
         lines.append(f"    always @(*) cover ({src0}_valid && !{src0}_ready);")
     lines += ["", "endmodule", ""]
 
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     return path
 

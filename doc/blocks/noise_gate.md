@@ -94,7 +94,7 @@ Make-up gain (signed Q.8 log2 units).
 |---|---|---|---|
 | `[7:0]` | `n_channels` | `0` | Channels in the TDM frame. |
 | `[23:8]` | `lookahead` | `0` | Lookahead in frames. |
-| `[25:24]` | `preset` | `0` |  ``0b00``: compressor; ``0b01``: limiter; ``0b10``: gate |
+| `[25:24]` | `preset` | `0` | Detector / gain-computer preset. ``0b00``: compressor; ``0b01``: limiter; ``0b10``: gate |
 
 ## FPGA Resources
 

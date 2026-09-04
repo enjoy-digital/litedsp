@@ -69,7 +69,7 @@ def lut_and_stream_driver(dut, luts, samples, coeff_frac=14, seed=None, throttle
             yield
     yield dut.sink.valid.eq(0)
 
-# Stimulus / metrics for the closed-loop test --------------------------------------------------------
+# Stimulus / metrics for the closed-loop test ------------------------------------------------------
 
 def bandlimited(n, cutoff=0.08, rms=5000, seed=0):
     """Band-limited complex noise (windowed-sinc filtered), RMS in LSBs, peaks <= 3.2x RMS."""
@@ -97,7 +97,7 @@ def evm_db(reference, measured):
     return 10*np.log10(np.sum(np.abs(measured - reference)**2) /
                        np.sum(np.abs(reference)**2))
 
-# Tests ----------------------------------------------------------------------------------------------
+# Tests --------------------------------------------------------------------------------------------
 
 class TestDPD(unittest.TestCase):
     # verify-tier: model — reset LUTs are the identity (tap 0 = 1.0 + 0j, memory taps = 0)

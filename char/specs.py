@@ -31,7 +31,7 @@ from test.models import (nco_model, mixer_model, fir_model, cic_decimator_model,
 
 FULL_SCALE = (1 << 15) - 1                     # 16-bit signed full scale.
 
-# NCO ------------------------------------------------------------------------------------------------
+# NCO ----------------------------------------------------------------------------------------------
 
 NCO_LUT_EXACT_INCS = [
     (1 << 32)//64,                             # Bin-aligned, LUT-exact addressing (f = 1/64).
@@ -72,7 +72,7 @@ def spec_nco():
         "noise_floor_dbfs"  : nf,
     }
 
-# CORDIC ---------------------------------------------------------------------------------------------
+# CORDIC -------------------------------------------------------------------------------------------
 
 def spec_cordic():
     """CORDIC rotation (16-bit data/angle, 16 stages): ENOB of a rotated full-circle tone.
@@ -96,7 +96,7 @@ def spec_cordic():
     sinad = 10*np.log10(np.sum(np.abs(ref)**2)/np.sum(np.abs(got - ref)**2))
     return {"enob_bits": (sinad - 1.76)/6.02}
 
-# Mixer ----------------------------------------------------------------------------------------------
+# Mixer --------------------------------------------------------------------------------------------
 
 def spec_mixer():
     """Mixer down-conversion with a quadrature LO: rejection of the f_sig + f_lo image.
@@ -118,7 +118,7 @@ def spec_mixer():
     x = o_i + 1j*o_q
     return {"image_rejection_db": metrics.image_rejection_db(x, f_sig - f_lo, f_sig + f_lo)}
 
-# FIR ------------------------------------------------------------------------------------------------
+# FIR ----------------------------------------------------------------------------------------------
 
 def spec_fir():
     """FIR low-pass (firwin_lowpass(63, 0.2), quantized Q1.15 taps): realized mask numbers.
@@ -133,7 +133,7 @@ def spec_fir():
         "stopband_atten_db"  : metrics.stopband_atten_db(f, H, f_stop=0.25),
     }
 
-# CIC ------------------------------------------------------------------------------------------------
+# CIC ----------------------------------------------------------------------------------------------
 
 CIC_RATES  = (4, 8, 16)                        # Decimation R.
 CIC_STAGES = (3, 4)                            # n_stages N (diff_delay M = 1).
@@ -161,7 +161,7 @@ def spec_cic():
             out[f"droop_err_r{R}_n{N}_db"] = max(errs)
     return out
 
-# AGC ------------------------------------------------------------------------------------------------
+# AGC ----------------------------------------------------------------------------------------------
 
 def spec_agc():
     """AGC (mu=8, gain_frac=8): settling to a 4x level step + steady-state error.
@@ -186,7 +186,7 @@ def spec_agc():
         "overshoot_pct"          : max(0.0, (mag.max() - target)/target*100),
     }
 
-# Clipper --------------------------------------------------------------------------------------------
+# Clipper ------------------------------------------------------------------------------------------
 
 def spec_clipper():
     """Clipper at 50% clip depth (threshold = half the two-tone peak): IMD3."""
@@ -198,7 +198,7 @@ def spec_clipper():
     o_i, _ = clipper_model(x, np.zeros(n, np.int64), threshold=amp)
     return {"imd3_dbc": metrics.imd3_db(o_i.astype(float), f1, f2)}
 
-# CFR ------------------------------------------------------------------------------------------------
+# CFR ----------------------------------------------------------------------------------------------
 
 def spec_cfr():
     """CFR (pulse_span=16, cutoff=0.2): PAPR reduction + below-threshold EVM, 7 dB target.
@@ -237,7 +237,7 @@ def spec_cfr():
         "evm_below_threshold_pct" : evm,
     }
 
-# DC Blocker -------------------------------------------------------------------------------------------
+# DC Blocker ---------------------------------------------------------------------------------------
 
 DC_REJECTION_CAP_DB = 140.0                    # Report cap: the residual can be exactly 0.
 
@@ -259,7 +259,7 @@ def spec_dc_blocker():
         return {"dc_rejection_db": DC_REJECTION_CAP_DB}
     return {"dc_rejection_db": min(DC_REJECTION_CAP_DB, -20*np.log10(residual/(1 << 15)))}
 
-# Window ---------------------------------------------------------------------------------------------
+# Window -------------------------------------------------------------------------------------------
 
 def spec_window():
     """Window block (hann, n=64): peak sidelobe level after quantization + output rounding."""
@@ -268,7 +268,7 @@ def spec_window():
     o_i, _ = window_model(np.full(n, FULL_SCALE, np.int64), np.zeros(n, np.int64), coeffs)
     return {"sidelobe_level_db": metrics.sidelobe_level_db(o_i.astype(float))}
 
-# Registry -------------------------------------------------------------------------------------------
+# Registry -----------------------------------------------------------------------------------------
 
 SPECS = {
     "nco"     : spec_nco,

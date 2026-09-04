@@ -116,14 +116,14 @@ def loads(text):
     return from_dict(json.loads(text))
 
 def load(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return from_dict(json.load(f))
 
 def dumps(nl):
     return json.dumps(to_dict(nl), indent=2)
 
 def save(nl, path):
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(dumps(nl))
 
 # Port reference resolution ------------------------------------------------------------------------

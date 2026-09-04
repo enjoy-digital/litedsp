@@ -25,7 +25,7 @@ class LiveSession:
         self.blocks   = {}
         self.clk_freq = None
 
-    def open(self):
+    def open(self, encoding="utf-8"):
         """Connect and discover; returns ``{prefix: driver}``."""
         if self.bus is None:
             from litex import RemoteClient

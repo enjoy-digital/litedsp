@@ -34,7 +34,7 @@ from litex.soc.interconnect import stream
 
 from litedsp.flow.netlist import split_ref, NetlistError
 
-# Schema-preserving stream glue -------------------------------------------------------------------
+# Schema-preserving stream glue --------------------------------------------------------------------
 
 def endpoint_signature(endpoint_or_description):
     """Structural description used to reject lossy implicit connections."""
@@ -47,8 +47,10 @@ class _FlowSplit(LiteXModule):
         if n < 1:
             raise ValueError("expected n >= 1")
         self.latency = 0
-        self.sink = stream.Endpoint(description)
+        self.sink    = stream.Endpoint(description)
         self.sources = [stream.Endpoint(description) for _ in range(n)]
+
+        # # #
 
         all_ready = reduce(and_, [source.ready for source in self.sources])
         self.comb += self.sink.ready.eq(all_ready)
@@ -73,10 +75,13 @@ class _FlowDelay(LiteXModule):
     def __init__(self, description, depth):
         if depth < 0:
             raise ValueError("expected depth >= 0")
-        self.depth = depth
+        self.depth   = depth
         self.latency = depth
-        self.sink = stream.Endpoint(description)
-        self.source = stream.Endpoint(description)
+        self.sink    = stream.Endpoint(description)
+        self.source  = stream.Endpoint(description)
+
+        # # #
+
         if depth == 0:
             self.comb += self.sink.connect(self.source)
             return

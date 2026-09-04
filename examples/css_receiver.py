@@ -8,9 +8,9 @@
 
 """CSS preamble acquisition, CFO estimation, and fixed-point FFT detector (AN008)."""
 
-import argparse
 import os
 import sys
+import argparse
 
 import numpy as np
 from migen import passive

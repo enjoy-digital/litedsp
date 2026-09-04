@@ -98,7 +98,7 @@ class LiteDSPLFO(LiteXModule):
         self._phase_inc = CSRStorage(self.phase_bits, name="phase_inc",
             description="Phase increment per sample (frequency = phase_inc * f_s / 2**phase_bits).")
         self._control = CSRStorage(fields=[
-            CSRField("shape", size=2, offset=0, values=[
+            CSRField("shape", size=2, offset=0, description="LFO waveform.", values=[
                 ("``0b00``", "Sine."), ("``0b01``", "Triangle."), ("``0b10``", "Saw."), ("``0b11``", "Square.")]),
         ])
         self._amplitude = CSRStorage(self.data_width, reset=self.amplitude.reset.value, name="amplitude",

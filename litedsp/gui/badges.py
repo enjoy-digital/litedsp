@@ -38,7 +38,7 @@ def budgets():
         root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         path = os.path.join(root, "impl", "budgets.json")
         if os.path.exists(path):
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 _BUDGETS = json.load(f)
         else:
             _BUDGETS = {}

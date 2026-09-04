@@ -54,7 +54,7 @@ def gen_sby(name, spec, build_dir, depth, solver):
     """Write ``<build_dir>/<name>.sby`` (property task + cover task). Returns its path."""
     mode = spec["mode"]  # "prove" where k-induction closes, else "bmc" (set in wrapper.py).
     path = os.path.join(build_dir, name + ".sby")
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(f"""\
 [tasks]
 {mode}

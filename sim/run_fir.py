@@ -39,7 +39,7 @@ def main(n_taps=17, n=200, build_dir="/tmp/litedsp_sim"):
     xi = [prng.randint(-30000, 30000) for _ in range(n)]
     xq = [prng.randint(-30000, 30000) for _ in range(n)]
     fin = os.path.join(build_dir, "fir_in.txt")
-    with open(fin, "w") as f:
+    with open(fin, "w", encoding="utf-8") as f:
         for i, q in zip(xi, xq):
             f.write(f"{i} {q}\n")
     out = os.path.join(build_dir, "fir_out.txt")

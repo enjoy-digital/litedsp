@@ -33,8 +33,8 @@ import sys
 import json
 import shutil
 import argparse
-import subprocess
 import importlib
+import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -47,7 +47,7 @@ WAIVERS_PATH = os.path.join(ROOT, "sim", "coverage_waivers.json")
 
 def load_waivers(path=WAIVERS_PATH):
     """Load structured line-coverage waivers and resolve every semantic check."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         waivers = json.load(f)
     for name, waiver in waivers.items():
         if not isinstance(waiver, dict) or not waiver.get("reason"):
@@ -81,7 +81,7 @@ def line_coverage(block_dir):
     subprocess.check_call(["verilator_coverage", "--write-info", info, dat],
         stdout=subprocess.DEVNULL)
     covered, total, in_verilog = 0, 0, False
-    with open(info) as f:
+    with open(info, encoding="utf-8") as f:
         for line in f:
             if line.startswith("SF:"):
                 in_verilog = line.strip().endswith(".v")
@@ -90,7 +90,7 @@ def line_coverage(block_dir):
                 covered += int(line.strip().split(",")[1]) > 0
     return covered, total
 
-# Runner ---------------------------------------------------------------------------------------------
+# Runner -------------------------------------------------------------------------------------------
 
 def cover_block(name, build_dir):
     """Co-simulate ``name`` with coverage instrumentation and aggregate its coverage.dat.
@@ -108,7 +108,7 @@ def cover_block(name, build_dir):
         return 0, 0
     return line_coverage(bd)
 
-# Console Report -------------------------------------------------------------------------------------
+# Console Report -----------------------------------------------------------------------------------
 
 def console(results, waivers, min_pct):
     print(f"\n=== Verilator line coverage: {len(results)} blocks ===")
@@ -129,7 +129,7 @@ def console(results, waivers, min_pct):
     total   = sum(t for _, t in results.values())
     print(f"{'overall':18} {f'{covered}/{total}':>11} {100.0*covered/total if total else 0.0:8.1f}%")
 
-# Main -----------------------------------------------------------------------------------------------
+# Main ---------------------------------------------------------------------------------------------
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Verilator line coverage of the LiteDSP co-simulation suite.")
@@ -169,7 +169,7 @@ def main(argv=None):
             "total":   total,
         },
     }
-    with open(args.output, "w") as f:
+    with open(args.output, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=True)
         f.write("\n")
     print(f"[coverage] {args.output}")

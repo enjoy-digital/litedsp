@@ -745,7 +745,7 @@ class LiteDSPNativeParallelFFT(LiteXModule):
         self._latency = CSRStatus(32, reset=self.latency, name="latency",
             description="FFT pipeline latency (cycles from frame start to first output).")
 
-# Parallel FFT (Radix-2 DIF split, 2 samples/cycle) -------------------------------------------------
+# Parallel FFT (Radix-2 DIF split, 2 samples/cycle) ------------------------------------------------
 
 class LiteDSPParallelFFT(LiteXModule):
     """Streaming ``N``-point FFT at P samples/cycle (super-sample-rate wideband path).

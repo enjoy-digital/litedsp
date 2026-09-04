@@ -37,8 +37,8 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Bits | Field | Reset | Description |
 |---|---|---|---|
-| `[0]` | `mode` | `0` |  ``0b0``: Down-conversion (a * conj(b)).; ``0b1``: Up-conversion (a * b). |
-| `[9:8]` | `bypass` | `0` |  ``0b00``: Bypass disabled (mix).; ``0b01``: Pass Sink A to Source.; ``0b10``: Pass Sink B to Source. |
+| `[0]` | `mode` | `0` | Mixing direction. ``0b0``: Down-conversion (a * conj(b)).; ``0b1``: Up-conversion (a * b). |
+| `[9:8]` | `bypass` | `0` | Input pass-through select. ``0b00``: Bypass disabled (mix).; ``0b01``: Pass Sink A to Source.; ``0b10``: Pass Sink B to Source. |
 
 ## FPGA Resources
 

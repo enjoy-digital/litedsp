@@ -46,10 +46,10 @@ def synth(verilog, top, build_dir, json_out=None):
     json_cmd = f"write_json {os.path.basename(json_out)}; " if json_out else ""
     script = (f"read_verilog {os.path.basename(verilog)}; "
               f"synth_ecp5 -top {top}; {json_cmd}stat")
-    with open(log, "w") as f:
+    with open(log, "w", encoding="utf-8") as f:
         subprocess.run(["yosys", "-p", script], cwd=build_dir,
             stdout=f, stderr=subprocess.STDOUT, check=True)
-    with open(log) as f:
+    with open(log, encoding="utf-8") as f:
         return _parse_stat(f.read())
 
 # Place & route (subset) ---------------------------------------------------------------------------
@@ -70,14 +70,14 @@ def pnr(json_in, top, build_dir, clock_ns, seed=None, timeout=1800):
         cmd += ["--seed", str(seed)]
     # nextpnr exits nonzero when it misses the target frequency, but still routes and reports the
     # achieved fmax -- which is exactly what we want -- so don't treat a timing miss as fatal.
-    with open(log, "w") as f:
+    with open(log, "w", encoding="utf-8") as f:
         try:
             subprocess.run(cmd, cwd=build_dir, stdout=f, stderr=subprocess.STDOUT, check=False,
                 timeout=timeout)
         except subprocess.TimeoutExpired as e:
             raise PNRTimeout(
                 f"nextpnr-ecp5 timed out after {timeout}s (seed={seed}, log={log})") from e
-    with open(log) as f:
+    with open(log, encoding="utf-8") as f:
         text = f.read()
     fmax = None
     for m in re.finditer(r"Max frequency for clock\s+'[^']*':\s+([\d.]+)\s*MHz", text):

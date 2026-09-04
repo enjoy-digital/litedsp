@@ -15,7 +15,7 @@ from litex.soc.interconnect                  import stream
 from litedsp.common            import check, iq_layout
 from litedsp.generation.cordic import LiteDSPCORDIC
 
-# Coarse CFO Estimator -------------------------------------------------------------------------------
+# Coarse CFO Estimator -----------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPCFOEstimator(LiteXModule):

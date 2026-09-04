@@ -477,7 +477,7 @@ class LiteDSPFFT(LiteXModule):
         self._latency = CSRStatus(32, reset=self.latency, name="latency",
             description="FFT pipeline latency (cycles from frame start to first output).")
 
-# Interleaved Folded FFT --------------------------------------------------------------------------
+# Interleaved Folded FFT ---------------------------------------------------------------------------
 
 class LiteDSPInterleavedFFT(LiteXModule):
     """Two-context timing-oriented FFT with one aggregate input sample per clock.

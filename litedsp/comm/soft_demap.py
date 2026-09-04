@@ -13,13 +13,13 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import iq_layout, check, rounded
 
-# Soft Demapper Constants ----------------------------------------------------------------------------
+# Soft Demapper Constants --------------------------------------------------------------------------
 
 SOFT_DEMAP_SCALE_WIDTH = 16                            # llr_scale width (unsigned Q1.15).
 SOFT_DEMAP_SCALE_FRAC  = 15                            # llr_scale fractional bits.
 SOFT_DEMAP_SCALE_ONE   = 1 << SOFT_DEMAP_SCALE_FRAC    # 1.0 (identity, reset value).
 
-# Soft Demapper --------------------------------------------------------------------------------------
+# Soft Demapper ------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPSoftDemapper(LiteXModule):

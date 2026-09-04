@@ -32,7 +32,7 @@ from litedsp.filter.design import firwin_lowpass
 def _pow2_ceil(n):
     return 1 << (max(1, n - 1)).bit_length()
 
-# PFB Channelizer (polyphase FIR + DFT) -------------------------------------------------------------
+# PFB Channelizer (polyphase FIR + DFT) ------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPPFBChannelizer(LiteXModule):

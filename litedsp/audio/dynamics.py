@@ -317,7 +317,7 @@ class LiteDSPCompressor(LiteXModule):
         self._config = CSRStatus(fields=[
             CSRField("n_channels", size=8,  offset=0,  description="Channels in the TDM frame."),
             CSRField("lookahead",  size=16, offset=8,  description="Lookahead in frames."),
-            CSRField("preset",     size=2,  offset=24, values=[
+            CSRField("preset",     size=2,  offset=24, description="Detector / gain-computer preset.", values=[
                 ("``0b00``", "compressor"), ("``0b01``", "limiter"), ("``0b10``", "gate")]),
         ])
         self.comb += [

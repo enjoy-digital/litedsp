@@ -9,8 +9,8 @@
 import os
 import sys
 import glob
-import unittest
 import tempfile
+import unittest
 import subprocess
 
 from litedsp.gen import generate_core

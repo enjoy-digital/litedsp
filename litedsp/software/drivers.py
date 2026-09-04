@@ -201,7 +201,7 @@ class SquelchDriver(Driver):
         self.close_threshold.write(close_threshold)
 
     @property
-    def open(self):
+    def open(self, encoding="utf-8"):
         return bool(self.status.read() & 0b1)
 
 class AGCDriver(Driver):
@@ -417,7 +417,7 @@ class DPDDriver(Driver):
     def set_bypass(self, bypass):
         self.bypass.write(int(bypass))
 
-# Generic Reflected Driver ---------------------------------------------------------------------------
+# Generic Reflected Driver -------------------------------------------------------------------------
 
 def make_driver(spec):
     """Build a driver class from a :class:`~litedsp.flow.metadata.BlockSpec` (CSR reflection).

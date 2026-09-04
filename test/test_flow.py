@@ -443,7 +443,7 @@ class TestValidationAndGenerate(unittest.TestCase):
         ddc  = os.path.join(here, "litedsp", "flow", "examples", "ddc.json")
         path, chain = generate(ddc, "/tmp/litedsp_flow_test/ddc", with_csr=False)
         self.assertTrue(os.path.exists(path))
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             v = f.read()
         self.assertIn("rx_in_payload_i", v)         # named top-level AXI-Stream-ready ports.
         self.assertIn("bb_out_payload_q", v)
@@ -459,11 +459,11 @@ class TestIPCore(unittest.TestCase):
         from litedsp.flow.ipcore import generate_ip
         path, ip = generate_ip(self._ddc(), "/tmp/litedsp_flow_test/ddc_ip")
         self.assertTrue(os.path.exists(path))
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             v = f.read()
         for port in ("s_axil_awvalid", "s_axil_wdata", "s_axil_rdata", "rx_in_payload_i"):
             self.assertIn(port, v)
-        with open(os.path.join(os.path.dirname(path), "csr.json")) as f:
+        with open(os.path.join(os.path.dirname(path), "csr.json"), encoding="utf-8") as f:
             d = json.load(f)
         addrs = [r["addr"] for r in d["csr_registers"].values()]
         self.assertEqual(len(addrs), len(set(addrs)))            # unique addresses.
@@ -507,19 +507,19 @@ class TestVivadoIPPackage(unittest.TestCase):
                     "drivers/blocks.json", "package_ip.tcl", "validate_ip.tcl",
                     "vivado_ip.json"):
             self.assertTrue(os.path.exists(os.path.join(package, rel)), rel)
-        with open(os.path.join(package, "hdl", "ddc_core_vivado.v")) as f:
+        with open(os.path.join(package, "hdl", "ddc_core_vivado.v"), encoding="utf-8") as f:
             wrapper = f.read()
         for port in ("s_axis_rx_in_tdata", "m_axis_bb_out_tdata", "s_axi_awvalid",
                      "aclk", "aresetn"):
             self.assertIn(port, wrapper)
         self.assertIn("assign m_axis_bb_out_tdata = {bb_out_payload_q, bb_out_payload_i};",
             wrapper)
-        with open(os.path.join(package, "package_ip.tcl")) as f:
+        with open(os.path.join(package, "package_ip.tcl"), encoding="utf-8") as f:
             script = f.read()
         for bus in ("S_AXI", "S_AXIS_RX_IN", "M_AXIS_BB_OUT", "ASSOCIATED_BUSIF"):
             self.assertIn(bus, script)
         self.assertIn("set_property value 100000000 $frequency", script)
-        with open(os.path.join(package, "validate_ip.tcl")) as f:
+        with open(os.path.join(package, "validate_ip.tcl"), encoding="utf-8") as f:
             validation = f.read()
         self.assertIn("create_bd_cell -type ip -vlnv enjoy-digital.fr:litedsp:ddc_core:1.0",
             validation)
@@ -533,7 +533,7 @@ class TestVivadoIPPackage(unittest.TestCase):
             os.path.join(here, "examples", "qpsk_receiver_core.yml"), "qpsk_receiver_core")
         wrapper_path = os.path.join(os.path.dirname(component), "hdl",
             "qpsk_receiver_core_vivado.v")
-        with open(wrapper_path) as f:
+        with open(wrapper_path, encoding="utf-8") as f:
             wrapper = f.read()
         self.assertIn("output wire [39:0] m_axis_symbols_out_tdata", wrapper)
         self.assertIn("assign m_axis_symbols_out_tdata = {6'd0, symbols_out_payload_symbol, "

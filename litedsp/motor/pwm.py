@@ -202,7 +202,7 @@ class LiteDSPPWM(LiteXModule):
         self._trigger = CSRStorage(fields=[
             CSRField("count",     size=self.period_width, offset=0,
                 description="Carrier value at which the ADC trigger pulses."),
-            CSRField("direction", size=1, offset=self.period_width, values=[
+            CSRField("direction", size=1, offset=self.period_width, description="Carrier counting direction.", values=[
                 ("``0b0``", "Counting down / valley side."),
                 ("``0b1``", "Counting up / peak side."),
             ]),

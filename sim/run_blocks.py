@@ -118,7 +118,7 @@ def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=(
             get_out.append(f"if (k == {k}) return (int64_t)(uint64_t)dut->{src_prefix}_{tag};")
 
     void = "(void)dut; (void)s; (void)v;"
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(f'#include "V{top}.h"\n'
                 f"typedef V{top} TB_DUT;\n"
                 f"#define TB_N_SINKS {len(sinks)}\n"
@@ -175,7 +175,7 @@ def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_
         cflags=f"-I{os.path.abspath(bd)}", coverage=coverage)
 
     fin = os.path.join(bd, "in.txt")
-    with open(fin, "w") as f:
+    with open(fin, "w", encoding="utf-8") as f:
         for row in zip(*cols) if cols else ():
             f.write(" ".join(str(v) for v in row) + "\n")
     fout = os.path.join(bd, "out.txt")

@@ -33,7 +33,7 @@ from char.specs import SPECS, DIRECTIONS, DESCRIPTIONS, unit
 RESULTS_PATH = os.path.join(ROOT, "char", "results.json")
 REPORT_PATH  = os.path.join(ROOT, "doc",  "characterization.md")
 
-# Measurement ----------------------------------------------------------------------------------------
+# Measurement --------------------------------------------------------------------------------------
 
 def measure(blocks):
     """Evaluate the characterization specs for ``blocks`` (block -> metric -> value)."""
@@ -43,17 +43,17 @@ def measure(blocks):
     return results
 
 def load_results():
-    with open(RESULTS_PATH) as f:
+    with open(RESULTS_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 def save_results(results):
     data = load_results() if os.path.exists(RESULTS_PATH) else {}
     data.update(results)
-    with open(RESULTS_PATH, "w") as f:
+    with open(RESULTS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=True)
         f.write("\n")
 
-# Console Report -------------------------------------------------------------------------------------
+# Console Report -----------------------------------------------------------------------------------
 
 def console(results, violations):
     print(f"\n=== quality characterization: {len(results)} blocks ===")
@@ -66,7 +66,7 @@ def console(results, violations):
         for v in violations.get(name, []):
             print(f"{'':10} !! {v}")
 
-# Markdown Report ------------------------------------------------------------------------------------
+# Markdown Report ----------------------------------------------------------------------------------
 
 def markdown(results, budget_data):
     """Render results + budgets as doc/characterization.md (deterministic)."""
@@ -100,7 +100,7 @@ def markdown(results, budget_data):
         out.append("")
     return "\n".join(out)
 
-# Main -----------------------------------------------------------------------------------------------
+# Main ---------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteDSP quality characterization (measure + budget gate).")

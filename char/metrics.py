@@ -18,7 +18,7 @@ datasheet-grade number. Two measurement styles are used:
 
 import numpy as np
 
-# Windowed-FFT Helpers -------------------------------------------------------------------------------
+# Windowed-FFT Helpers -----------------------------------------------------------------------------
 
 def _band_idx(n, k, guard):
     """FFT bin indices in ``[k-guard, k+guard]`` with wraparound (negative frequencies)."""
@@ -34,7 +34,7 @@ def _band_power(p, f, guard):
     n = len(p)
     return float(p[_band_idx(n, int(round(f*n)), guard)].sum())
 
-# SFDR -----------------------------------------------------------------------------------------------
+# SFDR ---------------------------------------------------------------------------------------------
 
 def sfdr_db(x, guard=16):
     """Spurious-free dynamic range (dB): fundamental power vs the largest spur.
@@ -59,7 +59,7 @@ def sfdr_db(x, guard=16):
     spur = pm[_band_idx(n, ks, guard)].sum()
     return 10*np.log10(fund/spur)
 
-# Sine-Fit SINAD / ENOB / Amplitude / Noise Floor ----------------------------------------------------
+# Sine-Fit SINAD / ENOB / Amplitude / Noise Floor --------------------------------------------------
 
 def _tone_fit(x, f):
     """Least-squares fit of a tone at normalized frequency ``f`` (+ DC) to ``x``.
@@ -134,7 +134,7 @@ def noise_floor_dbfs(x, f, full_scale):
     _, _, resid = _tone_fit(x, f)
     return 10*np.log10(np.mean(np.abs(resid)**2)/(full_scale**2/2))
 
-# IMD3 / Image Rejection -----------------------------------------------------------------------------
+# IMD3 / Image Rejection ---------------------------------------------------------------------------
 
 def imd3_db(x, f1, f2, guard=8):
     """Two-tone 3rd-order intermodulation (dBc): mean tone power vs the strongest product.
@@ -151,7 +151,7 @@ def image_rejection_db(x, f_signal, f_image, guard=8):
     p = _power_spectrum(x)
     return 10*np.log10(_band_power(p, f_signal, guard)/_band_power(p, f_image, guard))
 
-# Frequency Response (Linear Blocks) -----------------------------------------------------------------
+# Frequency Response (Linear Blocks) ---------------------------------------------------------------
 
 def freq_response(model_fn, n_points=4096, amplitude=(1 << 15) - 1):
     """Complex frequency response of a linear block via impulse -> rFFT.
@@ -175,7 +175,7 @@ def stopband_atten_db(f, H, f_stop):
     mag = 20*np.log10(np.abs(H) + 1e-300)
     return float(mag.max() - mag[f >= f_stop].max())
 
-# CIC Droop ------------------------------------------------------------------------------------------
+# CIC Droop ----------------------------------------------------------------------------------------
 
 def cic_droop_db(R, N, M, f):
     """Theoretical CIC droop (dB, <= 0) at input-rate normalized frequency ``f``.
@@ -189,14 +189,14 @@ def cic_droop_db(R, N, M, f):
     out = 20*N*np.log10(h)
     return float(out) if out.ndim == 0 else out
 
-# Settling -------------------------------------------------------------------------------------------
+# Settling -----------------------------------------------------------------------------------------
 
 def settling_time_samples(x, target, tol=0.05):
     """First index after which ``x`` stays within ``target ± tol*target`` (never: ``len(x)``)."""
     outside = np.abs(np.asarray(x, float) - target) > tol*abs(target)
     return int(np.nonzero(outside)[0][-1]) + 1 if outside.any() else 0
 
-# Window Sidelobes -----------------------------------------------------------------------------------
+# Window Sidelobes ---------------------------------------------------------------------------------
 
 def sidelobe_level_db(w, oversample=64):
     """Peak sidelobe level (dB below the mainlobe, positive) of a window shape ``w``.

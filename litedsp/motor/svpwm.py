@@ -121,7 +121,7 @@ class LiteDSPSVPWM(LiteXModule):
 
     def add_csr(self):
         self._control = CSRStorage(fields=[
-            CSRField("injection", size=1, offset=0, reset=self.injection.reset.value, values=[
+            CSRField("injection", size=1, offset=0, reset=self.injection.reset.value, description="Zero-sequence injection.", values=[
                 ("``0b0``", "Sinusoidal modulation (no zero sequence)."),
                 ("``0b1``", "Space-vector (min/max zero-sequence injection)."),
             ]),

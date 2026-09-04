@@ -8,8 +8,8 @@
 
 import os
 import json
-import unittest
 import tempfile
+import unittest
 
 import numpy as np
 
@@ -65,7 +65,7 @@ class TestGen(unittest.TestCase):
                     {"from": "g0.source", "to": "out0"},
                 ],
             }
-            with open(os.path.join(tmp, "ref.json"), "w") as f:
+            with open(os.path.join(tmp, "ref.json"), "w", encoding="utf-8") as f:
                 json.dump(flow, f)
             path = self._write_config(tmp, "netlist: ref.json\n")
             nl, core_config = parse_config(path)
@@ -86,13 +86,13 @@ class TestGen(unittest.TestCase):
             build_dir = os.path.join(tmp, "build")
             path, ip = generate_core(config, output_dir=build_dir)
             self.assertEqual(os.path.basename(path), "dut_core.v")
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 v = f.read()
             for port in ("s_axil_awvalid", "s_axil_rdata", "in0_payload_i", "out0_payload_q"):
                 self.assertIn(port, v)
             for artifact in ("csr.csv", "csr.json", "csr.h"):
                 self.assertTrue(os.path.exists(os.path.join(build_dir, artifact)))
-            with open(os.path.join(build_dir, "csr.json")) as f:
+            with open(os.path.join(build_dir, "csr.json"), encoding="utf-8") as f:
                 d = json.load(f)
             self.assertIn("lo_phase_inc", d["csr_registers"])
 
@@ -111,9 +111,9 @@ class TestGen(unittest.TestCase):
             self.assertEqual(os.path.basename(path), "qpsk_receiver_core.v")
             self.assertEqual([b.type for b in ip.netlist.blocks],
                 ["carrier_loop", "timing_recovery", "slicer"])
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 self.assertIn("symbols_out_payload_symbol", f.read())
-            with open(os.path.join(tmp, "csr.json")) as f:
+            with open(os.path.join(tmp, "csr.json"), encoding="utf-8") as f:
                 registers = json.load(f)["csr_registers"]
             self.assertIn("carrier_frequency", registers)
             self.assertIn("timing_omega", registers)

@@ -66,7 +66,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check
 
-# 802.11n Base Matrix --------------------------------------------------------------------------------
+# 802.11n Base Matrix ------------------------------------------------------------------------------
 
 # IEEE 802.11-2012 Annex F, Table F-1: n = 648, rate 1/2, z = 27. -1 = zero block, s >= 0 =
 # identity right-cyclic-shifted by s (row r of the block has its one at column (r + s) mod z).
@@ -105,7 +105,7 @@ def _rot27(sig, s):
     s = s % LDPC_Z
     return sig if s == 0 else Cat(sig[s:], sig[:s])
 
-# LDPC Encoder ---------------------------------------------------------------------------------------
+# LDPC Encoder -------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPLDPCEncoder(LiteXModule):
@@ -244,7 +244,7 @@ class LiteDSPLDPCEncoder(LiteXModule):
             self._config.fields.z.eq(self.z),
         ]
 
-# LDPC Decoder ---------------------------------------------------------------------------------------
+# LDPC Decoder -------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPLDPCDecoder(LiteXModule):

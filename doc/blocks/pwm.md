@@ -66,7 +66,7 @@ Dead time in cycles inserted at every gate-signal edge.
 | Bits | Field | Reset | Description |
 |---|---|---|---|
 | `[15:0]` | `count` | `0` | Carrier value at which the ADC trigger pulses. |
-| `[16]` | `direction` | `0` |  ``0b0``: Counting down / valley side.; ``0b1``: Counting up / peak side. |
+| `[16]` | `direction` | `0` | Carrier counting direction. ``0b0``: Counting down / valley side.; ``0b1``: Counting up / peak side. |
 
 ### `status` (read-only, 2 bits)
 

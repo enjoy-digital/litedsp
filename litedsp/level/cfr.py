@@ -15,7 +15,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check, iq_layout, rounded, saturated, scaled, add_bypass, add_bypass_csr
 
-# CFR Pulse / Reciprocal LUT -------------------------------------------------------------------------
+# CFR Pulse / Reciprocal LUT -----------------------------------------------------------------------
 
 def cfr_pulse(pulse_span=16, data_width=16, cutoff=0.25):
     """Unit-peak low-pass cancellation pulse (Hamming-windowed sinc, RRC-like).
@@ -45,7 +45,7 @@ def cfr_recip_lut(index_bits=6, frac_bits=15):
     return [int(round((1 << frac_bits)/(1 + (k + 0.5)/(1 << index_bits))))
             for k in range(1 << index_bits)]
 
-# CFR (Peak Cancellation) ----------------------------------------------------------------------------
+# CFR (Peak Cancellation) --------------------------------------------------------------------------
 
 # Reciprocal-LUT fixed-point geometry (mirrored by test/models.py:cfr_model).
 CFR_INDEX_BITS = 6   # Reciprocal LUT depth = 64 entries.

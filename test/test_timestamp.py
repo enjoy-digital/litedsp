@@ -199,7 +199,7 @@ class TestTimestamper(unittest.TestCase):
         for c, s in zip(cap, samples):
             self.assertEqual((c["i"] & mask, c["q"] & mask), (s["i"] & mask, s["q"] & mask))
 
-# Absolute-time recovery across a time-agnostic chain (acceptance test) -----------------------------
+# Absolute-time recovery across a time-agnostic chain (acceptance test) ----------------------------
 
 class _Chain(LiteXModule):
     """timestamper -> gain -> FIR -> timestamper: no time threaded through the DSP blocks."""
@@ -250,7 +250,7 @@ class TestTimeRecovery(unittest.TestCase):
         for k, c in enumerate(cap):
             self.assertEqual(c["i"], (100 + k + 1) >> 1)
 
-# Timestamped packet header -------------------------------------------------------------------------
+# Timestamped packet header ------------------------------------------------------------------------
 
 class _PacketDUT(LiteXModule):
     def __init__(self, samples_per_packet=4, stream_id=0xAB, with_depacketizer=False):
@@ -348,7 +348,7 @@ class TestPacketTimestamp(unittest.TestCase):
             self.assertEqual(c["data"], (s["i"] & 0xFFFF) | (s["q"] & 0xFFFF) << 16)
             self.assertEqual(c["last"], int(w % 4 == 3))
 
-# TimeCore driver ------------------------------------------------------------------------------------
+# TimeCore driver ----------------------------------------------------------------------------------
 
 class _MockCSR:
     def __init__(self, value=0):

@@ -28,7 +28,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check, iq_layout, scaled
 
-# OFDM Equalizer -------------------------------------------------------------------------------------
+# OFDM Equalizer -----------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPOFDMEqualizer(LiteXModule):

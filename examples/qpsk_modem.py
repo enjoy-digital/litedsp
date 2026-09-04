@@ -124,7 +124,7 @@ class QPSKRx(LiteXModule):
                                              for s, p in enumerate(S2P)}),
         ]
 
-# Host-side helpers ----------------------------------------------------------------------------------
+# Host-side helpers --------------------------------------------------------------------------------
 
 def gray_encode_bits(bits):
     """Bit pairs -> phase-increment indices (Gray, so one phase step = one bit error)."""

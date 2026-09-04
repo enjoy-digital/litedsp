@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+#
+# This file is part of LiteDSP.
+#
+# Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
+
 """Deterministically balance unittest files while keeping the slow suites apart."""
 
 import argparse

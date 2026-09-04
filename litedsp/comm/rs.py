@@ -41,7 +41,7 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check
 
-# GF(2^8) Helpers ------------------------------------------------------------------------------------
+# GF(2^8) Helpers ----------------------------------------------------------------------------------
 
 GF_POLY = 0x11D  # x^8 + x^4 + x^3 + x^2 + 1, primitive, alpha = 2 (conventional basis; see module doc).
 FCR     = 0      # First consecutive root: g(x) roots at alpha^0 .. alpha^(2t-1).
@@ -166,7 +166,7 @@ def _linear_map(comb, value, table):
         comb += result[out_bit].eq(_xor_tree(taps))
     return result
 
-# RS Encoder -----------------------------------------------------------------------------------------
+# RS Encoder ---------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPRSEncoder(LiteXModule):
@@ -265,7 +265,7 @@ class LiteDSPRSEncoder(LiteXModule):
             self._config.fields.t.eq(self.t),
         ]
 
-# RS Decoder -----------------------------------------------------------------------------------------
+# RS Decoder ---------------------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPRSDecoder(LiteXModule):
@@ -813,7 +813,7 @@ class LiteDSPRSDecoder(LiteXModule):
             self.clear.eq(self._clear.re),
         ]
 
-# CCSDS Dual-Basis Wrappers -------------------------------------------------------------------------
+# CCSDS Dual-Basis Wrappers ------------------------------------------------------------------------
 
 @ResetInserter()
 class LiteDSPCCSDSRSEncoder(LiteXModule):
