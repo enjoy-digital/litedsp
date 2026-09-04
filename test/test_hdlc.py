@@ -33,10 +33,12 @@ class TestHDLC(unittest.TestCase):
     # frames; the round trip under backpressure.
     def test_round_trip(self):
         prng = random.Random(9)
-        payloads = [[prng.randint(0, 1) for _ in range(48)], [1]*12 + [0] + [1]*20 + [prng.randint(0, 1) for _ in range(63)], [1, 0, 1, 1, 1, 1, 1]]
+        payloads = [[prng.randint(0, 1) for _ in range(48)], [1]*12 + [0] + [1]*20 + [
+            prng.randint(0, 1) for _ in range(63)], [1, 0, 1, 1, 1, 1, 1]]
         fr = LiteDSPHDLCFramer(preamble=2, with_csr=False)
         bits, first, last = hdlc_frame_model(payloads, 2)
-        cap = run_stream(fr, payload_beats(payloads), len(bits), ["data", "first", "last"], ["data", "first", "last"], sink_throttle=0.2, source_ready_rate=0.7)
+        cap = run_stream(fr, payload_beats(payloads), len(bits), ["data", "first", "last"],
+                         ["data", "first", "last"], sink_throttle=0.2, source_ready_rate=0.7)
         self.assertEqual(column(cap, "data").tolist(), bits.tolist())
         self.assertEqual(column(cap, "first").tolist(), first.tolist())
         self.assertEqual(column(cap, "last").tolist(), last.tolist())
@@ -45,7 +47,8 @@ class TestHDLC(unittest.TestCase):
         self.assertEqual(data.tolist(), sum(payloads, []))
         self.assertEqual(stats, dict(frames=3, fcs_errors=0, aborts=0))
         de = LiteDSPHDLCDeframer(with_csr=False)
-        cap = run_stream(de, [{"data": b} for b in line], len(data), ["data"], ["data", "first", "last", "fcs_ok"], sink_throttle=0.2, source_ready_rate=0.7,
+        cap = run_stream(de, [{"data": b} for b in line], len(data), ["data"], [
+            "data", "first", "last", "fcs_ok"], sink_throttle=0.2, source_ready_rate=0.7,
             extra=[self._status(de)])
         self.assertEqual(column(cap, "data").tolist(), data.tolist())
         self.assertEqual(column(cap, "first").tolist(), f.tolist())
@@ -61,16 +64,17 @@ class TestHDLC(unittest.TestCase):
         prng = random.Random(10)
         p1, p2 = [prng.randint(0, 1) for _ in range(40)], [prng.randint(0, 1) for _ in range(40)]
         good = hdlc_frame_bits(p1)
-        bad = list(good); bad[8 + 5] ^= 1                              # A payload bit (flag is 8 bits).
+        bad = list(good); bad[8 + 5] ^= 1                          # A payload bit (flag is 8 bits).
         flag = [(HDLC_FLAG >> i) & 1 for i in range(8)]
-        aborted = flag + p2[:15] + [1]*8 + flag                         # < 24 bits accepted: nothing leaks.
+        aborted = flag + p2[:15] + [1]*8 + flag                 # < 24 bits accepted: nothing leaks.
         line = bad + flag*3 + aborted + hdlc_frame_bits(p2) + flag*2
         (data, f, l, ok), stats = hdlc_deframe_model(line)
         self.assertEqual(stats, dict(frames=2, fcs_errors=1, aborts=1))
         self.assertEqual(len(data), 80)
         self.assertEqual(ok.tolist(), [0]*39 + [0] + [0]*39 + [1])
         de = LiteDSPHDLCDeframer(with_csr=False)
-        cap = run_stream(de, [{"data": b} for b in line], 80, ["data"], ["data", "last", "fcs_ok"], sink_throttle=0.0, source_ready_rate=1.0,
+        cap = run_stream(de, [{"data": b} for b in line], 80, ["data"], ["data", "last", "fcs_ok"],
+                         sink_throttle=0.0, source_ready_rate=1.0,
             extra=[self._status(de)])
         self.assertEqual(column(cap, "data").tolist(), data.tolist())
         self.assertEqual(column(cap, "fcs_ok").tolist(), ok.tolist())

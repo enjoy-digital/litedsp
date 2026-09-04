@@ -117,8 +117,10 @@ class TestAssemblyMatchesManual(unittest.TestCase):
                 self.sink, self.source = self.dc.sink, self.g.source
                 self.comb += self.dc.source.connect(self.g.sink)
 
-        a = run_stream(flow,   samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
-        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+        a = run_stream(flow,   samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2,
+                       source_ready_rate=0.7)
+        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2,
+                       source_ready_rate=0.7)
         self.assertTrue(np.array_equal(column(a, "i", 16), column(b, "i", 16)))
         self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
 
@@ -156,8 +158,10 @@ class TestAssemblyMatchesManual(unittest.TestCase):
                     self.g2.source.connect(self.ns.sink),
                 ]
 
-        a = run_stream(flow,     samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.1, source_ready_rate=0.8)
-        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.1, source_ready_rate=0.8)
+        a = run_stream(flow,     samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.1,
+                       source_ready_rate=0.8)
+        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.1,
+                       source_ready_rate=0.8)
         self.assertTrue(np.array_equal(column(a, "i", 16), column(b, "i", 16)))
         self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
 
@@ -207,8 +211,10 @@ class TestAutoDelay(unittest.TestCase):
                     self.lo.source.connect(self.mix.sink_b),
                 ]
 
-        a = run_stream(flow,     samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
-        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+        a = run_stream(flow,     samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2,
+                       source_ready_rate=0.7)
+        b = run_stream(Manual(), samples, n, ["i", "q"], ["i", "q"], sink_throttle=0.2,
+                       source_ready_rate=0.7)
         self.assertTrue(np.array_equal(column(a, "i", 16), column(b, "i", 16)))
         self.assertTrue(np.array_equal(column(a, "q", 16), column(b, "q", 16)))
 
@@ -246,21 +252,25 @@ class TestAutoDelay(unittest.TestCase):
                 from litedsp.image.design import kernel_preset
                 c, sh, off = kernel_preset("gaussian3")
                 self.split = LiteDSPSplit(2, layout=pixel_layout(8, 3))
-                self.k     = LiteDSPKernel2D(n_channels=3, coefficients=c, shift=sh, offset=off, width=w, with_csr=False)
+                self.k     = LiteDSPKernel2D(n_channels=3, coefficients=c, shift=sh, offset=off,
+                                             width=w, with_csr=False)
                 self.fifo  = LiteDSPPixelFIFO(depth=128, n_channels=3, with_csr=False)
                 self.bl    = LiteDSPAlphaBlend(alpha=64, with_csr=False)
                 self.sink, self.source = self.split.sink, self.bl.source
                 self.comb += [
-                    self.split.sources[0].connect(self.k.sink), self.split.sources[1].connect(self.fifo.sink),
+                    self.split.sources[0].connect(self.k.sink),
+                    self.split.sources[1].connect(self.fifo.sink),
                     self.k.source.connect(self.bl.sink_a), self.fifo.source.connect(self.bl.sink_b),
                 ]
 
         prng = random.Random(5)
-        imgs = [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(h)]) for _ in range(2)]
+        imgs = [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)]
+            for _ in range(h)]) for _ in range(2)]
         a = run_frames(flow,     imgs, 2*w*h, 3, sink_throttle=0.2, source_ready_rate=0.7)
         b = run_frames(Manual(), imgs, 2*w*h, 3, sink_throttle=0.2, source_ready_rate=0.7)
         for k in range(2):
-            self.assertTrue(np.array_equal(beats_to_image(a[k*w*h:], w, h, 3), beats_to_image(b[k*w*h:], w, h, 3)), f"frame {k}")
+            self.assertTrue(np.array_equal(beats_to_image(a[k*w*h:], w, h, 3),
+                                           beats_to_image(b[k*w*h:], w, h, 3)), f"frame {k}")
 
 
     def test_param_dependent_layouts(self):
@@ -273,7 +283,8 @@ class TestAutoDelay(unittest.TestCase):
             "blocks": [{"id": "k",  "type": "gaussian_blur", "params": {"width": 16}},
                        {"id": "bl", "type": "alpha_blend",   "params": {"n_channels": 1}}],
             "connections": [{"from": "in0", "to": "k.sink"}, {"from": "k.source", "to": "bl.sink_a"},
-                            {"from": "in0", "to": "bl.sink_b"}, {"from": "bl.source", "to": "out0"}],
+                            {"from": "in0", "to": "bl.sink_b"},
+                            {"from": "bl.source", "to": "out0"}],
         })
         LiteDSPFlowChain(nl, with_csr=False)
         bad = nlmod.from_dict({
@@ -282,7 +293,8 @@ class TestAutoDelay(unittest.TestCase):
             "blocks": [{"id": "k",  "type": "gaussian_blur", "params": {"width": 16}},
                        {"id": "bl", "type": "alpha_blend",   "params": {}}],
             "connections": [{"from": "in0", "to": "k.sink"}, {"from": "k.source", "to": "bl.sink_a"},
-                            {"from": "in0", "to": "bl.sink_b"}, {"from": "bl.source", "to": "out0"}],
+                            {"from": "in0", "to": "bl.sink_b"},
+                            {"from": "bl.source", "to": "out0"}],
         })
         with self.assertRaises(nlmod.NetlistError):
             LiteDSPFlowChain(bad, with_csr=False)

@@ -48,8 +48,10 @@ class LiteDSPStats(LiteXModule):
         count  = Signal(window_log2 + 1)                       # Position within the window.
         acc    = Signal((data_width + window_log2 + 1, True))  # Running sum (log2(N)-bit growth).
         accsq  = Signal(2*data_width + window_log2)            # Running sum of squares.
-        vmin   = Signal((data_width, True), reset=(1 << (data_width - 1)) - 1)  # Init +max: first sample wins.
-        vmax   = Signal((data_width, True), reset=-(1 << (data_width - 1)))     # Init -max: first sample wins.
+        # Init +max: first sample wins.
+        vmin   = Signal((data_width, True), reset=(1 << (data_width - 1)) - 1)
+        # Init -max: first sample wins.
+        vmax   = Signal((data_width, True), reset=-(1 << (data_width - 1)))
         last   = Signal()                                      # Final sample of the window.
         self.comb += [self.sink.ready.eq(1), last.eq(count == (N - 1))]
 
@@ -59,13 +61,15 @@ class LiteDSPStats(LiteXModule):
         meanf = Signal((data_width, True))
         self.comb += meanf.eq((acc + x) >> window_log2)
         self.sync += [
-            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),  # Held until consumed.
+            # Held until consumed.
+            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
             If(self.sink.valid,
                 If(last,
                     self.source.min.eq(Mux(x < vmin, x, vmin)),
                     self.source.max.eq(Mux(x > vmax, x, vmax)),
                     self.source.mean.eq(meanf),
-                    self.source.variance.eq(((accsq + x*x) >> window_log2) - meanf*meanf),  # E[x^2] - E[x]^2.
+                    # E[x^2] - E[x]^2.
+                    self.source.variance.eq(((accsq + x*x) >> window_log2) - meanf*meanf),
                     self.source.valid.eq(1),
                     acc.eq(0), accsq.eq(0), count.eq(0),  # Restart the window.
                     vmin.eq((1 << (data_width - 1)) - 1), vmax.eq(-(1 << (data_width - 1))),

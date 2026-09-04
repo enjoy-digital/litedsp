@@ -30,7 +30,8 @@ class TestFSKModulator(unittest.TestCase):
             with self.subTest(bps=bps, bt=bt):
                 syms = [prng.randint(0, (1 << bps) - 1) for _ in range(60)]
                 dut  = LiteDSPFSKModulator(bits_per_symbol=bps, sps=4, bt=bt, with_csr=False)
-                cap  = run_stream(dut, [{"data": s} for s in syms], 60*4, ["data"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap  = run_stream(dut, [{"data": s} for s in syms], 60*4, ["data"], ["i", "q"],
+                                  sink_throttle=0.2, source_ready_rate=0.7)
                 ri, rq = fsk_modulator_model(syms, bps, 4, dut.taps, dut.deviation.reset.value, 0)
                 self.assertEqual(column(cap, "i", 16).tolist(), ri.tolist())
                 self.assertEqual(column(cap, "q", 16).tolist(), rq.tolist())
@@ -49,14 +50,16 @@ class TestFSKModulator(unittest.TestCase):
                 self.demod = LiteDSPFMDemod(with_csr=False)
                 self.sink, self.source = self.mod.sink, self.demod.source
                 self.comb += self.mod.source.connect(self.demod.sink)
-        cap = run_stream(Loop(None), [{"data": s} for s in syms], 80*8, ["data"], ["data"], sink_throttle=0.0, source_ready_rate=1.0)
+        cap = run_stream(Loop(None), [{"data": s} for s in syms], 80*8, ["data"], ["data"],
+                         sink_throttle=0.0, source_ready_rate=1.0)
         y = column(cap, "data", 16).astype(float)
         dec = [int(np.sum(y[k*8 + 2:(k + 1)*8]) > 0) for k in range(80)]
         self.assertEqual(dec[1:], syms[1:])
         dut = LiteDSPFSKModulator(sps=4, bt=0.3, with_csr=False)
         self.assertEqual(dut.deviation.reset.value, fsk_deviation(0.5, 4, 1))
         pattern = [1]*20 + [0]*20
-        cap = run_stream(dut, [{"data": s} for s in pattern], 40*4, ["data"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
+        cap = run_stream(dut, [{"data": s} for s in pattern], 40*4, ["data"], ["i", "q"],
+                         sink_throttle=0.0, source_ready_rate=1.0)
         z = column(cap, "i", 16) + 1j*column(cap, "q", 16)
         ph = np.unwrap(np.angle(z))
         step_up = (ph[16*4] - ph[8*4])/8                                # Steady 1s: per symbol.
@@ -66,7 +69,8 @@ class TestFSKModulator(unittest.TestCase):
         def bw99(bt):
             d = LiteDSPFSKModulator(sps=8, bt=bt, with_csr=False)
             d.deviation.reset = fsk_deviation(0.5, 8, 1)
-            c = run_stream(d, [{"data": s} for s in syms*2], 160*8, ["data"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
+            c = run_stream(d, [{"data": s} for s in syms*2], 160*8, ["data"], ["i", "q"],
+                           sink_throttle=0.0, source_ready_rate=1.0)
             zz = column(c, "i", 16) + 1j*column(c, "q", 16)
             p = np.abs(np.fft.fftshift(np.fft.fft(zz*np.hanning(len(zz)))))**2
             cdf = np.cumsum(p)/np.sum(p)

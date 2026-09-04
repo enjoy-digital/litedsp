@@ -34,7 +34,8 @@ class LiteDSPFSKModulator(LiteXModule):
     the reset word is ``h = 1`` for FSK and ``h = 0.5`` for GMSK-style Gaussian filtering). Rate
     ``sps`` outputs per symbol; latency ``1 + fir + 2`` (``fir = 0`` without the filter).
     """
-    def __init__(self, bits_per_symbol=1, sps=4, bt=None, span=4, data_width=16, phase_bits=32, lut_depth=1024,
+    def __init__(self, bits_per_symbol=1, sps=4, bt=None, span=4, data_width=16, phase_bits=32,
+                 lut_depth=1024,
         fir_architecture="classic", n_macs=4, with_csr=True):
         check(1 <= bits_per_symbol <= 4, "expected 1 <= bits_per_symbol <= 4")
         check(2 <= sps <= 64, "expected 2 <= sps <= 64")
@@ -55,7 +56,8 @@ class LiteDSPFSKModulator(LiteXModule):
         self.taps = None
         if bt is not None:
             self.taps = gaussian_coefficients(sps, span, bt, data_width)
-            self.fir = LiteDSPFIRFilter(n_taps=len(self.taps), data_width=data_width, symmetric=True,
+            self.fir = LiteDSPFIRFilter(n_taps=len(self.taps), data_width=data_width,
+                                        symmetric=True,
                 architecture=fir_architecture, n_macs=n_macs)
             for t, c in enumerate(self.taps):
                 self.fir.coeffs[t].reset = int(c)
@@ -105,7 +107,8 @@ class LiteDSPFSKModulator(LiteXModule):
 
     def add_csr(self):
         PB = self.phase_bits
-        self._phase_inc = CSRStorage(PB, name="phase_inc", description="Centre phase increment per sample.")
+        self._phase_inc = CSRStorage(PB, name="phase_inc",
+                                     description="Centre phase increment per sample.")
         self._deviation = CSRStorage(PB, reset=self.deviation.reset.value, name="deviation",
             description="Phase increment at full-scale level (see fsk_deviation).")
         self._config = CSRStatus(fields=[
@@ -115,6 +118,7 @@ class LiteDSPFSKModulator(LiteXModule):
         ])
         self.comb += [
             self.phase_inc.eq(self._phase_inc.storage), self.deviation.eq(self._deviation.storage),
-            self._config.fields.bits_per_symbol.eq(self.bits_per_symbol), self._config.fields.sps.eq(self.sps),
+            self._config.fields.bits_per_symbol.eq(self.bits_per_symbol),
+            self._config.fields.sps.eq(self.sps),
             self._config.fields.gaussian.eq(int(self.bt is not None)),
         ]

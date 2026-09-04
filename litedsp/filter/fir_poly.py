@@ -60,7 +60,8 @@ class LiteDSPFIRDecimator(LiteXModule):
         if coefficients is None:
             coefficients = [(1 << (data_width - 1)) - 1] + [0]*(n_taps - 1)
         check(len(coefficients) == n_taps, "expected len(coefficients) == n_taps")
-        active_taps = [n for n, c in enumerate(coefficients) if c != 0] if prune_zeros else list(range(n_taps))
+        active_taps = [n for n, c in enumerate(coefficients)
+                                               if c != 0] if prune_zeros else list(range(n_taps))
         check(active_taps, "cannot prune an all-zero FIR")
         self.n_taps     = n_taps
         self.n_mac_taps = len(active_taps)
@@ -78,9 +79,10 @@ class LiteDSPFIRDecimator(LiteXModule):
 
         # Memories.
         # ---------
-        depth = _pow2_ceil(n_taps + R)                        # Sample buffer depth (pow2: free pointer wrap).
+        depth = _pow2_ceil(n_taps + R)              # Sample buffer depth (pow2: free pointer wrap).
         mask  = depth - 1
-        acc_w = 2*data_width + (n_taps - 1).bit_length() + 1  # Product + log2(n_taps) accumulation growth.
+        # Product + log2(n_taps) accumulation growth.
+        acc_w = 2*data_width + (n_taps - 1).bit_length() + 1
 
         # Migen cannot build an address Signal for a depth-one Memory. Keep the public one-tap
         # configuration useful by padding the physical ROM; the FSM still visits only tap 0.
@@ -298,7 +300,7 @@ class LiteDSPFIRInterpolator(LiteXModule):
 
         # Memories.
         # ---------
-        depth = _pow2_ceil(sub + 1)                                     # Sample buffer depth (pow2 wrap).
+        depth = _pow2_ceil(sub + 1)                               # Sample buffer depth (pow2 wrap).
         acc_w = 2*data_width + (max_mac_taps if max_mac_taps > 1 else 1).bit_length() + 1
 
         # Coefficients and history offsets are laid out as the active schedule for each phase.
@@ -323,7 +325,8 @@ class LiteDSPFIRInterpolator(LiteXModule):
         # Signals.
         # --------
         wptr  = Signal(max=depth)                     # Sample write pointer.
-        phase = Signal(max=L) if L > 1 else Signal()  # Polyphase index p (output within the group of L).
+        # Polyphase index p (output within the group of L).
+        phase = Signal(max=L) if L > 1 else Signal()
         k     = Signal(max=max_mac_taps + 1)          # MAC slot within the active phase schedule.
         coeff_adr = Signal(max=crom_depth)
         newest = Signal(max=depth)
@@ -443,4 +446,5 @@ class LiteDSPFIRInterpolator(LiteXModule):
             CSRField("taps", size=16, description="FIR taps N."),
             CSRField("rate", size=16, description="Interpolation factor L."),
         ])
-        self.comb += [self._config.fields.taps.eq(self.n_taps), self._config.fields.rate.eq(self.interpolation)]
+        self.comb += [self._config.fields.taps.eq(self.n_taps),
+                      self._config.fields.rate.eq(self.interpolation)]

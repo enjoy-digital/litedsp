@@ -41,8 +41,9 @@ class LiteDSPGoertzel(LiteXModule):
         self.k = k
         self.architecture    = architecture
         self.sample_interval = 1 if architecture == "classic" else 2
-        coeff = int(round(2*math.cos(2*math.pi*k/N)*(1 << coeff_frac)))  # 2*cos scaled by 2**coeff_frac.
-        SW    = data_width + coeff_frac + 4                              # State width (growth margin).
+        # 2*cos scaled by 2**coeff_frac.
+        coeff = int(round(2*math.cos(2*math.pi*k/N)*(1 << coeff_frac)))
+        SW    = data_width + coeff_frac + 4                           # State width (growth margin).
         self.sink   = stream.Endpoint(real_layout(data_width))
         self.source = stream.Endpoint([("data", 2*SW)])
         self.latency = None  # Variable (one result per N-sample window).
@@ -105,7 +106,7 @@ class LiteDSPGoertzel(LiteXModule):
                 s1.eq(s), s2.eq(s1),
                 If(count == (N - 1),
                     count.eq(0), s1.eq(0), s2.eq(0),  # Restart the resonator for the next window.
-                    f1.eq(s), f2.eq(s1),              # Latch final states (new s1/s2) for the power pipe.
+                    f1.eq(s), f2.eq(s1),        # Latch final states (new s1/s2) for the power pipe.
                     phase.eq(1),
                 ).Else(
                     count.eq(count + 1),

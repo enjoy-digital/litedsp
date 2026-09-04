@@ -37,17 +37,18 @@ class _LiteDSPForneyDelay(LiteXModule):
         for d in delays:
             bases.append(total)
             total += d
-        depth = max(total, 2)                                           # Migen ports need >= 2 entries.
+        depth = max(total, 2)                                       # Migen ports need >= 2 entries.
         self.specials.mem = mem = Memory(width, depth)
         rp = mem.get_port(has_re=True)
         wp = mem.get_port(write_capable=True)
         self.specials += rp, wp
         AW = bits_for(depth - 1)
         adv, xfer = Signal(), Signal()
-        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv), xfer.eq(self.sink.valid & adv)]
+        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv),
+                      xfer.eq(self.sink.valid & adv)]
         branch = Signal(max=max(B, 2))
         PW_    = max(bits_for(max(delays)), 1)
-        ptrs   = [Signal(PW_, name=f"ptr{j}") for j in range(B)]        # Equal widths for the Array.
+        ptrs   = [Signal(PW_, name=f"ptr{j}") for j in range(B)]       # Equal widths for the Array.
         addr   = Signal(AW + 1)
         base_sel, ptr_sel = Signal(AW), Signal(PW_)
         self.comb += [
@@ -62,7 +63,8 @@ class _LiteDSPForneyDelay(LiteXModule):
                 branch.eq(0),
             ).Elif(xfer,
                 If(branch == B - 1, branch.eq(0)).Else(branch.eq(branch + 1)),
-                *[If(branch == j, If(ptrs[j] == delays[j] - 1, ptrs[j].eq(0)).Else(ptrs[j].eq(ptrs[j] + 1)))
+                *[If(branch == j, If(ptrs[j] == delays[j] - 1, ptrs[j].eq(0)).Else(
+                    ptrs[j].eq(ptrs[j] + 1)))
                   for j in range(B) if delays[j] > 0],
             ),
         ]
@@ -70,7 +72,8 @@ class _LiteDSPForneyDelay(LiteXModule):
         # the address just read (read-before-write, one cycle apart).
         v1, f1, l1 = Signal(), Signal(), Signal()
         x1, a1, b1 = Signal(width), Signal(AW), Signal(max=max(B, 2))
-        self.sync += If(adv, v1.eq(xfer), f1.eq(self.sink.first), l1.eq(self.sink.last), x1.eq(self.sink.data), a1.eq(addr[:AW]), b1.eq(branch))
+        self.sync += If(adv, v1.eq(xfer), f1.eq(self.sink.first), l1.eq(self.sink.last),
+                        x1.eq(self.sink.data), a1.eq(addr[:AW]), b1.eq(branch))
         zero_delay = Signal()
         self.comb += zero_delay.eq(Array([C(int(delays[j] == 0), 1) for j in range(B)])[b1])
         self.comb += [wp.adr.eq(a1), wp.dat_w.eq(x1), wp.we.eq(adv & v1 & ~zero_delay)]
@@ -91,7 +94,8 @@ class _LiteDSPForneyDelay(LiteXModule):
             CSRField("width",    size=8, offset=8, description="Symbol width."),
         ])
         self.comb += [self.phase_rst.eq(self._control.fields.phase_rst),
-                      self._config.fields.branches.eq(self.branches), self._config.fields.width.eq(self.width)]
+                      self._config.fields.branches.eq(self.branches),
+                      self._config.fields.width.eq(self.width)]
         add_bypass_csr(self)
 
 @ResetInserter()
@@ -112,4 +116,5 @@ class LiteDSPConvolutionalDeinterleaver(_LiteDSPForneyDelay):
     def __init__(self, branches=12, depth=17, width=8, with_csr=True):
         check(depth >= 1, "expected depth >= 1")
         self.depth = depth
-        _LiteDSPForneyDelay.__init__(self, [(branches - 1 - j)*depth for j in range(branches)], width, with_csr)
+        _LiteDSPForneyDelay.__init__(self, [(branches - 1 - j)*depth for j in range(branches)],
+                                     width, with_csr)

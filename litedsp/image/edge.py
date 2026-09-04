@@ -32,7 +32,8 @@ class LiteDSPSobel(LiteXModule):
     with tan 22.5 = 53/128) is added. ``bypass`` outputs the window centre. Latency
     ``line_buffer.latency + 3``.
     """
-    def __init__(self, data_width=8, width=640, max_width=None, border="replicate", mode="l1", shift=3,
+    def __init__(self, data_width=8, width=640, max_width=None, border="replicate", mode="l1",
+                 shift=3,
         with_direction=False, with_csr=True):
         check(mode in ("l1", "linf", "approx"), "expected mode in ('l1', 'linf', 'approx')")
         check(0 <= shift <= 7, "expected 0 <= shift <= 7")
@@ -66,7 +67,8 @@ class LiteDSPSobel(LiteXModule):
         self.sync += If(adv,
             gx.eq((w[0][2] - w[0][0]) + ((w[1][2] - w[1][0]) << 1) + (w[2][2] - w[2][0])),
             gy.eq((w[2][0] - w[0][0]) + ((w[2][1] - w[0][1]) << 1) + (w[2][2] - w[0][2])),
-            v1.eq(self.lb.source.valid), f1.eq(self.lb.source.first), e1.eq(self.lb.source.eol), l1.eq(self.lb.source.last),
+            v1.eq(self.lb.source.valid), f1.eq(self.lb.source.first), e1.eq(self.lb.source.eol),
+            l1.eq(self.lb.source.last),
             c1.eq(self.lb.source.w11),
         )
         # S2: magnitudes and direction.
@@ -76,7 +78,8 @@ class LiteDSPSobel(LiteXModule):
         self.comb += [
             ax.eq(Mux(gx < 0, -gx, gx)), ay.eq(Mux(gy < 0, -gy, gy)),
             mx.eq(Mux(ax > ay, ax, ay)), mn.eq(Mux(ax > ay, ay, ax)),
-            mag.eq(Mux(self.mode == SOBEL_L1, ax + ay, Mux(self.mode == SOBEL_LINF, mx, mx + (mn >> 2)))),
+            mag.eq(Mux(self.mode == SOBEL_L1, ax + ay,
+                       Mux(self.mode == SOBEL_LINF, mx, mx + (mn >> 2)))),
         ]
         # Direction: 0 = |gy| dominant (horizontal edge), 2 = |gx| dominant (vertical edge),
         # diagonals when |gx|/|gy| is within tan(22.5..67.5) degrees; the sign of gx*gy separates
@@ -101,7 +104,8 @@ class LiteDSPSobel(LiteXModule):
         )
         # S3: rounding, clamp, output.
         r = Signal((GW + 2, True))
-        self.comb += r.eq((mag2 + Mux(self.shift == 0, 0, (1 << 6) >> (7 - self.shift))) >> self.shift)
+        self.comb += r.eq(
+            (mag2 + Mux(self.shift == 0, 0, (1 << 6) >> (7 - self.shift))) >> self.shift)
         self.sync += If(adv,
             self.source.valid.eq(v2),
             self.source.first.eq(f2), self.source.eol.eq(e2), self.source.last.eq(l2),

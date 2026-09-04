@@ -23,8 +23,9 @@ class LiteDSPClipper(LiteXModule):
         self.latency    = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.threshold = Signal(data_width, reset=(1 << (data_width - 1)) - 1)  # Clip magnitude (default full-scale).
-        self.clip      = Signal()                                               # Pulses when a sample was clipped.
+        # Clip magnitude (default full-scale).
+        self.threshold = Signal(data_width, reset=(1 << (data_width - 1)) - 1)
+        self.clip      = Signal()                                # Pulses when a sample was clipped.
 
         # # #
 
@@ -52,7 +53,8 @@ class LiteDSPClipper(LiteXModule):
         # Output.
         # -------
         valid = Signal()
-        self.sync += If(adv, valid.eq(self.sink.valid), self.clip.eq(self.sink.valid & clipped))  # Flag only real samples.
+        # Flag only real samples.
+        self.sync += If(adv, valid.eq(self.sink.valid), self.clip.eq(self.sink.valid & clipped))
         self.comb += self.source.valid.eq(valid)
 
         # Bypass.
@@ -69,4 +71,5 @@ class LiteDSPClipper(LiteXModule):
         self._threshold = CSRStorage(self.data_width, reset=(1 << (self.data_width - 1)) - 1,
             name="threshold", description="Clip threshold (magnitude).")
         self._status = CSRStatus(fields=[CSRField("clip", size=1, description="Clipping occurred.")])
-        self.comb += [self.threshold.eq(self._threshold.storage), self._status.fields.clip.eq(self.clip)]
+        self.comb += [self.threshold.eq(self._threshold.storage),
+                      self._status.fields.clip.eq(self.clip)]

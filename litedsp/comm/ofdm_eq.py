@@ -133,7 +133,7 @@ class LiteDSPOFDMEqualizer(LiteXModule):
                 If(start, training.eq(tr), pend.eq(0)),
                 If(last, training.eq(0)),
             ),
-            If(self.train, pend.eq(1)),   # Set wins: a pulse at a frame start trains the next frame.
+            If(self.train, pend.eq(1)),  # Set wins: a pulse at a frame start trains the next frame.
         ]
 
         # LS Estimation (training frame): H = scaled(Y * conj(X_ref), 1).
@@ -160,14 +160,16 @@ class LiteDSPOFDMEqualizer(LiteXModule):
             h_wp.we.eq(xfer & tr),
         ]
 
-        # One-Tap Equalization: S = scaled(Y * conj(H), coeff_frac), csi = scaled(|H|**2, coeff_frac).
-        # ---------------------------------------------------------------------------------------------
+        # One-Tap Equalization: S = scaled(Y * conj(H), coeff_frac), csi = scaled(|H|**2,
+        # coeff_frac).
+        # ------------------------------------------------------------------------------------------
         # 2-stage pipeline (advances on adv, like the soft demapper): stage 1 registers the
         # full-width products, stage 2 the rescaled outputs. Training beats never enter
         # (valid gated by ~tr), so the H write above cannot collide with a read in flight.
         hi = Signal((data_width, True))
         hq = Signal((data_width, True))
-        self.comb += [h_rp.adr.eq(cnt), hi.eq(h_rp.dat_r[:data_width]), hq.eq(h_rp.dat_r[data_width:])]
+        self.comb += [h_rp.adr.eq(cnt), hi.eq(h_rp.dat_r[:data_width]),
+                      hq.eq(h_rp.dat_r[data_width:])]
 
         valid_sr = Signal(self.latency)
         self.sync += If(adv, valid_sr.eq(Cat(self.sink.valid & ~tr, valid_sr[:-1])))

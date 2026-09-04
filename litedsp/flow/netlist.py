@@ -71,7 +71,7 @@ class Netlist:
     blocks: list = field(default_factory=list)        # [BlockNode]
     connections: list = field(default_factory=list)   # [Connection]
     csr_base: int = 0
-    editor: dict = field(default_factory=dict)        # Editor hints (node positions); codegen ignores.
+    editor: dict = field(default_factory=dict)     # Editor hints (node positions); codegen ignores.
 
     # Lookups ------------------------------------------------------------------------------------
     def block(self, bid):
@@ -167,7 +167,8 @@ def validate(nl, reg=None):
         if io.layout not in ("iq", "iq_symbol", "real", "tdm", "abc", "angle", "cell", "target",
                              "track", "pixel", "pixel_rgb", "video", "raw"):
             errors.append(f"io '{io.id}' has unknown layout '{io.layout}' "
-                          f"(expected iq, iq_symbol, real, tdm, abc, angle, cell, target, track, pixel, pixel_rgb, video, or raw)")
+                          f"(expected iq, iq_symbol, real, tdm, abc, angle, cell, target, track, "
+                          f"pixel, pixel_rgb, video, or raw)")
 
     # Connections: resolve endpoints, check direction + layout, single driver per sink.
     driven = {}     # sink ref -> count.
@@ -179,8 +180,10 @@ def validate(nl, reg=None):
         if b.id not in _specs:
             base = reg[b.type]
             if b.params:
-                _specs[b.id] = _metadata.reflect(b.type, base.cls, {**dict(base.kwargs), **dict(b.params)},
-                    category=getattr(base, "category", "misc"), display_name=getattr(base, "display_name", None),
+                _specs[b.id] = _metadata.reflect(b.type, base.cls,
+                                                 {**dict(base.kwargs), **dict(b.params)},
+                    category=getattr(base, "category", "misc"),
+                    display_name=getattr(base, "display_name", None),
                     choices=getattr(base, "choices", None), doc=getattr(base, "doc", None))
             else:
                 _specs[b.id] = base

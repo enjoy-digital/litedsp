@@ -61,7 +61,8 @@ class TestAudioEQ(unittest.TestCase):
                 dut = LiteDSPAudioEQ(data_width=24, n_bands=3, n_channels=1, sections=secs,
                     error_feedback=ef, with_csr=False)
                 got, _ = self.run_eq([{"data": v} for v in chans[0]], dut)
-                self.assertTrue(np.array_equal(got, audio_eq_model(chans[0], 0, secs, 1, error_feedback=ef)))
+                self.assertTrue(
+                    np.array_equal(got, audio_eq_model(chans[0], 0, secs, 1, error_feedback=ef)))
 
     # verify-tier: model — band enable mask (disabled band = passthrough with refreshed
     # history) and the beat-level bypass.
@@ -84,7 +85,8 @@ class TestAudioEQ(unittest.TestCase):
     # the output switches to the new band-0 coefficients exactly from the next accepted beat.
     def test_coefficient_reload_commit(self):
         _, secs = bands()
-        new0 = biquad_sos_quantize([rbj_biquad("peaking", 300, 9.0, 0.7, sample_rate=FS)], CW, FR)[0][0]
+        new0 = biquad_sos_quantize([rbj_biquad("peaking", 300, 9.0, 0.7, sample_rate=FS)], CW,
+                                   FR)[0][0]
         n, n_sw = 120, 60
         prng = random.Random(3)
         x    = [prng.randint(-FS24//2, FS24//2) for _ in range(n)]
@@ -132,8 +134,10 @@ class TestAudioEQ(unittest.TestCase):
             with self.subTest(f_hz=f_hz):
                 k = int(round(f_hz/FS*n))                       # Bin-aligned tone.
                 x = np.round(0.25*FS24*np.sin(2*np.pi*k*np.arange(n)/n)).astype(np.int64)
-                dut = LiteDSPAudioEQ(data_width=24, n_bands=3, n_channels=1, sections=secs, with_csr=False)
-                got, _ = self.run_eq([{"data": int(v)} for v in x], dut, throttle=0.0, ready_rate=1.0)
+                dut = LiteDSPAudioEQ(data_width=24, n_bands=3, n_channels=1, sections=secs,
+                                     with_csr=False)
+                got, _ = self.run_eq([{"data": int(v)} for v in x], dut, throttle=0.0,
+                                     ready_rate=1.0)
                 y = got[skip:].astype(float)
                 t = np.arange(skip, n)
                 A = np.stack([np.cos(2*np.pi*k*t/n), np.sin(2*np.pi*k*t/n)], axis=1)
@@ -149,7 +153,8 @@ class TestAudioEQ(unittest.TestCase):
     # filter's transient (3072 samples, r**3072 = 4e-5): >= 10 dB lower with feedback
     # (measured value in the assertion message).
     def test_error_feedback_lowers_noise_floor(self):
-        secs = biquad_sos_quantize([rbj_biquad("peaking", 100, 6.0, 2.0, sample_rate=FS)], CW, FR)[0]
+        secs = biquad_sos_quantize([rbj_biquad("peaking", 100, 6.0, 2.0, sample_rate=FS)], CW,
+                                   FR)[0]
         n, skip = 6144, 3072
         k = 128                                                # 1 kHz, bin-aligned.
         x = np.round(0.1*FS24*np.sin(2*np.pi*k*np.arange(n)/n)).astype(np.int64)
@@ -165,7 +170,8 @@ class TestAudioEQ(unittest.TestCase):
             spec = np.abs(np.fft.rfft(res*np.hanning(len(res))))**2
             f    = np.fft.rfftfreq(len(res))*FS
             floors[ef] = 10*np.log10(np.sum(spec[(f > 0) & (f < 300)]) + 1e-9)
-        self.assertGreater(floors[0] - floors[1], 10.0, f"0-300 Hz noise ef0 {floors[0]:.1f} / ef1 {floors[1]:.1f} dB")
+        self.assertGreater(floors[0] - floors[1], 10.0,
+                           f"0-300 Hz noise ef0 {floors[0]:.1f} / ef1 {floors[1]:.1f} dB")
 
     def test_invalid(self):
         for kwargs in ({"frac_bits": 40}, {"error_feedback": 3}, {"n_bands": 0},

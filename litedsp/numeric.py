@@ -43,7 +43,8 @@ class LiteDSPISqrt(LiteXModule):
             adv = Signal()  # Output register free or being consumed.
             self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv)]
             x   = self.sink.data
-            prev_rem, prev_res = Constant(0), Constant(0)  # Stage 0 starts with empty remainder/result.
+            # Stage 0 starts with empty remainder/result.
+            prev_rem, prev_res = Constant(0), Constant(0)
             for s in range(R):
                 i        = R - 1 - s                       # Bit-pair index (MSB pair first).
                 two      = (x >> (2*i)) & 0b11             # Two input bits brought down this stage.

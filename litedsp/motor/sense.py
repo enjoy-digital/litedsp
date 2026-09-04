@@ -91,7 +91,8 @@ class LiteDSPSigmaDeltaFilter(LiteXModule):
         # Lock-step join of the bit sinks (the fast paths never stall: always-ready sources).
         # ---------------------------------------------------------------------------------
         all_valid = reduce(and_, [s.valid for s in self.sinks])
-        all_ready = reduce(and_, [m.sink.ready for m in self.mains] + [f.sink.ready for f in self.fasts])
+        all_ready = reduce(and_,
+                           [m.sink.ready for m in self.mains] + [f.sink.ready for f in self.fasts])
         go        = Signal()
         self.comb += go.eq(all_valid & all_ready)
         for k in range(n_channels):

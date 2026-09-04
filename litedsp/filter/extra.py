@@ -135,7 +135,8 @@ class LiteDSPCombFilter(LiteXModule):
             old = Signal((data_width, True))     # x[n-D].
             # Circular delay line: the async read at ptr returns x[n-D] just before the
             # same-address write replaces it.
-            self.comb += [rp.adr.eq(ptr), wp.adr.eq(ptr), old.eq(rp.dat_r), wp.dat_w.eq(x), wp.we.eq(xfer)]
+            self.comb += [rp.adr.eq(ptr), wp.adr.eq(ptr), old.eq(rp.dat_r), wp.dat_w.eq(x),
+                          wp.we.eq(xfer)]
             self.sync += If(xfer, If(ptr == (depth - 1), ptr.eq(0)).Else(ptr.eq(ptr + 1)))
             self.sync += If(adv, getattr(self.source, f).eq(saturated(x - old, data_width)))
 

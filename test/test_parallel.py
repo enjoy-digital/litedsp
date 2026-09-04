@@ -115,7 +115,8 @@ class TestParallelMixer(unittest.TestCase):
             return [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
                      "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}
                     for k in range(0, len(x), n_samples)]
-        dut = LiteDSPParallelMixer(n_samples=n_samples, data_width=16, with_csr=False)  # mode=0: down.
+        # mode=0: down.
+        dut = LiteDSPParallelMixer(n_samples=n_samples, data_width=16, with_csr=False)
         cap = []
         run_simulation(dut, [
             stream_driver(dut.sink_a, beats(a), ("i", "q"), throttle=0.2),
@@ -184,7 +185,8 @@ class TestParallelCIC(unittest.TestCase):
             prng = random.Random(4)
             x    = [(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
                     for _ in range(n_samples*n_beats)]
-            dut  = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=16, decimation=R, n_stages=N,
+            dut  = LiteDSPParallelCICDecimator(n_samples=n_samples, data_width=16, decimation=R,
+                                               n_stages=N,
                 with_csr=False)
             beats = [{"i": pack_lanes([s[0] for s in x[k:k + n_samples]]),
                       "q": pack_lanes([s[1] for s in x[k:k + n_samples]])}

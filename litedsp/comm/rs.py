@@ -43,7 +43,8 @@ from litedsp.common import check
 
 # GF(2^8) Helpers ----------------------------------------------------------------------------------
 
-GF_POLY = 0x11D  # x^8 + x^4 + x^3 + x^2 + 1, primitive, alpha = 2 (conventional basis; see module doc).
+# x^8 + x^4 + x^3 + x^2 + 1, primitive, alpha = 2 (conventional basis; see module doc).
+GF_POLY = 0x11D
 FCR     = 0      # First consecutive root: g(x) roots at alpha^0 .. alpha^(2t-1).
 PRIM    = 1      # Consecutive-root exponent step.
 
@@ -468,7 +469,7 @@ class LiteDSPRSDecoder(LiteXModule):
         pos      = Signal(max=n)                       # Chien position i (X = alpha^i).
         roots    = Signal(max=t + 1)                   # Located errors this block.
         rr       = Signal(max=t + 1)                   # Apply index.
-        anomaly  = Signal()                            # Zero odd part at a root: force uncorrectable.
+        anomaly  = Signal()                          # Zero odd part at a root: force uncorrectable.
         root_idx = Array(Signal(8) for _ in range(t))  # Buffer index of each located error.
         root_mag = Array(Signal(8) for _ in range(t))  # Forney magnitude of each located error.
         chien_odd = Signal(8)
@@ -623,7 +624,8 @@ class LiteDSPRSDecoder(LiteXModule):
                         NextValue(L, r_i + 1 - L),
                         NextValue(m, 1),
                     ).Else(NextValue(m, m + 1)),
-                    If(bm_last, NextState("BM_DONE")).Else(NextValue(r_i, r_i + 1), NextState("BM_DISC")),
+                    If(bm_last, NextState("BM_DONE")).Else(
+                        NextValue(r_i, r_i + 1), NextState("BM_DISC")),
                 ).Else(NextValue(j, j - 1)),
             )
         else:
@@ -644,7 +646,8 @@ class LiteDSPRSDecoder(LiteXModule):
                     NextValue(L, r_i + 1 - L),
                     NextValue(m, 1),
                 ).Else(NextValue(m, m + 1)),
-                If(bm_last, NextState("BM_DONE")).Else(NextValue(r_i, r_i + 1), NextState("BM_DISC")),
+                If(bm_last, NextState("BM_DONE")).Else(
+                    NextValue(r_i, r_i + 1), NextState("BM_DISC")),
             )
         fsm.act("BM_DONE",  # Locator degree beyond t: uncorrectable, skip Chien.
             NextValue(j, 0), NextValue(l_i, 0), NextValue(acc, 0),
@@ -675,7 +678,8 @@ class LiteDSPRSDecoder(LiteXModule):
                 NextValue(acc, 0),
                 NextValue(l_i, 0),
                 NextValue(omg_valid, 0),
-                If(j == (t - 1), NextState("CHIEN_INIT")).Else(NextValue(j, j + 1), NextState("OMEGA")),
+                If(j == (t - 1), NextState("CHIEN_INIT")).Else(
+                    NextValue(j, j + 1), NextState("OMEGA")),
             )
         fsm.act("CHIEN_INIT",  # Load the term registers for position i = 0 (X = alpha^0).
             *[NextValue(q[i], lam[i]) for i in range(t + 1)],
@@ -799,9 +803,11 @@ class LiteDSPRSDecoder(LiteXModule):
             CSRField("corrected",     size=8, description="Symbols corrected in the last decoded block."),
             CSRField("uncorrectable", size=1, description="Sticky: a block exceeded the correction capability since clear."),
         ])
-        self._corrected_total     = CSRStatus(32, description="Cumulative corrected symbols since clear.")
+        self._corrected_total     = CSRStatus(32, description="Cumulative corrected symbols since "
+                                                              "clear.")
         self._uncorrectable_count = CSRStatus(16, description="Uncorrectable blocks since clear.")
-        self._clear               = CSRStorage(1, description="Clear the sticky flag and the cumulative counters (write to clear).")
+        self._clear               = CSRStorage(
+            1, description="Clear the sticky flag and the cumulative counters (write to clear).")
         self.comb += [
             self._config.fields.n.eq(self.n),
             self._config.fields.k.eq(self.k),

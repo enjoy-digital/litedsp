@@ -95,7 +95,8 @@ class FOCDrive(LiteXModule):
             self.comb += self.enc.source.connect(self.foc.sink_angle)
         elif sensor == "sensorless":
             self.smo     = LiteDSPSMObserver(data_width=16, angle_width=16, with_csr=False)
-            self.tracker = LiteDSPAngleTracker(angle_width=16, kp_shift=3, ki_shift=8, with_csr=False)
+            self.tracker = LiteDSPAngleTracker(angle_width=16, kp_shift=3, ki_shift=8,
+                                               with_csr=False)
             self.ramp    = LiteDSPAngleRamp(angle_width=16, with_csr=False)
             self.mux     = LiteDSPChannelMux(n=2, layout=angle_layout(16), with_csr=False)
             self.smo.g_v.reset  = int(round(WB_TS/L_PU*ONE))
@@ -251,7 +252,8 @@ def simulate(sensor, n_periods, log):
             yield foc.sink_angle.valid.eq(0)
             # Estimated angle as seen by the FOC (for the error plots).
             est = (yield foc.sink_angle.angle) if sensor == "ideal" else \
-                  ((yield top.enc.source.angle) if sensor == "encoder" else (yield top.mux.source.angle))
+                  ((yield top.enc.source.angle) if sensor == "encoder"
+                    else (yield top.mux.source.angle))
             est = est - TURN if est >= TURN//2 else est
             log["i_d"].append(plant.i_d); log["i_q"].append(plant.i_q); log["w"].append(plant.w)
             log["iq_ref"].append(state["iq_ref"]); log["w_ref"].append(state["w_ref"])
@@ -265,7 +267,8 @@ def simulate(sensor, n_periods, log):
     run_simulation(top, gens)
 
 def angle_error_deg(log, start):
-    err = (np.array(log["est"][start:]) - np.array(log["theta"][start:]) + np.pi) % (2*np.pi) - np.pi
+    err = (np.array(log["est"][start:]) - np.array(log["theta"][start:])
+                                                                + np.pi) % (2*np.pi) - np.pi
     return np.degrees(err)
 
 # Plots --------------------------------------------------------------------------------------------
@@ -341,8 +344,10 @@ def main():
     # The current loop: the first i_q step of the ideal variant.
     iq, ref = np.array(logs["ideal"]["i_q"]), np.array(logs["ideal"]["iq_ref"])
     assert iq.max() < 1.1*ref.max() + 0.02, "i_q overshoot > 10 %"
-    print("  PASS: speed settles within 2 % for ideal / encoder / sensorless sensing, |i_d| < 0.08 pu"
-          " (0.15 sensorless) once settled, encoder angle RMS < 3 deg, sensorless angle RMS < 10 deg")
+    print("  PASS: speed settles within 2 % for ideal / encoder / sensorless sensing, |i_d| < 0.08 "
+          "pu"
+          " (0.15 sensorless) once settled, encoder angle RMS < 3 deg, sensorless angle RMS < 10 "
+          "deg")
     save_plots(args.plot_dir, logs)
 
 if __name__ == "__main__":

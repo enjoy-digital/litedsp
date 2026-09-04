@@ -32,7 +32,8 @@ def _growth_bits(R, N, M):
     return int(math.ceil(N*math.log2(R*M)))
 
 def cic_shift(R, N, M=1):
-    """Output rescale shift for a CIC of rate ``R`` (N stages, comb delay M): ``ceil(N*log2(R*M))``."""
+    """Output rescale shift for a CIC of rate ``R`` (N stages, comb delay M):
+    ``ceil(N*log2(R*M))``."""
     return int(math.ceil(N*math.log2(R*M)))
 
 
@@ -209,7 +210,8 @@ class LiteDSPCICDecimator(LiteXModule):
     def __init__(self, data_width=16, decimation=8, n_stages=3, diff_delay=1,
                  with_csr=True, staged=False):
         R, N, M = decimation, n_stages, diff_delay  # Literature names.
-        check(R >= 2 and N >= 1 and M >= 1, "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
+        check(R >= 2 and N >= 1 and M >= 1,
+              "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
         check(isinstance(staged, bool), "expected staged to be a bool")
         growth = _growth_bits(R, N, M)  # Hogenauer register growth.
         W      = data_width + growth    # Full internal width (wrap-around arithmetic).
@@ -274,7 +276,8 @@ class LiteDSPCICDecimator(LiteXModule):
                 combq[k][m].eq(combq[k][m - 1]) for k in range(N) for m in range(1, M)
             ])
 
-            out, _ = scaled(c, growth, data_width)  # Remove the 2**growth CIC gain (round + saturate).
+            # Remove the 2**growth CIC gain (round + saturate).
+            out, _ = scaled(c, growth, data_width)
             self.sync += [
                 If(xfer & is_out,
                     getattr(self.source, field).eq(out),
@@ -311,7 +314,8 @@ class LiteDSPCICDecimator(LiteXModule):
 class LiteDSPCICDecimatorRuntime(LiteXModule):
     """CIC decimator with a runtime-settable rate (datapath sized for ``r_max``).
 
-    Unlike :class:`LiteDSPCICDecimator` (whose R/N/M are build-time so the output rescale is exact), this
+    Unlike :class:`LiteDSPCICDecimator` (whose R/N/M are build-time
+    so the output rescale is exact), this
     variant exposes ``rate`` and ``shift`` as runtime controls so the decimation ratio can change
     without a rebuild. Size the integrator/comb datapath for the maximum ratio ``r_max``; the host
     sets ``rate`` and the matching ``shift = cic_shift(rate, N, M)`` together so the processing gain
@@ -336,7 +340,8 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
     def __init__(self, data_width=16, r_max=8192, n_stages=4, diff_delay=1, iq=True,
         with_csr=True, staged=False, in_width=None):
         N, M = n_stages, diff_delay  # Literature names.
-        check(r_max >= 2 and N >= 1 and M >= 1, "expected r_max >= 2, n_stages >= 1, diff_delay >= 1")
+        check(r_max >= 2 and N >= 1 and M >= 1,
+              "expected r_max >= 2, n_stages >= 1, diff_delay >= 1")
         if in_width is None:
             in_width = data_width
         check(in_width >= 1, "expected in_width >= 1")
@@ -354,8 +359,9 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
         self.sink   = stream.Endpoint(iq_layout(in_width)   if iq else real_layout(in_width))
         self.source = stream.Endpoint(iq_layout(data_width) if iq else real_layout(data_width))
 
-        self.rate  = Signal(bits_for(r_max), reset=8)                    # Decimation factor R (runtime).
-        self.shift = Signal(bits_for(growth), reset=cic_shift(8, N, M))  # Rescale shift; keep = cic_shift(rate, N, M).
+        self.rate  = Signal(bits_for(r_max), reset=8)               # Decimation factor R (runtime).
+        # Rescale shift; keep = cic_shift(rate, N, M).
+        self.shift = Signal(bits_for(growth), reset=cic_shift(8, N, M))
 
         # Decimation-window strobes (e.g. to drive a coherent side-channel accumulator).
         self.sample_ce = Signal()   # An input sample is consumed this beat.
@@ -416,7 +422,8 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
             # Runtime rescale: round-half-up shift, then saturate to the output width.
             shifted = Signal((W, True))
             self.comb += shifted.eq((c + bias) >> self.shift)
-            self.sync += If(xfer & is_out, getattr(self.source, field).eq(saturated(shifted, data_width)))
+            self.sync += If(xfer & is_out,
+                            getattr(self.source, field).eq(saturated(shifted, data_width)))
 
         # Output.
         # -------
@@ -518,7 +525,8 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
             self.sync += [
                 If(phase == P_BIAS,  summed.eq(cur + bias)),
                 If(phase == P_SHIFT, shifted.eq(summed >> self.shift)),
-                If(phase == P_OUT,   getattr(self.source, field).eq(saturated(shifted, self.data_width))),
+                If(phase == P_OUT,
+                   getattr(self.source, field).eq(saturated(shifted, self.data_width))),
             ]
 
         self.sync += [
@@ -556,10 +564,12 @@ class LiteDSPCICInterpolator(LiteXModule):
     def __init__(self, data_width=16, interpolation=8, n_stages=3, diff_delay=1,
                  with_csr=True, staged=False):
         R, N, M = interpolation, n_stages, diff_delay  # Literature names.
-        check(R >= 2 and N >= 1 and M >= 1, "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
+        check(R >= 2 and N >= 1 and M >= 1,
+              "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
         check(isinstance(staged, bool), "expected staged to be a bool")
-        growth = int(math.ceil(N*math.log2(R*M) - math.log2(R)))  # Net gain (R*M)**N / R (zero-stuff loss).
-        W      = data_width + _growth_bits(R, N, M)               # Registers still need full Hogenauer growth.
+        # Net gain (R*M)**N / R (zero-stuff loss).
+        growth = int(math.ceil(N*math.log2(R*M) - math.log2(R)))
+        W      = data_width + _growth_bits(R, N, M)    # Registers still need full Hogenauer growth.
         self.data_width = data_width
         self.interpolation, self.n_stages, self.diff_delay = R, N, M
         self.staged = staged
@@ -629,7 +639,8 @@ class LiteDSPCICInterpolator(LiteXModule):
                 prev = nk
             self.sync += If(emit, *[integ[k].eq(nxt[k]) for k in range(N)])
 
-            out, _ = scaled(nxt[N - 1], growth, data_width)  # Remove the net CIC gain (round + saturate).
+            # Remove the net CIC gain (round + saturate).
+            out, _ = scaled(nxt[N - 1], growth, data_width)
             self.sync += If(emit, getattr(self.source, field).eq(out))
 
         # Output.

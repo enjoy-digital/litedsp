@@ -38,7 +38,8 @@ class LiteDSPLineBuffer(LiteXModule):
     (framing re-synchronises on ``first``). ``latency = P * (width + P) + P + 3`` at the build
     width.
     """
-    def __init__(self, data_width=8, n_channels=1, kernel_size=3, width=640, max_width=None, border="replicate",
+    def __init__(self, data_width=8, n_channels=1, kernel_size=3, width=640, max_width=None,
+                 border="replicate",
         with_csr=True):
         check(kernel_size in (3, 5, 7), "expected kernel_size in (3, 5, 7)")
         check(border in BORDERS, f"expected border in {BORDERS}")
@@ -89,8 +90,9 @@ class LiteDSPLineBuffer(LiteXModule):
             If(adv,
                 If(vcol == P - 1,
                     If(vrow != 0,
-                        If(vrow == P, NextValue(vrow, 0), NextState("RUN")).Else(NextValue(vrow, vrow + 1), NextValue(vcol, 0), NextState("VROW")),
-                    ).Elif(y == H - 1,                                  # Just after the frame's last line.
+                        If(vrow == P, NextValue(vrow, 0), NextState("RUN")).Else(
+                            NextValue(vrow, vrow + 1), NextValue(vcol, 0), NextState("VROW")),
+                    ).Elif(y == H - 1,                           # Just after the frame's last line.
                         NextValue(vrow, 1), NextValue(vcol, 0), NextState("VROW"),
                     ).Else(
                         NextState("RUN"),
@@ -100,7 +102,7 @@ class LiteDSPLineBuffer(LiteXModule):
                 ),
             ),
         )
-        fsm.act("VROW",                                                 # A virtual line (W beats then P).
+        fsm.act("VROW",                                           # A virtual line (W beats then P).
             beat.eq(adv),
             If(adv & (c == W - 1),
                 NextValue(vcol, 0),
@@ -156,15 +158,18 @@ class LiteDSPLineBuffer(LiteXModule):
         realcol1 = Signal()                                             # A real column (< W).
         self.sync += If(adv,
             v1.eq(beat), real1.eq(real & self.sink.valid), first1.eq(in_first & self.sink.valid),
-            eol1.eq(real & self.sink.valid & self.sink.eol), last1.eq(real & self.sink.valid & self.sink.last),
-            c1.eq(c0), y1.eq(Mux(in_first, 0, y)), x1.eq(Cat(*[getattr(self.sink, f) for f in fields])),
+            eol1.eq(real & self.sink.valid & self.sink.eol),
+            last1.eq(real & self.sink.valid & self.sink.last),
+            c1.eq(c0), y1.eq(Mux(in_first, 0, y)),
+            x1.eq(Cat(*[getattr(self.sink, f) for f in fields])),
             # Real pixels and the virtual lines' columns (< W) shift through the RAMs so the row
             # alignment holds over the P virtual lines; the virtual columns after eol do not.
             realcol1.eq(real | fsm.ongoing("VROW")),
         )
         wr_addr = Signal(bits_for(max_width - 1))
         self.comb += wr_addr.eq(c1[:len(wr_addr)])
-        col_vec = [Signal(PW, name=f"colvec{i}") for i in range(K)]     # Top (oldest) .. bottom (input).
+        # Top (oldest) .. bottom (input).
+        col_vec = [Signal(PW, name=f"colvec{i}") for i in range(K)]
         for i in range(K - 1):
             self.comb += col_vec[i].eq(rps[K - 2 - i].dat_r)
         self.comb += col_vec[K - 1].eq(x1)
@@ -173,7 +178,8 @@ class LiteDSPLineBuffer(LiteXModule):
         for k in range(K - 1):
             src = x1 if k == 0 else rps[k - 1].dat_r
             self.comb += [wps[k].adr.eq(wr_addr), wps[k].dat_w.eq(src), wps[k].we.eq(we)]
-        win = [[Signal(PW, name=f"win{i}{j}") for j in range(K)] for i in range(K)]   # j = K-1 newest.
+        # j = K-1 newest.
+        win = [[Signal(PW, name=f"win{i}{j}") for j in range(K)] for i in range(K)]
         self.sync += If(adv & v1,
             *[win[i][K - 1].eq(col_vec[i]) for i in range(K)],
             *[win[i][j].eq(win[i][j + 1]) for i in range(K) for j in range(K - 1)],
@@ -182,19 +188,21 @@ class LiteDSPLineBuffer(LiteXModule):
         v2 = Signal()
         yo, xo = Signal((CB + 1, True)), Signal((CB + 1, True))
         yo_r, xo_r = Signal((CB + 1, True)), Signal((CB + 1, True))
-        fd_r = Signal()                                                 # frame_done seen by this beat
+        fd_r = Signal()                                               # frame_done seen by this beat
         self.comb += [yo.eq(y1 - P), xo.eq(c1 - P)]                     # (the next frame's 'first'
-        self.sync += If(adv, v2.eq(v1), yo_r.eq(yo), xo_r.eq(xo), fd_r.eq(frame_done))   # clears it early).
+        # clears it early).
+        self.sync += If(adv, v2.eq(v1), yo_r.eq(yo), xo_r.eq(xo), fd_r.eq(frame_done))
 
         # S2: border muxes and the output register.
         # -----------------------------------------
-        def sel(coord, size, size_valid, i):                            # Window index for row/col i.
+        def sel(coord, size, size_valid, i):                           # Window index for row/col i.
             target = Signal((CB + 2, True))
             zero   = Signal()
             pos    = Signal((CB + 2, True))
             beyond = Signal()
             sz     = Signal((CB + 2, True))
-            self.comb += [pos.eq(coord + (i - P)), sz.eq(size), beyond.eq(size_valid & (pos > sz - 1))]
+            self.comb += [pos.eq(coord + (i - P)), sz.eq(size),
+                          beyond.eq(size_valid & (pos > sz - 1))]
             if border == "replicate":
                 self.comb += target.eq(Mux(pos < 0, 0, Mux(beyond, sz - 1, pos)))
             elif border == "mirror":
@@ -218,7 +226,8 @@ class LiteDSPLineBuffer(LiteXModule):
             self.source.eol.eq(xo_r == W - 1),
             self.source.last.eq((xo_r == W - 1) & (yo_r == H - 1)),
             *[getattr(self.source, f"w{i}{j}").eq(
-                Mux(rowsel[i][1] | colsel[j][1], 0, Array([Array(win[r])[colsel[j][0]] for r in range(K)])[rowsel[i][0]]))
+                Mux(rowsel[i][1] | colsel[j][1], 0,
+                    Array([Array(win[r])[colsel[j][0]] for r in range(K)])[rowsel[i][0]]))
               for i in range(K) for j in range(K)],
         )
 

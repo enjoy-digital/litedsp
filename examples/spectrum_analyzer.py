@@ -83,7 +83,8 @@ def main():
     print(f"Spectrum analyzer: N={N}, {1 << avg_log2} averages")
     print(f"  noise floor ~ {floor_db:6.1f} dBFS")
     for b in tones:
-        print(f"    tone bin {b:3d}: {spec_db[b]:6.1f} dBFS  ({spec_db[b]-floor_db:5.1f} dB above floor)")
+        print(f"    tone bin {b:3d}: {spec_db[b]:6.1f} dBFS  ({spec_db[b]-floor_db:5.1f} dB above "
+              f"floor)")
 
 if __name__ == "__main__":
     main()

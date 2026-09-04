@@ -46,12 +46,13 @@ class TestBCHModels(unittest.TestCase):
                         for p in prng.sample(range(n), e):
                             r[p] ^= 1
                         dec, fl = bch_decode_model(r, m, t)
-                        self.assertEqual(dec.tolist(), w[:k]); self.assertEqual(fl[0], (1, 0) if e else (0, 0))
+                        self.assertEqual(dec.tolist(), w[:k]); self.assertEqual(fl[0], (1, 0) if e
+                            else (0, 0))
                     r = list(w)
                     for p in prng.sample(range(n), t + 1):
                         r[p] ^= 1
                     dec, fl = bch_decode_model(r, m, t)
-                    if fl[0] == (1, 0):                                 # Mis-correction lands on a codeword.
+                    if fl[0] == (1, 0):                        # Mis-correction lands on a codeword.
                         recw, _, _ = bch_encode_model(dec.tolist(), m, t)
                         self.assertNotEqual(recw.tolist(), w)
         g, n, k = bch_generator(4, 2)
@@ -76,7 +77,8 @@ class TestBCHRTL(unittest.TestCase):
                 g, n, k = bch_generator(m, t)
                 bits = [prng.randint(0, 1) for _ in range(blocks*k)]
                 enc = LiteDSPBCHEncoder(m=m, t=t, with_csr=False)
-                cap = run_stream(enc, [{"data": b} for b in bits], blocks*n, ["data"], ["data", "first", "last"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(enc, [{"data": b} for b in bits], blocks*n, ["data"], ["data",
+                    "first", "last"], sink_throttle=0.2, source_ready_rate=0.7)
                 cw, first, last = bch_encode_model(bits, m, t)
                 self.assertEqual(column(cap, "data").tolist(), cw.tolist())
                 self.assertEqual(column(cap, "first").tolist(), first.tolist())
@@ -87,11 +89,13 @@ class TestBCHRTL(unittest.TestCase):
                     for p in prng.sample(range(n), e):
                         rx[b*n + p] ^= 1
                 dec = LiteDSPBCHDecoder(m=m, t=t, with_csr=False)
-                cap = run_stream(dec, [{"data": b} for b in rx], blocks*k, ["data"], ["data", "first", "last"], sink_throttle=0.2, source_ready_rate=0.7,
+                cap = run_stream(dec, [{"data": b} for b in rx], blocks*k, ["data"], ["data",
+                    "first", "last"], sink_throttle=0.2, source_ready_rate=0.7,
                     extra=[self._status(dec, 40000)])
                 ref, flags = bch_decode_model(rx, m, t)
                 self.assertEqual(column(cap, "data").tolist(), ref.tolist())
-                self.assertEqual(column(cap, "first").tolist(), [int(i % k == 0) for i in range(blocks*k)])
+                self.assertEqual(column(cap, "first").tolist(),
+                                 [int(i % k == 0) for i in range(blocks*k)])
                 self.assertEqual(self.corrected_total, sum(f[0] for f in flags))
                 self.assertEqual(self.uncorrectable_count, sum(f[1] for f in flags))
                 self.assertEqual(self.blocks, blocks)

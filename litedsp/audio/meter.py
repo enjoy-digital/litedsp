@@ -15,7 +15,8 @@ from migen import *
 from litex.gen import *
 
 from litex.soc.interconnect.csr              import *
-from litex.soc.interconnect.csr_eventmanager import EventManager, EventSourceProcess, EventSourcePulse
+from litex.soc.interconnect.csr_eventmanager import (EventManager, EventSourceProcess,
+                                                     EventSourcePulse)
 from litex.soc.interconnect                  import stream
 
 from litedsp.common        import check, tdm_layout, tdm_channel
@@ -52,7 +53,8 @@ class LiteDSPPeakMeter(LiteXModule):
         check(1 <= decay_shift <= 15, "expected 1 <= decay_shift <= 15")
         if clip_threshold is None:
             clip_threshold = (1 << (data_width - 1)) - 1
-        check(1 <= clip_threshold <= (1 << (data_width - 1)), "expected 1 <= clip_threshold <= 2**(data_width - 1)")
+        check(1 <= clip_threshold <= (1 << (data_width - 1)),
+              "expected 1 <= clip_threshold <= 2**(data_width - 1)")
         self.data_width  = data_width
         self.n_channels  = n_channels
         self.latency     = 0
@@ -66,7 +68,8 @@ class LiteDSPPeakMeter(LiteXModule):
         self.clip_count = [Signal(16, name=f"clip_count{c}") for c in range(n_channels)]
         self.clip       = Signal(n_channels)
         self.log2       = LiteDSPLog2(in_width=data_width, frac_bits=8, lut=True, with_csr=False)
-        self.peak_log2  = [Signal(self.log2.out_width, name=f"peak_log2{c}") for c in range(n_channels)]
+        self.peak_log2  = [Signal(self.log2.out_width, name=f"peak_log2{c}")
+                                  for c in range(n_channels)]
 
         # # #
 
@@ -88,18 +91,21 @@ class LiteDSPPeakMeter(LiteXModule):
             fall = Signal(data_width)                                      # max(peak >> shift, 1).
             dec  = Signal(data_width)                                      # Decayed peak (>= 0).
             self.comb += [
-                fall.eq(Mux((self.peak[c] >> self.decay_shift) == 0, 1, self.peak[c] >> self.decay_shift)),
+                fall.eq(Mux((self.peak[c] >> self.decay_shift) == 0, 1,
+                            self.peak[c] >> self.decay_shift)),
                 dec.eq(Mux(self.peak[c] > fall, self.peak[c] - fall, 0)),
             ]
             self.sync += [
                 If(self.clear,
-                    self.peak[c].eq(0), self.hold[c].eq(0), self.clip_count[c].eq(0), self.clip[c].eq(0),
+                    self.peak[c].eq(0), self.hold[c].eq(0), self.clip_count[c].eq(0),
+                    self.clip[c].eq(0),
                 ).Elif(xfer & (ch == c),
                     self.peak[c].eq(Mux(mag > dec, mag, dec)),
                     If(mag > self.hold[c], self.hold[c].eq(mag)),
                     If(mag >= self.clip_threshold,
                         self.clip[c].eq(1),
-                        If(self.clip_count[c] != 0xffff, self.clip_count[c].eq(self.clip_count[c] + 1)),
+                        If(self.clip_count[c] != 0xffff,
+                           self.clip_count[c].eq(self.clip_count[c] + 1)),
                     ),
                 ),
             ]
@@ -119,7 +125,8 @@ class LiteDSPPeakMeter(LiteXModule):
             *[tags[k].eq(tags[k - 1]) for k in range(1, len(tags))],
         )
         for c in range(n_channels):
-            self.sync += If(self.log2.source.valid & (tags[-1] == c), self.peak_log2[c].eq(self.log2.source.data))
+            self.sync += If(self.log2.source.valid & (tags[-1] == c),
+                            self.peak_log2[c].eq(self.log2.source.data))
 
         # CSR / IRQ.
         # ----------
@@ -130,7 +137,8 @@ class LiteDSPPeakMeter(LiteXModule):
 
     def add_irq(self):
         self.ev      = EventManager()
-        self.ev.clip = EventSourceProcess(edge="rising", description="A channel clipped (sticky flag set).")
+        self.ev.clip = EventSourceProcess(edge="rising",
+                                          description="A channel clipped (sticky flag set).")
         self.ev.finalize()
         self.comb += self.ev.clip.trigger.eq(self.clip != 0)
 
@@ -142,7 +150,8 @@ class LiteDSPPeakMeter(LiteXModule):
             description="Peak fall-back rate: 2**decay_shift beats per e-fold.")
         self._clip_threshold = CSRStorage(self.data_width, reset=self.clip_threshold.reset.value,
             name="clip_threshold", description="Magnitude counted as a clip.")
-        self._clip = CSRStatus(self.n_channels, name="clip", description="Sticky per-channel clip flags.")
+        self._clip = CSRStatus(self.n_channels, name="clip",
+                               description="Sticky per-channel clip flags.")
         self.comb += [
             self.clear.eq(self._control.fields.clear),
             self.decay_shift.eq(self._decay_shift.storage),
@@ -224,7 +233,8 @@ class LiteDSPLoudness(LiteXModule):
         ]
         if n_channels > 1:
             self.comb += self.eq.sink.channel.eq(self.sink.channel)
-        self.sync += If(self.clear, self.overrun.eq(0)).Elif(xfer & ~self.eq.sink.ready, self.overrun.eq(1))
+        self.sync += If(self.clear, self.overrun.eq(0)).Elif(
+            xfer & ~self.eq.sink.ready, self.overrun.eq(1))
 
         # Square, weight, accumulate per hop.
         # -----------------------------------
@@ -277,7 +287,9 @@ class LiteDSPLoudness(LiteXModule):
         self._status = CSRStatus(fields=[
             CSRField("overrun", size=1, offset=0, description="Sticky: a beat was dropped by the busy K-weighting engine."),
         ])
-        self._sum_sq    = CSRStatus(len(self.sum_sq), name="sum_sq", description="Weighted K-weighted sum of squares of the last hop.")
+        self._sum_sq    = CSRStatus(len(self.sum_sq), name="sum_sq",
+                                    description="Weighted K-weighted sum of squares of the last "
+                                                "hop.")
         self._hop_count = CSRStatus(32, name="hop_count", description="Hops latched since clear.")
         self._config = CSRStatus(fields=[
             CSRField("n_channels",  size=4,  offset=0,  description="Channels."),

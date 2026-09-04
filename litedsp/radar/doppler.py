@@ -39,7 +39,8 @@ class LiteDSPDopplerProcessor(LiteXModule):
     """
     def __init__(self, n_pulses=16, data_width=16, window="hann", magnitude="approx",
         twiddle_width=16, beta_shift=2, with_csr=True):
-        check(n_pulses >= 2 and (n_pulses & (n_pulses - 1)) == 0, "expected n_pulses a power of two >= 2")
+        check(n_pulses >= 2 and (n_pulses & (n_pulses - 1)) == 0,
+              "expected n_pulses a power of two >= 2")
         check(window in WINDOWS, f"expected window in {WINDOWS}")
         check(magnitude in MAGNITUDES, f"expected magnitude in {MAGNITUDES}")
         self.n_pulses   = n_pulses
@@ -80,12 +81,15 @@ class LiteDSPDopplerProcessor(LiteXModule):
         if window == "rect":
             self.comb += self.sink.connect(self.fft.sink)
         else:
-            self.window = LiteDSPWindow(n_pulses, data_width=data_width, window=window, with_csr=False)
-            self.comb += [self.sink.connect(self.window.sink), self.window.source.connect(self.fft.sink)]
+            self.window = LiteDSPWindow(n_pulses, data_width=data_width, window=window,
+                                        with_csr=False)
+            self.comb += [self.sink.connect(self.window.sink),
+                          self.window.source.connect(self.fft.sink)]
         self.reorder = LiteDSPBitReverse(N=n_pulses, layout=real_layout(self.out_width),
             fft_latency=self.fft.latency, with_csr=False)
         if magnitude == "approx":
-            self.mag = LiteDSPMagnitude(data_width=data_width, beta_shift=beta_shift, method="approx",
+            self.mag = LiteDSPMagnitude(data_width=data_width, beta_shift=beta_shift,
+                                        method="approx",
                 with_csr=False)
             self.comb += [
                 self.fft.source.connect(self.mag.sink, omit={"first", "last"}),

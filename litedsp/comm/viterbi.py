@@ -6,7 +6,8 @@
 
 """Hard- and soft-decision Viterbi decoder for the rate-1/n convolutional encoder.
 
-Decodes the output of :class:`~litedsp.comm.coding.LiteDSPConvEncoder` (same ``constraint``/``polys``
+Decodes the output of
+:class:`~litedsp.comm.coding.LiteDSPConvEncoder` (same ``constraint``/``polys``
 conventions: symbol bit ``k`` is the parity for ``polys[k]``). Fully-parallel add-compare-select
 over the ``2**(K-1)`` states with register-exchange survivor paths of depth ``traceback``
 (default ``8*K``, well past the ~5K convergence rule of thumb), path metrics normalized by the

@@ -20,7 +20,8 @@ FS = (1 << 15) - 1
 
 def rotating(n, m, turns=3):
     theta = 2*np.pi*np.arange(n)*turns/n
-    return (np.round(m*FS*np.cos(theta)).astype(np.int64), np.round(m*FS*np.sin(theta)).astype(np.int64))
+    return (np.round(m*FS*np.cos(theta)).astype(np.int64),
+            np.round(m*FS*np.sin(theta)).astype(np.int64))
 
 class TestSVPWM(unittest.TestCase):
     def run_svpwm(self, alpha, beta, injection="minmax", throttle=0.2, ready_rate=0.7, extra=None):

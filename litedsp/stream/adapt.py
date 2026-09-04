@@ -6,11 +6,13 @@
 
 """Clock-domain crossing and width adaptation for I/Q streams (thin wrappers over LiteX).
 
-``LiteDSPIQPack`` / ``LiteDSPIQUnpack`` bridge the per-sample I/Q layout to a wide flat bus word (e.g. four
+``LiteDSPIQPack`` / ``LiteDSPIQUnpack`` bridge the per-sample I/Q
+layout to a wide flat bus word (e.g. four
 16-bit I/Q samples in one 128-bit AXI-Stream ``tdata``), which is how a DSP chain meets a wide
 DMA/AXI interface. They are exact inverses, so ``LiteDSPIQUnpack(LiteDSPIQPack(x)) == x``.
 
-``LiteDSPIQSerialToParallel`` / ``LiteDSPIQParallelToSerial`` bridge the per-sample layout to the multi-
+``LiteDSPIQSerialToParallel`` / ``LiteDSPIQParallelToSerial``
+bridge the per-sample layout to the multi-
 sample-per-cycle layout (``iq_layout(data_width, n_samples)``) used by the parallel datapath
 blocks, gathering/spreading ``n_samples`` consecutive samples per beat (lane 0 = first sample).
 """
@@ -166,7 +168,8 @@ class LiteDSPIQParallelToSerial(LiteXModule):
         self.conv = conv = stream.Converter(sw*n_samples, sw)
         word = Signal(sw*n_samples)
         for k, (i, q) in enumerate(iq_lanes(self.sink, data_width, n_samples)):
-            self.comb += word[k*sw:(k + 1)*sw].eq(Cat(i, q))  # Lane k -> word slice k (lane 0 first out).
+            # Lane k -> word slice k (lane 0 first out).
+            self.comb += word[k*sw:(k + 1)*sw].eq(Cat(i, q))
 
         # Datapath.
         # ---------

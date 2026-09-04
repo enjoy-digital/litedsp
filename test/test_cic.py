@@ -11,7 +11,8 @@ import numpy as np
 
 from migen import passive
 
-from litedsp.filter.cic import LiteDSPCICDecimator, LiteDSPCICInterpolator, LiteDSPCICDecimatorRuntime, cic_shift
+from litedsp.filter.cic import (LiteDSPCICDecimator, LiteDSPCICInterpolator,
+                                LiteDSPCICDecimatorRuntime, cic_shift)
 
 from test.common import run_stream, column
 from test.models import cic_decimator_model, cic_interpolator_model

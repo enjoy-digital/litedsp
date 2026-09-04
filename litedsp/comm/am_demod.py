@@ -35,9 +35,9 @@ class LiteDSPAMDemod(LiteXModule):
         # Magnitude.
         # ----------
         self.mag     = LiteDSPMagnitude(data_width=data_width, with_csr=False)
-        W            = self.mag.out_width + 1               # +1 growth bit for the x - x_prev difference.
+        W            = self.mag.out_width + 1         # +1 growth bit for the x - x_prev difference.
         self.source  = stream.Endpoint(real_layout(W))
-        self.latency = self.mag.latency + 1                 # Magnitude latency + DC-blocker register.
+        self.latency = self.mag.latency + 1               # Magnitude latency + DC-blocker register.
         self.comb += self.sink.connect(self.mag.sink)
 
         # Handshake.

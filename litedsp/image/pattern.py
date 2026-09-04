@@ -15,7 +15,8 @@ from litex.soc.interconnect     import stream
 
 from litedsp.common import check, pixel_layout, pixel_fields
 
-PATTERN_CONST, PATTERN_RAMP, PATTERN_BARS, PATTERN_CHECKER, PATTERN_COUNTER, PATTERN_BAYER = range(6)
+PATTERN_CONST, PATTERN_RAMP, PATTERN_BARS, PATTERN_CHECKER, PATTERN_COUNTER, PATTERN_BAYER = range(
+    6)
 PATTERNS = ("const", "ramp", "bars", "checker", "counter", "bayer")
 # LiteX colour-bar order: white, yellow, cyan, green, magenta, red, blue, black (r, g, b on/off).
 BARS = [(1, 1, 1), (1, 1, 0), (0, 1, 1), (0, 1, 0), (1, 0, 1), (1, 0, 0), (0, 0, 1), (0, 0, 0)]
@@ -34,10 +35,12 @@ class LiteDSPPixelPattern(LiteXModule):
     one frame; ``width`` / ``height`` are runtime (reset to the build values). Status: ``busy``
     and the frame count. Source-only, one pixel per cycle.
     """
-    def __init__(self, data_width=8, n_channels=3, width=640, height=480, mode="bars", coord_bits=12,
+    def __init__(self, data_width=8, n_channels=3, width=640, height=480, mode="bars",
+                 coord_bits=12,
         with_csr=True):
         check(mode in PATTERNS, f"expected mode in {PATTERNS}")
-        check(8 <= width < 2**coord_bits and 1 <= height < 2**coord_bits, "expected 8 <= width, 1 <= height < 2**coord_bits")
+        check(8 <= width < 2**coord_bits and 1 <= height < 2**coord_bits,
+              "expected 8 <= width, 1 <= height < 2**coord_bits")
         self.data_width = data_width
         self.n_channels = n_channels
         self.coord_bits = coord_bits
@@ -45,7 +48,8 @@ class LiteDSPPixelPattern(LiteXModule):
         self.mode    = Signal(3, reset=PATTERNS.index(mode))
         self.width   = Signal(coord_bits, reset=width)
         self.height  = Signal(coord_bits, reset=height)
-        self.const   = [Signal(data_width, reset=(1 << data_width) - 1, name=f"const{k}") for k in range(3)]
+        self.const   = [Signal(data_width, reset=(1 << data_width) - 1, name=f"const{k}")
+                                                  for k in range(3)]
         self.enable  = Signal()
         self.trigger = Signal()
         self.busy    = Signal()
@@ -70,7 +74,8 @@ class LiteDSPPixelPattern(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             If(self.enable | self.trigger,
-                NextValue(x, 0), NextValue(y, 0), NextValue(bar, 0), NextValue(px, 0), NextValue(count, 0),
+                NextValue(x, 0), NextValue(y, 0), NextValue(bar, 0), NextValue(px, 0),
+                NextValue(count, 0),
                 NextState("RUN"),
             ),
         )
@@ -106,7 +111,8 @@ class LiteDSPPixelPattern(LiteXModule):
         ramp = [Signal(DW, name=f"ramp{c}") for c in range(3)]
         self.comb += [ramp[0].eq(x), ramp[1].eq(y), ramp[2].eq(x + y)]
         bayer = Signal(DW)
-        self.comb += bayer.eq(Mux(y[0], Mux(x[0], bar_rgb[2], bar_rgb[1]), Mux(x[0], bar_rgb[1], bar_rgb[0])))
+        self.comb += bayer.eq(
+            Mux(y[0], Mux(x[0], bar_rgb[2], bar_rgb[1]), Mux(x[0], bar_rgb[1], bar_rgb[0])))
         def value(c):
             return Mux(self.mode == PATTERN_CONST, self.const[c],
                    Mux(self.mode == PATTERN_RAMP, ramp[c],
@@ -115,8 +121,10 @@ class LiteDSPPixelPattern(LiteXModule):
                    Mux(self.mode == PATTERN_COUNTER, count, bayer)))))
         self.sync += If(adv,
             self.source.valid.eq(fsm.ongoing("RUN")),
-            self.source.eol.eq(eol), self.source.first.eq((x == 0) & (y == 0)), self.source.last.eq(last),
-            *[getattr(self.source, f).eq(value(c if n_channels == 3 else 0)) for c, f in enumerate(pixel_fields(n_channels))],
+            self.source.eol.eq(eol), self.source.first.eq((x == 0) & (y == 0)),
+            self.source.last.eq(last),
+            *[getattr(self.source, f).eq(value(c if n_channels == 3 else 0)) for c,
+              f in enumerate(pixel_fields(n_channels))],
         )
 
         # CSR.
@@ -145,9 +153,12 @@ class LiteDSPPixelPattern(LiteXModule):
         ])
         self._frames = CSRStatus(32, name="frames", description="Frames sent since reset.")
         self.comb += [
-            self.enable.eq(self._control.fields.enable), self.trigger.eq(self._control.fields.trigger),
+            self.enable.eq(self._control.fields.enable),
+            self.trigger.eq(self._control.fields.trigger),
             self.mode.eq(self._control.fields.mode),
-            self.width.eq(self._geometry.fields.width), self.height.eq(self._geometry.fields.height),
-            self.const[0].eq(self._const.fields.r), self.const[1].eq(self._const.fields.g), self.const[2].eq(self._const.fields.b),
+            self.width.eq(self._geometry.fields.width),
+            self.height.eq(self._geometry.fields.height),
+            self.const[0].eq(self._const.fields.r), self.const[1].eq(self._const.fields.g),
+            self.const[2].eq(self._const.fields.b),
             self._status.fields.busy.eq(self.busy), self._frames.status.eq(self.frames),
         ]

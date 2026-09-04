@@ -147,7 +147,8 @@ class LiteDSPPuncturer(LiteXModule):
     def add_csr(self):
         self._control = CSRStorage(fields=[
             CSRField("phase_rst", size=1, offset=0, pulse=True,
-                description="Re-zero the puncturing pattern phase (applies to the next accepted symbol)."),
+                description="Re-zero the puncturing pattern phase (applies to the next accepted "
+                            "symbol)."),
         ])
         self._config = CSRStatus(fields=[
             CSRField("period", size=8, description="Puncturing pattern period (columns)."),

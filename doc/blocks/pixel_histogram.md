@@ -9,7 +9,8 @@ latency: variable (data-dependent) · CSR: yes · bypass: no
 Histogram of one channel per frame into ``2**bins_log2`` bins (the code's top bits).
 
 Counts accumulate in one RAM per bank (ping-pong, one read and one write port each) at one
-pixel per clock (read-modify-write with a same-bin forwarding register); ``last`` seals a bank and the block streams its bins out
+pixel per clock (read-modify-write with a same-bin forwarding register); ``last`` seals a
+bank and the block streams its bins out
 (``data`` = count, ``first`` on bin 0, ``last`` on the final bin, one beat per bin) while
 clearing them for reuse. A frame ending before the previous histogram drained sets the
 sticky ``overrun``. ``max_pixels`` sizes the counts. ``latency = None``; one output beat

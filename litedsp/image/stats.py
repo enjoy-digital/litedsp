@@ -29,7 +29,8 @@ class LiteDSPPixelStats(LiteXModule):
     (``update`` pulse, optional ``ev.frame`` interrupt); the mean is host-side. ``max_pixels``
     sizes the accumulators. Latency 0 (``sink`` connects to ``source``).
     """
-    def __init__(self, data_width=8, n_channels=1, channel=0, zones=4, max_pixels=1920*1080, coord_bits=12,
+    def __init__(self, data_width=8, n_channels=1, channel=0, zones=4, max_pixels=1920*1080,
+                 coord_bits=12,
         with_csr=True, with_irq=False):
         check(zones in (1, 2, 4, 8), "expected zones in (1, 2, 4, 8)")
         check(0 <= channel < n_channels, "expected channel < n_channels")
@@ -56,18 +57,22 @@ class LiteDSPPixelStats(LiteXModule):
         xfer = Signal()
         self.comb += [self.sink.connect(self.source), xfer.eq(self.sink.valid & self.sink.ready)]
         x = Signal(data_width)
-        self.comb += x.eq(Array([getattr(self.sink, f) for f in fields])[self.channel] if n_channels > 1 else self.sink.data)
+        self.comb += x.eq(Array([getattr(self.sink, f) for f in fields])[
+            self.channel] if n_channels > 1 else self.sink.data)
         self.counter = cnt = LiteDSPPixelCounter(coord_bits)
-        self.comb += [cnt.xfer.eq(xfer), cnt.first.eq(self.sink.first), cnt.eol.eq(self.sink.eol), cnt.last.eq(self.sink.last)]
+        self.comb += [cnt.xfer.eq(xfer), cnt.first.eq(self.sink.first), cnt.eol.eq(self.sink.eol),
+                      cnt.last.eq(self.sink.last)]
         # Zone index: per-line pixel counter against zone_width, per-frame line counter against
         # zone_height (no dividers), clamped to the last zone.
         ZB = bits_for(zones - 1) if zones > 1 else 1
         zx, zy = Signal(ZB), Signal(ZB)
         px, py = Signal(coord_bits), Signal(coord_bits)
         zx_c, zy_c = Signal(ZB), Signal(ZB)
-        self.comb += [zx_c.eq(Mux(cnt.first | (cnt.col == 0), 0, zx)), zy_c.eq(Mux(cnt.first, 0, zy))]
+        self.comb += [zx_c.eq(Mux(cnt.first | (cnt.col == 0), 0, zx)),
+                      zy_c.eq(Mux(cnt.first, 0, zy))]
         px_c, py_c = Signal(coord_bits), Signal(coord_bits)
-        self.comb += [px_c.eq(Mux(cnt.first | (cnt.col == 0), 0, px)), py_c.eq(Mux(cnt.first, 0, py))]
+        self.comb += [px_c.eq(Mux(cnt.first | (cnt.col == 0), 0, px)),
+                      py_c.eq(Mux(cnt.first, 0, py))]
         self.sync += If(xfer,
             If(px_c == self.zone_width - 1,
                 px.eq(0), zx.eq(Mux(zx_c == zones - 1, zones - 1, zx_c + 1)),
@@ -116,7 +121,8 @@ class LiteDSPPixelStats(LiteXModule):
                     self.min.eq(Mux(x < base_min, x, base_min)),
                     self.max.eq(Mux(x > base_max, x, base_max)),
                     self.count.eq(base_count + 1),
-                    *[self.zone[k].eq(Mux(zidx == k, Mux(self.sink.first, 0, acc_zone[k]) + x, Mux(self.sink.first, 0, acc_zone[k])))
+                    *[self.zone[k].eq(Mux(zidx == k, Mux(self.sink.first, 0, acc_zone[k]) + x,
+                                          Mux(self.sink.first, 0, acc_zone[k])))
                       for k in range(zones*zones)],
                     self.update.eq(1),
                 ),
@@ -145,12 +151,15 @@ class LiteDSPPixelStats(LiteXModule):
             CSRField("max", size=DW, offset=16, description="Frame maximum."),
         ])
         self._count = CSRStatus(len(self.count), name="count", description="Pixels in the frame.")
-        self._zone_index = CSRStorage(bits_for(len(self.zone) - 1) if len(self.zone) > 1 else 1, name="zone_index", description="Zone to read.")
+        self._zone_index = CSRStorage(bits_for(len(self.zone) - 1) if len(self.zone) > 1 else 1,
+                                      name="zone_index", description="Zone to read.")
         self._zone_sum   = CSRStatus(AW, name="zone_sum", description="Sum of the selected zone.")
         self.comb += [
             self.channel.eq(self._control.fields.channel),
-            self.zone_width.eq(self._zone_size.fields.width), self.zone_height.eq(self._zone_size.fields.height),
-            self._sum.status.eq(self.sum), self._minmax.fields.min.eq(self.min), self._minmax.fields.max.eq(self.max),
+            self.zone_width.eq(self._zone_size.fields.width),
+            self.zone_height.eq(self._zone_size.fields.height),
+            self._sum.status.eq(self.sum), self._minmax.fields.min.eq(self.min),
+            self._minmax.fields.max.eq(self.max),
             self._count.status.eq(self.count),
             self._zone_sum.status.eq(Array(self.zone)[self._zone_index.storage]),
         ]

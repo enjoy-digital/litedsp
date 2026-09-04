@@ -8,8 +8,10 @@
 
 """Self-checking loopback harness built from the new bring-up blocks.
 
-A ``LiteDSPPatternSource`` (PRBS) is fanned out by ``LiteDSPSplit`` into a *reference* path (a ``LiteDSPDelay``) and a
-*receive* path (a ``LiteDSPStreamFIFO``); an ``LiteDSPErrorCounter`` then compares the two streams sample by
+A ``LiteDSPPatternSource`` (PRBS) is fanned out by ``LiteDSPSplit`` into a
+*reference* path (a ``LiteDSPDelay``) and a
+*receive* path (a ``LiteDSPStreamFIFO``); an
+``LiteDSPErrorCounter`` then compares the two streams sample by
 sample. Because the error counter joins the two streams in order, differing per-path latency is
 absorbed and a lossless chain yields zero errors — drop any lossy/erroring block into the RX path
 and the error count rises. This is the template for an on-FPGA BER/integrity self-test driven
@@ -40,7 +42,8 @@ class Loopback(LiteXModule):
         self.src   = LiteDSPPatternSource(data_width=data_width, seed=0xACE1, with_csr=False)
         self.split = LiteDSPSplit(n=2, data_width=data_width)
         self.delay = LiteDSPDelay(depth=ref_delay, data_width=data_width)        # Reference path.
-        self.fifo  = LiteDSPStreamFIFO(depth=fifo_depth, data_width=data_width, with_csr=False)  # RX path.
+        # RX path.
+        self.fifo  = LiteDSPStreamFIFO(depth=fifo_depth, data_width=data_width, with_csr=False)
         self.ec    = LiteDSPErrorCounter(data_width=data_width, with_csr=False)
         self.comb += [
             self.src.mode.eq(PATTERN_PRBS),

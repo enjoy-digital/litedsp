@@ -20,9 +20,11 @@ def bursts(counts, prng):
     beats = []
     for n in counts:
         for i in range(n):
-            beats.append({"range": prng.randint(0, 1023), "doppler": prng.randint(0, 255), "data": prng.randint(0, 2**17 - 1),
+            beats.append({"range": prng.randint(0, 1023), "doppler": prng.randint(0, 255),
+                          "data": prng.randint(0, 2**17 - 1),
                           "hit": 1, "first": int(i == 0), "last": 0})
-        beats.append({"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
+        beats.append(
+            {"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
     return beats
 
 class TestTargetList(unittest.TestCase):
@@ -32,10 +34,12 @@ class TestTargetList(unittest.TestCase):
     def test_bit_exact_overflow_readback(self):
         prng  = random.Random(7)
         beats = bursts([3, 6, 0, 2], prng)
-        ref, dropped = target_list_model(*[[b[f] for b in beats] for f in ("range", "doppler", "data", "hit")], max_targets=4)
+        ref, dropped = target_list_model(
+            *[[b[f] for b in beats] for f in ("range", "doppler", "data", "hit")], max_targets=4)
         dut = LiteDSPTargetList(max_targets=4, with_csr=False)
         self.readback = None
-        cap = run_stream(dut, beats, len(ref[0]), FIELDS, FIELDS, sink_throttle=0.2, source_ready_rate=0.5,
+        cap = run_stream(dut, beats, len(ref[0]), FIELDS, FIELDS, sink_throttle=0.2,
+                         source_ready_rate=0.5,
             extra=[self._monitor(dut, beats)])
         for name, col in zip(FIELDS, ref):
             self.assertEqual(column(cap, name).tolist(), col.tolist(), name)
@@ -64,7 +68,8 @@ class TestTargetList(unittest.TestCase):
                         yield dut.rd_index.eq(i)
                         yield
                         yield
-                        recs.append(((yield dut.rd_range), (yield dut.rd_doppler), (yield dut.rd_data)))
+                        recs.append(
+                            ((yield dut.rd_range), (yield dut.rd_doppler), (yield dut.rd_data)))
                     self.readback = recs
                 yield
         return gen()

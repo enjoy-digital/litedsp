@@ -110,7 +110,8 @@ class FlowEditor:
         with dpg.node(label=f"{'INPUT' if kind == graph.INPUT_TYPE else 'OUTPUT'} [{nid}]",
                       parent="editor", tag=f"node_{nid}", **kwargs):
             direction = "source" if kind == graph.INPUT_TYPE else "sink"
-            attr_type = dpg.mvNode_Attr_Output if kind == graph.INPUT_TYPE else dpg.mvNode_Attr_Input
+            attr_type = (dpg.mvNode_Attr_Output if kind == graph.INPUT_TYPE
+                         else dpg.mvNode_Attr_Input)
             a = dpg.add_node_attribute(attribute_type=attr_type)
             dpg.add_text("iq", parent=a)
             self.attrs[a] = (nid, None, direction)
@@ -225,17 +226,20 @@ class FlowEditor:
             out = os.path.join("build", nl.name + ("_ip" if ip else ""))
             if ip:
                 path, core = generate_ip(nl, out)
-                self._log(f"Generated IP: {path}\nRegister map: {out}/csr.csv ({len(core.chain.get_csrs())} CSRs)")
+                self._log(f"Generated IP: {path}\nRegister map: {out}/csr.csv "
+                          f"({len(core.chain.get_csrs())} CSRs)")
             else:
                 path, chain = generate(nl, out)
-                extra = ("\nwarnings:\n  " + "\n  ".join(chain.flow_warnings)) if chain.flow_warnings else ""
+                extra = ("\nwarnings:\n  "
+                         + "\n  ".join(chain.flow_warnings)) if chain.flow_warnings else ""
                 self._log(f"Generated Verilog: {path}{extra}")
         except Exception as e:
             self._log("Generate failed:\n" + "".join(traceback.format_exception_only(type(e), e)))
 
     # -- badges + response ------------------------------------------------------------------------
     def _refresh_totals(self):
-        """Chain totals (resources/fmax/latency) in the status bar; '—' while the graph is invalid."""
+        """Chain totals (resources/fmax/latency) in the status bar; '—' while the graph is
+        invalid."""
         dpg = self.dpg
         if not dpg.does_item_exist("statusbar"):
             return                                          # build() not done yet.
@@ -392,7 +396,8 @@ class FlowEditor:
                 dpg.add_button(label="Save", callback=lambda: dpg.show_item("save_dlg"))
                 dpg.add_button(label="Generate",    callback=lambda: self.do_generate(ip=False))
                 dpg.add_button(label="Generate IP", callback=lambda: self.do_generate(ip=True))
-                dpg.add_input_text(label="csr.csv", tag="cfg_csr", default_value="csr.csv", width=120)
+                dpg.add_input_text(label="csr.csv", tag="cfg_csr", default_value="csr.csv",
+                                   width=120)
                 dpg.add_button(label="Connect", callback=lambda: self.do_connect())
             dpg.add_text("chain: —", tag="statusbar", color=(140, 140, 140))
             with dpg.group(horizontal=True):
@@ -416,7 +421,8 @@ class FlowEditor:
         with dpg.handler_registry():
             dpg.add_mouse_release_handler(callback=lambda s, a: self.on_editor_click())
         with dpg.file_dialog(directory_selector=False, show=False, tag="save_dlg",
-                             default_filename="chain.json", callback=self.do_save, width=600, height=400):
+                             default_filename="chain.json", callback=self.do_save, width=600,
+                             height=400):
             dpg.add_file_extension(".json")
         with dpg.file_dialog(directory_selector=False, show=False, tag="load_dlg",
                              callback=self.do_load, width=600, height=400):

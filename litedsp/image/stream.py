@@ -48,4 +48,5 @@ class LiteDSPPixelFIFO(LiteXModule):
         self._status = CSRStatus(fields=[
             CSRField("overflow", size=1, offset=0, description="Sticky: a pixel was dropped (sink stalled)."),
         ])
-        self.comb += [self._level.status.eq(self.level), self._status.fields.overflow.eq(self.overflow)]
+        self.comb += [self._level.status.eq(self.level),
+                      self._status.fields.overflow.eq(self.overflow)]

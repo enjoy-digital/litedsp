@@ -17,7 +17,8 @@ Q(alpha_width - threshold_frac).threshold_frac, see ``litedsp.radar.design.cfar_
 computed as ``sum * alpha * round(2**16 / (2*n_train))``, rounded and floored at the runtime
 ``threshold_min`` (the zero-padded edges see smaller training sums). Frames are
 zero-padded: ``first`` clears the window, and after ``last`` the block flushes the trailing
-cells with zero neighbours (``n_train + n_guard + 1`` cycles ``sink.ready`` low), so the output has exactly one
+cells with zero neighbours (``n_train + n_guard + 1`` cycles
+``sink.ready`` low), so the output has exactly one
 beat per input cell with the same framing. Output: the cell, its threshold and the
 decision on :func:`~litedsp.common.cell_layout`. ``latency = None`` (the flush); nominal
 delay ``n_train + n_guard + 4`` cycles.

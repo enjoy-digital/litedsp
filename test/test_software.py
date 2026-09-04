@@ -8,11 +8,16 @@
 
 import unittest
 
-from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, FECDecoderDriver, phase_inc_from_freq, freq_from_phase_inc, discover,
+from litedsp.software.drivers import (FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver,
+                                      FSKModulatorDriver, FECDecoderDriver, phase_inc_from_freq,
+                                      freq_from_phase_inc, discover,
     NCODriver, CaptureDriver, CSRReaderDriver, DMADriver, FIRDriver, GainDriver, MixerDriver,
     FOCDriver, PWMDriver, QuadratureDecoderDriver,
     VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver, LFODriver, PeakMeterDriver,
-    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver, PixelStatsDriver, AlphaBlendDriver, BoxOverlayDriver)
+    LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver,
+    TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver,
+    PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver, PixelGainDriver,
+    PixelLUTDriver, ColorDriver, CropDriver, PixelStatsDriver, AlphaBlendDriver, BoxOverlayDriver)
 
 # Mock bus -----------------------------------------------------------------------------------------
 
@@ -289,10 +294,12 @@ class TestCommExtraDrivers(unittest.TestCase):
     def test_fec_decoder(self):
         regs = {f"fec_{r}": MockCSR() for r in FECDecoderDriver.regs}
         regs["fec_config"].value = 7 | (4 << 8)
-        regs["fec_corrected_total"].value, regs["fec_uncorrectable_count"].value, regs["fec_blocks"].value, regs["fec_status"].value = 5, 1, 40, 2
+        regs["fec_corrected_total"].value, regs["fec_uncorrectable_count"].value, regs[
+            "fec_blocks"].value, regs["fec_status"].value = 5, 1, 40, 2
         drv = FECDecoderDriver(MockBus(regs), "fec")
         self.assertEqual(drv.geometry, (7, 4))
-        self.assertEqual(drv.stats(), dict(blocks=40, corrected=5, uncorrectable=1, uncorrectable_flag=1))
+        self.assertEqual(drv.stats(),
+                         dict(blocks=40, corrected=5, uncorrectable=1, uncorrectable_flag=1))
         drv.clear()
         self.assertEqual(regs["fec_control"].value, 1)
 
@@ -345,7 +352,8 @@ class TestRadarDrivers(unittest.TestCase):
         drv.set_alpha(2.5)
         drv.set_floor(30)
         drv.set_learning(learn_all=True)
-        self.assertEqual((regs["cm_alpha"].value, regs["cm_threshold_min"].value, regs["cm_control"].value), (640, 30, 1))
+        self.assertEqual((regs["cm_alpha"].value, regs["cm_threshold_min"].value,
+                          regs["cm_control"].value), (640, 30, 1))
         drv.clear()
         self.assertEqual(regs["cm_control"].value, 1 | (1 << 2))
 
@@ -412,7 +420,8 @@ class TestRadarDrivers(unittest.TestCase):
         regs["tl_range"], regs["tl_doppler"], regs["tl_data"] = Indexed(0), Indexed(1), Indexed(2)
         drv = TargetListDriver(MockBus(regs), "tl")
         self.assertEqual(drv.read_targets(), [
-            {"range": 12.5, "doppler": 3.25, "data": 500}, {"range": 30.25, "doppler": 11.0, "data": 900}])
+            {"range": 12.5, "doppler": 3.25, "data": 500},
+            {"range": 30.25, "doppler": 11.0, "data": 900}])
         regs["tl_status"].value = 1
         self.assertEqual(drv.overflow, 1)
         drv.clear()
@@ -473,7 +482,8 @@ class TestImageDrivers(unittest.TestCase):
         regs = {f"pg_{r}": MockCSR() for r in PixelGainDriver.regs}
         drv = PixelGainDriver(MockBus(regs), "pg")
         drv.set_white_balance(1.25, 0.5)
-        self.assertEqual((regs["pg_gain0"].value, regs["pg_gain1"].value, regs["pg_gain2"].value), (320, 256, 128))
+        self.assertEqual((regs["pg_gain0"].value, regs["pg_gain1"].value, regs["pg_gain2"].value),
+                         (320, 256, 128))
         drv.gray_world((100.0, 120.0, 80.0))
         self.assertEqual(regs["pg_gain0"].value, int(round(1.2*256)))
         drv.set_brightness_contrast(0.1, 1.5)
@@ -498,11 +508,13 @@ class TestImageDrivers(unittest.TestCase):
         self.assertEqual(regs["cm_control"].value, 1)
         regs = {f"cr_{r}": MockCSR() for r in CropDriver.regs}
         CropDriver(MockBus(regs), "cr").set_roi(10, 20, 320, 240)
-        self.assertEqual((regs["cr_origin"].value, regs["cr_size"].value, regs["cr_control"].value), (10 | (20 << 16), 320 | (240 << 16), 1))
+        self.assertEqual((regs["cr_origin"].value, regs["cr_size"].value, regs["cr_control"].value),
+                         (10 | (20 << 16), 320 | (240 << 16), 1))
 
     def test_stats_blend_overlay(self):
         regs = {f"st_{r}": MockCSR() for r in PixelStatsDriver.regs}
-        regs["st_sum"].value, regs["st_count"].value, regs["st_minmax"].value = 19200, 192, 10 | (200 << 16)
+        regs["st_sum"].value, regs["st_count"].value, regs["st_minmax"].value = 19200, 192, 10 | (
+            200 << 16)
         drv = PixelStatsDriver(MockBus(regs), "st")
         fr = drv.read_frame()
         self.assertEqual((fr["mean"], fr["min"], fr["max"]), (100.0, 10, 200))

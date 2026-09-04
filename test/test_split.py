@@ -25,7 +25,8 @@ class TestSplit(unittest.TestCase):
         run_simulation(dut, [
             stream_driver(dut.sink, [{"i": xi[k], "q": xq[k]} for k in range(len(xi))],
                 ["i", "q"], throttle=0.1),
-            *[stream_capture(dut.sources[j], caps[j], len(xi), ["i", "q"], seed=j, ready_rate=0.6 + 0.1*j)
+            *[stream_capture(dut.sources[j], caps[j], len(xi), ["i", "q"], seed=j,
+                             ready_rate=0.6 + 0.1*j)
               for j in range(3)],
         ])
         for j in range(3):

@@ -31,7 +31,8 @@ class TestEnergyDetector(unittest.TestCase):
         cap = []
         from test.common import stream_driver
         run_simulation(dut, [
-            stream_driver(dut.sink, [{"i": int(v.real), "q": int(v.imag)} for v in sig], ["i", "q"]),
+            stream_driver(dut.sink, [{"i": int(v.real), "q": int(v.imag)} for v in sig],
+                          ["i", "q"]),
             stream_capture(dut.source, cap, n - 1, ["i", "q"], ready_rate=1.0),
             watch(dut),
         ])

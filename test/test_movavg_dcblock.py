@@ -25,14 +25,17 @@ class TestMovingAverage(unittest.TestCase):
             samples = [{"i": xi[k], "q": xq[k]} for k in range(len(xi))]
             cap = run_stream(dut, samples, len(xi), ["i", "q"], ["i", "q"],
                 sink_throttle=0.2, source_ready_rate=0.7)
-            self.assertTrue(np.array_equal(column(cap, "i", 16), moving_average_model(xi, length_log2)))
-            self.assertTrue(np.array_equal(column(cap, "q", 16), moving_average_model(xq, length_log2)))
+            self.assertTrue(
+                np.array_equal(column(cap, "i", 16), moving_average_model(xi, length_log2)))
+            self.assertTrue(
+                np.array_equal(column(cap, "q", 16), moving_average_model(xq, length_log2)))
 
     def test_dc_passes(self):
         # Constant input -> output settles to that constant.
         dut = LiteDSPMovingAverage(data_width=16, length_log2=4, with_csr=False)
         n = 64
-        cap = run_stream(dut, [{"i": 5000, "q": -3000} for _ in range(n)], n, ["i", "q"], ["i", "q"],
+        cap = run_stream(dut, [{"i": 5000, "q": -3000} for _ in range(n)], n, ["i", "q"],
+                         ["i", "q"],
             sink_throttle=0.0, source_ready_rate=1.0)
         self.assertEqual(column(cap, "i", 16)[-1], 5000)
         self.assertEqual(column(cap, "q", 16)[-1], -3000)
@@ -56,7 +59,8 @@ class TestDCBlocker(unittest.TestCase):
         t = np.arange(n)
         x = (8000 + 4000*np.cos(2*np.pi*0.05*t)).astype(int)
         dut = LiteDSPDCBlocker(data_width=16, pole_shift=6, with_csr=False)
-        cap = run_stream(dut, [{"i": int(x[k]), "q": 0} for k in range(n)], n, ["i", "q"], ["i", "q"],
+        cap = run_stream(dut, [{"i": int(x[k]), "q": 0} for k in range(n)], n, ["i", "q"],
+                         ["i", "q"],
             sink_throttle=0.0, source_ready_rate=1.0)
         out = column(cap, "i", 16)[n//2:]   # Skip settling.
         self.assertLess(abs(out.mean()), 50)          # DC removed.
@@ -120,7 +124,8 @@ class TestDCBlockerReal(unittest.TestCase):
     def test_bit_exact(self):
         prng = random.Random(7)
         x    = [prng.randint(-(1 << 22), (1 << 22)) + 200000 for _ in range(300)]   # DC offset.
-        dut  = LiteDSPDCBlocker(data_width=24, iq=False, precision_bits=8, pole_shift=10, with_csr=False)
+        dut  = LiteDSPDCBlocker(data_width=24, iq=False, precision_bits=8, pole_shift=10,
+                                with_csr=False)
         cap  = run_stream(dut, [{"data": v} for v in x], len(x), ["data"], ["data"],
             sink_throttle=0.2, source_ready_rate=0.7)
         ref  = dc_blocker_model(np.array(x), pole_shift=10, data_width=24, precision_bits=8)

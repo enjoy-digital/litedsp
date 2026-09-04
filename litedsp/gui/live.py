@@ -32,7 +32,8 @@ class LiveSession:
             self.bus = RemoteClient(csr_csv=self.csr_csv)
         if hasattr(self.bus, "open"):
             self.bus.open()
-        self.clk_freq = getattr(getattr(self.bus, "constants", None), "config_clock_frequency", None)
+        self.clk_freq = getattr(getattr(self.bus, "constants", None), "config_clock_frequency",
+                                None)
         self.blocks   = discover(self.bus, clk_freq=self.clk_freq)
         return self.blocks
 

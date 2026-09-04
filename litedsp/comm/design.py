@@ -55,7 +55,8 @@ def _poly_mul(a, b):
     return r
 
 def minimal_polynomial(elem_power, m, poly=None):
-    """Minimal polynomial over GF(2) of alpha^elem_power (integer bit vector, MSB = highest degree)."""
+    """Minimal polynomial over GF(2) of alpha^elem_power (integer bit vector, MSB = highest
+    degree)."""
     exp, log = gf_tables(m, poly)
     n = (1 << m) - 1
     roots, r = set(), elem_power % n
@@ -63,7 +64,7 @@ def minimal_polynomial(elem_power, m, poly=None):
         roots.add(r)
         r = (2*r) % n
     # Product of (x + alpha^r): coefficients in GF(2^m), reduce to GF(2).
-    coeffs = [1]                                                        # Polynomial in x, coefficient list low..high.
+    coeffs = [1]                                      # Polynomial in x, coefficient list low..high.
     for r in sorted(roots):
         a = exp[r]
         new = [0]*(len(coeffs) + 1)

@@ -51,7 +51,8 @@ def _tcl(verilog, top, clock_ns, impl, part=PART, checkpoint=None):
         ]
     lines += [
         "report_utilization -file util.rpt",
-        'puts "WNS: [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -setup] 0]]"',
+        'puts "WNS: [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -setup] '
+        '0]]"',
         "exit",
     ]
     return "\n".join(lines) + "\n"
@@ -66,7 +67,8 @@ def _pnr_tcl(checkpoint, clock_ns, strategy):
         "report_timing_summary -file timing_summary.rpt",
         "report_timing -delay_type max -max_paths 10 -file timing_paths.rpt",
         "report_utilization -file util.rpt",
-        'puts "WNS: [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -setup] 0]]"',
+        'puts "WNS: [get_property SLACK [lindex [get_timing_paths -max_paths 1 -nworst 1 -setup] '
+        '0]]"',
         "exit",
     ]) + "\n"
 

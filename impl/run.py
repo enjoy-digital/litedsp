@@ -122,7 +122,8 @@ def build_one(device, flow, name, build_root, seeds=None, strategies=None, pnr_t
     return res
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteDSP FPGA implementation flows (synth/P&R + budget gate).")
+    parser = argparse.ArgumentParser(description="LiteDSP FPGA implementation flows (synth/P&R + "
+                                                 "budget gate).")
     parser.add_argument("--device",         default="ecp5",
         choices=["ecp5", *xilinx.PARTS], help="Target device/toolchain/profile.")
     parser.add_argument("--flow",           default="synth",             choices=["synth", "pnr"],   help="Implementation flow.")
@@ -240,7 +241,8 @@ def main():
             print(f"  {n}: {e}")
     if args.update_budgets:
         budgets.update(args.device, results, flow=args.flow)
-        print(f"\n[budgets] baseline updated for {args.device}/{args.flow} ({len(results)} modules)")
+        print(
+            f"\n[budgets] baseline updated for {args.device}/{args.flow} ({len(results)} modules)")
     if args.report:
         with open(args.report, "w", encoding="utf-8") as f:
             f.write(report.markdown({args.device: results}))

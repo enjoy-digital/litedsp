@@ -22,7 +22,8 @@ from test.models import ca_cfar_model
 FIELDS = ["data", "threshold", "detect", "first", "last"]
 
 def frames(values, n):
-    return [{"data": int(v), "first": int(k % n == 0), "last": int(k % n == n - 1)} for k, v in enumerate(values)]
+    return [{"data": int(v), "first": int(k % n == 0), "last": int(k % n == n - 1)} for k,
+            v in enumerate(values)]
 
 class _SplitFronted(Module):
     """Split -> CA-CFAR with the other branch always ready (guards the sink.ready rule)."""
@@ -51,7 +52,8 @@ class TestCACFAR(unittest.TestCase):
                 dut.threshold_min.reset = floor
                 cap = run_stream(dut, beats, 2*64, ["data", "first", "last"], FIELDS,
                     sink_throttle=0.2, source_ready_rate=0.7)
-                self._check(cap, ca_cfar_model(x, first, last, 8, 2, alpha=512, mode=mode, threshold_min=floor), 2*64)
+                self._check(cap, ca_cfar_model(x, first, last, 8, 2, alpha=512, mode=mode,
+                                               threshold_min=floor), 2*64)
                 if floor:
                     self.assertGreaterEqual(int(column(cap, "threshold").min()), floor)
                 self.assertIsNone(dut.latency)
@@ -87,7 +89,8 @@ class TestCACFAR(unittest.TestCase):
         dut   = LiteDSPCACFAR(n_train=8, n_guard=2, with_csr=False)  # see half the training sum.
         dut.alpha.reset = alpha
         top   = _SplitFronted(dut)
-        cap   = run_stream(top, beats, 64, ["data", "first", "last"], FIELDS, sink_throttle=0.3, source_ready_rate=0.6)
+        cap   = run_stream(top, beats, 64, ["data", "first", "last"], FIELDS, sink_throttle=0.3,
+                           source_ready_rate=0.6)
         self._check(cap, ca_cfar_model(x, first, last, 8, 2, alpha=alpha, mode=0), 64)
         detect = column(cap, "detect")
         self.assertEqual(sorted(np.flatnonzero(detect).tolist()), [0, 31, 63])

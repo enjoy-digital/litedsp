@@ -8,7 +8,8 @@ latency: 1 sample · CSR: yes · bypass: no
 
 Carrier recovery: derotate the input with an internal NCO driven by a PI loop.
 
-Each sample is derotated by ``exp(-j*phase)``; the phase error feeds a :class:`LiteDSPPILoop` whose
+Each sample is derotated by ``exp(-j*phase)``; the phase error
+feeds a :class:`LiteDSPPILoop` whose
 output advances the NCO phase (a 2nd-order loop that locks frequency and phase). The
 derotated (baseband) signal is the output. ``decision_directed=False`` (PLL) uses the
 derotated imaginary part as the error (residual-carrier / tone). ``detector="bpsk"`` uses

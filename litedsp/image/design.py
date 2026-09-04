@@ -12,7 +12,8 @@ from litedsp.common import check
 
 # Kernel presets -----------------------------------------------------------------------------------
 
-KERNEL_PRESETS = ("identity", "box3", "gaussian3", "gaussian5", "sharpen", "laplacian", "sobel_x", "sobel_y", "emboss")
+KERNEL_PRESETS = ("identity", "box3", "gaussian3", "gaussian5", "sharpen", "laplacian", "sobel_x",
+                  "sobel_y", "emboss")
 
 def kernel_preset(name="gaussian3", kernel_size=None, data_width=8):
     """``(coefficients, shift, offset)`` for :class:`LiteDSPKernel2D` (row-major, correlation
@@ -43,7 +44,8 @@ def kernel_preset(name="gaussian3", kernel_size=None, data_width=8):
 
 # Colour matrices ----------------------------------------------------------------------------------
 
-COLOR_PRESETS = ("identity", "rgb_to_ycbcr_601", "ycbcr_to_rgb_601", "rgb_to_ycbcr_jpeg", "ycbcr_to_rgb_jpeg",
+COLOR_PRESETS = ("identity", "rgb_to_ycbcr_601", "ycbcr_to_rgb_601", "rgb_to_ycbcr_jpeg",
+                 "ycbcr_to_rgb_jpeg",
                  "rgb_to_ycbcr_709", "ycbcr_to_rgb_709", "rgb_to_gray_601", "rgb_to_gray_709",
                  "select_r", "select_g", "select_b")
 
@@ -96,7 +98,8 @@ def contrast_table(contrast=1.0, brightness=0.0, data_width=8):
     """Linear tone curve ``clamp(contrast * (x - mid) + mid + brightness * full)``."""
     full = (1 << data_width) - 1
     mid  = full/2
-    return [int(max(0, min(full, round(contrast*(x - mid) + mid + brightness*full)))) for x in range(1 << data_width)]
+    return [int(max(0, min(full, round(contrast*(x - mid) + mid + brightness*full))))
+                                                 for x in range(1 << data_width)]
 
 def equalize_table(histogram, data_width=8):
     """Histogram equalisation LUT from per-code counts (the CDF scaled to the code range)."""
@@ -115,7 +118,8 @@ BAYER_PATTERNS = ("rggb", "bggr", "grbg", "gbrg")
 def bayer_phase(pattern="rggb"):
     """``(row0col0, row0col1, row1col0, row1col1)`` colour indices (0 = R, 1 = G, 2 = B)."""
     check(pattern in BAYER_PATTERNS, f"expected pattern in {BAYER_PATTERNS}")
-    return {"rggb": (0, 1, 1, 2), "bggr": (2, 1, 1, 0), "grbg": (1, 0, 2, 1), "gbrg": (1, 2, 0, 1)}[pattern]
+    return {"rggb": (0, 1, 1, 2), "bggr": (2, 1, 1, 0), "grbg": (1, 0, 2, 1),
+            "gbrg": (1, 2, 0, 1)}[pattern]
 
 def mosaic(rgb, pattern="rggb"):
     """Sample an (H, W, 3) image onto a Bayer mosaic (H, W)."""

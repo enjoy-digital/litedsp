@@ -79,7 +79,8 @@ class TestBitstreamDecimator(unittest.TestCase):
         for R, N, staged in ((8, 2, False), (100, 3, False), (256, 4, False), (32, 3, True)):
             with self.subTest(R=R, N=N, staged=staged):
                 bits = [prng.randint(0, 1) for _ in range(R*30)]
-                dut, got = self.run_dec(bits, data_width=16, decimation=R, n_stages=N, staged=staged)
+                dut, got = self.run_dec(bits, data_width=16, decimation=R, n_stages=N,
+                                        staged=staged)
                 ref = bitstream_decimator_model(bits, R, N, data_width=16, staged=staged)
                 self.assertTrue(np.array_equal(got, ref[:len(got)]))
 

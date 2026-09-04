@@ -19,7 +19,8 @@ IN  = ["range", "doppler", "data", "hit", "first", "last"]
 OUT = ["range", "doppler", "velocity", "id", "hits", "hit", "first", "last"]
 
 def run(beats, **kwargs):
-    return kalman_tracker_model([b["range"] for b in beats], [b["doppler"] for b in beats], [b["hit"] for b in beats], **kwargs)
+    return kalman_tracker_model([b["range"] for b in beats], [b["doppler"] for b in beats],
+                                [b["hit"] for b in beats], **kwargs)
 
 class TestKalmanTracker(unittest.TestCase):
     # verify-tier: model — 12 CPIs of two crossing targets, a false alarm per CPI and two dropped
@@ -33,10 +34,12 @@ class TestKalmanTracker(unittest.TestCase):
                 ref, stats = run(beats, emit_tentative=emit_tentative)
                 dut = LiteDSPKalmanTracker(with_csr=False)
                 dut.emit_tentative.reset = emit_tentative
-                cap = run_stream(dut, beats, len(ref[0]), IN, OUT, sink_throttle=0.2, source_ready_rate=0.6,
+                cap = run_stream(dut, beats, len(ref[0]), IN, OUT, sink_throttle=0.2,
+                                 source_ready_rate=0.6,
                     extra=[self._read_sat(dut)])
                 for name, col in zip(OUT, ref):
-                    got = column(cap, name, len(getattr(dut.source, name)) if name == "velocity" else None)
+                    got = column(cap, name,
+                                 len(getattr(dut.source, name)) if name == "velocity" else None)
                     self.assertEqual(got.tolist(), col.tolist(), name)
                 self.assertEqual(self.cov_sat, stats["cov_sat"])
                 self.assertEqual(self.cov_sat, 0)
@@ -51,9 +54,12 @@ class TestKalmanTracker(unittest.TestCase):
                 beats = []
                 for c in range(60):
                     rr, dd = 10.0 + 0.3*c, 4.0 + 0.1*c
-                    beats.append({"range": int(round(rr*16)), "doppler": int(round(dd*16)), "data": 1000, "hit": 1, "first": 1, "last": 0})
-                    beats.append({"range": 0, "doppler": 0, "data": 1, "hit": 0, "first": 0, "last": 1})
-                (rng, dop, vel, ids, hits, hit, first, last), stats = run(beats, q=q, r=r, max_misses=15)
+                    beats.append({"range": int(round(rr*16)), "doppler": int(round(dd*16)),
+                                  "data": 1000, "hit": 1, "first": 1, "last": 0})
+                    beats.append(
+                        {"range": 0, "doppler": 0, "data": 1, "hit": 0, "first": 0, "last": 1})
+                (rng, dop, vel, ids, hits, hit, first, last), stats = run(beats, q=q, r=r,
+                                                                          max_misses=15)
                 a, b = alpha_beta_from_index(math.sqrt(q/r))
                 k1, k2 = [g/256 for g in stats["gains"][0][0]]
                 self.assertLessEqual(abs(k1 - a)/a, 0.10, (k1, a))
@@ -73,7 +79,8 @@ class TestKalmanTracker(unittest.TestCase):
         dut.q.reset = 1 << 23
         dut.max_misses.reset = 15
         dut.emit_tentative.reset = 1
-        cap = run_stream(dut, beats, len(ref[0]), IN, OUT, sink_throttle=0.0, source_ready_rate=1.0, extra=[self._read_sat(dut)])
+        cap = run_stream(dut, beats, len(ref[0]), IN, OUT, sink_throttle=0.0, source_ready_rate=1.0,
+                         extra=[self._read_sat(dut)])
         self.assertEqual(self.cov_sat, 1)
         for name, col in zip(OUT, ref):
             got = column(cap, name, len(getattr(dut.source, name)) if name == "velocity" else None)

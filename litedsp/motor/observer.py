@@ -265,8 +265,10 @@ class LiteDSPSMObserver(LiteXModule):
             CSRField("lpf_shift", size=4, offset=0, reset=3, description="Back-EMF low-pass shift."),
             CSRField("clear",     size=1, offset=8, pulse=True, description="Reset the observer state."),
         ])
-        self._emf_alpha = CSRStatus(len(self.emf_alpha), name="emf_alpha", description="Back-EMF alpha.")
-        self._emf_beta  = CSRStatus(len(self.emf_beta),  name="emf_beta",  description="Back-EMF beta.")
+        self._emf_alpha = CSRStatus(len(self.emf_alpha), name="emf_alpha",
+                                    description="Back-EMF alpha.")
+        self._emf_beta  = CSRStatus(len(self.emf_beta),  name="emf_beta",
+                                    description="Back-EMF beta.")
         self.comb += [
             self.g_v.eq(self._g_v.storage),
             self.g_r.eq(self._g_r.storage),

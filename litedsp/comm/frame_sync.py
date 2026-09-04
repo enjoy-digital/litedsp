@@ -32,7 +32,8 @@ def frame_sync_taps(sequence, data_width=16):
             c = complex(v[0], v[1])
         else:
             c = complex(v)
-        check(abs(c.real) <= 1.0 and abs(c.imag) <= 1.0, "expected sequence components in [-1.0, +1.0]")
+        check(abs(c.real) <= 1.0 and abs(c.imag) <= 1.0,
+              "expected sequence components in [-1.0, +1.0]")
         values.append(c)
     scale = (1 << (data_width - 1)) - 1  # Full-scale Q1.(N-1).
     taps  = [v.conjugate() for v in reversed(values)]
@@ -388,7 +389,8 @@ class LiteDSPFrameSync(LiteXModule):
 
     def add_irq(self):
         self.ev          = EventManager()
-        self.ev.detected = EventSourceProcess(edge="rising", description="Preamble detected (correlation peak accepted).")
+        self.ev.detected = EventSourceProcess(
+            edge="rising", description="Preamble detected (correlation peak accepted).")
         self.ev.finalize()
         self.comb += self.ev.detected.trigger.eq(self.detected)
 

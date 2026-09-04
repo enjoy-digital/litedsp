@@ -79,7 +79,7 @@ class BenchSoC(SoCMini):
         # UARTBone (host bridge) ---------------------------------------------------------------
         self.add_uartbone()
 
-        # DSP chain: tone + noise -> DDC -> capture -> CSR readout ----------------------------------
+        # DSP chain: tone + noise -> DDC -> capture -> CSR readout ---------------------------------
         self.nco     = LiteDSPNCO(data_width=16)                     # Test tone (phase_inc CSR).
         self.noise   = LiteDSPNoiseSource(data_width=16, shift=4)    # AWGN floor.
         self.adder   = LiteDSPIQAdd(data_width=16)

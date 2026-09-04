@@ -40,7 +40,8 @@ class TestHamming(unittest.TestCase):
                         err = list(cw); err[i] ^= 1
                         dec, flags = hamming_decode_model(err, m, secded)
                         self.assertEqual(dec.tolist(), list(msg))
-                        # An error in the overall parity bit leaves the data intact (nothing to correct).
+                        # An error in the overall parity bit leaves the data intact (nothing to
+                        # correct).
                         self.assertEqual(flags[0], (0, 0) if (secded and i == n - 1) else (1, 0))
                     if secded:
                         for i, j in itertools.combinations(range(n), 2):
@@ -54,7 +55,8 @@ class TestHamming(unittest.TestCase):
                 n, k = (1 << m) - 1 + int(secded), (1 << m) - 1 - m
                 bits = [prng.randint(0, 1) for _ in range(20*k)]
                 enc = LiteDSPHammingEncoder(m=m, secded=secded, with_csr=False)
-                cap = run_stream(enc, [{"data": b} for b in bits], 20*n, ["data"], ["data", "first", "last"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(enc, [{"data": b} for b in bits], 20*n, ["data"], ["data", "first",
+                    "last"], sink_throttle=0.2, source_ready_rate=0.7)
                 cw, first, last = hamming_encode_model(bits, m, secded)
                 self.assertEqual(column(cap, "data").tolist(), cw.tolist())
                 self.assertEqual(column(cap, "first").tolist(), first.tolist())
@@ -64,11 +66,13 @@ class TestHamming(unittest.TestCase):
                     for i in range(b % 3):
                         rx[b*n + (i*3 + b) % n] ^= 1
                 dec = LiteDSPHammingDecoder(m=m, secded=secded, with_csr=False)
-                cap = run_stream(dec, [{"data": b} for b in rx], 20*k, ["data"], ["data", "first", "last"], sink_throttle=0.2, source_ready_rate=0.7,
+                cap = run_stream(dec, [{"data": b} for b in rx], 20*k, ["data"], ["data", "first",
+                    "last"], sink_throttle=0.2, source_ready_rate=0.7,
                     extra=[self._status(dec)])
                 ref, flags = hamming_decode_model(rx, m, secded)
                 self.assertEqual(column(cap, "data").tolist(), ref.tolist())
-                self.assertEqual(column(cap, "first").tolist(), [int(i % k == 0) for i in range(20*k)])
+                self.assertEqual(column(cap, "first").tolist(),
+                                 [int(i % k == 0) for i in range(20*k)])
                 self.assertEqual(self.corrected_total, sum(f[0] for f in flags))
                 self.assertEqual(self.uncorrectable_count, sum(f[1] for f in flags))
                 self.assertEqual(self.uncorrectable, int(any(f[1] for f in flags)))

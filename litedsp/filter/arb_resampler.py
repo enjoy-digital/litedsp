@@ -42,7 +42,8 @@ class LiteDSPArbResampler(LiteXModule):
 
         # Control.
         # --------
-        phase  = Signal(frac + ratio_int_bits)  # Q(ratio_int_bits).frac position; integer part = inputs owed.
+        # Q(ratio_int_bits).frac position; integer part = inputs owed.
+        phase  = Signal(frac + ratio_int_bits)
         primed = Signal()                  # 4-sample interpolation window is filled.
         cnt    = Signal(3)                 # Priming counter (stops at 4).
         self.comb += primed.eq(cnt >= 4)
@@ -61,8 +62,10 @@ class LiteDSPArbResampler(LiteXModule):
         # ---------
         for f in ["i", "q"]:
             xin = getattr(self.sink, f)
-            xm1, x0, x1, x2 = (Signal((data_width, True)) for _ in range(4))  # Window (xm1 oldest); bracket [x0, x1].
-            self.sync += If(self.sink.valid & consuming, xm1.eq(x0), x0.eq(x1), x1.eq(x2), x2.eq(xin))
+            # Window (xm1 oldest); bracket [x0, x1].
+            xm1, x0, x1, x2 = (Signal((data_width, True)) for _ in range(4))
+            self.sync += If(self.sink.valid & consuming, xm1.eq(x0), x0.eq(x1), x1.eq(x2),
+                            x2.eq(xin))
             # Catmull-Rom coefficients (all multiples of 1/2, so shifts only).
             a1 = Signal((data_width + 2, True))
             a2 = Signal((data_width + 4, True))
@@ -79,7 +82,8 @@ class LiteDSPArbResampler(LiteXModule):
                 y2.eq(a2 + ((mu*a3) >> frac)),
                 y1.eq(a1 + ((mu*y2) >> frac)),
             ]
-            self.comb += getattr(self.source, f).eq(scaled(x0*(1 << frac) + mu*y1, frac, data_width)[0])
+            self.comb += getattr(self.source,
+                                 f).eq(scaled(x0*(1 << frac) + mu*y1, frac, data_width)[0])
 
         # Phase Accumulator.
         # ------------------

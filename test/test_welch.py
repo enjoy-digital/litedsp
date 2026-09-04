@@ -60,7 +60,8 @@ class TestWelchPSD(unittest.TestCase):
             got = column(cap, "data")
             ref = np.concatenate(welch_model(xi, xq, N, avg_log2=avg, window="hann",
                 overlap=overlap)[:2])
-            self.assertEqual(got.tolist(), ref.tolist(), f"overlap {overlap}% mismatch vs welch_model")
+            self.assertEqual(got.tolist(), ref.tolist(),
+                             f"overlap {overlap}% mismatch vs welch_model")
 
     def test_overlap_variance_reduction(self):
         # For the same input length, 50% overlap doubles the segment count (avg_log2 + 1) and

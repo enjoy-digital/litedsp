@@ -89,7 +89,8 @@ class TestAngleTracker(unittest.TestCase):
         self.assertLess(int(late[-1]) + 1 if len(late) else 0, 6*(1 << (10 - 4)))
         rms = np.sqrt(np.mean(err[n//2:]**2))
         self.assertLess(rms, 1.0, f"post-lock RMS {rms:.2f} deg")
-        speed = speeds[-1] - (1 << dut.loop_width) if speeds[-1] >= (1 << (dut.loop_width - 1)) else speeds[-1]
+        speed = speeds[-1] - (1 << dut.loop_width) if speeds[-1] >= (
+            1 << (dut.loop_width - 1)) else speeds[-1]
         self.assertLess(abs(speed - (step << frac)), 0.01*(step << frac))
 
     def test_wraps_across_pi(self):
@@ -171,7 +172,8 @@ class TestSMObserver(unittest.TestCase):
                 lag = np.degrees(-np.mean(err)/TURN*2*np.pi)
                 self.assertGreater(lag, 0.0, f"lag {lag:.1f} deg")
                 self.assertLess(lag, np.degrees(lpf_lag(omega*0.1, 4)) + 5.0, f"lag {lag:.1f} deg")
-                self.assertLess(abs(deg(np.mean(err[:len(err)//2]) - np.mean(err[len(err)//2:]))), 2.0)
+                self.assertLess(abs(deg(np.mean(err[:len(err)//2]) - np.mean(err[len(err)//2:]))),
+                                2.0)
                 rms = deg(np.sqrt(np.mean((err - np.mean(err))**2)))
                 self.assertLess(rms, 5.0, f"residual RMS {rms:.2f} deg")
 

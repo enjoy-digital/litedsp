@@ -48,7 +48,8 @@ class _LiteDSPTracker(LiteXModule):
     def __init__(self, n_tracks=4, index_width=12, frac_bits=4, velocity_frac=8, gain_frac=8,
         data_width=17, with_csr=True, with_irq=False):
         check(1 <= n_tracks <= 16, "expected 1 <= n_tracks <= 16")
-        check(1 <= frac_bits <= velocity_frac <= 12, "expected 1 <= frac_bits <= velocity_frac <= 12")
+        check(1 <= frac_bits <= velocity_frac <= 12,
+              "expected 1 <= frac_bits <= velocity_frac <= 12")
         check(1 <= gain_frac <= 12, "expected 1 <= gain_frac <= 12")
         self.n_tracks      = n_tracks
         self.index_width   = index_width
@@ -61,7 +62,7 @@ class _LiteDSPTracker(LiteXModule):
         self.source = stream.Endpoint(track_layout(index_width, frac_bits, velocity_frac, n_tracks))
         F, VF, GF = frac_bits, velocity_frac, gain_frac
         PW  = index_width + F                                           # Stream positions.
-        PV  = index_width + VF + 2                                      # Internal positions (signed).
+        PV  = index_width + VF + 2                                    # Internal positions (signed).
         VW  = index_width + VF                                          # Velocities (signed).
         self._add_controls()
         self.gate_r         = Signal(PW, reset=2 << F)                  # Q.frac bins.
@@ -70,7 +71,7 @@ class _LiteDSPTracker(LiteXModule):
         self.max_misses     = Signal(4, reset=2)
         self.emit_tentative = Signal()
         self.clear          = Signal()
-        self.active         = Signal(max=n_tracks + 1)                  # Active tracks after the update.
+        self.active         = Signal(max=n_tracks + 1)             # Active tracks after the update.
         self.confirmed      = Signal(max=n_tracks + 1)
         self.dropped        = Signal(32)
         self.cpi_count      = Signal(32)
@@ -93,14 +94,16 @@ class _LiteDSPTracker(LiteXModule):
         hits           = regs("hits", 4)
         misses         = regs("misses", 4)
         state          = regs("state", 2)
-        A = {n: Array(v) for n, v in (("P_r", P_r), ("P_d", P_d), ("pred_r", pred_r), ("pred_d", pred_d),
+        A = {n: Array(v) for n,
+             v in (("P_r", P_r), ("P_d", P_d), ("pred_r", pred_r), ("pred_d", pred_d),
              ("V_r", V_r), ("V_d", V_d), ("meas_r", meas_r), ("meas_d", meas_d), ("assigned", assigned),
              ("hits", hits), ("misses", misses), ("state", state))}
         idx  = Signal(max=max(T, 2))
         last_idx = (idx == T - 1)
         def write(name, value, index=None):                             # Decoded register write.
             index = idx if index is None else index
-            regs_ = {"P_r": P_r, "P_d": P_d, "pred_r": pred_r, "pred_d": pred_d, "V_r": V_r, "V_d": V_d,
+            regs_ = {"P_r": P_r, "P_d": P_d, "pred_r": pred_r, "pred_d": pred_d, "V_r": V_r,
+                     "V_d": V_d,
                      "meas_r": meas_r, "meas_d": meas_d, "assigned": assigned, "hits": hits,
                      "misses": misses, "state": state}[name]
             return [If(index == k, regs_[k].eq(value)) for k in range(T)]
@@ -109,8 +112,9 @@ class _LiteDSPTracker(LiteXModule):
         # -------------------------------------------------------------------
         mr, md = Signal((PV, True)), Signal((PV, True))
         gr, gd = Signal((PV, True)), Signal((PV, True))
-        mr_u, md_u, gr_u, gd_u = [Signal(PV, name=n) for n in ("mr_u", "md_u", "gr_u", "gd_u")]   # Explicit
-        self.comb += [                                                                             # shift widths.
+        # Explicit
+        mr_u, md_u, gr_u, gd_u = [Signal(PV, name=n) for n in ("mr_u", "md_u", "gr_u", "gd_u")]
+        self.comb += [                                                               # shift widths.
             mr_u.eq(self.sink.range << (VF - F)), md_u.eq(self.sink.doppler << (VF - F)),
             gr_u.eq(self.gate_r << (VF - F)),     gd_u.eq(self.gate_d << (VF - F)),
             gr.eq(gr_u), gd.eq(gd_u),
@@ -128,7 +132,8 @@ class _LiteDSPTracker(LiteXModule):
             adr.eq(Mux(dr < 0, -dr, dr)), add.eq(Mux(dd < 0, -dd, dd)),
             score.eq(adr + add),
             in_gate.eq((adr <= gr) & (add <= gd)),
-            cand.eq((A["state"][idx] != TRACK_FREE) & ~A["assigned"][idx] & in_gate & (~best_v | (score < best_s))),
+            cand.eq((A["state"][idx] != TRACK_FREE) & ~A["assigned"][idx] & in_gate & (~best_v
+                | (score < best_s))),
         ]
         free_any = Signal()
         free_idx = Signal(max=max(T, 2))
@@ -137,7 +142,8 @@ class _LiteDSPTracker(LiteXModule):
             self.comb += If(state[k] == TRACK_FREE, free_any.eq(1), free_idx.eq(k))
 
         predsum_r, predsum_d = Signal((PV + 1, True)), Signal((PV + 1, True))
-        self.comb += [predsum_r.eq(A["P_r"][idx] + A["V_r"][idx]), predsum_d.eq(A["P_d"][idx] + A["V_d"][idx])]
+        self.comb += [predsum_r.eq(A["P_r"][idx] + A["V_r"][idx]),
+                      predsum_d.eq(A["P_d"][idx] + A["V_d"][idx])]
         hits_inc = Signal(4)
         self.comb += hits_inc.eq(Mux(A["hits"][idx] == 15, 15, A["hits"][idx] + 1))
 
@@ -148,7 +154,8 @@ class _LiteDSPTracker(LiteXModule):
         rec_a, term_a = Signal(), Signal()
         n_emitted = Signal(max=T + 1)
         emit_ok = Signal()
-        self.comb += emit_ok.eq((A["state"][idx] == TRACK_CONFIRMED) | (self.emit_tentative & (A["state"][idx] == TRACK_TENTATIVE)))
+        self.comb += emit_ok.eq((A["state"][idx] == TRACK_CONFIRMED) | (
+            self.emit_tentative & (A["state"][idx] == TRACK_TENTATIVE)))
         self.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             self.sink.ready.eq(1),
@@ -173,12 +180,16 @@ class _LiteDSPTracker(LiteXModule):
         )
         fsm.act("ASSIGN",
             If(best_v,
-                *[If(best == k, NextValue(meas_r[k], mr), NextValue(meas_d[k], md), NextValue(assigned[k], 1)) for k in range(T)],
+                *[If(best == k, NextValue(meas_r[k], mr), NextValue(meas_d[k], md),
+                     NextValue(assigned[k], 1)) for k in range(T)],
             ).Elif(free_any,
                 *[If(free_idx == k,
-                    NextValue(P_r[k], mr), NextValue(P_d[k], md), NextValue(pred_r[k], mr), NextValue(pred_d[k], md),
-                    NextValue(meas_r[k], mr), NextValue(meas_d[k], md), NextValue(V_r[k], 0), NextValue(V_d[k], 0),
-                    NextValue(assigned[k], 1), NextValue(hits[k], 0), NextValue(misses[k], 0),   # The update counts the hit.
+                    NextValue(P_r[k], mr), NextValue(P_d[k], md), NextValue(pred_r[k], mr),
+                    NextValue(pred_d[k], md),
+                    NextValue(meas_r[k], mr), NextValue(meas_d[k], md), NextValue(V_r[k], 0),
+                    NextValue(V_d[k], 0),
+                    # The update counts the hit.
+                    NextValue(assigned[k], 1), NextValue(hits[k], 0), NextValue(misses[k], 0),
                     NextValue(state[k], TRACK_TENTATIVE),
                     *self._new_track_init(k),
                 ) for k in range(T)],
@@ -188,13 +199,16 @@ class _LiteDSPTracker(LiteXModule):
             NextState("IDLE"),
         )
         # Filter update states (subclass): entered as "UPDATE" for track idx, leave to "PREDICT".
-        ctx = dict(idx=idx, last_idx=last_idx, A=A, P_r=P_r, P_d=P_d, pred_r=pred_r, pred_d=pred_d, V_r=V_r, V_d=V_d,
-                   meas_r=meas_r, meas_d=meas_d, assigned=assigned, hits=hits, misses=misses, state=state,
+        ctx = dict(idx=idx, last_idx=last_idx, A=A, P_r=P_r, P_d=P_d, pred_r=pred_r, pred_d=pred_d,
+                   V_r=V_r, V_d=V_d,
+                   meas_r=meas_r, meas_d=meas_d, assigned=assigned, hits=hits, misses=misses,
+                   state=state,
                    hits_inc=hits_inc, PV=PV, VW=VW, T=T)
         self._add_update_states(fsm, ctx)
         fsm.act("PREDICT",
             *[If(idx == k,
-                NextValue(pred_r[k], saturated(predsum_r, PV)), NextValue(pred_d[k], saturated(predsum_d, PV)),
+                NextValue(pred_r[k], saturated(predsum_r, PV)),
+                NextValue(pred_d[k], saturated(predsum_d, PV)),
             ) for k in range(T)],
             If(last_idx,
                 NextValue(idx, 0), NextValue(n_emitted, 0),
@@ -294,7 +308,8 @@ class _LiteDSPTracker(LiteXModule):
             CSRField("velocity_frac", size=4, offset=12, description="Velocity fractional bits."),
             CSRField("gain_frac",     size=4, offset=16, description="Gain fractional bits."),
         ])
-        self._dropped   = CSRStatus(32, name="dropped", description="Records dropped (no free slot).")
+        self._dropped   = CSRStatus(32, name="dropped",
+                                    description="Records dropped (no free slot).")
         self._cpi_count = CSRStatus(32, name="cpi_count", description="Updates since reset.")
         self.comb += [
             self.gate_r.eq(self._gates.fields.range), self.gate_d.eq(self._gates.fields.doppler),
@@ -302,15 +317,19 @@ class _LiteDSPTracker(LiteXModule):
             self.max_misses.eq(self._control.fields.max_misses),
             self.emit_tentative.eq(self._control.fields.emit_tentative),
             self.clear.eq(self._control.fields.clear),
-            self._status.fields.active.eq(self.active), self._status.fields.confirmed.eq(self.confirmed),
-            self._config.fields.n_tracks.eq(self.n_tracks), self._config.fields.frac_bits.eq(self.frac_bits),
-            self._config.fields.velocity_frac.eq(self.velocity_frac), self._config.fields.gain_frac.eq(self.gain_frac),
+            self._status.fields.active.eq(self.active),
+            self._status.fields.confirmed.eq(self.confirmed),
+            self._config.fields.n_tracks.eq(self.n_tracks),
+            self._config.fields.frac_bits.eq(self.frac_bits),
+            self._config.fields.velocity_frac.eq(self.velocity_frac),
+            self._config.fields.gain_frac.eq(self.gain_frac),
             self._dropped.status.eq(self.dropped), self._cpi_count.status.eq(self.cpi_count),
         ]
 
     def add_irq(self):
         self.ev        = EventManager()
-        self.ev.update = EventSourcePulse(description="The tracks were updated (terminator emitted).")
+        self.ev.update = EventSourcePulse(description="The tracks were updated (terminator "
+                                                      "emitted).")
         self.ev.finalize()
         self.comb += self.ev.update.trigger.eq(self.cpi_done)
 
@@ -344,8 +363,10 @@ class LiteDSPAlphaBetaTracker(_LiteDSPTracker):
 
     def _add_update_states(self, fsm, c):
         idx, A, PV, VW, GF, T = c["idx"], c["A"], c["PV"], c["VW"], self.gain_frac, c["T"]
-        P_r, P_d, V_r, V_d, pred_r, pred_d = c["P_r"], c["P_d"], c["V_r"], c["V_d"], c["pred_r"], c["pred_d"]
-        hits, misses, state, assigned, hits_inc = c["hits"], c["misses"], c["state"], c["assigned"], c["hits_inc"]
+        P_r, P_d, V_r, V_d, pred_r, pred_d = c["P_r"], c["P_d"], c["V_r"], c["V_d"], c["pred_r"], c[
+            "pred_d"]
+        hits, misses, state, assigned, hits_inc = c["hits"], c["misses"], c["state"], c[
+            "assigned"], c["hits_inc"]
         # One track per two cycles: products, then apply.
         # -------------------------------------------------
         e_r, e_d = Signal((PV + 1, True)), Signal((PV + 1, True))
@@ -366,12 +387,14 @@ class LiteDSPAlphaBetaTracker(_LiteDSPTracker):
         sumP_r, sumP_d = Signal((PV + 2, True)), Signal((PV + 2, True))
         sumV_r, sumV_d = Signal((VW + 2, True)), Signal((VW + 2, True))
         self.comb += [
-            sumP_r.eq(A["pred_r"][idx] + rounded(pa_r, GF)), sumP_d.eq(A["pred_d"][idx] + rounded(pa_d, GF)),
-            sumV_r.eq(A["V_r"][idx] + rounded(pb_r, GF)),    sumV_d.eq(A["V_d"][idx] + rounded(pb_d, GF)),
+            sumP_r.eq(A["pred_r"][idx] + rounded(pa_r, GF)),
+            sumP_d.eq(A["pred_d"][idx] + rounded(pa_d, GF)),
+            sumV_r.eq(A["V_r"][idx] + rounded(pb_r, GF)),
+            sumV_d.eq(A["V_d"][idx] + rounded(pb_d, GF)),
             newP_r.eq(saturated(sumP_r, PV)), newP_d.eq(saturated(sumP_d, PV)),
             newV_r.eq(saturated(sumV_r, VW)), newV_d.eq(saturated(sumV_d, VW)),
         ]
-        fsm.act("UPDATE",                                               # Products register this cycle.
+        fsm.act("UPDATE",                                            # Products register this cycle.
             NextState("UPDATE_APPLY"),
         )
         fsm.act("UPDATE_APPLY",
@@ -403,4 +426,5 @@ class LiteDSPAlphaBetaTracker(_LiteDSPTracker):
             CSRField("alpha", size=GF + 1, offset=0,  reset=self.alpha.reset.value, description=f"Position gain (Q1.{GF})."),
             CSRField("beta",  size=GF + 1, offset=16, reset=self.beta.reset.value,  description=f"Velocity gain (Q1.{GF})."),
         ])
-        self.comb += [self.alpha.eq(self._gains.fields.alpha), self.beta.eq(self._gains.fields.beta)]
+        self.comb += [self.alpha.eq(self._gains.fields.alpha),
+                      self.beta.eq(self._gains.fields.beta)]

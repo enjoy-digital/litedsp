@@ -5,7 +5,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Tests for the GUI's pure logic (graph<->netlist, param coercion, palette). The DearPyGui
-rendering needs a display and is not unit-tested; we only assert litedsp.gui.app imports headlessly."""
+rendering needs a display and is not unit-tested; we only assert that litedsp.gui.app imports
+headlessly."""
 
 import os
 import importlib.util

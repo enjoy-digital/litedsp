@@ -7,10 +7,12 @@
 """I/Q streams <-> framed wide-word streams: the generic glue toward host links.
 
 ``LiteDSPIQPacketizer`` frames the sample stream every ``samples_per_packet`` samples
-(:class:`~litedsp.stream.framing.LiteDSPStreamFramer`) and packs samples into ``word_width``-bit words
+(:class:`~litedsp.stream.framing.LiteDSPStreamFramer`) and
+packs samples into ``word_width``-bit words
 (:class:`~litedsp.stream.adapt.LiteDSPIQPack`, first sample in the LSBs): the resulting
 ``data``+``last`` stream maps directly onto UDP payloads (LiteEth), host DMA word streams
-(LitePCIe ``dma.sink``), or any AXI-Stream-with-tlast consumer. ``LiteDSPIQDepacketizer`` is the exact
+(LitePCIe ``dma.sink``), or any AXI-Stream-with-tlast
+consumer. ``LiteDSPIQDepacketizer`` is the exact
 inverse for the host -> FPGA direction.
 
 With ``with_timestamp=True`` a 128-bit header (magic/version, ``stream_id``, sample count,
@@ -74,7 +76,8 @@ class LiteDSPIQPacketizer(LiteXModule):
     def __init__(self, data_width=16, word_width=32, samples_per_packet=256, with_timestamp=False,
         stream_id=0, with_csr=True):
         ratio = word_width // (2*data_width)  # I/Q samples per word.
-        check(ratio >= 1 and ratio*2*data_width == word_width, "expected ratio >= 1 and ratio*2*data_width == word_width")
+        check(ratio >= 1 and ratio*2*data_width == word_width,
+              "expected ratio >= 1 and ratio*2*data_width == word_width")
         check(samples_per_packet % ratio == 0, "expected samples_per_packet % ratio == 0")
         check(0 <= stream_id <= 255, "expected 0 <= stream_id <= 255")
         self.sink   = stream.Endpoint(iq_layout(data_width))
@@ -96,9 +99,10 @@ class LiteDSPIQPacketizer(LiteXModule):
 
         # Timestamp Header Insertion.
         # ---------------------------
-        check(TIMESTAMP_HEADER_BITS % word_width == 0, "expected word_width to divide the 128-bit timestamp header")
+        check(TIMESTAMP_HEADER_BITS % word_width == 0,
+              "expected word_width to divide the 128-bit timestamp header")
         n_hdr = TIMESTAMP_HEADER_BITS//word_width
-        self.time      = Signal(TIMESTAMP_WIDTH)         # Current time (connect LiteDSPTimeCore.count).
+        self.time      = Signal(TIMESTAMP_WIDTH)     # Current time (connect LiteDSPTimeCore.count).
         self.stream_id = Signal(8, reset=stream_id)      # Stream identifier written to the header.
 
         # Latch time/sample-count when each packet's first sample arrives at the packing stage
@@ -185,7 +189,8 @@ class LiteDSPIQDepacketizer(LiteXModule):
     """
     def __init__(self, data_width=16, word_width=32, with_timestamp=False, with_csr=True):
         ratio = word_width // (2*data_width)  # I/Q samples per word.
-        check(ratio >= 1 and ratio*2*data_width == word_width, "expected ratio >= 1 and ratio*2*data_width == word_width")
+        check(ratio >= 1 and ratio*2*data_width == word_width,
+              "expected ratio >= 1 and ratio*2*data_width == word_width")
         self.sink = stream.Endpoint([("data", word_width)])
         if with_timestamp:
             self.source = stream.Endpoint(stream.EndpointDescription(
@@ -209,7 +214,8 @@ class LiteDSPIQDepacketizer(LiteXModule):
 
         # Timestamp Header Extraction.
         # ----------------------------
-        check(TIMESTAMP_HEADER_BITS % word_width == 0, "expected word_width to divide the 128-bit timestamp header")
+        check(TIMESTAMP_HEADER_BITS % word_width == 0,
+              "expected word_width to divide the 128-bit timestamp header")
         n_hdr = TIMESTAMP_HEADER_BITS//word_width
 
         # Header of the packet about to emerge (pend) vs the packet currently draining (cur):

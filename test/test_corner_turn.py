@@ -28,7 +28,8 @@ class TestCornerTurn(unittest.TestCase):
         prng  = random.Random(1)
         beats = cpi_beats(prng, 8, 16, 2)
         dut   = LiteDSPCornerTurn(n_range_bins=8, n_pulses=16, with_csr=False)
-        cap   = run_stream(dut, beats, len(beats), ["i", "q", "first", "last"], ["i", "q", "first", "last"],
+        cap   = run_stream(dut, beats, len(beats), ["i", "q", "first", "last"],
+                           ["i", "q", "first", "last"],
             sink_throttle=0.2, source_ready_rate=0.7)
         ri, rq, rf, rl = corner_turn_model([b["i"] for b in beats], [b["q"] for b in beats], 8, 16)
         self.assertTrue(np.array_equal(column(cap, "i", 16), ri))
@@ -54,9 +55,11 @@ class TestCornerTurn(unittest.TestCase):
                 cyc += 1
                 yield
         def driver():
-            yield from stream_driver(dut.sink, beats, ["i", "q", "first", "last"], seed=1, throttle=0.0)
+            yield from stream_driver(dut.sink, beats, ["i", "q", "first", "last"], seed=1,
+                                     throttle=0.0)
         def finish():
-            yield from stream_capture(dut.source, captured, len(beats), ["i", "q"], seed=2, ready_rate=1.0)
+            yield from stream_capture(dut.source, captured, len(beats), ["i", "q"], seed=2,
+                                      ready_rate=1.0)
             seen["frame_error"] = (yield dut.frame_error)
             yield dut.clear.eq(1)
             yield
@@ -84,7 +87,8 @@ class TestCornerTurn(unittest.TestCase):
         i = [prng.randint(-1000, 1000) for _ in range(N*M)]
         q = [prng.randint(-1000, 1000) for _ in range(N*M)]
         lead  = [{"i": 777, "q": -777, "first": 0, "last": 0} for _ in range(5)]
-        beats = lead + [{"i": i[k], "q": q[k], "first": int(k % N == 0), "last": int(k % N == N - 1)} for k in range(N*M)]
+        beats = lead + [{"i": i[k], "q": q[k], "first": int(k % N == 0),
+                         "last": int(k % N == N - 1)} for k in range(N*M)]
         dut = LiteDSPCornerTurn(n_range_bins=N, n_pulses=M, with_csr=False)
         cap = run_stream(dut, beats, N*M, ["i", "q", "first", "last"], ["i", "q", "first", "last"],
             sink_throttle=0.2, source_ready_rate=0.7)

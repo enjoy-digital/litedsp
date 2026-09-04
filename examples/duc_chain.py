@@ -28,7 +28,8 @@ def main():
     f_out         = 0.10                       # Target IF (normalized to the output rate).
     n             = 400
 
-    dut = LiteDSPDUC(data_width=data_width, interpolation=interpolation, method="fir", with_csr=False)
+    dut = LiteDSPDUC(data_width=data_width, interpolation=interpolation, method="fir",
+                     with_csr=False)
     dut.nco.phase_inc.reset = int(round(f_out*(1 << 32))) & 0xffffffff
 
     # Baseband: a low complex tone (well inside the interpolation passband).

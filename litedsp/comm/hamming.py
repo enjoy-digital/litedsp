@@ -55,11 +55,13 @@ class LiteDSPHammingEncoder(LiteXModule):
             If(self.sink.valid & adv,
                 NextValue(par, par ^ Mux(self.sink.data, col, 0)),
                 NextValue(q, q ^ self.sink.data),
-                If(idx == k - 1, NextValue(idx, 0), NextState("PARITY")).Else(NextValue(idx, idx + 1)),
+                If(idx == k - 1, NextValue(idx, 0), NextState("PARITY")).Else(
+                    NextValue(idx, idx + 1)),
             ),
         )
         pbit = Signal()
-        self.comb += pbit.eq(Array([par[i] for i in range(m_)])[idx[:bits_for(m_ - 1)]] if m_ > 1 else par[0])
+        self.comb += pbit.eq(Array([par[i] for i in range(m_)])[idx[:bits_for(m_ - 1)]] if m_ > 1
+                                                                              else par[0])
         fsm.act("PARITY",
             emit.eq(1),
             out_bit.eq(pbit),
@@ -67,7 +69,8 @@ class LiteDSPHammingEncoder(LiteXModule):
                 NextValue(q, q ^ pbit),
                 If(idx == m_ - 1,
                     NextValue(idx, 0),
-                    If(secded, NextState("OVERALL")).Else(NextValue(par, 0), NextValue(q, 0), NextValue(self.blocks, self.blocks + 1), NextState("MESSAGE")),
+                    If(secded, NextState("OVERALL")).Else(NextValue(par, 0), NextValue(q,
+                        0), NextValue(self.blocks, self.blocks + 1), NextState("MESSAGE")),
                 ).Else(
                     NextValue(idx, idx + 1),
                 ),
@@ -76,13 +79,15 @@ class LiteDSPHammingEncoder(LiteXModule):
         fsm.act("OVERALL",
             emit.eq(1),
             out_bit.eq(q),
-            If(adv, NextValue(par, 0), NextValue(q, 0), NextValue(self.blocks, self.blocks + 1), NextState("MESSAGE")),
+            If(adv, NextValue(par, 0), NextValue(q, 0), NextValue(self.blocks, self.blocks + 1),
+               NextState("MESSAGE")),
         )
         self.sync += If(adv,
             self.source.valid.eq(emit),
             self.source.data.eq(out_bit),
             self.source.first.eq(fsm.ongoing("MESSAGE") & (idx == 0)),
-            self.source.last.eq(fsm.ongoing("OVERALL") if secded else (fsm.ongoing("PARITY") & (idx == m_ - 1))),
+            self.source.last.eq(fsm.ongoing("OVERALL") if secded
+                                            else (fsm.ongoing("PARITY") & (idx == m_ - 1))),
         )
 
         # CSR.
@@ -98,7 +103,8 @@ class LiteDSPHammingEncoder(LiteXModule):
         ])
         self._blocks = CSRStatus(32, name="blocks", description="Codewords sent.")
         self.comb += [self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k),
-                      self._config.fields.secded.eq(int(self.secded)), self._blocks.status.eq(self.blocks)]
+                      self._config.fields.secded.eq(int(self.secded)),
+                      self._blocks.status.eq(self.blocks)]
 
 # Hamming Decoder ----------------------------------------------------------------------------------
 
@@ -129,7 +135,7 @@ class LiteDSPHammingDecoder(LiteXModule):
 
         # # #
 
-        m_, k, n = m, self.k, (1 << m) - 1                              # n: Hamming length (no overall).
+        m_, k, n = m, self.k, (1 << m) - 1                         # n: Hamming length (no overall).
         cols = hamming_columns(m)
         adv = Signal()
         self.comb += adv.eq(self.source.ready | ~self.source.valid)
@@ -148,10 +154,12 @@ class LiteDSPHammingDecoder(LiteXModule):
         fsm.act("RECEIVE",
             self.sink.ready.eq(1),
             If(self.sink.valid,
-                NextValue(bits, Cat(bits[1:], self.sink.data)),         # Bit i lands at position i after n(+1) shifts.
+                # Bit i lands at position i after n(+1) shifts.
+                NextValue(bits, Cat(bits[1:], self.sink.data)),
                 NextValue(synd, synd ^ Mux(self.sink.data, col, 0)),
                 NextValue(q, q ^ self.sink.data),
-                If(idx == self.n - 1, NextValue(idx, 0), NextState("DECIDE")).Else(NextValue(idx, idx + 1)),
+                If(idx == self.n - 1, NextValue(idx, 0), NextState("DECIDE")).Else(
+                    NextValue(idx, idx + 1)),
             ),
         )
         fixed = Signal(n)
@@ -161,7 +169,8 @@ class LiteDSPHammingDecoder(LiteXModule):
             NextValue(msg, fixed[:k]),
             NextValue(self.corrected, (synd != 0) & ~double),
             If((synd != 0) & ~double, NextValue(self.corrected_total, self.corrected_total + 1)),
-            If(double, NextValue(self.uncorrectable, 1), NextValue(self.uncorrectable_count, self.uncorrectable_count + 1)),
+            If(double, NextValue(self.uncorrectable, 1),
+               NextValue(self.uncorrectable_count, self.uncorrectable_count + 1)),
             NextValue(self.blocks, self.blocks + 1),
             NextValue(synd, 0), NextValue(q, 0), NextValue(idx, 0),
             NextState("OUT"),
@@ -170,7 +179,8 @@ class LiteDSPHammingDecoder(LiteXModule):
         fsm.act("OUT",
             emit.eq(1),
             If(adv,
-                If(idx == k - 1, NextValue(idx, 0), NextState("RECEIVE")).Else(NextValue(idx, idx + 1)),
+                If(idx == k - 1, NextValue(idx, 0), NextState("RECEIVE")).Else(
+                    NextValue(idx, idx + 1)),
             ),
         )
         self.sync += [
@@ -199,13 +209,18 @@ class LiteDSPHammingDecoder(LiteXModule):
             CSRField("corrected",     size=1, offset=0, description="The last block was corrected."),
             CSRField("uncorrectable", size=1, offset=1, description="Sticky: a double error was detected."),
         ])
-        self._corrected_total     = CSRStatus(32, name="corrected_total", description="Blocks corrected since reset.")
-        self._uncorrectable_count = CSRStatus(32, name="uncorrectable_count", description="Double errors since reset.")
+        self._corrected_total     = CSRStatus(32, name="corrected_total",
+                                              description="Blocks corrected since reset.")
+        self._uncorrectable_count = CSRStatus(32, name="uncorrectable_count",
+                                              description="Double errors since reset.")
         self._blocks = CSRStatus(32, name="blocks", description="Blocks decoded.")
         self.comb += [
-            self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k), self._config.fields.secded.eq(int(self.secded)),
+            self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k),
+            self._config.fields.secded.eq(int(self.secded)),
             self.clear.eq(self._control.fields.clear),
-            self._status.fields.corrected.eq(self.corrected), self._status.fields.uncorrectable.eq(self.uncorrectable),
-            self._corrected_total.status.eq(self.corrected_total), self._uncorrectable_count.status.eq(self.uncorrectable_count),
+            self._status.fields.corrected.eq(self.corrected),
+            self._status.fields.uncorrectable.eq(self.uncorrectable),
+            self._corrected_total.status.eq(self.corrected_total),
+            self._uncorrectable_count.status.eq(self.uncorrectable_count),
             self._blocks.status.eq(self.blocks),
         ]

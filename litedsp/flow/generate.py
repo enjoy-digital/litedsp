@@ -54,7 +54,8 @@ def generate(source, build_dir, name=None, with_csr=False):
 # CLI ----------------------------------------------------------------------------------------------
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Generate chain Verilog from a LiteDSP flow netlist.")
+    parser = argparse.ArgumentParser(description="Generate chain Verilog from a LiteDSP flow "
+                                                 "netlist.")
     parser.add_argument("netlist",                      help="Path to the netlist JSON.")
     parser.add_argument("--out",  default="build",      help="Output build directory.")
     parser.add_argument("--name", default=None,         help="Top module name (default: netlist name).")

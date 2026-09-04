@@ -17,7 +17,8 @@ import numpy as np
 
 # Biquads (Audio EQ Cookbook, R. Bristow-Johnson) --------------------------------------------------
 
-RBJ_KINDS = ("lowpass", "highpass", "bandpass", "notch", "allpass", "peaking", "lowshelf", "highshelf")
+RBJ_KINDS = ("lowpass", "highpass", "bandpass", "notch", "allpass", "peaking", "lowshelf",
+             "highshelf")
 
 def rbj_biquad(kind, f0, gain_db=0.0, q=1/math.sqrt(2), slope=None, sample_rate=None):
     """One RBJ cookbook section: ``kind`` in ``RBJ_KINDS``, center/corner ``f0`` (normalized, or
@@ -49,9 +50,11 @@ def rbj_biquad(kind, f0, gain_db=0.0, q=1/math.sqrt(2), slope=None, sample_rate=
         return [1 + alpha*A, -2*cw, 1 - alpha*A, 1 + alpha/A, -2*cw, 1 - alpha/A]
     sa = 2*math.sqrt(A)*alpha
     if kind == "lowshelf":
-        return [A*((A + 1) - (A - 1)*cw + sa), 2*A*((A - 1) - (A + 1)*cw), A*((A + 1) - (A - 1)*cw - sa),
+        return [A*((A + 1) - (A - 1)*cw + sa), 2*A*((A - 1) - (A + 1)*cw),
+                A*((A + 1) - (A - 1)*cw - sa),
                 (A + 1) + (A - 1)*cw + sa, -2*((A - 1) + (A + 1)*cw), (A + 1) + (A - 1)*cw - sa]
-    return [A*((A + 1) + (A - 1)*cw + sa), -2*A*((A - 1) + (A + 1)*cw), A*((A + 1) + (A - 1)*cw - sa),
+    return [A*((A + 1) + (A - 1)*cw + sa), -2*A*((A - 1) + (A + 1)*cw),
+            A*((A + 1) + (A - 1)*cw - sa),
             (A + 1) - (A - 1)*cw + sa, 2*((A - 1) - (A + 1)*cw), (A + 1) - (A - 1)*cw - sa]
 
 def linkwitz_riley_sos(f_cutoff, btype="lowpass", order=4, sample_rate=None):
@@ -67,7 +70,8 @@ def linkwitz_riley_sos(f_cutoff, btype="lowpass", order=4, sample_rate=None):
 def k_weighting_sos(sample_rate=48000):
     """ITU-R BS.1770 K-weighting: high shelf (+4 dB above ~1.7 kHz) + RLB high-pass (38 Hz),
     designed for any sample rate from the standard's 48 kHz prototype parameters."""
-    shelf = rbj_biquad("highshelf", 1681.974450955533, gain_db=3.999843853973347, q=0.7071752369554196,
+    shelf = rbj_biquad("highshelf", 1681.974450955533, gain_db=3.999843853973347,
+                       q=0.7071752369554196,
         sample_rate=sample_rate)
     hp    = rbj_biquad("highpass", 38.13547087602444, q=0.5003270373238773, sample_rate=sample_rate)
     return [shelf, hp]

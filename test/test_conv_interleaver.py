@@ -13,7 +13,8 @@ from migen import *
 
 from litex.gen import *
 
-from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+from litedsp.comm.conv_interleaver import (LiteDSPConvolutionalInterleaver,
+                                           LiteDSPConvolutionalDeinterleaver)
 
 from test.common import run_stream, column
 from test.models import conv_interleaver_model
@@ -29,11 +30,13 @@ class TestConvolutionalInterleaver(unittest.TestCase):
                 n = 2*(B - 1)*D*B + 60
                 x = [prng.randint(0, 255) for _ in range(n)]
                 il = LiteDSPConvolutionalInterleaver(branches=B, depth=D, with_csr=False)
-                cap = run_stream(il, [{"data": v} for v in x], n, ["data"], ["data"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(il, [{"data": v} for v in x], n, ["data"], ["data"],
+                                 sink_throttle=0.2, source_ready_rate=0.7)
                 y = column(cap, "data").tolist()
                 self.assertEqual(y, conv_interleaver_model(x, B, D).tolist())
                 dl = LiteDSPConvolutionalDeinterleaver(branches=B, depth=D, with_csr=False)
-                cap = run_stream(dl, [{"data": v} for v in y], n, ["data"], ["data"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(dl, [{"data": v} for v in y], n, ["data"], ["data"],
+                                 sink_throttle=0.2, source_ready_rate=0.7)
                 z = column(cap, "data").tolist()
                 self.assertEqual(z, conv_interleaver_model(y, B, D, deinterleave=True).tolist())
                 d = (B - 1)*D*B
@@ -64,8 +67,10 @@ class TestConvolutionalInterleaver(unittest.TestCase):
             yield dut.phase_rst.eq(1)
             yield
             yield dut.phase_rst.eq(0)
-        cap = run_stream(dut, beats, 24, ["data"], ["data"], sink_throttle=0.0, source_ready_rate=1.0, extra=[rst()])
-        self.assertNotEqual(column(cap, "data").tolist(), conv_interleaver_model(range(1, 25), 3, 2).tolist())
+        cap = run_stream(dut, beats, 24, ["data"], ["data"], sink_throttle=0.0,
+                         source_ready_rate=1.0, extra=[rst()])
+        self.assertNotEqual(column(cap, "data").tolist(),
+                            conv_interleaver_model(range(1, 25), 3, 2).tolist())
         dut = LiteDSPConvolutionalInterleaver(with_csr=False)
         dut.bypass.reset = 1
         cap = run_stream(dut, beats, 24, ["data"], ["data"])

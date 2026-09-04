@@ -77,5 +77,6 @@ class LiteDSPParallelNCO(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._phase_inc = CSRStorage(self.phase_bits, description="Phase increment (sets output frequency).")
+        self._phase_inc = CSRStorage(self.phase_bits,
+                                     description="Phase increment (sets output frequency).")
         self.comb += self.phase_inc.eq(self._phase_inc.storage)

@@ -294,12 +294,14 @@ def window_layout(data_width=8, n_channels=1, kernel_size=3):
     """``kernel_size x kernel_size`` pixel neighbourhood: fields ``w{row}{col}`` (channels packed
     LSB-first, ``n_channels * data_width`` bits each) plus ``eol``; ``w{P}{P}`` is the centre."""
     check(kernel_size in (3, 5, 7), "expected kernel_size in (3, 5, 7)")
-    return [(f"w{i}{j}", n_channels*data_width) for i in range(kernel_size) for j in range(kernel_size)] + [("eol", 1)]
+    return [(f"w{i}{j}", n_channels*data_width) for i in range(kernel_size) for j in range(
+        kernel_size)] + [("eol", 1)]
 
 def video_layout(data_width=8):
     """Timed video stream, field-compatible with LiteX ``video_data_layout``: ``hsync``,
     ``vsync``, ``de`` and the ``r``, ``g``, ``b`` codes (blanking beats carry ``de = 0``)."""
-    return [("hsync", 1), ("vsync", 1), ("de", 1), ("r", data_width), ("g", data_width), ("b", data_width)]
+    return [("hsync", 1), ("vsync", 1), ("de", 1), ("r", data_width), ("g", data_width),
+            ("b", data_width)]
 
 def video_timing_layout(coord_bits=12):
     """Video timing generator stream, field-compatible with LiteX ``video_timing_layout``."""
@@ -338,7 +340,8 @@ def add_bypass(module, output_registered=True):
     Requires ``module.sink``/``module.source`` with identical payload layouts and an integer
     ``module.latency >= 1`` whose pipeline advances when the output can accept a sample.
     """
-    check(getattr(module, "latency", None) and module.latency >= 1, "expected getattr(module, 'latency', None) and module.latency >= 1")
+    check(getattr(module, "latency", None) and module.latency >= 1,
+          "expected getattr(module, 'latency', None) and module.latency >= 1")
     module.bypass = Signal()  # Passthrough (skip processing).
     adv = Signal()
     module.comb += adv.eq(module.source.ready | ~module.source.valid)
@@ -362,5 +365,6 @@ def add_bypass(module, output_registered=True):
 
 def add_bypass_csr(module):
     """CSR for :func:`add_bypass` (call from ``add_csr``)."""
-    module._bypass = CSRStorage(1, reset=0, name="bypass", description="Bypass block (passthrough).")
+    module._bypass = CSRStorage(1, reset=0, name="bypass",
+                                description="Bypass block (passthrough).")
     module.comb += module.bypass.eq(module._bypass.storage)

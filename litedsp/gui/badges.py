@@ -92,7 +92,8 @@ def chain_totals(nl, reg=None, device="ecp5"):
             totals[m] += res.get(m, 0)
         fmax = res.get("fmax_min")
         if fmax is not None:
-            totals["fmax_min"] = fmax if totals["fmax_min"] is None else min(totals["fmax_min"], fmax)
+            totals["fmax_min"] = fmax if totals["fmax_min"] is None else min(totals["fmax_min"],
+                                                                             fmax)
 
     # Longest-path latency: the cumulative walk of glue._latency_analysis, kept here so callers
     # get the path total (glue only exposes per-join deficits).

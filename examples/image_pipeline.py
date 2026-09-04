@@ -12,7 +12,8 @@ A 32 x 24 RGB scene (colour bars over a ramp with a bright triangle) goes throug
 
   Debayer -> PixelGain (WB) -> ColorMatrix (RGB -> YCbCr, JPEG) -> Split
       A: PixelHistogram (Y, 256 bins)
-      B: ColorMatrix (select Y) -> Kernel2D (Gaussian 3x3) -> Sobel (L1, /4) -> Threshold (hysteresis 96 / 64)
+      B: ColorMatrix (select Y) -> Kernel2D (Gaussian 3x3) -> Sobel (L1,
+      /4) -> Threshold (hysteresis 96 / 64)
          -> PixelHistogram (2 bins: edge / non-edge)
 
 twice: one free-flowing pass and one under random backpressure. Gates: the YCbCr frame is
@@ -48,17 +49,19 @@ from litedsp.image.histogram import LiteDSPPixelHistogram
 from litedsp.image.design    import mosaic, color_preset, kernel_preset
 
 from test.common import raster_beats
-from test.models import (debayer_model, pixel_gain_model, color_matrix_model, kernel2d_model, sobel_model,
+from test.models import (debayer_model, pixel_gain_model, color_matrix_model, kernel2d_model,
+                         sobel_model,
                          threshold_model, histogram_model)
 
 W, H = 32, 24
-WB_R, WB_B = 0.6, 0.8                                                   # Sensor white-balance error.
+WB_R, WB_B = 0.6, 0.8                                                  # Sensor white-balance error.
 
 # Scene --------------------------------------------------------------------------------------------
 
 def scene():
     img = np.zeros((H, W, 3), np.int64)
-    bars = [(230, 230, 230), (230, 230, 40), (40, 230, 230), (40, 230, 40), (230, 40, 230), (230, 40, 40), (40, 40, 230), (30, 30, 30)]
+    bars = [(230, 230, 230), (230, 230, 40), (40, 230, 230), (40, 230, 40), (230, 40, 230),
+            (230, 40, 40), (40, 40, 230), (30, 30, 30)]
     for y in range(H):
         for x in range(W):
             if y < H//2:
@@ -87,11 +90,14 @@ class Pipeline(LiteXModule):
         self.wb       = LiteDSPPixelGain(with_csr=False)
         for k in range(3):
             self.wb.gain[k].reset = gains[k]
-        self.csc      = LiteDSPColorMatrix(coefficients=c, in_offsets=i, out_offsets=o, with_csr=False)
+        self.csc      = LiteDSPColorMatrix(coefficients=c, in_offsets=i, out_offsets=o,
+                                           with_csr=False)
         self.split    = LiteDSPSplit(2, layout=pixel_layout(8, 3))
         self.hist_y   = LiteDSPPixelHistogram(n_channels=3, channel=0, bins_log2=8, with_csr=False)
-        self.sel_y    = LiteDSPColorMatrix(n_out=1, coefficients=cy, in_offsets=iy, out_offsets=oy, with_csr=False)
-        self.blur     = LiteDSPKernel2D(coefficients=g3, shift=s3, offset=o3, width=W, with_csr=False)
+        self.sel_y    = LiteDSPColorMatrix(n_out=1, coefficients=cy, in_offsets=iy, out_offsets=oy,
+                                           with_csr=False)
+        self.blur     = LiteDSPKernel2D(coefficients=g3, shift=s3, offset=o3, width=W,
+                                        with_csr=False)
         self.sobel    = LiteDSPSobel(width=W, mode="l1", shift=2, with_csr=False)
         self.thresh   = LiteDSPThreshold(high=96, low=64, with_csr=False)
         self.hist_e   = LiteDSPPixelHistogram(n_channels=1, bins_log2=1, with_csr=False)
@@ -101,11 +107,13 @@ class Pipeline(LiteXModule):
             self.demosaic.source.connect(self.wb.sink), self.wb.source.connect(self.csc.sink),
             self.csc.source.connect(self.split.sink),
             self.split.sources[0].connect(self.hist_y.sink),
-            self.split.sources[1].connect(self.sel_y.sink), self.sel_y.source.connect(self.blur.sink),
+            self.split.sources[1].connect(self.sel_y.sink),
+            self.sel_y.source.connect(self.blur.sink),
             self.blur.source.connect(self.sobel.sink), self.sobel.source.connect(self.thresh.sink),
             self.thresh.source.connect(self.hist_e.sink),
         ]
-        self.branch_b_latency = self.sel_y.latency + self.blur.latency + self.sobel.latency + self.thresh.latency
+        self.branch_b_latency = (self.sel_y.latency + self.blur.latency + self.sobel.latency +
+                                 self.thresh.latency)
 
 def simulate(top, beats, throttle=0.0, ready_rate=1.0, seed=2, max_cycles=40000):
     """Drive the raw frames, capture the YCbCr tap, the edge map and both histograms."""
@@ -133,7 +141,8 @@ def simulate(top, beats, throttle=0.0, ready_rate=1.0, seed=2, max_cycles=40000)
                 yield ep.ready.eq(int(rng.random() < ready_rate))
                 yield
                 if (yield ep.valid) and (yield ep.ready):
-                    store.append({"data": (yield ep.data), "first": (yield ep.first), "last": (yield ep.last)})
+                    store.append({"data": (yield ep.data), "first": (yield ep.first),
+                                  "last": (yield ep.last)})
         return gen()
     def driver():
         cyc = 0
@@ -155,7 +164,8 @@ def simulate(top, beats, throttle=0.0, ready_rate=1.0, seed=2, max_cycles=40000)
                 return
             yield
         raise RuntimeError("simulation did not complete")
-    run_simulation(top, [driver(), tap(top.csc.source, ["r", "g", "b", "first"], ycbcr), tap(top.thresh.source, ["data", "first"], edges),
+    run_simulation(top, [driver(), tap(top.csc.source, ["r", "g", "b", "first"], ycbcr),
+                         tap(top.thresh.source, ["data", "first"], edges),
                          tap(top.sel_y.sink, ["first"], timing.setdefault("b_in", [])),
                          sinkdrv(top.hist_y.source, hist_y), sinkdrv(top.hist_e.source, hist_e)])
     return ycbcr, edges, hist_y, hist_e, timing
@@ -181,8 +191,10 @@ def reference(raw, top):
     bf = (np.pad(yf, 1, mode="edge"))
     blur_f = sum(g3[k]*bf[k//3:k//3 + H, k % 3:k % 3 + W] for k in range(9))/16
     pf = np.pad(blur_f, 1, mode="edge")
-    gx = (pf[0:H, 2:] - pf[0:H, :W]) + 2*(pf[1:H + 1, 2:] - pf[1:H + 1, :W]) + (pf[2:, 2:] - pf[2:, :W])
-    gy = (pf[2:, 0:W] - pf[0:H, 0:W]) + 2*(pf[2:, 1:W + 1] - pf[0:H, 1:W + 1]) + (pf[2:, 2:] - pf[0:H, 2:])
+    gx = (pf[0:H, 2:] - pf[0:H, :W]) + 2*(pf[1:H + 1, 2:] - pf[1:H + 1, :W]) + (pf[2:, 2:]
+        - pf[2:, :W])
+    gy = (pf[2:, 0:W] - pf[0:H, 0:W]) + 2*(pf[2:, 1:W + 1] - pf[0:H, 1:W + 1]) + (pf[2:, 2:]
+        - pf[0:H, 2:])
     edge_f = np.where((np.abs(gx) + np.abs(gy))/4 >= 80, 255, 0)
     return dict(rgb=rgb, ycc=ycc, y=y, edge=edge, ycc_f=ycc_f, edge_f=edge_f)
 
@@ -202,7 +214,8 @@ def check(name, ycbcr, edges, hist_y, hist_e, timing, ref, top):
     hy = [np.array([b["data"] for b in hist_y[k*256:(k + 1)*256]]) for k in range(2)]
     he = [np.array([b["data"] for b in hist_e[k*2:(k + 1)*2]]) for k in range(2)]
     ok &= all(int(h.sum()) == W*H for h in hy + he)
-    ok &= np.array_equal(hy[0], histogram_model(ref["ycc"], 0, 8)) and np.array_equal(he[0], histogram_model(ref["edge"], 0, 1))
+    ok &= np.array_equal(hy[0], histogram_model(ref["ycc"], 0, 8)) and np.array_equal(he[0],
+        histogram_model(ref["edge"], 0, 1))
     ok &= np.array_equal(hy[1], hy[0]) and np.array_equal(he[1], he[0])
     first_in  = next(b["cycle"] for b in timing["b_in"] if b["first"])
     first_out = next(b["cycle"] for b in edges if b["first"])
@@ -211,9 +224,12 @@ def check(name, ycbcr, edges, hist_y, hist_e, timing, ref, top):
     ok &= 0.02*W*H <= int(he[0][1]) <= 0.5*W*H                          # A real edge map.
     if name == "free-flow":
         ok &= lat == top.branch_b_latency
-    print(f"[{name}] YCbCr bit-exact {np.array_equal(ycc[0], ref['ycc'])}, PSNR {psnr:.1f} dB vs float; edge map bit-exact "
-          f"{np.array_equal(edg[0], ref['edge'])}, {100*agree:.1f} % agreement with the float Sobel; histograms {int(hy[0].sum())} / "
-          f"{int(he[0].sum())} px (edge pixels {int(he[0][1])}); branch-B latency {lat} (declared {top.branch_b_latency}); "
+    print(f"[{name}] YCbCr bit-exact {np.array_equal(ycc[0], ref['ycc'])}, PSNR {psnr:.1f} dB vs "
+          f"float; edge map bit-exact "
+          f"{np.array_equal(edg[0], ref['edge'])}, {100*agree:.1f} % agreement with the float "
+          f"Sobel; histograms {int(hy[0].sum())} / "
+          f"{int(he[0].sum())} px (edge pixels {int(he[0][1])}); branch-B latency {lat} (declared "
+          f"{top.branch_b_latency}); "
           f"frame 2 == frame 1 {np.array_equal(ycc[1], ycc[0]) and np.array_equal(edg[1], edg[0])}")
     return ok, dict(ycc=ycc[0], edge=edg[0], hist=hy[0])
 
@@ -230,11 +246,15 @@ def plot(plot_dir, raw, ref, res):
     os.makedirs(plot_dir, exist_ok=True)
     fig, ax = plt.subplots(2, 3, figsize=(12, 6.5))
     ax[0, 0].imshow(scene().astype(np.uint8)); ax[0, 0].set_title("scene")
-    ax[0, 1].imshow(raw, cmap="gray", vmin=0, vmax=255); ax[0, 1].set_title("sensor (RGGB mosaic, WB error)")
+    ax[0, 1].imshow(raw, cmap="gray", vmin=0, vmax=255); ax[0, 1].set_title("sensor (RGGB mosaic, "
+                                                                            "WB error)")
     ax[0, 2].imshow(ref["rgb"].astype(np.uint8)); ax[0, 2].set_title("RTL debayer + WB (model)")
-    ax[1, 0].imshow(res["ycc"][:, :, 0], cmap="gray", vmin=0, vmax=255); ax[1, 0].set_title("Y (RTL)")
-    ax[1, 1].imshow(res["edge"], cmap="gray", vmin=0, vmax=255); ax[1, 1].set_title("edge map (RTL)")
-    ax[1, 2].bar(range(256), res["hist"], width=1.0); ax[1, 2].set_title("Y histogram (RTL)"); ax[1, 2].set_xlim(0, 255)
+    ax[1, 0].imshow(res["ycc"][:, :, 0], cmap="gray", vmin=0, vmax=255); ax[1,
+                                                                            0].set_title("Y (RTL)")
+    ax[1, 1].imshow(res["edge"], cmap="gray", vmin=0, vmax=255); ax[1,
+                                                                    1].set_title("edge map (RTL)")
+    ax[1, 2].bar(range(256), res["hist"], width=1.0); ax[1, 2].set_title("Y histogram (RTL)"); ax[1,
+        2].set_xlim(0, 255)
     for a in ax.flat[:5]:
         a.axis("off")
     fig.tight_layout()

@@ -21,7 +21,8 @@ PIX   = ["r", "g", "b", "eol", "first", "last"]
 
 def images(n, w=16, h=12, seed=1):
     prng = random.Random(seed)
-    return [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(h)]) for _ in range(n)]
+    return [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(
+        h)]) for _ in range(n)]
 
 class TestPixelFromVideo(unittest.TestCase):
     # verify-tier: model — two 16 x 12 frames with blanking under backpressure: the active pixels
@@ -30,7 +31,8 @@ class TestPixelFromVideo(unittest.TestCase):
         imgs  = images(2)
         beats = video_frames(imgs)
         dut   = LiteDSPPixelFromVideo(width=16, height=12, with_csr=False)
-        cap   = run_stream(dut, beats, 2*16*12, VIDEO, PIX, sink_throttle=0.2, source_ready_rate=0.7)
+        cap   = run_stream(dut, beats, 2*16*12, VIDEO, PIX, sink_throttle=0.2,
+                           source_ready_rate=0.7)
         ref   = pixel_from_video_model(beats, 16, 12)
         for name, col in zip(PIX, ref):
             self.assertEqual(column(cap, name).tolist(), col.tolist(), name)
@@ -48,7 +50,7 @@ class TestPixelFromVideo(unittest.TestCase):
                 b["de"] = 0                                             # Short line 3.
         dut = LiteDSPPixelFromVideo(width=16, height=12, with_csr=False)
         run_stream(dut, beats, 16*12 - 2, VIDEO, PIX, sink_throttle=0.0, source_ready_rate=1.0,
-            extra=[self._status(dut, len(beats) + 20)])                # Active: runs the trailing blanking.
+            extra=[self._status(dut, len(beats) + 20)])        # Active: runs the trailing blanking.
         self.assertEqual(self.err, 1)
         self.assertEqual(self.frames, 1)
         with self.assertRaises(ValueError):
@@ -68,7 +70,7 @@ class TestPixelToVideo(unittest.TestCase):
     # backpressure; a throttled line underflows (black + sticky flag) and the next frame recovers.
     def test_frames_and_underflow(self):
         imgs   = images(2)
-        timing = video_frames(imgs)                                     # hcount / vcount / de / syncs.
+        timing = video_frames(imgs)                                  # hcount / vcount / de / syncs.
         pixels = raster_beats(imgs[0], 3) + raster_beats(imgs[1], 3)
         dut    = LiteDSPPixelToVideo(with_csr=False)
         out    = self._run(dut, timing, pixels, len(timing), pixel_rate=1.0)
@@ -107,7 +109,7 @@ class TestPixelToVideo(unittest.TestCase):
             k = 0
             for b in pixels:
                 if starve and k == starve[0]*16 and b["first"] == 0:
-                    for _ in range(starve[1]*3):                         # Miss a whole line's worth.
+                    for _ in range(starve[1]*3):                        # Miss a whole line's worth.
                         yield
                 for f in ("r", "g", "b", "eol", "first", "last"):
                     yield getattr(dut.sink, f).eq(b[f])

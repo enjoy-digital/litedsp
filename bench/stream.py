@@ -75,7 +75,7 @@ class BenchSoC(SoCMini):
             self.adder.source.connect(self.ddc.sink),
         ]
 
-        # Data path: I/Q packets to the host over UDP (shares the Etherbone core) -------------------
+        # Data path: I/Q packets to the host over UDP (shares the Etherbone core) ------------------
         self.iq_streamer = LiteDSPUDPIQStreamer(self.ethcore_etherbone.udp,
             ip_address=host_ip, udp_port=udp_port,
             data_width=16, word_width=32, samples_per_packet=samples_per_packet)

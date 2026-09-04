@@ -110,20 +110,23 @@ class FMStereoReceiver(LiteXModule):
         bp19 = firwin_bandpass(N_BP19, 16_000/FS, 22_000/FS, data_width=data_width, gain=G_BP19)
         bp38 = firwin_bandpass(N_BP38, 32_000/FS, 44_000/FS, data_width=data_width, gain=G_BP38)
         a_c  = carrier_amplitude(bp19, bp38)               # Regenerated-carrier amplitude.
-        g_lr = 2.0*(1 << (data_width - 1))/a_c             # L-R gain: undo carrier scaling + DSB /2.
+        g_lr = 2.0*(1 << (data_width - 1))/a_c            # L-R gain: undo carrier scaling + DSB /2.
         lp_m = firwin_lowpass(N_LP, 7_600/FS, data_width=data_width, gain=1.0)
         lp_d = firwin_lowpass(N_LP, 7_600/FS, data_width=data_width, gain=g_lr)
 
         # Blocks.
         # -------
-        self.demod     = LiteDSPFMDemod(data_width=data_width, angle_width=data_width, with_csr=False)
-        self.split_mpx = LiteDSPSplit(n=2, data_width=data_width)              # MPX -> direct | pilot.
+        self.demod     = LiteDSPFMDemod(data_width=data_width, angle_width=data_width,
+                                        with_csr=False)
+        self.split_mpx = LiteDSPSplit(n=2, data_width=data_width)           # MPX -> direct | pilot.
         self.fifo      = LiteDSPStreamFIFO(depth=32, data_width=data_width, with_csr=False)
-        self.split_dir = LiteDSPSplit(n=2, data_width=data_width)              # direct -> mono | L-R.
+        self.split_dir = LiteDSPSplit(n=2, data_width=data_width)            # direct -> mono | L-R.
         self.bp19      = LiteDSPFIRFilter(n_taps=N_BP19, data_width=data_width, symmetric=True)
-        self.sqmix     = LiteDSPMixer(data_width=data_width, with_csr=False)   # pilot^2 (38 kHz + DC).
+        # pilot^2 (38 kHz + DC).
+        self.sqmix     = LiteDSPMixer(data_width=data_width, with_csr=False)
         self.bp38      = LiteDSPFIRFilter(n_taps=N_BP38, data_width=data_width, symmetric=True)
-        self.lrmix     = LiteDSPMixer(data_width=data_width, with_csr=False)   # MPX x 38 kHz carrier.
+        # MPX x 38 kHz carrier.
+        self.lrmix     = LiteDSPMixer(data_width=data_width, with_csr=False)
         self.lp_mono   = LiteDSPFIRDecimator(n_taps=N_LP, decimation=DECIM, data_width=data_width,
             coefficients=lp_m, with_csr=False)
         self.lp_diff   = LiteDSPFIRDecimator(n_taps=N_LP, decimation=DECIM, data_width=data_width,

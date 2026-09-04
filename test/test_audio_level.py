@@ -61,9 +61,11 @@ class TestVolume(unittest.TestCase):
 
         got, chs = self.run_volume(beats, dut, extra=[ctrl()])
         nb = len(beats)
-        g0 = np.full(nb, int(0.5*ONE)); g1 = np.array([int(2.0*ONE)]*100 + [int(0.25*ONE)]*(nb - 100))
+        g0 = np.full(nb,
+                     int(0.5*ONE)); g1 = np.array([int(2.0*ONE)]*100 + [int(0.25*ONE)]*(nb - 100))
         mute = np.array([0]*200 + [0b01]*(nb - 200))
-        ref = volume_model([b["data"] for b in beats], [b["channel"] for b in beats], [g0, g1], mute)
+        ref = volume_model([b["data"] for b in beats], [b["channel"] for b in beats], [g0, g1],
+                           mute)
         self.assertTrue(np.array_equal(got, ref))
         self.assertTrue(np.array_equal(chs, [b["channel"] for b in beats]))
         self.assertEqual(dut.latency, 2)
@@ -147,11 +149,13 @@ class TestStereoMatrix(unittest.TestCase):
         r = [prng.randint(-FS24//2, FS24//2) for _ in range(n)]
         half, one = 1 << 14, 1 << 15
         _, m, s, _ = self.run_matrix(l, r, (half, half, half, -half), throttle=0.0, ready_rate=1.0)
-        _, gl, gr, _ = self.run_matrix(list(m), list(s), (one, one, one, -one), throttle=0.0, ready_rate=1.0)
+        _, gl, gr, _ = self.run_matrix(list(m), list(s), (one, one, one, -one), throttle=0.0,
+                                       ready_rate=1.0)
         self.assertLessEqual(np.max(np.abs(gl - np.array(l))), 1)
         self.assertLessEqual(np.max(np.abs(gr - np.array(r))), 1)
         k = int(round(np.cos(np.pi/4)*one))
-        _, pl, pr, _ = self.run_matrix([FS24//2]*n, [FS24//2]*n, (k, 0, 0, k), throttle=0.0, ready_rate=1.0)
+        _, pl, pr, _ = self.run_matrix([FS24//2]*n, [FS24//2]*n, (k, 0, 0, k), throttle=0.0,
+                                       ready_rate=1.0)
         for v in (pl[-1], pr[-1]):
             self.assertLess(abs(20*np.log10(int(v)/(FS24//2)) + 3.01), 0.05)
 

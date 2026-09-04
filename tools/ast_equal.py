@@ -40,7 +40,8 @@ def main():
     failed = 0
     for f in args.files:
         try:
-            old = subprocess.run(["git", "show", f"{args.ref}:{f}"], capture_output=True, text=True, check=True).stdout
+            old = subprocess.run(["git", "show", f"{args.ref}:{f}"], capture_output=True, text=True,
+                                 check=True).stdout
         except subprocess.CalledProcessError:
             print(f"{f}: not in {args.ref} (new file, skipped)")
             continue

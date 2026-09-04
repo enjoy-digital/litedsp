@@ -35,8 +35,10 @@ class LiteDSPDCOffset(LiteXModule):
         self.latency = 1
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.mean_i = Signal((data_width + mu, True))  # DC estimate accumulator (mu fractional bits).
-        self.mean_q = Signal((data_width + mu, True))  # DC estimate accumulator (mu fractional bits).
+        # DC estimate accumulator (mu fractional bits).
+        self.mean_i = Signal((data_width + mu, True))
+        # DC estimate accumulator (mu fractional bits).
+        self.mean_q = Signal((data_width + mu, True))
 
         # # #
 
@@ -56,9 +58,11 @@ class LiteDSPDCOffset(LiteXModule):
             x   = getattr(self.sink, field)
             est = Signal((data_width, True))
             self.comb += est.eq(mean >> self.mu)                 # round-toward-zero estimate.
-            self.sync += If(xfer, mean.eq(mean + (x - est)))     # Estimate tracks accepted samples only.
+            # Estimate tracks accepted samples only.
+            self.sync += If(xfer, mean.eq(mean + (x - est)))
             self.sync += If(adv,
-                getattr(self.source, field).eq(saturated(x - est, data_width)),  # Subtract grows 1 bit; saturate.
+                # Subtract grows 1 bit; saturate.
+                getattr(self.source, field).eq(saturated(x - est, data_width)),
             )
 
         # Output.

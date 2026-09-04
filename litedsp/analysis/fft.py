@@ -442,7 +442,8 @@ class LiteDSPFFT(LiteXModule):
         self.sample_interval = 1 if architecture == "classic" else 2
         self.sink = stream.Endpoint(iq_layout(data_width))
         if scaling == "bfp":
-            self.source = stream.Endpoint(stream.EndpointDescription(iq_layout(data_width), [("exp", 5)]))
+            self.source = stream.Endpoint(
+                stream.EndpointDescription(iq_layout(data_width), [("exp", 5)]))
         else:
             self.source = stream.Endpoint(iq_layout(data_width))
 

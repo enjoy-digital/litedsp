@@ -22,7 +22,7 @@ def make_signal(L, sps_hi, sps, offset, seed):
     r   = np.array(rrc_coefficients(sps_hi, 8, 0.35))/32768.0
     sig = np.convolve(np.convolve(up, r), r)             # Raised-cosine (ISI-free at centers).
     sig = sig/np.max(np.abs(sig))
-    x   = sig[offset::sps_hi//sps]                        # `sps` samples/symbol with a timing offset.
+    x   = sig[offset::sps_hi//sps]                      # `sps` samples/symbol with a timing offset.
     return d, np.round(x*11000).astype(complex)
 
 class TestTimingRecovery(unittest.TestCase):

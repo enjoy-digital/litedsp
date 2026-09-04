@@ -10,7 +10,8 @@ import numpy as np
 
 from migen import *
 
-from litedsp.common       import pixel_layout, window_layout, video_layout, video_timing_layout, clamped, pixel_channels
+from litedsp.common       import (pixel_layout, window_layout, video_layout, video_timing_layout,
+                                  clamped, pixel_channels)
 from litedsp.image.common import LiteDSPPixelCounter
 
 from litex.soc.interconnect import stream
@@ -48,7 +49,9 @@ class TestPixelCounter(unittest.TestCase):
                 for x in range(w):
                     # Inputs take effect after the yield; the coordinates are then read for this
                     # beat before the next edge registers it.
-                    yield dut.xfer.eq(1); yield dut.first.eq(int(x == 0 and y == 0)); yield dut.eol.eq(int(x == w - 1)); yield dut.last.eq(int(x == w - 1 and y == h - 1))
+                    yield dut.xfer.eq(1); yield dut.first.eq(
+                        int(x == 0 and y == 0)); yield dut.eol.eq(
+                            int(x == w - 1)); yield dut.last.eq(int(x == w - 1 and y == h - 1))
                     yield
                     seen.append(((yield dut.col), (yield dut.row)))
             yield dut.xfer.eq(0)
@@ -60,7 +63,8 @@ class TestPixelCounter(unittest.TestCase):
             self.w2, self.h2 = (yield dut.width), (yield dut.height)
             self.valid = ((yield dut.width_valid), (yield dut.height_valid))
         run_simulation(dut, gen())
-        expect = [(x, y) for y in range(3) for x in range(5)] + [(x, y) for y in range(2) for x in range(4)]
+        expect = [(x, y) for y in range(3) for x in range(5)] + [(x, y) for y in range(2)
+            for x in range(4)]
         self.assertEqual(seen, expect)
         self.assertEqual((self.w1, self.h1, self.w2, self.h2), (5, 3, 4, 2))
         self.assertEqual(self.valid, (1, 1))

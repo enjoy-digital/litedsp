@@ -8,8 +8,10 @@
 
 """Receiver front-end producing packed, framed words ready for a wide AXI-Stream/DMA sink.
 
-Chain: ``LiteDSPDDC`` (tune + decimate) -> ``LiteDSPStreamFIFO`` (elastic buffer to absorb the decimator's
-bursty output) -> ``LiteDSPStreamFramer`` (mark first/last every frame, -> AXI-Stream tlast) -> ``LiteDSPIQPack``
+Chain: ``LiteDSPDDC`` (tune + decimate) -> ``LiteDSPStreamFIFO``
+(elastic buffer to absorb the decimator's
+bursty output) -> ``LiteDSPStreamFramer`` (mark first/last every frame,
+-> AXI-Stream tlast) -> ``LiteDSPIQPack``
 (pack four 16-bit I/Q samples into one 128-bit bus word). This is the shape of a real capture
 path: per-sample DSP on the narrow side, wide packed packets on the bus side.
 
@@ -36,7 +38,8 @@ from test.common import run_stream, column
 
 class WidebandRX(LiteXModule):
     def __init__(self, data_width=16, decimation=4, frame_len=8, pack_ratio=4, lo_phase_inc=0):
-        self.ddc    = LiteDSPDDC(data_width=data_width, decimation=decimation, method="cic", with_csr=False)
+        self.ddc    = LiteDSPDDC(data_width=data_width, decimation=decimation, method="cic",
+                                 with_csr=False)
         self.fifo   = LiteDSPStreamFIFO(depth=32, data_width=data_width, with_csr=False)
         self.framer = LiteDSPStreamFramer(length=frame_len, data_width=data_width, with_csr=False)
         self.pack   = LiteDSPIQPack(ratio=pack_ratio, data_width=data_width)

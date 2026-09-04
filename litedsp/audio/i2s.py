@@ -36,7 +36,8 @@ def _check_params(data_width, sample_width, slot_width, n_channels, fmt, mode, b
     check(fmt in FORMATS, f"expected fmt in {FORMATS}")
     check(mode in MODES, f"expected mode in {MODES}")
     check(slot_width in (16, 24, 32), "expected slot_width in (16, 24, 32)")
-    check(8 <= sample_width <= min(slot_width, data_width), "expected 8 <= sample_width <= min(slot_width, data_width)")
+    check(8 <= sample_width <= min(slot_width, data_width),
+          "expected 8 <= sample_width <= min(slot_width, data_width)")
     check(bclk_div >= 4 and bclk_div % 2 == 0, "expected an even bclk_div >= 4")
     if fmt == "tdm":
         check(n_channels in (2, 4, 8), "expected n_channels in (2, 4, 8) for tdm")
@@ -101,7 +102,8 @@ def _frame_position(module, ev, mode, fmt, polarity, slot_width, n_channels, lrc
         module.comb += [
             frame_start.eq(change & lrck_s),
             pos.eq(Mux(frame_start | wrap, 0, pos_r + 1)),
-            slot.eq(Mux(frame_start, 0, Mux(wrap, Mux(slot_r == n_channels - 1, 0, slot_r + 1), slot_r))),
+            slot.eq(Mux(frame_start, 0,
+                        Mux(wrap, Mux(slot_r == n_channels - 1, 0, slot_r + 1), slot_r))),
         ]
     else:                                                              # Stereo: LRCK level.
         module.comb += [
@@ -149,7 +151,8 @@ class LiteDSPI2SReceiver(LiteXModule):
         # # #
 
         msb_pos, polarity = _format_params(fmt, sample_width, slot_width)
-        rise, fall, lrck_s, sdata_s = _bit_clock(self, mode, bclk_div, self.bclk, self.lrck, self.sdata)
+        rise, fall, lrck_s, sdata_s = _bit_clock(self, mode, bclk_div, self.bclk, self.lrck,
+                                                 self.sdata)
         ev = Signal()
         self.comb += ev.eq(fall if mode == "master" else rise)
         # Master: positions advance at the falling edge (with LRCK); the bit on the line is
@@ -161,7 +164,8 @@ class LiteDSPI2SReceiver(LiteXModule):
         synced   = Signal()
         synced_n = Signal()
         self.comb += synced_n.eq(synced | frame_start)
-        self.sync += If(ev & frame_start & self.enable, synced.eq(1)).Elif(~self.enable, synced.eq(0))
+        self.sync += If(ev & frame_start & self.enable, synced.eq(1)).Elif(
+            ~self.enable, synced.eq(0))
         if mode == "master":
             pos_s, slot_s, sync_s = Signal(max=slot_width), Signal(max=max(2, n_channels)), Signal()
             self.sync += If(fall, pos_s.eq(pos), slot_s.eq(slot), sync_s.eq(synced_n))
@@ -291,7 +295,8 @@ class LiteDSPI2STransmitter(LiteXModule):
             self.sink.ready.eq(~full),
             xfer.eq(self.sink.valid & self.sink.ready),
         ]
-        sample = self.sink.data if SW == data_width else scaled(self.sink.data, data_width - SW, SW)[0]
+        sample = self.sink.data if SW == data_width else scaled(self.sink.data, data_width - SW,
+                                                                SW)[0]
         for c in range(n_channels):
             self.sync += If(xfer & (ch == c), next_words[c].eq(sample), filled[c].eq(1))
         self.sync += If(fall & frame_start,

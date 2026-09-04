@@ -79,12 +79,14 @@ def check_file(path):
             out.append((n, "whitespace", "trailing whitespace"))
         m = re.match(r"^# (.+?) (-{3,})$", line)
         if m and len(line) != MAX_COLS:
-            out.append((n, "banner", f"section separator is {len(line)} columns, expected {MAX_COLS}"))
+            out.append(
+                (n, "banner", f"section separator is {len(line)} columns, expected {MAX_COLS}"))
         if len(line) > MAX_COLS and not TABLE_LINE.search(line):
             out.append((n, "length", f"{len(line)} columns"))
         if re.match(r"^\s*except\s*:", line):
             out.append((n, "except", "bare except"))
-        if re.search(r"\bopen\(", line) and not re.search(r"\.open\(|encoding=|[\"']\w*b\w*[\"']", line):
+        if re.search(r"\bopen\(", line) and not re.search(r"\.open\(|encoding=|[\"']\w*b\w*[\"']",
+                                                          line):
             out.append((n, "encoding", "text-mode open() without encoding=\"utf-8\""))
         if re.search(r"CSR(Field|Storage|Status)\(\s", line):
             out.append((n, "csr", "padding after the opening parenthesis of a CSR declaration"))

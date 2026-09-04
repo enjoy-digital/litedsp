@@ -39,11 +39,14 @@ class LiteDSPPeakExtractor(LiteXModule):
     ``latency = None``; rate data dependent (one virtual cell per row and one virtual row per
     CPI are flushed with ``sink.ready`` low).
     """
-    def __init__(self, n_range_bins=64, n_doppler_bins=16, data_width=17, index_width=12, frac_bits=4,
+    def __init__(self, n_range_bins=64, n_doppler_bins=16, data_width=17, index_width=12,
+                 frac_bits=4,
         with_csr=True, with_irq=False):
-        check(n_range_bins >= 2 and n_doppler_bins >= 2, "expected n_range_bins, n_doppler_bins >= 2")
+        check(n_range_bins >= 2 and n_doppler_bins >= 2,
+              "expected n_range_bins, n_doppler_bins >= 2")
         check(1 <= frac_bits <= 8, "expected 1 <= frac_bits <= 8")
-        check(2**index_width >= max(n_range_bins, n_doppler_bins), "expected index_width to hold the bin indexes")
+        check(2**index_width >= max(n_range_bins, n_doppler_bins),
+              "expected index_width to hold the bin indexes")
         self.n_range_bins   = n_range_bins
         self.n_doppler_bins = n_doppler_bins
         self.data_width     = data_width
@@ -74,7 +77,7 @@ class LiteDSPPeakExtractor(LiteXModule):
 
         # Beat sequencer: real cells (RUN) and the virtual column / row (FLUSH).
         # ----------------------------------------------------------------------
-        col   = Signal(max=M + 1)                                       # Incoming column (M: virtual).
+        col   = Signal(max=M + 1)                                    # Incoming column (M: virtual).
         row   = Signal(max=N + 1)                                       # Incoming row (N: virtual).
         beat  = Signal()
         real0 = Signal()
@@ -132,7 +135,7 @@ class LiteDSPPeakExtractor(LiteXModule):
 
         # Line buffers (rows r-1 and r-2 of the incoming row r), read at S0, written at S1.
         # ----------------------------------------------------------------------------------
-        self.specials.buf1 = buf1 = Memory(data_width + 1, M)          # Previous row (value, detect).
+        self.specials.buf1 = buf1 = Memory(data_width + 1, M)        # Previous row (value, detect).
         self.specials.buf0 = buf0 = Memory(data_width + 1, M)          # The row before.
         b1_rp, b1_wp = buf1.get_port(has_re=True), buf1.get_port(write_capable=True)
         b0_rp, b0_wp = buf0.get_port(has_re=True), buf0.get_port(write_capable=True)
@@ -203,8 +206,10 @@ class LiteDSPPeakExtractor(LiteXModule):
         # -------------------------------------------------------------------------------
         r0, c0 = Signal(max=N), Signal(max=M)
         yc     = Signal(data_width)
-        num    = [Signal((data_width + 1, True), name=f"num{k}") for k in range(2)]   # (S - N), (E - W).
-        den    = [Signal((data_width + 3, True), name=f"den{k}") for k in range(2)]   # 2 (2 y0 - yL - yR).
+        # (S - N), (E - W).
+        num    = [Signal((data_width + 1, True), name=f"num{k}") for k in range(2)]
+        # 2 (2 y0 - yL - yR).
+        den    = [Signal((data_width + 3, True), name=f"den{k}") for k in range(2)]
         rem    = [Signal(data_width + 3, name=f"rem{k}") for k in range(2)]
         q      = [Signal(F, name=f"q{k}") for k in range(2)]
         neg    = [Signal(name=f"neg{k}") for k in range(2)]
@@ -212,7 +217,8 @@ class LiteDSPPeakExtractor(LiteXModule):
         step   = Signal(max=F + 1)
         # Signed copies (explicit widths: keep every shift/sum out of Verilog's self-determined
         # contexts).
-        y0s, ns, ss, ws, es = [Signal((data_width + 1, True), name=n) for n in ("y0s", "ns", "ss", "ws", "es")]
+        y0s, ns, ss, ws, es = [Signal((data_width + 1, True), name=n)
+                                       for n in ("y0s", "ns", "ss", "ws", "es")]
         curv = [Signal((data_width + 2, True), name=f"curv{k}") for k in range(2)]
         self.comb += [
             y0s.eq(y0), ns.eq(w_top[1]), ss.eq(w_bot[1]), ws.eq(w_mid[0]), es.eq(cur_mid),
@@ -249,9 +255,11 @@ class LiteDSPPeakExtractor(LiteXModule):
         )
         div.act("DIVIDE",
             *[If(rem2[k] >= den[k],
-                NextValue(rem[k], rem2[k] - den[k]), NextValue(q[k], Cat(1, q[k][:-1])) if F > 1 else NextValue(q[k], 1),
+                NextValue(rem[k], rem2[k] - den[k]),
+                NextValue(q[k], Cat(1, q[k][:-1])) if F > 1 else NextValue(q[k], 1),
             ).Else(
-                NextValue(rem[k], rem2[k]), NextValue(q[k], Cat(0, q[k][:-1])) if F > 1 else NextValue(q[k], 0),
+                NextValue(rem[k], rem2[k]),
+                NextValue(q[k], Cat(0, q[k][:-1])) if F > 1 else NextValue(q[k], 0),
             ) for k in range(2)],
             NextValue(step, step + 1),
             If(step == F - 1, NextState("EMIT")),
@@ -328,7 +336,8 @@ class LiteDSPPeakExtractor(LiteXModule):
         self._status = CSRStatus(fields=[
             CSRField("frame_error", size=1, offset=0, description="Sticky: row framing did not match n_doppler_bins."),
         ])
-        self._count     = CSRStatus(self.index_width + self.frac_bits, name="count", description="Records in the last CPI.")
+        self._count     = CSRStatus(self.index_width + self.frac_bits, name="count",
+                                    description="Records in the last CPI.")
         self._cpi_count = CSRStatus(32, name="cpi_count", description="CPIs processed since reset.")
         self.comb += [
             self.local_max.eq(self._control.fields.local_max),
@@ -407,7 +416,8 @@ class LiteDSPTargetList(LiteXModule):
             self.sink.ready.eq(~(sealed[0] & sealed[1]) & ~Mux(wb, sealed[1], sealed[0])),
             xfer.eq(self.sink.valid & self.sink.ready),
             wcount.eq(Mux(wb, count[1], count[0])),
-            wp.adr.eq(Cat(wcount[:max(1, (max_targets - 1).bit_length())], wb) if max_targets & (max_targets - 1) == 0
+            wp.adr.eq(Cat(wcount[:max(1, (max_targets - 1).bit_length())], wb) if max_targets
+                                                                      & (max_targets - 1) == 0
                       else wcount + Mux(wb, max_targets, 0)),
             wp.dat_w.eq(Cat(self.sink.range, self.sink.doppler, self.sink.data)),
             wp.we.eq(xfer & self.sink.hit & (wcount < max_targets)),
@@ -441,7 +451,8 @@ class LiteDSPTargetList(LiteXModule):
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             rcount.eq(Mux(rb, count[1], count[0])),
-            rp.adr.eq(Cat(ri[:max(1, (max_targets - 1).bit_length())], rb) if max_targets & (max_targets - 1) == 0
+            rp.adr.eq(Cat(ri[:max(1, (max_targets - 1).bit_length())], rb) if max_targets
+                                                                  & (max_targets - 1) == 0
                       else ri + Mux(rb, max_targets, 0)),
             rp.re.eq(adv),
         ]
@@ -469,7 +480,8 @@ class LiteDSPTargetList(LiteXModule):
             ),
         )
         fsm.act("RELEASE",
-            If(rb, NextValue(sealed[1], 0), NextValue(count[1], 0)).Else(NextValue(sealed[0], 0), NextValue(count[0], 0)),
+            If(rb, NextValue(sealed[1], 0), NextValue(count[1], 0)).Else(
+                NextValue(sealed[0], 0), NextValue(count[0], 0)),
             NextValue(rb, ~rb),
             NextState("IDLE"),
         )
@@ -494,7 +506,8 @@ class LiteDSPTargetList(LiteXModule):
         hb = Signal()
         self.comb += [
             hb.eq(~wb),
-            hrp.adr.eq(Cat(self.rd_index[:max(1, (max_targets - 1).bit_length())], hb) if max_targets & (max_targets - 1) == 0
+            hrp.adr.eq(Cat(self.rd_index[:max(1, (max_targets - 1).bit_length())],
+                           hb) if max_targets & (max_targets - 1) == 0
                        else self.rd_index + Mux(hb, max_targets, 0)),
             hrp.re.eq(1),
             self.rd_range.eq(hrp.dat_r[:PW]),
@@ -522,11 +535,15 @@ class LiteDSPTargetList(LiteXModule):
         self._status = CSRStatus(fields=[
             CSRField("overflow", size=1, offset=0, description="Sticky: a list exceeded max_targets."),
         ])
-        self._index     = CSRStorage(max(1, (self.max_targets - 1).bit_length()), name="index", description="Readback record index.")
-        self._range     = CSRStatus(PW, name="range", description="Record range (Q.frac_bits bins).")
-        self._doppler   = CSRStatus(PW, name="doppler", description="Record Doppler bin (Q.frac_bits).")
+        self._index     = CSRStorage(max(1, (self.max_targets - 1).bit_length()), name="index",
+                                     description="Readback record index.")
+        self._range     = CSRStatus(PW, name="range",
+                                    description="Record range (Q.frac_bits bins).")
+        self._doppler   = CSRStatus(PW, name="doppler",
+                                    description="Record Doppler bin (Q.frac_bits).")
         self._data      = CSRStatus(self.data_width, name="data", description="Record cell value.")
-        self._count     = CSRStatus(len(self.rd_count), name="count", description="Records in the last sealed list.")
+        self._count     = CSRStatus(len(self.rd_count), name="count",
+                                    description="Records in the last sealed list.")
         self._cpi_count = CSRStatus(32, name="cpi_count", description="Lists sealed since reset.")
         self._dropped   = CSRStatus(32, name="dropped", description="Records dropped since reset.")
         self.comb += [

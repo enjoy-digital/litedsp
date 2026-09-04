@@ -58,7 +58,7 @@ class LiteDSPFOC(LiteXModule):
         self.sink       = stream.Endpoint(abc_layout(data_width))      # Phase currents.
         self.sink_angle = stream.Endpoint(angle_layout(angle_width))   # Rotor electrical angle.
         self.source     = stream.Endpoint(abc_layout(data_width))      # Phase duties.
-        self.speed      = Signal((data_width, True))                   # Per-unit speed (decoupling).
+        self.speed      = Signal((data_width, True))                  # Per-unit speed (decoupling).
 
         # # #
 

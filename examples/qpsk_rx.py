@@ -43,8 +43,10 @@ class QPSKReceiver(LiteXModule):
 
         self.mf = LiteDSPFIRFilterComplex(n_taps=sps*span + 1, data_width=data_width,
             coefficients=rrc_coefficients(sps, span, beta, data_width=data_width), with_csr=False)
-        self.timing = LiteDSPTimingRecovery(data_width=data_width, sps=sps, gain_mu=0.1, with_csr=False)
-        self.slicer = LiteDSPSlicer(data_width=data_width, bits_per_axis=1, spacing=4000, with_csr=False)
+        self.timing = LiteDSPTimingRecovery(data_width=data_width, sps=sps, gain_mu=0.1,
+                                            with_csr=False)
+        self.slicer = LiteDSPSlicer(data_width=data_width, bits_per_axis=1, spacing=4000,
+                                    with_csr=False)
         self.source = self.slicer.source
         self.comb += [
             self.sink.connect(self.mf.sink),

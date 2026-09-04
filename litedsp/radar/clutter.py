@@ -24,16 +24,19 @@ class LiteDSPClutterMap(LiteXModule):
     Keeps one exponential average per cell (``n_range_bins * n_doppler_bins`` cells, addressed
     by a counter that ``first`` restarts) in a RAM holding ``sum = average << avg_shift``:
     ``sum += x - (sum >> avg_shift)`` on every scan unless the cell detects (censored update,
-    overridden by ``learn_all``) or ``freeze`` is set. The scan after reset or ``clear`` (up to its ``last``)
+    overridden by ``learn_all``) or ``freeze`` is set. The scan after
+    reset or ``clear`` (up to its ``last``)
     initialises the visited cells (``sum = x << avg_shift``, no detection); scans must cover every
     cell. ``threshold =
     rounded(sum * alpha, threshold_frac + avg_shift)`` saturated and floored at ``threshold_min``,
     ``detect = x > threshold``. Output on :func:`~litedsp.common.cell_layout`; latency 4.
     """
-    def __init__(self, n_range_bins=64, n_doppler_bins=1, data_width=17, avg_shift=3, alpha_width=16,
+    def __init__(self, n_range_bins=64, n_doppler_bins=1, data_width=17, avg_shift=3,
+                 alpha_width=16,
         threshold_frac=8, with_csr=True):
         check(1 <= avg_shift <= 8, "expected 1 <= avg_shift <= 8")
-        check(n_range_bins*n_doppler_bins >= 8, "expected at least 8 cells (the update pipeline depth)")
+        check(n_range_bins*n_doppler_bins >= 8,
+              "expected at least 8 cells (the update pipeline depth)")
         check(0 < threshold_frac < alpha_width, "expected 0 < threshold_frac < alpha_width")
         self.n_range_bins   = n_range_bins
         self.n_doppler_bins = n_doppler_bins
@@ -94,14 +97,17 @@ class LiteDSPClutterMap(LiteXModule):
         x1, v1, f1, l1 = Signal(data_width), Signal(), Signal(), Signal()
         a1   = Signal(max=n_cells)
         valid1 = Signal()
-        self.sync += If(adv, x1.eq(self.sink.data), v1.eq(xfer), f1.eq(self.sink.first), l1.eq(self.sink.last),
+        self.sync += If(adv, x1.eq(self.sink.data), v1.eq(xfer), f1.eq(self.sink.first),
+                        l1.eq(self.sink.last),
                         a1.eq(rp.adr), valid1.eq(~init))
         s_old  = Signal(SW)
         self.comb += s_old.eq(rp.dat_r)
         p1 = Signal(SW + alpha_width)
         p2 = Signal(SW + alpha_width + 17)
-        x2, v2, f2, l2, a2, s2, ok2 = Signal(data_width), Signal(), Signal(), Signal(), Signal(max=n_cells), Signal(SW), Signal()
-        x3, v3, f3, l3, a3, s3, ok3 = Signal(data_width), Signal(), Signal(), Signal(), Signal(max=n_cells), Signal(SW), Signal()
+        x2, v2, f2, l2, a2, s2, ok2 = Signal(data_width), Signal(), Signal(), Signal(), Signal(
+            max=n_cells), Signal(SW), Signal()
+        x3, v3, f3, l3, a3, s3, ok3 = Signal(data_width), Signal(), Signal(), Signal(), Signal(
+            max=n_cells), Signal(SW), Signal()
         thr_full = Signal(SW + alpha_width + 17)
         thr_r    = Signal(SW + alpha_width + 1)
         thr_c    = Signal(data_width)
@@ -113,16 +119,20 @@ class LiteDSPClutterMap(LiteXModule):
             thr_full.eq(p2 + (1 << (threshold_frac + 15))),
             thr_r.eq(thr_full[threshold_frac + 16:]),
             thr_c.eq(Mux(thr_r > (1 << data_width) - 1, (1 << data_width) - 1, thr_r[:data_width])),
-            thr.eq(Mux(ok3, Mux(thr_c < self.threshold_min, self.threshold_min, thr_c), (1 << data_width) - 1)),
+            thr.eq(Mux(ok3, Mux(thr_c < self.threshold_min, self.threshold_min, thr_c),
+                       (1 << data_width) - 1)),
             detect.eq(ok3 & (x3 > thr)),
             s_upd.eq(s3 + x3 - (s3 >> avg_shift)),
-            s_new.eq(Mux(ok3, Mux(detect & ~self.learn_all, s3, s_upd[:SW]), x3 << avg_shift)),   # Positive select.
+            # Positive select.
+            s_new.eq(Mux(ok3, Mux(detect & ~self.learn_all, s3, s_upd[:SW]), x3 << avg_shift)),
             wp.adr.eq(a3), wp.dat_w.eq(s_new), wp.we.eq(adv & v3 & ~self.freeze),
         ]
         self.sync += [
             If(adv,
-                p1.eq(s_old*self.alpha), x2.eq(x1), v2.eq(v1), f2.eq(f1), l2.eq(l1), a2.eq(a1), s2.eq(s_old), ok2.eq(valid1),
-                p2.eq(p1*recip),         x3.eq(x2), v3.eq(v2), f3.eq(f2), l3.eq(l2), a3.eq(a2), s3.eq(s2), ok3.eq(ok2),
+                p1.eq(s_old*self.alpha), x2.eq(x1), v2.eq(v1), f2.eq(f1), l2.eq(l1), a2.eq(a1),
+                s2.eq(s_old), ok2.eq(valid1),
+                p2.eq(p1*recip),         x3.eq(x2), v3.eq(v2), f3.eq(f2), l3.eq(l2), a3.eq(a2),
+                s3.eq(s2), ok3.eq(ok2),
                 self.source.valid.eq(v3),
                 self.source.data.eq(x3),
                 self.source.threshold.eq(thr),
@@ -140,8 +150,10 @@ class LiteDSPClutterMap(LiteXModule):
 
     def add_csr(self):
         self._alpha = CSRStorage(self.alpha_width, reset=self.alpha.reset.value, name="alpha",
-            description=f"Threshold factor on the cell's clutter average (unsigned Q.{self.threshold_frac}).")
-        self._threshold_min = CSRStorage(self.data_width, name="threshold_min", description="Threshold floor (unsigned cell units).")
+            description=f"Threshold factor on the cell's clutter average (unsigned "
+                        f"Q.{self.threshold_frac}).")
+        self._threshold_min = CSRStorage(self.data_width, name="threshold_min",
+                                         description="Threshold floor (unsigned cell units).")
         self._control = CSRStorage(fields=[
             CSRField("learn_all", size=1, offset=0, description="Update the map with detected cells too."),
             CSRField("freeze",    size=1, offset=1, description="Stop updating the map."),

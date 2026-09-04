@@ -52,7 +52,8 @@ class LiteDSPDifferentialEncoder(LiteXModule):
         # Accumulator.
         # ------------
         wrapped = Signal(bits)
-        self.comb += wrapped.eq(Mux(nxt >= modulus, nxt - modulus, nxt))  # nxt < 2M: one subtract wraps.
+        # nxt < 2M: one subtract wraps.
+        self.comb += wrapped.eq(Mux(nxt >= modulus, nxt - modulus, nxt))
         self.sync += If(xfer, acc.eq(wrapped))
         self.sync += If(adv, self.source.data.eq(wrapped), self.source.valid.eq(self.sink.valid))
 
@@ -94,6 +95,7 @@ class LiteDSPDifferentialDecoder(LiteXModule):
         # Datapath.
         # ---------
         wrapped = Signal(bits)
-        self.comb += wrapped.eq(Mux(diff < 0, diff + modulus, diff))  # diff in (-M, M): one add wraps.
+        # diff in (-M, M): one add wraps.
+        self.comb += wrapped.eq(Mux(diff < 0, diff + modulus, diff))
         self.sync += If(xfer, prev.eq(self.sink.data))
         self.sync += If(adv, self.source.data.eq(wrapped), self.source.valid.eq(self.sink.valid))

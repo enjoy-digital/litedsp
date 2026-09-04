@@ -6,9 +6,11 @@
 
 """Naive integer rate changers (no filtering).
 
-``LiteDSPDownsampler`` keeps one of every ``factor`` samples; ``LiteDSPUpsampler`` emits ``factor`` output
+``LiteDSPDownsampler`` keeps one of every ``factor`` samples;
+``LiteDSPUpsampler`` emits ``factor`` output
 samples per input (sample-and-hold or zero-stuff). They do **no** anti-alias / anti-image
-filtering — pair them with a FIR/CIC (e.g. filter then ``LiteDSPDownsampler``, or ``LiteDSPUpsampler`` then
+filtering — pair them with a FIR/CIC (e.g. filter then
+``LiteDSPDownsampler``, or ``LiteDSPUpsampler`` then
 filter), or use the polyphase rate blocks when those land.
 """
 
@@ -136,7 +138,8 @@ class LiteDSPUpsampler(LiteXModule):
                     self.source.valid.eq(0),  # No input available yet.
                 )
             ).Else(
-                self.source.i.eq(0 if zero_stuff else held_i),  # Repeat (S/H) or zero-stuff (build-time).
+                # Repeat (S/H) or zero-stuff (build-time).
+                self.source.i.eq(0 if zero_stuff else held_i),
                 self.source.q.eq(0 if zero_stuff else held_q),
                 self.source.valid.eq(1),
                 If(phase == (self.factor - 1), phase.eq(0)).Else(phase.eq(phase + 1)),

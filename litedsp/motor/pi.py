@@ -83,7 +83,7 @@ class LiteDSPPIController(LiteXModule):
         self.open_loop   = Signal()                                          # u = feedforward.
         self.clear       = Signal()                                          # Zero the integrator.
         self.clear_sat   = Signal()                                          # Clear sticky flag.
-        self.integral    = Signal((acc_width, True))                         # Integrator (Q.gain_frac).
+        self.integral    = Signal((acc_width, True))                     # Integrator (Q.gain_frac).
         self.saturated   = Signal()                                          # Sticky clamp flag.
 
         # # #
@@ -182,12 +182,14 @@ class LiteDSPPIController(LiteXModule):
     def add_csr(self):
         dw, gw = self.data_width, self.gain_width
         if not self.setpoint_stream:
-            self._setpoint = CSRStorage(dw, name="setpoint", description="Setpoint (signed, per-unit).")
+            self._setpoint = CSRStorage(dw, name="setpoint",
+                                        description="Setpoint (signed, per-unit).")
             self.comb += self.setpoint.eq(self._setpoint.storage)
         self._kp          = CSRStorage(gw, reset=1 << self.gain_frac, name="kp",
             description=f"Proportional gain (signed Q{gw - self.gain_frac}.{self.gain_frac}).")
         self._ki          = CSRStorage(gw, name="ki",
-            description=f"Integral gain per sample (signed Q{gw - self.gain_frac}.{self.gain_frac}).")
+            description=f"Integral gain per sample (signed "
+                        f"Q{gw - self.gain_frac}.{self.gain_frac}).")
         self._limit       = CSRStorage(dw, reset=(1 << (dw - 1)) - 1, name="limit",
             description="Output magnitude limit (positive, per-unit).")
         self._feedforward = CSRStorage(dw, name="feedforward",
@@ -264,8 +266,8 @@ class LiteDSPDQController(LiteXModule):
         self.clear_sat = Signal()
         self.saturated = Signal(2)                                # Sticky clamp flags (d, q).
         self.speed     = Signal((data_width, True))               # Per-unit electrical speed.
-        self.l_pu      = Signal((data_width, True))               # Per-unit inductance (w_b*L*I_b/V_b).
-        self.psi_pu    = Signal((data_width, True))               # Per-unit flux linkage (w_b*psi/V_b).
+        self.l_pu      = Signal((data_width, True))           # Per-unit inductance (w_b*L*I_b/V_b).
+        self.psi_pu    = Signal((data_width, True))           # Per-unit flux linkage (w_b*psi/V_b).
 
         # # #
 
@@ -363,16 +365,24 @@ class LiteDSPDQController(LiteXModule):
     def add_csr(self):
         dw, gw, gf = self.data_width, self.gain_width, self.gain_frac
         qfmt = f"signed Q{gw - gf}.{gf}"
-        self._setpoint_d = CSRStorage(dw, name="setpoint_d", description="d-axis current setpoint (per-unit).")
-        self._setpoint_q = CSRStorage(dw, name="setpoint_q", description="q-axis current setpoint (per-unit).")
-        self._kp_d = CSRStorage(gw, reset=1 << gf, name="kp_d", description=f"d-axis proportional gain ({qfmt}).")
-        self._ki_d = CSRStorage(gw, name="ki_d", description=f"d-axis integral gain per sample ({qfmt}).")
-        self._kp_q = CSRStorage(gw, reset=1 << gf, name="kp_q", description=f"q-axis proportional gain ({qfmt}).")
-        self._ki_q = CSRStorage(gw, name="ki_q", description=f"q-axis integral gain per sample ({qfmt}).")
+        self._setpoint_d = CSRStorage(dw, name="setpoint_d",
+                                      description="d-axis current setpoint (per-unit).")
+        self._setpoint_q = CSRStorage(dw, name="setpoint_q",
+                                      description="q-axis current setpoint (per-unit).")
+        self._kp_d = CSRStorage(gw, reset=1 << gf, name="kp_d",
+                                description=f"d-axis proportional gain ({qfmt}).")
+        self._ki_d = CSRStorage(gw, name="ki_d",
+                                description=f"d-axis integral gain per sample ({qfmt}).")
+        self._kp_q = CSRStorage(gw, reset=1 << gf, name="kp_q",
+                                description=f"q-axis proportional gain ({qfmt}).")
+        self._ki_q = CSRStorage(gw, name="ki_q",
+                                description=f"q-axis integral gain per sample ({qfmt}).")
         self._limit     = CSRStorage(dw, reset=(1 << (dw - 1)) - 1, name="limit",
             description="Voltage magnitude limit per axis (positive, per-unit).")
-        self._voltage_d = CSRStorage(dw, name="voltage_d", description="Open-loop d voltage (bring-up).")
-        self._voltage_q = CSRStorage(dw, name="voltage_q", description="Open-loop q voltage (bring-up).")
+        self._voltage_d = CSRStorage(dw, name="voltage_d",
+                                     description="Open-loop d voltage (bring-up).")
+        self._voltage_q = CSRStorage(dw, name="voltage_q",
+                                     description="Open-loop q voltage (bring-up).")
         self._control = CSRStorage(fields=[
             CSRField("open_loop", size=1, offset=0, description="Output = voltage_d/q; integrators held at 0."),
             CSRField("clear",     size=1, offset=1, pulse=True, description="Zero both integrators."),
@@ -382,10 +392,13 @@ class LiteDSPDQController(LiteXModule):
             CSRField("saturated_d", size=1, offset=0, description="d output clamped since the last clear."),
             CSRField("saturated_q", size=1, offset=1, description="q output clamped since the last clear."),
         ])
-        self._integral_d = CSRStatus(self.pi_d.acc_width, name="integral_d", description="d integrator (Q.gain_frac).")
-        self._integral_q = CSRStatus(self.pi_q.acc_width, name="integral_q", description="q integrator (Q.gain_frac).")
+        self._integral_d = CSRStatus(self.pi_d.acc_width, name="integral_d",
+                                     description="d integrator (Q.gain_frac).")
+        self._integral_q = CSRStatus(self.pi_q.acc_width, name="integral_q",
+                                     description="q integrator (Q.gain_frac).")
         self.comb += [
-            self.setpoint_d.eq(self._setpoint_d.storage), self.setpoint_q.eq(self._setpoint_q.storage),
+            self.setpoint_d.eq(self._setpoint_d.storage),
+            self.setpoint_q.eq(self._setpoint_q.storage),
             self.kp_d.eq(self._kp_d.storage), self.ki_d.eq(self._ki_d.storage),
             self.kp_q.eq(self._kp_q.storage), self.ki_q.eq(self._ki_q.storage),
             self.limit.eq(self._limit.storage),
@@ -399,6 +412,8 @@ class LiteDSPDQController(LiteXModule):
             self._integral_q.status.eq(self.pi_q.integral),
         ]
         if self.decoupling:
-            self._l_pu   = CSRStorage(dw, name="l_pu",   description="Per-unit inductance w_b*L*I_b/V_b (Q1.(N-1)).")
-            self._psi_pu = CSRStorage(dw, name="psi_pu", description="Per-unit flux linkage w_b*psi/V_b (Q1.(N-1)).")
+            self._l_pu   = CSRStorage(dw, name="l_pu",
+                                      description="Per-unit inductance w_b*L*I_b/V_b (Q1.(N-1)).")
+            self._psi_pu = CSRStorage(dw, name="psi_pu",
+                                      description="Per-unit flux linkage w_b*psi/V_b (Q1.(N-1)).")
             self.comb += [self.l_pu.eq(self._l_pu.storage), self.psi_pu.eq(self._psi_pu.storage)]

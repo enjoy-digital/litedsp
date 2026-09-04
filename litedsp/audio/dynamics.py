@@ -102,7 +102,8 @@ class LiteDSPCompressor(LiteXModule):
         # Sub-blocks: log2 (LUT mantissa) on a 2*DW-bit magnitude, exp2 to a Q5.19 gain.
         # ---------------------------------------------------------------------------
         self.log2 = log2 = LiteDSPLog2(in_width=2*DW, frac_bits=8, lut=True, with_csr=False)
-        self.exp2 = exp2 = LiteDSPExp2(in_width=16, frac_bits=8, out_frac=19, out_width=24, with_csr=False)
+        self.exp2 = exp2 = LiteDSPExp2(in_width=16, frac_bits=8, out_frac=19, out_width=24,
+                                       with_csr=False)
         self.comb += [log2.source.ready.eq(1), exp2.source.ready.eq(1)]
 
         # Beat registers, per-channel state (mean square, smoothed gain reduction).
@@ -190,7 +191,7 @@ class LiteDSPCompressor(LiteXModule):
             sq_new.eq(sq_cur + (sq_dif >> self.rms_shift)),
             sq_upd.eq(Mux(sq_new < 0, 0, sq_new)),
         ]
-        prod_y = Signal((DW + 24 + 1, True))                             # Signed view (a slice is unsigned).
+        prod_y = Signal((DW + 24 + 1, True))                    # Signed view (a slice is unsigned).
         self.comb += prod_y.eq(prod[0:DW + 24 + 1])
         y_s, ovf_s = scaled(prod_y, 19, DW)
         self.comb += [y.eq(y_s), ovf.eq(ovf_s)]
@@ -290,19 +291,23 @@ class LiteDSPCompressor(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._threshold   = CSRStorage(16, reset=self.threshold.reset.value & 0xFFFF, name="threshold",
+        self._threshold   = CSRStorage(16, reset=self.threshold.reset.value & 0xFFFF,
+                                       name="threshold",
             description="Threshold in log2 units re full scale (signed Q.8: 256 = 6.02 dB).")
         self._slope_above = CSRStorage(20, reset=self.slope_above.reset.value, name="slope_above",
-            description="Gain-reduction slope above the threshold (Q4.16; 1 - 1/ratio, 1.0 = limiter).")
+            description="Gain-reduction slope above the threshold (Q4.16; 1 - 1/ratio, 1.0 = "
+                        "limiter).")
         self._slope_below = CSRStorage(20, reset=self.slope_below.reset.value, name="slope_below",
-            description="Gain-reduction slope below the threshold (Q4.16; ratio - 1 for an expander/gate).")
+            description="Gain-reduction slope below the threshold (Q4.16; ratio - 1 for an "
+                        "expander/gate).")
         self._attack      = CSRStorage(17, reset=self.attack.reset.value, name="attack",
             description="Attack smoothing coefficient (Q0.16; 65535 = instantaneous).")
         self._release     = CSRStorage(17, reset=self.release.reset.value, name="release",
             description="Release smoothing coefficient (Q0.16).")
         self._gr_max      = CSRStorage(15, reset=self.gr_max.reset.value, name="gr_max",
             description="Maximum gain reduction (Q7.8 log2 units).")
-        self._makeup      = CSRStorage(16, name="makeup", description="Make-up gain (signed Q.8 log2 units).")
+        self._makeup      = CSRStorage(16, name="makeup",
+                                       description="Make-up gain (signed Q.8 log2 units).")
         self._control = CSRStorage(fields=[
             CSRField("detector",    size=1, offset=0, description="0: peak, 1: RMS (one-pole mean square)."),
             CSRField("rms_shift",   size=4, offset=4, reset=6, description="RMS averaging shift."),

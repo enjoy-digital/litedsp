@@ -27,7 +27,8 @@ def _gf_mul(module, a, b, m, poly):
     for i in range(m):
         acc = acc ^ Mux(b[i], x, 0)
         nx = Signal(m, name=f"gfx{i}")
-        module.comb += nx.eq(Mux(x[m - 1], ((x << 1) & ((1 << m) - 1)) ^ (poly & ((1 << m) - 1)), (x << 1) & ((1 << m) - 1)))
+        module.comb += nx.eq(Mux(x[m - 1], ((x << 1) & ((1 << m) - 1)) ^ (poly & ((1 << m) - 1)),
+                                 (x << 1) & ((1 << m) - 1)))
         x = nx
     module.comb += r.eq(acc)
     return r
@@ -61,21 +62,24 @@ class LiteDSPBCHEncoder(LiteXModule):
         fb = Signal()
         self.comb += fb.eq(lfsr[r - 1] ^ self.sink.data)
         nxt = Signal(r)
-        self.comb += nxt.eq(Cat(fb, *[lfsr[i - 1] ^ (fb if gbits[i] else 0) for i in range(1, r)]) if r > 1 else fb)
+        self.comb += nxt.eq(Cat(fb, *[lfsr[i - 1] ^ (fb if gbits[i] else 0) for i in range(1, r)])
+            if r > 1 else fb)
         emit, out_bit = Signal(), Signal()
         self.fsm = fsm = FSM(reset_state="MESSAGE")
         fsm.act("MESSAGE",
             self.sink.ready.eq(adv), emit.eq(self.sink.valid), out_bit.eq(self.sink.data),
             If(self.sink.valid & adv,
                 NextValue(lfsr, nxt),
-                If(idx == k - 1, NextValue(idx, 0), NextState("PARITY")).Else(NextValue(idx, idx + 1)),
+                If(idx == k - 1, NextValue(idx, 0), NextState("PARITY")).Else(
+                    NextValue(idx, idx + 1)),
             ),
         )
         fsm.act("PARITY",
             emit.eq(1), out_bit.eq(lfsr[r - 1]),
             If(adv,
                 NextValue(lfsr, Cat(C(0, 1), lfsr[:r - 1]) if r > 1 else 0),
-                If(idx == r - 1, NextValue(idx, 0), NextValue(self.blocks, self.blocks + 1), NextState("MESSAGE")).Else(NextValue(idx, idx + 1)),
+                If(idx == r - 1, NextValue(idx, 0), NextValue(self.blocks, self.blocks + 1),
+                   NextState("MESSAGE")).Else(NextValue(idx, idx + 1)),
             ),
         )
         self.sync += If(adv,
@@ -93,7 +97,8 @@ class LiteDSPBCHEncoder(LiteXModule):
             CSRField("t", size=4, offset=16, description="Correctable errors."),
         ])
         self._blocks = CSRStatus(32, name="blocks", description="Codewords sent.")
-        self.comb += [self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k), self._config.fields.t.eq(self.t),
+        self.comb += [self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k),
+                      self._config.fields.t.eq(self.t),
                       self._blocks.status.eq(self.blocks)]
 
 # BCH Decoder --------------------------------------------------------------------------------------
@@ -172,7 +177,8 @@ class LiteDSPBCHDecoder(LiteXModule):
         # Chien search.
         pos    = Signal(max=n + 1)
         chien  = [Signal(m_, name=f"ch{i}") for i in range(T + 1)]      # lam_i * alpha^(i * pos).
-        ch_next = [_gf_mul(self, chien[i], C(exp[i % N] if i else 1, m_), m_, poly) for i in range(T + 1)]
+        ch_next = [_gf_mul(self, chien[i], C(exp[i % N] if i else 1, m_), m_, poly)
+                                                 for i in range(T + 1)]
         ch_sum = Signal(m_)
         acc_sum = C(0, m_)
         for c in chien:
@@ -187,7 +193,8 @@ class LiteDSPBCHDecoder(LiteXModule):
             self.sink.ready.eq(1),
             If(self.sink.valid,
                 NextValue(cw, Cat(cw[1:], self.sink.data)),
-                *[NextValue(S[i], s_next[i] ^ Replicate(self.sink.data, m_) & C(1, m_)) for i in range(2*T)],
+                *[NextValue(S[i], s_next[i] ^ Replicate(self.sink.data, m_)
+                                                        & C(1, m_)) for i in range(2*T)],
                 If(idx == n - 1,
                     NextValue(idx, 0),
                     NextState("CHECK"),
@@ -202,8 +209,10 @@ class LiteDSPBCHDecoder(LiteXModule):
             NextValue(self.blocks, self.blocks + 1),
             *[NextValue(lam[i], 1 if i == 0 else 0) for i in range(T + 1)],
             *[NextValue(bpol[i], 1 if i == 0 else 0) for i in range(T + 1)],
-            NextValue(L, 0), NextValue(r_, 0), NextValue(j_, 0), NextValue(acc, 0), NextValue(mask, 0), NextValue(roots, 0),
-            If(any_s, NextState("BM_ACC")).Else(NextValue(self.corrected, 0), NextValue(idx, 0), NextState("OUT")),
+            NextValue(L, 0), NextValue(r_, 0), NextValue(j_, 0), NextValue(acc, 0),
+            NextValue(mask, 0), NextValue(roots, 0),
+            If(any_s, NextState("BM_ACC")).Else(
+                NextValue(self.corrected, 0), NextValue(idx, 0), NextState("OUT")),
         )
         # BM: for r = 0..2t-1: d = sum lam[j] S[r-j] (j = 0..L); if d != 0: lam' = lam + d x b;
         # if 2L <= r: b = lam_old / d, L = r + 1 - L else b = x b; (binary: only even r
@@ -223,18 +232,21 @@ class LiteDSPBCHDecoder(LiteXModule):
                 NextValue(j_, 0), NextValue(acc, 0),
                 NextState("BM_B"),
             ).Else(
-                If(d != 0, *[If(j_ + 1 == i, NextValue(lam[i], lam[i] ^ prod_u)) for i in range(1, T + 1)]),
+                If(d != 0,
+                   *[If(j_ + 1 == i, NextValue(lam[i], lam[i] ^ prod_u)) for i in range(1, T + 1)]),
                 NextValue(j_, j_ + 1),
             ),
         )
         fsm.act("BM_B",
             If((d != 0) & (2*L <= r_),
                 # b <- lam_old / d, then shifted by x (the shift is folded into the index use).
-                *[If(j_ == i, NextValue(bpol[i], _gf_mul(self, Array(lam_old)[j_], dinv, m_, poly))) for i in range(T + 1)],
+                *[If(j_ == i, NextValue(bpol[i], _gf_mul(self, Array(lam_old)[j_], dinv, m_,
+                                                         poly))) for i in range(T + 1)],
             ),
             If(j_ == T,
                 NextValue(j_, 0),
-                If((d != 0) & (2*L <= r_), NextValue(L, r_ + 1 - L)).Else(*[NextValue(bpol[i], bpol[i - 1]) for i in range(1, T + 1)], NextValue(bpol[0], 0)),
+                If((d != 0) & (2*L <= r_), NextValue(L, r_ + 1 - L)).Else(*[NextValue(bpol[i],
+                    bpol[i - 1]) for i in range(1, T + 1)], NextValue(bpol[0], 0)),
                 NextValue(r_, r_ + 1),
                 If(r_ == 2*T - 1, NextState("BM_DONE")).Else(NextState("BM_ACC")),
             ).Else(
@@ -245,7 +257,8 @@ class LiteDSPBCHDecoder(LiteXModule):
             NextValue(pos, 0),
             *[NextValue(chien[i], lam[i]) for i in range(T + 1)],
             If(L > T,
-                NextValue(self.uncorrectable, 1), NextValue(self.uncorrectable_count, self.uncorrectable_count + 1),
+                NextValue(self.uncorrectable, 1),
+                NextValue(self.uncorrectable_count, self.uncorrectable_count + 1),
                 NextValue(self.corrected, 0), NextValue(idx, 0), NextState("OUT"),
             ).Else(
                 NextState("CHIEN"),
@@ -267,10 +280,12 @@ class LiteDSPBCHDecoder(LiteXModule):
         )
         fsm.act("FIX",
             If(roots != L,
-                NextValue(self.uncorrectable, 1), NextValue(self.uncorrectable_count, self.uncorrectable_count + 1),
+                NextValue(self.uncorrectable, 1),
+                NextValue(self.uncorrectable_count, self.uncorrectable_count + 1),
                 NextValue(self.corrected, 0),
             ).Else(
-                NextValue(self.corrected, 1), NextValue(self.corrected_total, self.corrected_total + 1),
+                NextValue(self.corrected, 1),
+                NextValue(self.corrected_total, self.corrected_total + 1),
                 NextValue(cw, cw ^ chien_mask(mask, n)),
             ),
             NextState("OUT"),
@@ -309,14 +324,19 @@ class LiteDSPBCHDecoder(LiteXModule):
             CSRField("corrected",     size=1, offset=0, description="The last block was corrected."),
             CSRField("uncorrectable", size=1, offset=1, description="Sticky: a block could not be corrected."),
         ])
-        self._corrected_total     = CSRStatus(32, name="corrected_total", description="Blocks corrected.")
-        self._uncorrectable_count = CSRStatus(32, name="uncorrectable_count", description="Uncorrectable blocks.")
+        self._corrected_total     = CSRStatus(32, name="corrected_total",
+                                              description="Blocks corrected.")
+        self._uncorrectable_count = CSRStatus(32, name="uncorrectable_count",
+                                              description="Uncorrectable blocks.")
         self._blocks = CSRStatus(32, name="blocks", description="Blocks decoded.")
         self.comb += [
-            self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k), self._config.fields.t.eq(self.t),
+            self._config.fields.n.eq(self.n), self._config.fields.k.eq(self.k),
+            self._config.fields.t.eq(self.t),
             self.clear.eq(self._control.fields.clear),
-            self._status.fields.corrected.eq(self.corrected), self._status.fields.uncorrectable.eq(self.uncorrectable),
-            self._corrected_total.status.eq(self.corrected_total), self._uncorrectable_count.status.eq(self.uncorrectable_count),
+            self._status.fields.corrected.eq(self.corrected),
+            self._status.fields.uncorrectable.eq(self.uncorrectable),
+            self._corrected_total.status.eq(self.corrected_total),
+            self._uncorrectable_count.status.eq(self.uncorrectable_count),
             self._blocks.status.eq(self.blocks),
         ]
 

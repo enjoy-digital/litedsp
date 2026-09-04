@@ -41,17 +41,23 @@ Every block obeys the same streaming + control contract (details and rationale i
 
 ```bash
 python3 -m unittest discover -s test -v      # Golden-model + integration tests.
+python3 tools/check_style.py                 # LiteX coding style (also test/test_style.py).
 python3 sim/run_nco.py                       # Verilator co-simulation (needs verilator).
 python3 impl/run.py --device ecp5            # Resource/fmax sweep (needs yosys/nextpnr).
 ```
 
-CI runs the unittest suite (with Verilator), a Yosys/ECP5 synthesis of every block, and
-elaborates the `bench/` SoCs; keep all three green.
+CI runs the unittest suite (with Verilator), the coding-style check, a Yosys/ECP5 synthesis of
+every block, and elaborates the `bench/` SoCs; keep all four green.
 
 ## Commits / PRs
 
 - Small, focused commits in the LiteX style: `module: summary` subject, body explaining why.
 - Match the surrounding code (alignment, naming, comment density); preserve public names.
+- `python3 tools/check_style.py` enforces the mechanical rules: the header, 100-column section
+  separators, the `# # #` separator, import grouping, CSR declarations (no padding after `(`, a
+  `description` on every field), `encoding="utf-8"` on text-mode `open()`, no bare `except`, and
+  a 100-column soft limit that only aligned tables (register maps, `argparse` declarations,
+  registry rows) may exceed. It reports `path:line: [rule] message`; `--rules` selects a subset.
 - Update `CHANGELOG.md` for user-visible changes, and `doc/resources.md`
   (`python3 impl/report.py`) when a sweep changes the budgets.
 

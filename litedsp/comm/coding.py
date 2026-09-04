@@ -150,7 +150,9 @@ class LiteDSPCRC(LiteXModule):
         self.sync += [
             If(self.clear, self.crc.eq(init)).Elif(xfer, self.crc.eq(nxt)),
         ]
-        self.sync += If(adv, self.source.data.eq(self.sink.data), self.source.valid.eq(self.sink.valid))  # Data passes through (1-cycle latency).
+        # Data passes through (1-cycle latency).
+        self.sync += If(adv, self.source.data.eq(self.sink.data),
+                        self.source.valid.eq(self.sink.valid))
 
 # Convolutional Encoder ----------------------------------------------------------------------------
 
@@ -193,7 +195,8 @@ class LiteDSPConvEncoder(LiteXModule):
         full = Cat(self.sink.data, reg)                    # [x[n], x[n-1], ..., x[n-K+1]].
         outs = []
         for g in polys:
-            bits = [full[b] for b in range(constraint) if (g >> b) & 1]  # Taps selected by generator g.
+            # Taps selected by generator g.
+            bits = [full[b] for b in range(constraint) if (g >> b) & 1]
             o = Signal()
             self.comb += o.eq(_parity(bits))
             outs.append(o)

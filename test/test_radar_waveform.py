@@ -9,7 +9,8 @@ import unittest
 import numpy as np
 
 from litedsp.generation.source import LiteDSPChirp
-from litedsp.radar.waveform    import chirp_words, chirp_reference, pulse_compressor_taps, window_taper
+from litedsp.radar.waveform    import (chirp_words, chirp_reference, pulse_compressor_taps,
+                                       window_taper)
 
 from test.common import run_stream, column
 

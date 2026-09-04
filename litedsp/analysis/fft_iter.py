@@ -88,7 +88,7 @@ class LiteDSPFFTIter(LiteXModule):
         # Address Generation.
         # -------------------
         s   = Signal(max=max(2, S))                  # Stage index (0..S-1).
-        b   = Signal(max=max(2, N//2))               # Butterfly index within the stage (N/2 per stage).
+        b   = Signal(max=max(2, N//2))           # Butterfly index within the stage (N/2 per stage).
         idx = Signal(max=N)                          # Load/unload sample index.
 
         half   = Signal(S)
@@ -100,7 +100,8 @@ class LiteDSPFFTIter(LiteXModule):
             j.eq(b & (half - 1)),                    # Offset within the group.
             addr_a.eq(((b >> s) << (s + 1)) | j),    # Group base (2*half per group) + offset.
             addr_b.eq(addr_a | half),                # Partner element, half above addr_a.
-            cos_rp.adr.eq(j << (S - 1 - s)), sin_rp.adr.eq(j << (S - 1 - s)),  # Twiddle j*N/2**(s+1).
+            # Twiddle j*N/2**(s+1).
+            cos_rp.adr.eq(j << (S - 1 - s)), sin_rp.adr.eq(j << (S - 1 - s)),
         ]
 
         # Datapath.
@@ -181,7 +182,8 @@ class LiteDSPFFTIter(LiteXModule):
         fsm.act("BFLY_WRITE",
             If(b == (N//2 - 1),
                 NextValue(b, 0),
-                If(s == (S - 1), NextState("UNLD_READ")).Else(NextValue(s, s + 1), NextState("BFLY_READ")),
+                If(s == (S - 1), NextState("UNLD_READ")).Else(
+                    NextValue(s, s + 1), NextState("BFLY_READ")),
             ).Else(NextValue(b, b + 1), NextState("BFLY_READ")),
         )
         fsm.act("UNLD_READ", NextState("UNLD_EMIT"))       # Read of idx issued.

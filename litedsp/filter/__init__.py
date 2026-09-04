@@ -5,18 +5,21 @@
 # SPDX-License-Identifier: BSD-2-Clause
 
 """Filters: FIR (direct/symmetric/polyphase), CIC, 1-bit bitstream (sigma-delta/PDM) decimator,
-halfband, IIR biquad, Hilbert, pulse shaping, resamplers and equalizer. Coefficient design helpers live in
+halfband, IIR biquad, Hilbert, pulse shaping, resamplers and
+equalizer. Coefficient design helpers live in
 :mod:`litedsp.filter.design` (NumPy, not re-exported here)."""
 
 from litedsp.filter.arb_resampler  import LiteDSPArbResampler
 from litedsp.filter.bitstream      import LiteDSPBitstreamDecimator
-from litedsp.filter.cic            import LiteDSPCICDecimator, LiteDSPCICDecimatorRuntime, LiteDSPCICInterpolator
+from litedsp.filter.cic            import (LiteDSPCICDecimator, LiteDSPCICDecimatorRuntime,
+                                           LiteDSPCICInterpolator)
 from litedsp.filter.cic_parallel   import LiteDSPParallelCICDecimator
 from litedsp.filter.dc_blocker     import LiteDSPDCBlocker
 from litedsp.filter.equalizer      import LiteDSPLMSEqualizer
 from litedsp.filter.extra          import LiteDSPNotch, LiteDSPCombFilter, LiteDSPAllpass
 from litedsp.filter.farrow         import LiteDSPFarrowInterpolator
-from litedsp.filter.fir            import LiteDSPFIRCoefficients, LiteDSPFIRFilter, LiteDSPFIRFilterComplex
+from litedsp.filter.fir            import (LiteDSPFIRCoefficients, LiteDSPFIRFilter,
+                                           LiteDSPFIRFilterComplex)
 from litedsp.filter.fir_parallel   import LiteDSPParallelFIRFilter, LiteDSPParallelFIRFilterComplex
 from litedsp.filter.fir_poly       import LiteDSPFIRDecimator, LiteDSPFIRInterpolator
 from litedsp.filter.halfband       import LiteDSPHalfbandDecimator, LiteDSPHalfbandInterpolator

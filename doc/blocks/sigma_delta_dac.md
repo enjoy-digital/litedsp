@@ -9,7 +9,8 @@ latency: variable (data-dependent) · CSR: yes · bypass: no
 PDM DAC: a TDM (or mono) sink feeding one :class:`LiteDSPSigmaDeltaModulator` per channel,
 whose bits are clocked out on ``pdm_out[c]`` at ``sys_clk / clk_div`` (``pdm_clk`` pin, the
 bit changes on its falling edge). Once streaming has started, a tick with no bit available
-(input starved) repeats the last bit and sets the sticky ``underrun`` flag. Sink-only (``latency = None``); feed it at
+(input starved) repeats the last bit and sets the sticky ``underrun`` flag.
+Sink-only (``latency = None``); feed it at
 ``sys_clk / (clk_div * interpolation)`` frames per second.
 
 ## Parameters

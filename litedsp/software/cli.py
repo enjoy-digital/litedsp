@@ -127,7 +127,8 @@ def main():
             p.add_argument("--sample-rate", default=None, type=float, help="Sample rate (Hz).")
 
     args = parser.parse_args()
-    {"info": cmd_info, "nco": cmd_nco, "capture": cmd_capture, "spectrum": cmd_spectrum}[args.cmd](args)
+    {"info": cmd_info, "nco": cmd_nco, "capture": cmd_capture,
+     "spectrum": cmd_spectrum}[args.cmd](args)
 
 if __name__ == "__main__":
     main()

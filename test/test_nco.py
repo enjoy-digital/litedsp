@@ -18,7 +18,8 @@ def _to_signed(values, width):
     return np.where(values >= (1 << (width-1)), values - (1 << width), values)
 
 class TestNCO(unittest.TestCase):
-    def nco_case(self, phase_inc, phase_bits=32, data_width=16, lut_depth=1024, n=200, quarter_wave=False):
+    def nco_case(self, phase_inc, phase_bits=32, data_width=16, lut_depth=1024, n=200,
+                 quarter_wave=False):
         dut = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, lut_depth=lut_depth,
             quarter_wave=quarter_wave, with_csr=False)
         dut.phase_inc.reset = phase_inc  # Stable from cycle 0 (mirrors a CSR set before streaming).

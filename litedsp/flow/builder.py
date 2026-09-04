@@ -6,7 +6,8 @@
 
 """Assemble a netlist into a connected LiteX module.
 
-:class:`LiteDSPFlowChain` instantiates each netlist block as a *named submodule* (submodule name = netlist
+:class:`LiteDSPFlowChain` instantiates each netlist block as a
+*named submodule* (submodule name = netlist
 id) so that ``get_csrs()`` recursively name-prefixes every block's CSRs into one conflict-free
 register map. Top-level inputs/outputs become plain ``stream.Endpoint``s (wrapped as AXI-Stream by
 the IP core in Phase 2). Connections + fan-out/loop rules are handled by :mod:`litedsp.flow.glue`.
@@ -31,7 +32,7 @@ def _layout(kind, data_width):
     if kind == "iq_symbol":
         return iq_symbol_layout(data_width)
     if kind == "tdm":
-        return tdm_layout(data_width, 2)       # Fallback only: connected I/O copy the port's schema.
+        return tdm_layout(data_width, 2)      # Fallback only: connected I/O copy the port's schema.
     if kind == "abc":
         return abc_layout(data_width)
     if kind == "angle":

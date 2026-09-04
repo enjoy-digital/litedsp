@@ -49,7 +49,8 @@ class LiteDSPPatternSource(LiteXModule):
         # --------
         adv   = Signal()                         # Output register can accept a new sample.
         cnt   = Signal(data_width)               # Ramp counter (counter pattern).
-        lfsr  = Signal(data_width, reset=seed & ((1 << data_width) - 1) or 1)  # Seed forced non-zero (all-zero locks the LFSR).
+        # Seed forced non-zero (all-zero locks the LFSR).
+        lfsr  = Signal(data_width, reset=seed & ((1 << data_width) - 1) or 1)
         first = Signal(reset=1)                  # Distinguishes the impulse's first sample.
         self.comb += adv.eq(self.source.ready | ~self.source.valid)
 

@@ -161,7 +161,8 @@ def spec_fir_complex():
     from litedsp.filter.design import firwin_lowpass
     n, n_taps = 200, 17
     coeffs = firwin_lowpass(n_taps, 0.2)
-    dut  = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs, with_csr=False)
+    dut  = LiteDSPFIRFilterComplex(n_taps=n_taps, data_width=16, coefficients=coeffs,
+                                   with_csr=False)
     cols = _rand_cols(2, n)
     return dut, cols, n - 8, lambda c: list(models.fir_complex_model(c[0], c[1], coeffs))
 
@@ -262,7 +263,8 @@ def spec_dc_blocker_real():
     n    = 300
     dut  = LiteDSPDCBlocker(data_width=24, iq=False, precision_bits=8, with_csr=False)
     cols = _rand_cols(1, n, lo=-(1 << 23) + 1, hi=(1 << 23) - 1)
-    return dut, cols, n - 4, lambda c: [models.dc_blocker_model(np.array(c[0]), data_width=24, precision_bits=8)]
+    return dut, cols, n - 4, lambda c: [
+        models.dc_blocker_model(np.array(c[0]), data_width=24, precision_bits=8)]
 
 def spec_tdm_mux():
     from litedsp.stream.route import LiteDSPTDMMux
@@ -415,7 +417,7 @@ def spec_clipper():
 def spec_squelch():
     from litedsp.level.squelch import LiteDSPSquelch
     n = 300
-    open_thr, close_thr = 400_000_000, 100_000_000                 # ~mean power 2.7e8: gate toggles.
+    open_thr, close_thr = 400_000_000, 100_000_000                # ~mean power 2.7e8: gate toggles.
     dut = LiteDSPSquelch(data_width=16, with_csr=False)
     dut.open_threshold.reset  = open_thr
     dut.close_threshold.reset = close_thr
@@ -900,7 +902,7 @@ def spec_negate():
     from litedsp.stream.ops import LiteDSPNegate
     n    = 300
     dut  = LiteDSPNegate(data_width=16)
-    cols = _rand_cols(2, n, lo=-32768, hi=32767)                   # -full-scale wraps (no saturation).
+    cols = _rand_cols(2, n, lo=-32768, hi=32767)                # -full-scale wraps (no saturation).
     return dut, cols, n - 2, lambda c: list(models.negate_model(c[0], c[1]))
 
 def spec_combine():
@@ -1161,7 +1163,8 @@ def spec_audio_eq():
     # Reload the (identical) coefficient table through the shadow port and commit it, so the
     # copy engine runs without changing what the model computes.
     from migen import Memory
-    init  = next(list(m.init) for m in dut._fragment.specials if isinstance(m, Memory) and m.depth == 8*3)
+    init  = next(list(m.init) for m in dut._fragment.specials
+                      if isinstance(m, Memory) and m.depth == 8*3)
     index = [(k - 30) % 24 if 30 <= k < 54 else 0 for k in range(2*n)]
     value = [init[(k - 30) % 24] if 30 <= k < 54 else 0 for k in range(2*n)]
     we    = [int(30 <= k < 54) for k in range(2*n)]
@@ -1262,12 +1265,14 @@ def _spec_kernel(preset="gaussian3", K=3, nc=1, w=16, h=8):
     from litedsp.image.kernel import LiteDSPKernel2D
     from litedsp.image.design import kernel_preset
     c, sh, off = kernel_preset(preset)
-    dut = LiteDSPKernel2D(n_channels=nc, kernel_size=K, coefficients=c, shift=sh, offset=off, width=w, with_csr=False)
+    dut = LiteDSPKernel2D(n_channels=nc, kernel_size=K, coefficients=c, shift=sh, offset=off,
+                          width=w, with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=nc)
     def model(cc):
         outs = []
         for f in range(2):
-            img = np.stack([np.array(cc[k][f*w*h:(f + 1)*w*h]).reshape(h, w) for k in range(nc)], axis=-1)
+            img = np.stack([np.array(cc[k][f*w*h:(f + 1)*w*h]).reshape(h, w) for k in range(nc)],
+                           axis=-1)
             if nc == 1:
                 img = img[:, :, 0]
             y, _ = models.kernel2d_model(img, c, sh, off, K, "replicate")
@@ -1297,7 +1302,8 @@ def _frames_model(fn, cols, w, h, nc_in, nc_out, extra_cols=()):
     n_frames = len(cols[0])//n
     outs = []
     for f in range(n_frames):
-        img = np.stack([np.array(cols[k][f*n:(f + 1)*n]).reshape(h, w) for k in range(nc_in)], axis=-1)
+        img = np.stack([np.array(cols[k][f*n:(f + 1)*n]).reshape(h, w) for k in range(nc_in)],
+                       axis=-1)
         img = img[:, :, 0] if nc_in == 1 else img
         y = fn(img)
         outs.append(y.reshape(-1, nc_out))                              # Rate changers: own size.
@@ -1310,7 +1316,8 @@ def spec_sobel():
     dut = LiteDSPSobel(width=w, mode="approx", with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2)
     return dut, cols + [eol, first, last], 2*w*h - 4, \
-        lambda c: _frames_model(lambda i: models.sobel_model(i, "approx"), c, w, h, 1, 1, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.sobel_model(i, "approx"), c, w, h, 1, 1,
+                                (eol, first, last)), True, True
 
 def _spec_rank(rank, nc):
     from litedsp.image.rank import LiteDSPRankFilter
@@ -1318,7 +1325,8 @@ def _spec_rank(rank, nc):
     dut = LiteDSPRankFilter(n_channels=nc, rank=rank, width=w, with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=nc)
     return dut, cols + [eol, first, last], 2*w*h - 4, \
-        lambda c: _frames_model(lambda i: models.rank_filter_model(i, rank), c, w, h, nc, nc, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.rank_filter_model(i, rank), c, w, h, nc, nc,
+                                (eol, first, last)), True, True
 
 def spec_rank_filter():
     return _spec_rank(4, 3)
@@ -1335,7 +1343,8 @@ def spec_threshold():
     dut = LiteDSPThreshold(high=160, low=96, with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2)
     return dut, cols + [eol, first, last], 2*w*h - 2, \
-        lambda c: _frames_model(lambda i: models.threshold_model(i, 160, 96), c, w, h, 1, 1, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.threshold_model(i, 160, 96), c, w, h, 1, 1,
+                                (eol, first, last)), True, True
 
 def spec_pixel_gain():
     from litedsp.image.point import LiteDSPPixelGain
@@ -1346,7 +1355,8 @@ def spec_pixel_gain():
         dut.gain[c].reset, dut.offset[c].reset = gains[c], offsets[c]
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
     return dut, cols + [eol, first, last], 2*w*h - 2, \
-        lambda c: _frames_model(lambda i: models.pixel_gain_model(i, gains, offsets)[0], c, w, h, 3, 3, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.pixel_gain_model(i, gains, offsets)[0], c, w, h, 3,
+                                3, (eol, first, last)), True, True
 
 def _spec_lut(nc, gamma):
     from litedsp.image.lut import LiteDSPPixelLUT
@@ -1356,7 +1366,8 @@ def _spec_lut(nc, gamma):
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=nc)
     table = gamma_table(gamma, 8)
     return dut, cols + [eol, first, last], 2*w*h - 2, \
-        lambda c: _frames_model(lambda i: models.pixel_lut_model(i, table), c, w, h, nc, nc, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.pixel_lut_model(i, table), c, w, h, nc, nc,
+                                (eol, first, last)), True, True
 
 def spec_pixel_lut():
     return _spec_lut(1, 1.0)
@@ -1370,10 +1381,12 @@ def _spec_color(preset):
     w, h = 16, 8
     c, i, o = color_preset(preset)
     n_out = len(c)//3
-    dut = LiteDSPColorMatrix(n_out=n_out, coefficients=c, in_offsets=i, out_offsets=o, with_csr=False)
+    dut = LiteDSPColorMatrix(n_out=n_out, coefficients=c, in_offsets=i, out_offsets=o,
+                             with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
     return dut, cols + [eol, first, last], 2*w*h - 4, \
-        lambda cc: _frames_model(lambda im: models.color_matrix_model(im, c, i, o)[0], cc, w, h, 3, n_out, (eol, first, last)), True, True
+        lambda cc: _frames_model(lambda im: models.color_matrix_model(im, c, i, o)[0], cc, w, h, 3,
+                                 n_out, (eol, first, last)), True, True
 
 def spec_color_matrix():
     return _spec_color("rgb_to_ycbcr_jpeg")
@@ -1393,7 +1406,8 @@ def spec_debayer():
     dut = LiteDSPDebayer(pattern="grbg", width=w, with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2)
     return dut, cols + [eol, first, last], 2*w*h - 4, \
-        lambda c: _frames_model(lambda i: models.debayer_model(i, "grbg", "mirror"), c, w, h, 1, 3, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.debayer_model(i, "grbg", "mirror"), c, w, h, 1, 3,
+                                (eol, first, last)), True, True
 
 def spec_downscaler():
     from litedsp.image.scale import LiteDSPDownscaler
@@ -1405,7 +1419,8 @@ def spec_downscaler():
     ofirst = [int(k % (tw*th) == 0) for k in range(2*tw*th)]
     olast  = [int(k % (tw*th) == tw*th - 1) for k in range(2*tw*th)]
     return dut, cols + [eol, first, last], 2*tw*th - 2, \
-        lambda c: _frames_model(lambda i: models.downscaler_model(i, 2), c, w, h, 3, 3, (oeol, ofirst, olast)), True, True
+        lambda c: _frames_model(lambda i: models.downscaler_model(i, 2), c, w, h, 3, 3,
+                                (oeol, ofirst, olast)), True, True
 
 def spec_crop():
     from litedsp.image.scale import LiteDSPCrop
@@ -1417,14 +1432,16 @@ def spec_crop():
     ofirst = [int(k % (rw*rh) == 0) for k in range(2*rw*rh)]
     olast  = [int(k % (rw*rh) == rw*rh - 1) for k in range(2*rw*rh)]
     return dut, cols + [eol, first, last], 2*rw*rh - 2, \
-        lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1, (oeol, ofirst, olast)), True, True
+        lambda c: _frames_model(lambda i: models.crop_model(i, x0, y0, rw, rh), c, w, h, 1, 1,
+                                (oeol, ofirst, olast)), True, True
 
 def spec_bch_encoder():
     from litedsp.comm.bch import LiteDSPBCHEncoder
     blocks = 20
     dut = LiteDSPBCHEncoder(m=4, t=2, with_csr=False)
     cols = _rand_cols(1, blocks*dut.k, lo=0, hi=1)
-    return dut, cols, blocks*dut.n - 2, lambda c: list(models.bch_encode_model(c[0], 4, 2)), False, True
+    return dut, cols, blocks*dut.n - 2, lambda c: list(
+        models.bch_encode_model(c[0], 4, 2)), False, True
 
 def _spec_bch_decoder(m, t, blocks):
     from litedsp.comm.bch import LiteDSPBCHDecoder
@@ -1439,7 +1456,8 @@ def _spec_bch_decoder(m, t, blocks):
     def model(c):
         data, _ = models.bch_decode_model(c[0], m, t)
         nb = len(data)//k
-        return [data, np.array([int(i % k == 0) for i in range(nb*k)]), np.array([int(i % k == k - 1) for i in range(nb*k)])]
+        return [data, np.array([int(i % k == 0) for i in range(nb*k)]),
+                np.array([int(i % k == k - 1) for i in range(nb*k)])]
     return dut, [cw], blocks*k - 2, model, False, True
 
 def spec_bch_decoder():
@@ -1452,12 +1470,14 @@ def spec_hdlc_framer():
     from litedsp.comm.hdlc import LiteDSPHDLCFramer
     dut = LiteDSPHDLCFramer(preamble=1, with_csr=False)
     prng = random.Random(26)
-    payloads = [[prng.randint(0, 1) for _ in range(40)], [1]*11 + [0] + [1]*9, [prng.randint(0, 1) for _ in range(64)]]
+    payloads = [[prng.randint(0, 1) for _ in range(40)], [1]*11 + [0] + [1]*9,
+                [prng.randint(0, 1) for _ in range(64)]]
     bits, first, last = [], [], []
     for p in payloads:
         bits += p; first += [1] + [0]*(len(p) - 1); last += [0]*(len(p) - 1) + [1]
     ref = models.hdlc_frame_model(payloads, 1)
-    return dut, [bits, first, last], len(ref[0]) - 2, lambda c: list(models.hdlc_frame_model(payloads, 1)), True, True
+    return dut, [bits, first, last], len(ref[0]) - 2, lambda c: list(
+        models.hdlc_frame_model(payloads, 1)), True, True
 
 def spec_hdlc_deframer():
     from litedsp.comm.hdlc import LiteDSPHDLCDeframer
@@ -1467,7 +1487,8 @@ def spec_hdlc_deframer():
     flag = [(HDLC_FLAG >> i) & 1 for i in range(8)]
     p1, p2 = [prng.randint(0, 1) for _ in range(48)], [prng.randint(0, 1) for _ in range(40)]
     corrupt = hdlc_frame_bits(p1); corrupt[20] ^= 1
-    line = hdlc_frame_bits(p1) + flag + corrupt + flag*2 + flag + p2[:10] + [1]*8 + flag + hdlc_frame_bits(p2) + flag*3
+    line = hdlc_frame_bits(p1) + flag + corrupt + flag*2 + flag + p2[:10] + [
+        1]*8 + flag + hdlc_frame_bits(p2) + flag*3
     (data, f, l, ok), _ = models.hdlc_deframe_model(line)
     def model(c):
         (d, ff, ll, oo), _ = models.hdlc_deframe_model(c[0])
@@ -1475,9 +1496,11 @@ def spec_hdlc_deframer():
     return dut, [line], len(data) - 1, model, False, True
 
 def _spec_conv(deinterleave):
-    from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+    from litedsp.comm.conv_interleaver import (LiteDSPConvolutionalInterleaver,
+                                               LiteDSPConvolutionalDeinterleaver)
     B, D, n = 4, 3, 300
-    dut = (LiteDSPConvolutionalDeinterleaver if deinterleave else LiteDSPConvolutionalInterleaver)(branches=B, depth=D, with_csr=False)
+    dut = (LiteDSPConvolutionalDeinterleaver if deinterleave
+           else LiteDSPConvolutionalInterleaver)(branches=B, depth=D, with_csr=False)
     cols = _rand_cols(1, n, lo=0, hi=255)
     return dut, cols, n - 4, lambda c: [models.conv_interleaver_model(c[0], B, D, deinterleave)]
 
@@ -1492,7 +1515,8 @@ def spec_hamming_encoder():
     m, blocks = 3, 40
     dut = LiteDSPHammingEncoder(m=m, with_csr=False)
     cols = _rand_cols(1, blocks*dut.k, lo=0, hi=1)
-    return dut, cols, blocks*dut.n - 2, lambda c: list(models.hamming_encode_model(c[0], m)), False, True
+    return dut, cols, blocks*dut.n - 2, lambda c: list(
+        models.hamming_encode_model(c[0], m)), False, True
 
 def _spec_hamming_decoder(secded):
     from litedsp.comm.hamming import LiteDSPHammingDecoder
@@ -1509,7 +1533,8 @@ def _spec_hamming_decoder(secded):
     def model(c):
         data, _ = models.hamming_decode_model(c[0], m, secded)
         nb = len(data)//k
-        return [data, np.array([int(i % k == 0) for i in range(nb*k)]), np.array([int(i % k == k - 1) for i in range(nb*k)])]
+        return [data, np.array([int(i % k == 0) for i in range(nb*k)]),
+                np.array([int(i % k == k - 1) for i in range(nb*k)])]
     return dut, [cw], blocks*k - 2, model, False, True
 
 def spec_hamming_decoder():
@@ -1587,7 +1612,8 @@ def _spec_am(carrier):
     dut = LiteDSPAMModulator(carrier=carrier, with_csr=False)
     dut.index.reset, dut.phase_inc.reset = 26000, 0x0800_0000
     cols = _rand_cols(1, n)
-    return dut, cols, n - 4, lambda c: list(models.am_modulator_model(c[0], 26000, carrier, 0x0800_0000))
+    return dut, cols, n - 4, lambda c: list(
+        models.am_modulator_model(c[0], 26000, carrier, 0x0800_0000))
 
 def spec_am_modulator():
     return _spec_am("baseband")
@@ -1601,7 +1627,8 @@ def _spec_angle_mod(mode):
     dut = (LiteDSPFrequencyModulator if mode == "fm" else LiteDSPPhaseModulator)(with_csr=False)
     dut.phase_inc.reset, dut.deviation.reset = 0x0123_4567, 0xC000_0000   # Large deviation: wraps.
     cols = _rand_cols(1, n)                                              # Full scale, negatives.
-    return dut, cols, n - 2, lambda c: list(models.angle_modulator_model(c[0], mode, 0x0123_4567, 0xC000_0000))
+    return dut, cols, n - 2, lambda c: list(
+        models.angle_modulator_model(c[0], mode, 0x0123_4567, 0xC000_0000))
 
 def spec_fm_modulator():
     return _spec_angle_mod("fm")
@@ -1616,8 +1643,10 @@ def spec_pixel_histogram():
     cols, eol, first, last = _raster_cols(w, h, n_frames=2)
     nb = 1 << bl
     def model(c):
-        hs = [models.histogram_model(np.array(c[0][f*w*h:(f + 1)*w*h]).reshape(h, w), 0, bl) for f in range(2)]
-        return [np.concatenate(hs), np.array([int(k % nb == 0) for k in range(2*nb)]), np.array([int(k % nb == nb - 1) for k in range(2*nb)])]
+        hs = [models.histogram_model(np.array(c[0][f*w*h:(f + 1)*w*h]).reshape(h, w), 0, bl)
+                                                                               for f in range(2)]
+        return [np.concatenate(hs), np.array([int(k % nb == 0) for k in range(2*nb)]),
+                np.array([int(k % nb == nb - 1) for k in range(2*nb)])]
     return dut, cols + [eol, first, last], 2*nb - 2, model, True, True
 
 def _spec_blend(mask):
@@ -1653,11 +1682,13 @@ def spec_mask_blend():
 def spec_box_overlay():
     from litedsp.image.overlay import LiteDSPBoxOverlay
     w, h = 16, 8
-    boxes = [(2, 1, 9, 6, (255, 0, 0), 1), (6, 3, 14, 7, (0, 255, 0), 1), (12, 5, 20, 12, (0, 0, 255), 1)]
+    boxes = [(2, 1, 9, 6, (255, 0, 0), 1), (6, 3, 14, 7, (0, 255, 0), 1),
+             (12, 5, 20, 12, (0, 0, 255), 1)]
     dut = LiteDSPBoxOverlay(n_boxes=4, thickness=2, boxes=boxes, with_csr=False)
     cols, eol, first, last = _raster_cols(w, h, n_frames=2, n_channels=3)
     return dut, cols + [eol, first, last], 2*w*h - 2, \
-        lambda c: _frames_model(lambda i: models.box_overlay_model(i, boxes, 2), c, w, h, 3, 3, (eol, first, last)), True, True
+        lambda c: _frames_model(lambda i: models.box_overlay_model(i, boxes, 2), c, w, h, 3, 3,
+                                (eol, first, last)), True, True
 
 def spec_line_buffer():
     from litedsp.image.linebuffer import LiteDSPLineBuffer
@@ -1667,7 +1698,8 @@ def spec_line_buffer():
     def model(c):
         img  = np.array(c[0][:w*h]).reshape(h, w)
         img2 = np.array(c[0][w*h:2*w*h]).reshape(h, w)
-        r1, r2 = models.line_buffer_model(img, 3, "mirror"), models.line_buffer_model(img2, 3, "mirror")
+        r1, r2 = models.line_buffer_model(img, 3, "mirror"), models.line_buffer_model(img2, 3,
+            "mirror")
         keys = [f"w{i}{j}" for i in range(3) for j in range(3)] + ["eol", "first", "last"]
         return [np.concatenate([r1[k], r2[k]]) for k in keys]
     return dut, cols + [eol, first, last], 2*w*h - 4, model, True, True
@@ -1677,7 +1709,8 @@ def spec_pixel_from_video():
     w, h = 16, 8
     dut  = LiteDSPPixelFromVideo(width=w, height=h, with_csr=False)
     prng = random.Random(22)
-    imgs = [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(h)]) for _ in range(2)]
+    imgs = [np.array([[[prng.randint(0, 255) for _ in range(3)] for _ in range(w)] for _ in range(
+        h)]) for _ in range(2)]
     beats = models.video_frames(imgs)
     cols  = [[b[f] for b in beats] for f in ("hsync", "vsync", "de", "r", "g", "b")]
     def model(c):
@@ -1688,7 +1721,8 @@ def spec_pixel_from_video():
 def spec_pixel_pattern():
     from litedsp.image.pattern import LiteDSPPixelPattern
     w, h = 20, 6
-    dut = LiteDSPPixelPattern(data_width=8, n_channels=3, width=w, height=h, mode="bars", with_csr=False)
+    dut = LiteDSPPixelPattern(data_width=8, n_channels=3, width=w, height=h, mode="bars",
+                              with_csr=False)
     dut.enable.reset = 1
     def model(c):
         img = models.pixel_pattern_model("bars", w, h, 8, 3)
@@ -1703,14 +1737,17 @@ def spec_pixel_pattern():
 def spec_pulse_generator():
     from litedsp.radar.timing import LiteDSPPulseGenerator
     P, PRI, n_pulses = 16, 48, 3
-    dut = LiteDSPPulseGenerator(pulse_len=P, bandwidth=0.5, pri=PRI, n_pulses=n_pulses, with_csr=False)
+    dut = LiteDSPPulseGenerator(pulse_len=P, bandwidth=0.5, pri=PRI, n_pulses=n_pulses,
+                                with_csr=False)
     dut.enable.reset = 1
-    return dut, [], n_pulses*PRI, lambda c: list(models.pulse_generator_model(n_pulses, P, PRI, 0.5)), False, True
+    return dut, [], n_pulses*PRI, lambda c: list(
+        models.pulse_generator_model(n_pulses, P, PRI, 0.5)), False, True
 
 def spec_range_gate():
     from litedsp.radar.timing import LiteDSPRangeGate
     n    = 300
-    dut  = LiteDSPRangeGate(data_width=16, n_range_bins=8, n_pulses=3, pri=24, gate_start=4, with_csr=False)
+    dut  = LiteDSPRangeGate(data_width=16, n_range_bins=8, n_pulses=3, pri=24, gate_start=4,
+                            with_csr=False)
     cols = _rand_cols(2, n)
     enable = [int(not 120 <= k < 150) for k in range(n)]           # A pause restarts the timer.
     def model(c):
@@ -1727,7 +1764,8 @@ def spec_corner_turn():
     cols = _rand_cols(2, n)
     first = [int(k % N == 0) for k in range(n)]
     last  = [int(k % N == N - 1) for k in range(n)]
-    return dut, cols + [first, last], n - 4, lambda c: list(models.corner_turn_model(c[0], c[1], N, M)), True, True
+    return dut, cols + [first, last], n - 4, lambda c: list(
+        models.corner_turn_model(c[0], c[1], N, M)), True, True
 
 def _spec_ca_cfar(mode=0):
     from litedsp.radar.cfar import LiteDSPCACFAR
@@ -1785,7 +1823,8 @@ def _spec_cfar_2d(n_train=(2, 1)):
     from litedsp.radar.cfar_2d import LiteDSPCFAR2D
     N, M, n_cpi = 16, 8, 2
     n   = N*M*n_cpi
-    dut = LiteDSPCFAR2D(n_range_bins=N, n_doppler_bins=M, n_train=n_train, n_guard=(1, 1), with_csr=False)
+    dut = LiteDSPCFAR2D(n_range_bins=N, n_doppler_bins=M, n_train=n_train, n_guard=(1, 1),
+                        with_csr=False)
     prng  = random.Random(12)
     cells = [min(int(prng.expovariate(1/3000)), 2**17 - 1) for _ in range(n)]
     for k in (0, 37, 130, n - 1):
@@ -1817,7 +1856,8 @@ def spec_peak_extractor():
     ref   = models.peak_extractor_model(data, detect, N, M, 1, 1)
     def model(c):
         return list(models.peak_extractor_model(c[0], c[2], N, M, 1, 1))
-    return dut, [data, [0]*n, detect, first, last], len(ref[0]) - 1, model, True, True   # cell_layout order.
+    # cell_layout order.
+    return dut, [data, [0]*n, detect, first, last], len(ref[0]) - 1, model, True, True
 
 def spec_target_list():
     from litedsp.radar.detect import LiteDSPTargetList
@@ -1831,12 +1871,13 @@ def spec_target_list():
     ref, _ = models.target_list_model(rng, dop, val, hit, max_targets=8)      # Overflows some CPIs.
     def model(c):
         return list(models.target_list_model(c[0], c[1], c[2], c[3], max_targets=8)[0])
-    return dut, [list(rng), list(dop), list(val), list(hit), list(first), list(last)], len(ref[0]) - 1, model, True, True
+    return dut, [list(rng), list(dop), list(val), list(hit), list(first),
+                 list(last)], len(ref[0]) - 1, model, True, True
 
 def spec_alpha_beta_tracker():
     from litedsp.radar.track import LiteDSPAlphaBetaTracker
     dut = LiteDSPAlphaBetaTracker(with_csr=False)
-    dut.emit_tentative.reset = 1                                       # Every burst carries records.
+    dut.emit_tentative.reset = 1                                      # Every burst carries records.
     beats, _ = models.tracker_scenario(n_cpi=12, seed=3)
     cols = [[b[f] for b in beats] for f in ("range", "doppler", "data", "hit", "first", "last")]
     ref, _ = models.alpha_beta_tracker_model(cols[0], cols[1], cols[3], emit_tentative=1)
@@ -1946,7 +1987,8 @@ def _spec_pulse_compressor(window="rect", fir_architecture="classic"):
     x    = np.array([complex(prng.randint(-500, 500), prng.randint(-500, 500)) for _ in range(n)])
     for d, a in ((40, 0.7), (150, 0.4), (220, 0.9)):
         x[d:d + P] += a*s
-    cols  = [np.clip(x.real, -32767, 32767).astype(int).tolist(), np.clip(x.imag, -32767, 32767).astype(int).tolist()]
+    cols  = [np.clip(x.real, -32767, 32767).astype(int).tolist(),
+             np.clip(x.imag, -32767, 32767).astype(int).tolist()]
     first = [int(k % 100 == 0) for k in range(n)]
     last  = [int(k % 100 == 99) for k in range(n)]
     def model(c):

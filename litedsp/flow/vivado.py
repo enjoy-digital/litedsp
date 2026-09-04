@@ -193,17 +193,20 @@ def _package_tcl(name, wrapper_name, part, clock_ns, interfaces):
         "}",
         f"set_property top {_tcl_quote(wrapper_name)} [current_fileset]",
         "update_compile_order -fileset sources_1",
-        "ipx::package_project -root_dir $root -vendor enjoy-digital.fr -library litedsp -taxonomy /LiteDSP -import_files -set_current true",
+        "ipx::package_project -root_dir $root -vendor enjoy-digital.fr -library litedsp -taxonomy "
+        "/LiteDSP -import_files -set_current true",
         "set core [ipx::current_core]",
         f"set_property name {_tcl_quote(name)} $core",
         f"set_property display_name {_tcl_quote('LiteDSP ' + name)} $core",
-        "set_property description {Generated LiteDSP AXI4-Stream processing chain with AXI4-Lite control} $core",
+        "set_property description {Generated LiteDSP AXI4-Stream processing chain with AXI4-Lite "
+        "control} $core",
         "set_property version 1.0 $core",
         "set_property core_revision 1 $core",
         "set_property supported_families {artix7 Production artixuplus Production} $core",
         "",
         "# Remove any heuristic interfaces before adding deterministic mappings.",
-        "foreach bus [ipx::get_bus_interfaces -of_objects $core] { ipx::remove_bus_interface [get_property NAME $bus] $core }",
+        "foreach bus [ipx::get_bus_interfaces -of_objects $core] { ipx::remove_bus_interface "
+        "[get_property NAME $bus] $core }",
         "",
         "set rst [ipx::add_bus_interface ARESETN $core]",
         "set_property abstraction_type_vlnv xilinx.com:signal:reset_rtl:1.0 $rst",
@@ -312,7 +315,8 @@ def _validation_tcl(name, clock_ns, interfaces):
         "update_compile_order -fileset sources_1",
         "launch_runs synth_1 -jobs 4",
         "wait_on_run synth_1",
-        "if {[get_property PROGRESS [get_runs synth_1]] ne {100%}} { error {synth_1 did not complete} }",
+        "if {[get_property PROGRESS [get_runs synth_1]] ne {100%}} { error {synth_1 did not "
+        "complete} }",
         "open_run synth_1",
         "report_utilization -file [file join $build utilization.rpt]",
         "write_checkpoint -force [file join $build litedsp_ip.dcp]",
@@ -371,13 +375,15 @@ def package_vivado(ip, verilog_path, package_dir, name=None, part=DEFAULT_PART, 
     component = os.path.join(package_dir, "component.xml")
     if run_vivado:
         if shutil.which("vivado") is None:
-            raise RuntimeError("Vivado is required for --vivado-ip (use package_ip.tcl on a licensed host)")
+            raise RuntimeError("Vivado is required for --vivado-ip (use package_ip.tcl on a "
+                               "licensed host)")
         with open(os.path.join(package_dir, "package_ip.log"), "w", encoding="utf-8") as log:
             subprocess.run(["vivado", "-mode", "batch", "-source", "package_ip.tcl",
                             "-nojournal", "-nolog"], cwd=package_dir, stdout=log,
                            stderr=subprocess.STDOUT, check=True, timeout=timeout)
         if not os.path.exists(component):
-            raise RuntimeError(f"Vivado produced no component.xml (see {package_dir}/package_ip.log)")
+            raise RuntimeError(f"Vivado produced no component.xml (see "
+                               f"{package_dir}/package_ip.log)")
     return component
 
 

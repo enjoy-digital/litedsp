@@ -9,12 +9,14 @@ import unittest
 
 import numpy as np
 
-from litedsp.radar.design import (cfar_alpha, alpha_beta_from_index, tracker_gains, steering_weights,
+from litedsp.radar.design import (cfar_alpha, alpha_beta_from_index, tracker_gains,
+                                  steering_weights,
     range_bin_metres, doppler_bin_velocity, tvg_coefficients)
 
 class TestRadarDesign(unittest.TestCase):
     def test_cfar_alpha(self):
-        # Power-domain CA-CFAR on 16 exponential cells: alpha = 16 (1e-4^(-1/16) - 1) = 12.0 (Q.8 3071).
+        # Power-domain CA-CFAR on 16 exponential cells: alpha = 16 (1e-4^(-1/16) - 1) = 12.0 (Q.8
+        # 3071).
         self.assertEqual(cfar_alpha(1e-4, 16, "power"), round(16*(1e-4**(-1/16) - 1)*256))
         # Monte Carlo: exponential cells, mean of 16 training cells times alpha -> Pfa within 2x.
         prng  = np.random.default_rng(1)
@@ -44,7 +46,8 @@ class TestRadarDesign(unittest.TestCase):
         re, im = steering_weights(4, 30.0, 0.5, "rect", 14)
         w = (np.array(re) + 1j*np.array(im))/2**14
         theta = math.radians(30)
-        self.assertLess(abs(np.sum(w*np.exp(2j*math.pi*0.5*np.arange(4)*math.sin(theta))) - 1), 0.01)
+        self.assertLess(abs(np.sum(w*np.exp(2j*math.pi*0.5*np.arange(4)*math.sin(theta))) - 1),
+                        0.01)
 
     def test_units_and_tvg(self):
         self.assertAlmostEqual(range_bin_metres(1e6), 149.896, places=2)

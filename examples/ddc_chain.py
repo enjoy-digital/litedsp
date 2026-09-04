@@ -104,7 +104,8 @@ def main():
     print(f"DDC output: {len(out)} samples @ fs/{decimation}")
     print(f"  DC (down-converted tone) magnitude : {dc_level:8.1f}")
     print(f"  residual AC (rejected tone) std    : {ac_level:8.1f}")
-    print(f"  rejection                          : {20*np.log10(dc_level/max(ac_level,1e-9)):6.1f} dB")
+    print(f"  rejection                          : {20*np.log10(dc_level/max(ac_level,1e-9)):6.1f} "
+          f"dB")
 
 if __name__ == "__main__":
     main()

@@ -12,8 +12,10 @@ import unittest
 import numpy as np
 
 from litedsp.filter.design import gaussian_coefficients
-from litedsp.comm.design   import (gf_tables, gf_mul_int, bch_generator, hamming_columns, hamming_params, gray_encode,
-                                   gray_decode, fsk_deviation, hdlc_fcs, hdlc_stuff, hdlc_unstuff, hdlc_frame_bits, HDLC_FLAG)
+from litedsp.comm.design   import (gf_tables, gf_mul_int, bch_generator, hamming_columns,
+                                   hamming_params, gray_encode,
+                                   gray_decode, fsk_deviation, hdlc_fcs, hdlc_stuff, hdlc_unstuff,
+                                   hdlc_frame_bits, HDLC_FLAG)
 
 class TestGaussianTaps(unittest.TestCase):
     # verify-tier: bound — symmetric taps summing to unity within the quantisation, -3 dB at
@@ -64,14 +66,16 @@ class TestCodeDesign(unittest.TestCase):
         self.assertEqual(hdlc_unstuff(hdlc_stuff(bits)), bits)
         self.assertEqual(hdlc_stuff([1]*5), [1, 1, 1, 1, 1, 0])
         import importlib.util, pathlib
-        spec = importlib.util.spec_from_file_location("ais", pathlib.Path("examples/ais_receiver.py"))
+        spec = importlib.util.spec_from_file_location("ais",
+                                                      pathlib.Path("examples/ais_receiver.py"))
         try:
             ais = importlib.util.module_from_spec(spec); spec.loader.exec_module(ais)
             payload = [(k*7 + 3) & 1 for k in range(96)]
             self.assertEqual(hdlc_fcs(payload), [int(v) for v in ais.fcs_bits(payload)])
             frame = hdlc_frame_bits(payload)
             self.assertEqual(frame[:8], [(HDLC_FLAG >> i) & 1 for i in range(8)])
-            self.assertEqual(frame[8:-8], [int(v) for v in ais.bit_stuff(list(payload) + hdlc_fcs(payload))])
+            self.assertEqual(frame[8:-8],
+                             [int(v) for v in ais.bit_stuff(list(payload) + hdlc_fcs(payload))])
         except Exception as e:
             self.skipTest(f"AIS example not importable: {e}")
 

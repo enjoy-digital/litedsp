@@ -17,7 +17,7 @@ from litex.soc.interconnect     import stream
 from litedsp.common      import check
 from litedsp.comm.design import HDLC_FLAG
 
-FCS_RESIDUE = 0xF0B8                                                    # X.25 CRC over payload + FCS.
+FCS_RESIDUE = 0xF0B8                                                  # X.25 CRC over payload + FCS.
 
 def _fcs_step(crc, bit):
     """One X.25 CRC-16 step (reflected 0x8408) as a Migen expression."""
@@ -71,7 +71,8 @@ class LiteDSPHDLCFramer(LiteXModule):
             If(adv,
                 If(bitc == 7,
                     NextValue(bitc, 0),
-                    If(flags == preamble - 1, NextValue(flags, 0), NextState("PAYLOAD")).Else(NextValue(flags, flags + 1)),
+                    If(flags == preamble - 1, NextValue(flags, 0), NextState("PAYLOAD")).Else(
+                        NextValue(flags, flags + 1)),
                 ).Else(
                     NextValue(bitc, bitc + 1),
                 ),
@@ -100,14 +101,16 @@ class LiteDSPHDLCFramer(LiteXModule):
                 out_bit.eq(fcs_bit),
                 If(adv,
                     NextValue(ones, Mux(fcs_bit, ones + 1, 0)),
-                    If(bitc == 15, NextValue(bitc, 0), NextState("CLOSE")).Else(NextValue(bitc, bitc + 1)),
+                    If(bitc == 15, NextValue(bitc, 0), NextState("CLOSE")).Else(
+                        NextValue(bitc, bitc + 1)),
                 ),
             ),
         )
         fsm.act("CLOSE",
             emit.eq(1), out_bit.eq(flag_bit),
             If(adv,
-                If(bitc == 7, NextValue(bitc, 0), NextValue(self.frames, self.frames + 1), NextState("IDLE")).Else(NextValue(bitc, bitc + 1)),
+                If(bitc == 7, NextValue(bitc, 0), NextValue(self.frames, self.frames + 1),
+                   NextState("IDLE")).Else(NextValue(bitc, bitc + 1)),
             ),
         )
         self.sync += If(adv,
@@ -153,9 +156,10 @@ class LiteDSPHDLCDeframer(LiteXModule):
         # # #
 
         adv, xfer = Signal(), Signal()
-        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv), xfer.eq(self.sink.valid & adv)]
+        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv),
+                      xfer.eq(self.sink.valid & adv)]
         d = self.sink.data
-        hist = Signal(7)                                                # Previous 7 line bits (oldest LSB).
+        hist = Signal(7)                                        # Previous 7 line bits (oldest LSB).
         ones = Signal(3)
         flag_now, abort_now, stuffed = Signal(), Signal(), Signal()
         self.comb += [
@@ -190,7 +194,8 @@ class LiteDSPHDLCDeframer(LiteXModule):
                     If(in_frame & (count >= PEND),
                         self.frames.eq(self.frames + 1),
                         self.fcs_ok.eq(fcs_good),
-                        If(~fcs_good, self.fcs_error.eq(1), self.fcs_errors.eq(self.fcs_errors + 1)),
+                        If(~fcs_good, self.fcs_error.eq(1),
+                           self.fcs_errors.eq(self.fcs_errors + 1)),
                     ),
                     in_frame.eq(1), crc.eq(0xFFFF), count.eq(0),
                 ).Elif(abort_now,
@@ -228,6 +233,8 @@ class LiteDSPHDLCDeframer(LiteXModule):
         self._aborts     = CSRStatus(32, name="aborts", description="Aborted frames.")
         self.comb += [
             self.clear.eq(self._control.fields.clear),
-            self._status.fields.fcs_ok.eq(self.fcs_ok), self._status.fields.fcs_error.eq(self.fcs_error),
-            self._frames.status.eq(self.frames), self._fcs_errors.status.eq(self.fcs_errors), self._aborts.status.eq(self.aborts),
+            self._status.fields.fcs_ok.eq(self.fcs_ok),
+            self._status.fields.fcs_error.eq(self.fcs_error),
+            self._frames.status.eq(self.frames), self._fcs_errors.status.eq(self.fcs_errors),
+            self._aborts.status.eq(self.aborts),
         ]

@@ -116,7 +116,8 @@ class TestCompressor(unittest.TestCase):
     # N = 96 (2 ms at 48 kHz) within +/-20 %, and the release back within N = 240 (5 ms).
     def test_attack_release_time_constants(self):
         n_att, n_rel = 96, 240
-        dut = self.build(n_channels=1, attack=time_constant_coeff(2.0), release=time_constant_coeff(5.0))
+        dut = self.build(n_channels=1, attack=time_constant_coeff(2.0),
+                         release=time_constant_coeff(5.0))
         lo, hi = int(round(FS24*10**(-30/20))), int(round(FS24*10**(-10/20)))
         beats  = [{"data": lo}]*400 + [{"data": hi}]*600 + [{"data": lo}]*800
         got    = self.run_comp(dut, beats, throttle=0.0, ready_rate=1.0)

@@ -45,7 +45,8 @@ def main():
     depth      = bus.constants.spectrum_capture_depth
     decimation = bus.constants.spectrum_decimation
     fs_bb      = clk_freq/decimation
-    print(f"{bus.constants.config_ident}: clk={clk_freq/1e6:.1f}MHz, capture={depth}, fs_bb={fs_bb/1e6:.3f}MHz")
+    print(f"{bus.constants.config_ident}: clk={clk_freq/1e6:.1f}MHz, capture={depth}, "
+          f"fs_bb={fs_bb/1e6:.3f}MHz")
 
     # Tune: test tone at +tone_freq, DDC LO at -tune_freq (down-conversion).
     tone = NCODriver(bus, "nco",     clk_freq=clk_freq)
@@ -71,7 +72,8 @@ def main():
     expected = args.tone_freq - args.tune_freq
     bin_hz   = fs_bb/depth
     print(ascii_spectrum(psd))
-    print(f"peak at {peak/1e3:.1f} kHz, expected {expected/1e3:.1f} kHz (bin = {bin_hz/1e3:.2f} kHz)")
+    print(f"peak at {peak/1e3:.1f} kHz, expected {expected/1e3:.1f} kHz (bin = {bin_hz/1e3:.2f} "
+          f"kHz)")
 
     bus.close()
     if abs(peak - expected) <= 2*bin_hz:

@@ -166,7 +166,8 @@ class TestFrameSync(unittest.TestCase):
         for thr, expected in ((edge, 1), (edge + 1, 0)):
             got   = self.run_frame_sync(BARKER7, xi, xq, threshold=thr)
             peaks = self.assert_matches_model(got, xi, xq, BARKER7, thr)
-            self.assertEqual(len(peaks), expected, f"threshold {thr}: expected {expected} detection(s)")
+            self.assertEqual(len(peaks), expected,
+                             f"threshold {thr}: expected {expected} detection(s)")
 
     # verify-tier: model — `offset` moves the `first` tag; peak_window=1 (tag the crossing
     # itself, no search) is the degenerate FSM path.

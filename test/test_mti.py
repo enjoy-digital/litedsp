@@ -18,7 +18,8 @@ from test.models import mti_model
 def pulses(values, n_bins):
     """Frame ``values`` (complex per beat) as consecutive pulses of ``n_bins`` beats."""
     n = len(values)
-    return [{"i": int(v.real), "q": int(v.imag), "first": int(k % n_bins == 0), "last": int(k % n_bins == n_bins - 1)}
+    return [{"i": int(v.real), "q": int(v.imag), "first": int(k % n_bins == 0),
+             "last": int(k % n_bins == n_bins - 1)}
             for k, v in enumerate(values)]
 
 class TestMTICanceller(unittest.TestCase):
@@ -26,13 +27,15 @@ class TestMTICanceller(unittest.TestCase):
     # under backpressure (the 3-pulse build in both runtime modes).
     def test_bit_exact(self):
         prng = random.Random(1)
-        x    = np.array([complex(prng.randint(-20000, 20000), prng.randint(-20000, 20000)) for _ in range(4*32)])
+        x    = np.array([complex(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
+                                                                           for _ in range(4*32)])
         beats = pulses(x, 32)
         for order, mode in ((2, 0), (3, 0), (3, 1)):
             with self.subTest(order=order, mode=mode):
                 dut = LiteDSPMTICanceller(n_range_bins=32, order=order, with_csr=False)
                 dut.mode.reset = mode
-                cap = run_stream(dut, beats, len(beats), ["i", "q", "first", "last"], ["i", "q", "first", "last"],
+                cap = run_stream(dut, beats, len(beats), ["i", "q", "first", "last"],
+                                 ["i", "q", "first", "last"],
                     sink_throttle=0.2, source_ready_rate=0.7)
                 ri, rq = mti_model(x.real, x.imag, [b["first"] for b in beats], 32, mode=mode)
                 self.assertTrue(np.array_equal(column(cap, "i", 16), ri))
@@ -65,11 +68,13 @@ class TestMTICanceller(unittest.TestCase):
 
     def test_bypass_and_invalid(self):
         prng  = random.Random(2)
-        x     = np.array([complex(prng.randint(-20000, 20000), prng.randint(-20000, 20000)) for _ in range(64)])
+        x     = np.array(
+            [complex(prng.randint(-20000, 20000), prng.randint(-20000, 20000)) for _ in range(64)])
         beats = pulses(x, 16)
         dut   = LiteDSPMTICanceller(n_range_bins=16, with_csr=False)
         dut.bypass.reset = 1
-        cap = run_stream(dut, beats, 64, ["i", "q", "first", "last"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+        cap = run_stream(dut, beats, 64, ["i", "q", "first", "last"], ["i", "q"], sink_throttle=0.2,
+                         source_ready_rate=0.7)
         self.assertTrue(np.array_equal(column(cap, "i", 16), x.real.astype(int)))
         for kwargs in ({"order": 4}, {"n_range_bins": 0}, {"shift": 3}):
             with self.assertRaises(ValueError, msg=str(kwargs)):

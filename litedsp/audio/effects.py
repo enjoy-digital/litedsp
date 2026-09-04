@@ -40,7 +40,8 @@ class LiteDSPLFO(LiteXModule):
     """
     def __init__(self, phase_bits=32, data_width=16, lut_depth=256, with_csr=True):
         addr_bits = lut_depth.bit_length() - 1
-        check(lut_depth >= 8 and (1 << addr_bits) == lut_depth, "lut_depth must be a power of two >= 8")
+        check(lut_depth >= 8 and (1 << addr_bits) == lut_depth,
+              "lut_depth must be a power of two >= 8")
         check(phase_bits >= data_width + 2, "expected phase_bits >= data_width + 2")
         self.phase_bits = phase_bits
         self.data_width = data_width
@@ -66,7 +67,8 @@ class LiteDSPLFO(LiteXModule):
 
         # Shapes from the next phase (sine: ROM registered read; others registered here).
         # ------------------------------------------------------------------------------
-        _, sine = sincos_rom(self, phase_next[phase_bits - addr_bits:], ce, DW, lut_depth, quarter_wave=True)
+        _, sine = sincos_rom(self, phase_next[phase_bits - addr_bits:], ce, DW, lut_depth,
+                             quarter_wave=True)
         saw    = Signal((DW, True))
         tri    = Signal((DW + 1, True))
         square = Signal((DW, True))
@@ -99,9 +101,11 @@ class LiteDSPLFO(LiteXModule):
             description="Phase increment per sample (frequency = phase_inc * f_s / 2**phase_bits).")
         self._control = CSRStorage(fields=[
             CSRField("shape", size=2, offset=0, description="LFO waveform.", values=[
-                ("``0b00``", "Sine."), ("``0b01``", "Triangle."), ("``0b10``", "Saw."), ("``0b11``", "Square.")]),
+                ("``0b00``", "Sine."), ("``0b01``", "Triangle."), ("``0b10``", "Saw."),
+                ("``0b11``", "Square.")]),
         ])
-        self._amplitude = CSRStorage(self.data_width, reset=self.amplitude.reset.value, name="amplitude",
+        self._amplitude = CSRStorage(self.data_width, reset=self.amplitude.reset.value,
+                                     name="amplitude",
             description="Output amplitude (signed Q1.15, 1.0 = full scale).")
         self.comb += [
             self.phase_inc.eq(self._phase_inc.storage),
@@ -221,7 +225,8 @@ class LiteDSPDelayLine(LiteXModule):
             ]
         else:
             self.comb += [
-                d_int.eq(Mux(self.delay < 1, 1, Mux(self.delay > max_delay - 2, max_delay - 2, self.delay))),
+                d_int.eq(Mux(self.delay < 1, 1,
+                             Mux(self.delay > max_delay - 2, max_delay - 2, self.delay))),
                 frac.eq(0),
             ]
         one_minus_damp = Signal(16)
@@ -229,7 +234,7 @@ class LiteDSPDelayLine(LiteXModule):
         interp = Signal((DW + 1, True))
         self.comb += interp.eq(d0 + (prod >> MF))                          # d0 + (d1 - d0)*frac.
         filt_n = Signal((DW + 1, True))
-        self.comb += filt_n.eq(f_cur + (prod >> 15))                       # filt + (d - filt)*(1 - damp).
+        self.comb += filt_n.eq(f_cur + (prod >> 15))                 # filt + (d - filt)*(1 - damp).
         wr_val = Signal((DW + 1, True))
         self.comb += wr_val.eq(x + (prod >> CF))                           # x + feedback*filt.
         y, ovf = scaled(acc, CF, DW)
@@ -237,14 +242,15 @@ class LiteDSPDelayLine(LiteXModule):
         self.fsm = fsm = FSM(reset_state="IDLE")
         # ``sink.ready`` never depends on ``sink.valid`` (only on the modulation join), so the
         # engine can sit behind an atomic split (the reverb fans one stream out to its combs).
-        mod_needed = Signal()                                              # Channel-0 beat: join mod.
+        mod_needed = Signal()                                            # Channel-0 beat: join mod.
         can_accept = Signal()
         accept     = Signal()
         if modulation:
             self.comb += [
                 mod_needed.eq(tdm_channel(self.sink) == 0),
                 can_accept.eq(~mod_needed | self.sink_mod.valid),
-                self.sink_mod.ready.eq(fsm.ongoing("IDLE") & ~self.bypass & self.sink.valid & mod_needed),
+                self.sink_mod.ready.eq(fsm.ongoing("IDLE") & ~self.bypass & self.sink.valid
+                                                   & mod_needed),
             ]
         else:
             self.comb += can_accept.eq(1)
@@ -265,11 +271,11 @@ class LiteDSPDelayLine(LiteXModule):
         )
         if modulation:
             fsm.act("MODDEPTH",
-                op_a.eq(self.mod_depth), op_b.eq(mod),                    # mod*mod_depth (Q.15 -> frac).
+                op_a.eq(self.mod_depth), op_b.eq(mod),               # mod*mod_depth (Q.15 -> frac).
                 NextState("MODSHIFT"),
             )
             fsm.act("MODSHIFT",
-                NextValue(d_int_r, d_int),                                # From prod = mod*mod_depth.
+                NextValue(d_int_r, d_int),                              # From prod = mod*mod_depth.
                 NextValue(frac_r, frac),
                 NextState("READ0"),
             )
@@ -345,10 +351,14 @@ class LiteDSPDelayLine(LiteXModule):
     def add_csr(self):
         self._delay    = CSRStorage(len(self.delay), reset=self.delay.reset.value, name="delay",
             description="Delay in frames (samples per channel), <= max_delay - 2.")
-        self._feedback = CSRStorage(16, name="feedback", description="Feedback gain (signed Q1.15).")
-        self._damping  = CSRStorage(15, name="damping", description="Feedback low-pass (Q0.15, 0 = off).")
-        self._wet      = CSRStorage(16, reset=self.wet.reset.value, name="wet", description="Wet gain (signed Q1.15).")
-        self._dry      = CSRStorage(16, reset=self.dry.reset.value, name="dry", description="Dry gain (signed Q1.15).")
+        self._feedback = CSRStorage(16, name="feedback",
+                                    description="Feedback gain (signed Q1.15).")
+        self._damping  = CSRStorage(15, name="damping",
+                                    description="Feedback low-pass (Q0.15, 0 = off).")
+        self._wet      = CSRStorage(16, reset=self.wet.reset.value, name="wet",
+                                    description="Wet gain (signed Q1.15).")
+        self._dry      = CSRStorage(16, reset=self.dry.reset.value, name="dry",
+                                    description="Dry gain (signed Q1.15).")
         self._control  = CSRStorage(fields=[
             CSRField("bypass",    size=1, offset=0, description="Pass beats through unchanged."),
             CSRField("clear_sat", size=1, offset=1, pulse=True, description="Clear the saturation flag."),
@@ -432,8 +442,10 @@ class LiteDSPWetDryMix(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._wet = CSRStorage(16, reset=self.wet.reset.value, name="wet", description="Wet gain (signed Q1.15).")
-        self._dry = CSRStorage(16, reset=self.dry.reset.value, name="dry", description="Dry gain (signed Q1.15).")
+        self._wet = CSRStorage(16, reset=self.wet.reset.value, name="wet",
+                               description="Wet gain (signed Q1.15).")
+        self._dry = CSRStorage(16, reset=self.dry.reset.value, name="dry",
+                               description="Dry gain (signed Q1.15).")
         self._control = CSRStorage(fields=[
             CSRField("clear_sat", size=1, offset=0, pulse=True, description="Clear the saturation flag."),
         ])
@@ -504,8 +516,10 @@ class LiteDSPReverb(LiteXModule):
         # Fan-out: dry path (elastic) and the comb bank.
         # ----------------------------------------------
         self.split = LiteDSPSplit(n=n_combs + 1, layout=layout)
-        self.dry_fifo = LiteDSPStreamFIFO(depth=64, data_width=data_width, layout=layout, with_csr=False)
-        self.comb += [self.sink.connect(self.split.sink), self.split.sources[0].connect(self.dry_fifo.sink)]
+        self.dry_fifo = LiteDSPStreamFIFO(depth=64, data_width=data_width, layout=layout,
+                                          with_csr=False)
+        self.comb += [self.sink.connect(self.split.sink),
+                      self.split.sources[0].connect(self.dry_fifo.sink)]
         self.combs = []
         for k, d in enumerate(comb_delays):
             comb = LiteDSPDelayLine(data_width=data_width, n_channels=n_channels,
@@ -565,10 +579,13 @@ class LiteDSPReverb(LiteXModule):
             description="Comb feedback (signed Q1.15): decay time.")
         self._damping      = CSRStorage(15, reset=self.damping.reset.value, name="damping",
             description="Comb feedback low-pass (Q0.15): high-frequency decay.")
-        self._allpass_gain = CSRStorage(16, reset=self.allpass_gain.reset.value, name="allpass_gain",
+        self._allpass_gain = CSRStorage(16, reset=self.allpass_gain.reset.value,
+                                        name="allpass_gain",
             description="Allpass diffusion gain (signed Q1.15).")
-        self._wet = CSRStorage(16, reset=self.wet.reset.value, name="wet", description="Wet gain (signed Q1.15).")
-        self._dry = CSRStorage(16, reset=self.dry.reset.value, name="dry", description="Dry gain (signed Q1.15).")
+        self._wet = CSRStorage(16, reset=self.wet.reset.value, name="wet",
+                               description="Wet gain (signed Q1.15).")
+        self._dry = CSRStorage(16, reset=self.dry.reset.value, name="dry",
+                               description="Dry gain (signed Q1.15).")
         self.comb += [
             self.room_size.eq(self._room_size.storage),
             self.damping.eq(self._damping.storage),

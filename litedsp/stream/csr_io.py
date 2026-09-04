@@ -8,7 +8,8 @@
 
 These let firmware drive a processing chain and read it back without external data ports —
 useful for bring-up, self-test, and control-plane sample injection. ``LiteDSPCSRSource`` pushes one
-sample per CSR write; ``LiteDSPCSRSink`` exposes the last sample plus a transfer counter; ``LiteDSPNullSink``
+sample per CSR write; ``LiteDSPCSRSink`` exposes the last sample
+plus a transfer counter; ``LiteDSPNullSink``
 is an always-ready drain with a counter (terminate a branch / measure throughput).
 """
 
@@ -58,7 +59,8 @@ class LiteDSPCSRSource(LiteXModule):
             CSRField("i", size=self.data_width, description="Sample I (signed)."),
             CSRField("q", size=self.data_width, offset=16, description="Sample Q (signed)."),
         ])
-        self._push = CSRStorage(1, name="push", description="Strobe: emit the sample (write to push).")
+        self._push = CSRStorage(1, name="push",
+                                description="Strobe: emit the sample (write to push).")
         self.comb += [
             self.i.eq(self._sample.fields.i),
             self.q.eq(self._sample.fields.q),
@@ -102,7 +104,8 @@ class LiteDSPCSRSink(LiteXModule):
             CSRField("q", size=self.data_width, offset=16, description="Last sample Q."),
         ])
         self._count = CSRStatus(32, name="count", description="Transfers since clear.")
-        self._clear = CSRStorage(1, name="clear", description="Clear the transfer counter (write to clear).")
+        self._clear = CSRStorage(1, name="clear",
+                                 description="Clear the transfer counter (write to clear).")
         self.comb += [
             self._last.fields.i.eq(self.last_i),
             self._last.fields.q.eq(self.last_q),
@@ -137,7 +140,8 @@ class LiteDSPCSRReader(LiteXModule):
             CSRField("q", size=self.data_width, offset=16, description="Pending sample Q."),
         ])
         self._valid = CSRStatus(1, name="valid", description="A sample is pending.")
-        self._pop   = CSRStorage(1, name="pop", description="Consume the pending sample (write to pop).")
+        self._pop   = CSRStorage(1, name="pop",
+                                 description="Consume the pending sample (write to pop).")
         self.comb += [
             self._data.fields.i.eq(self.sink.i),
             self._data.fields.q.eq(self.sink.q),

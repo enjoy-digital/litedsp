@@ -47,9 +47,11 @@ class TestTDMMuxDemux(unittest.TestCase):
         dut = LiteDSPTDMMux(n_channels=n, data_width=24, with_csr=False)
         captured = []
         run_simulation(dut, [
-            *[stream_driver(dut.sinks[c], [{"data": v} for v in chans[c]], ["data"], seed=c, throttle=0.3)
+            *[stream_driver(dut.sinks[c], [{"data": v} for v in chans[c]], ["data"], seed=c,
+                            throttle=0.3)
               for c in range(n)],
-            stream_capture(dut.source, captured, n*frames, ["data", "channel"], seed=9, ready_rate=0.7),
+            stream_capture(dut.source, captured, n*frames, ["data", "channel"], seed=9,
+                           ready_rate=0.7),
         ])
         got_data = column(captured, "data", 24).tolist()
         got_ch   = column(captured, "channel").tolist()
@@ -60,7 +62,8 @@ class TestTDMMuxDemux(unittest.TestCase):
     def test_demux_by_tag(self):
         prng = random.Random(2)
         n, frames = 2, 60
-        beats = [{"data": prng.randint(-2**23, 2**23 - 1), "channel": k % n} for k in range(n*frames)]
+        beats = [{"data": prng.randint(-2**23, 2**23 - 1), "channel": k % n}
+                                       for k in range(n*frames)]
         dut = LiteDSPTDMDemux(n_channels=n, data_width=24, with_csr=False)
         caps = [[] for _ in range(n)]
         run_simulation(dut, [
@@ -69,7 +72,8 @@ class TestTDMMuxDemux(unittest.TestCase):
               for c in range(n)],
         ])
         for c in range(n):
-            self.assertEqual(column(caps[c], "data", 24).tolist(), [b["data"] for b in beats if b["channel"] == c])
+            self.assertEqual(column(caps[c], "data", 24).tolist(),
+                             [b["data"] for b in beats if b["channel"] == c])
 
     def test_mono_passthrough(self):
         beats = [{"data": k*1000 - 30000} for k in range(50)]

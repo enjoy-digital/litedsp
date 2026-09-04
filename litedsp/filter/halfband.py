@@ -58,7 +58,8 @@ class LiteDSPHalfbandInterpolator(LiteXModule):
 
         # # #
 
-        coeffs    = halfband_coefficients(n_taps, data_width=data_width, gain=2.0)  # x2 compensates the 1/L interpolation loss.
+        # x2 compensates the 1/L interpolation loss.
+        coeffs    = halfband_coefficients(n_taps, data_width=data_width, gain=2.0)
         self.core = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=2, data_width=data_width,
             coefficients=coeffs, with_csr=with_csr, prune_zeros=True)
         self.latency = self.core.latency

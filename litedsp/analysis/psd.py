@@ -200,7 +200,8 @@ class LiteDSPPSD(LiteXModule):
                 ("``0b11``", "Min-hold (per-bin floor, persists until cleared)."),
             ], description="Per-bin combining mode."),
             CSRField("clear", size=1, offset=8, pulse=True,
-                description="Restart combining: re-initialize the accumulator at the next frame boundary."),
+                description="Restart combining: re-initialize the accumulator at the next frame "
+                            "boundary."),
         ])
         self._status = CSRStatus(fields=[
             CSRField("avg_log2", size=8, description="Averaging exponent (frames = 2**avg_log2)."),

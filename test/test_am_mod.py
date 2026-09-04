@@ -32,14 +32,16 @@ class TestAMModulator(unittest.TestCase):
                 dut = LiteDSPAMModulator(carrier=carrier, with_csr=False)
                 dut.index.reset = index
                 dut.phase_inc.reset = 0x0800_0000
-                cap = run_stream(dut, [{"data": v} for v in x], 300, ["data"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(dut, [{"data": v} for v in x], 300, ["data"], ["i", "q"],
+                                 sink_throttle=0.2, source_ready_rate=0.7)
                 ri, rq = am_modulator_model(x, index, carrier, 0x0800_0000)
                 self.assertEqual(column(cap, "i", 16).tolist(), ri.tolist())
                 self.assertEqual(column(cap, "q", 16).tolist(), rq.tolist())
                 self.assertEqual(dut.latency, 2 if carrier == "baseband" else 4)
                 if carrier == "baseband":
                     env = 16384*(1 + np.array(x)/32768*index/32768)
-                    self.assertLessEqual(int(np.max(np.abs(column(cap, "i", 16) - np.round(env)))), 2)
+                    self.assertLessEqual(int(np.max(np.abs(column(cap, "i", 16) - np.round(env)))),
+                                         2)
 
     # verify-tier: bound — a 1 kHz-like tone at index 0.8 through the modulator and the AM
     # demodulator correlates > 0.95 with the message after the DC blocker settles; invalid carrier.
@@ -54,7 +56,8 @@ class TestAMModulator(unittest.TestCase):
                 self.mod.phase_inc.reset = 0x2000_0000                  # fs / 8 carrier.
                 self.sink, self.source = self.mod.sink, self.demod.source
                 self.comb += self.mod.source.connect(self.demod.sink)
-        cap = run_stream(Loop(), [{"data": v} for v in msg], n, ["data"], ["data"], sink_throttle=0.0, source_ready_rate=1.0)
+        cap = run_stream(Loop(), [{"data": v} for v in msg], n, ["data"], ["data"],
+                         sink_throttle=0.0, source_ready_rate=1.0)
         y = column(cap, "data", 16).astype(float)[300:]
         self.assertGreater(float(np.corrcoef(y, np.array(msg[300:], float))[0, 1]), 0.95)
         with self.assertRaises(ValueError):

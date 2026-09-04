@@ -40,8 +40,10 @@ def simulate(dut, a, b, n_out, rates=(1.0, 1.0), ready_rate=1.0, seed=1, tags=Fa
             cycles += 1
             assert cycles < 100000, "watchdog"
             if (yield dut.source.valid) and (yield dut.source.ready):
-                out.append(((yield dut.source.angle), (yield dut.source.first), (yield dut.source.last)))
-    run_simulation(dut, [driver(dut.sink_a, a, rates[0]), driver(dut.sink_b, b, rates[1]), capture()])
+                out.append(
+                    ((yield dut.source.angle), (yield dut.source.first), (yield dut.source.last)))
+    run_simulation(dut,
+                   [driver(dut.sink_a, a, rates[0]), driver(dut.sink_b, b, rates[1]), capture()])
     return out
 
 def signed(v, w):
@@ -53,8 +55,10 @@ class TestMonopulse(unittest.TestCase):
     # tags carried through; pinned latency.
     def test_bit_exact(self):
         prng = random.Random(3)
-        a = np.array([complex(prng.randint(-30000, 30000), prng.randint(-30000, 30000)) for _ in range(300)])
-        b = np.array([complex(prng.randint(-30000, 30000), prng.randint(-30000, 30000)) for _ in range(300)])
+        a = np.array(
+            [complex(prng.randint(-30000, 30000), prng.randint(-30000, 30000)) for _ in range(300)])
+        b = np.array(
+            [complex(prng.randint(-30000, 30000), prng.randint(-30000, 30000)) for _ in range(300)])
         dut = LiteDSPMonopulse(with_csr=False)
         out = simulate(dut, a, b, 300, rates=(0.7, 0.8), ready_rate=0.7, tags=True)
         ref = monopulse_model(a.real, a.imag, b.real, b.imag)

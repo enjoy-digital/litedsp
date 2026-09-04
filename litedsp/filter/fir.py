@@ -378,5 +378,6 @@ class LiteDSPFIRFilterComplex(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._bypass = CSRStorage(1, reset=0, name="bypass", description="Bypass filter (passthrough).")
+        self._bypass = CSRStorage(1, reset=0, name="bypass",
+                                  description="Bypass filter (passthrough).")
         self.comb += self.bypass.eq(self._bypass.storage)

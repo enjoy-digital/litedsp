@@ -261,10 +261,13 @@ class LiteDSPAudioEQ(LiteXModule):
             CSRField("frac_bits",      size=8,  offset=24, description="Coefficient fractional bits."),
         ])
         self._coeff_index = CSRStorage(self.coeff_index.nbits, name="coeff_index",
-            description="Shadow coefficient address: 8*band + k (k = 0..4: b0, b1, b2, a1, a2); auto-increments on value writes.")
+            description="Shadow coefficient address: 8*band + k (k = 0..4: b0, b1, b2, a1, a2); "
+                        "auto-increments on value writes.")
         self._coeff_value = CSRStorage(self.coeff_width, name="coeff_value",
-            description="Shadow coefficient value (signed Q(coeff_width-frac_bits).frac_bits); writing stores and increments the index.")
-        self._band_enable = CSRStorage(self.n_bands, reset=(1 << self.n_bands) - 1, name="band_enable",
+            description="Shadow coefficient value (signed Q(coeff_width-frac_bits).frac_bits); "
+                        "writing stores and increments the index.")
+        self._band_enable = CSRStorage(self.n_bands, reset=(1 << self.n_bands) - 1,
+                                       name="band_enable",
             description="Per-band enable mask (a disabled band passes its input through).")
         self._control = CSRStorage(fields=[
             CSRField("commit",    size=1, offset=0, pulse=True, description="Copy the shadow coefficients into the active set."),

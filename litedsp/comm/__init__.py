@@ -4,10 +4,12 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Communication blocks: demodulators, carrier/timing recovery, frame sync, coding, mapping, OFDM CP."""
+"""Communication blocks: demodulators, carrier/timing recovery, frame sync, coding, mapping, OFDM
+CP."""
 
 from litedsp.comm.am_demod        import LiteDSPAMDemod
-from litedsp.comm.coding          import LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC, LiteDSPConvEncoder
+from litedsp.comm.coding          import (LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC,
+                                          LiteDSPConvEncoder)
 from litedsp.comm.correlator      import LiteDSPCorrelator
 from litedsp.comm.diff            import LiteDSPDifferentialEncoder, LiteDSPDifferentialDecoder
 from litedsp.comm.fm_demod        import LiteDSPFMDemod
@@ -19,7 +21,8 @@ from litedsp.comm.mapper          import LiteDSPSymbolMapper
 from litedsp.comm.ofdm            import LiteDSPCPInsert, LiteDSPCPRemove
 from litedsp.comm.ofdm_eq         import LiteDSPOFDMEqualizer
 from litedsp.comm.phase_detect    import LiteDSPPhaseDetect
-from litedsp.comm.pll             import LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas, LiteDSPQPSKCostas
+from litedsp.comm.pll             import (LiteDSPCarrierLoop, LiteDSPPLL, LiteDSPCostas,
+                                          LiteDSPQPSKCostas)
 from litedsp.comm.puncture        import LiteDSPPuncturer, LiteDSPDepuncturer
 from litedsp.comm.rs              import (
     LiteDSPRSEncoder, LiteDSPRSDecoder,
@@ -36,6 +39,7 @@ from litedsp.comm.ssb_mod import LiteDSPSSBModulator
 from litedsp.comm.fsk_mod import LiteDSPFSKModulator
 from litedsp.comm.line_code import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming import LiteDSPHammingEncoder, LiteDSPHammingDecoder
-from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+from litedsp.comm.conv_interleaver import (LiteDSPConvolutionalInterleaver,
+                                           LiteDSPConvolutionalDeinterleaver)
 from litedsp.comm.hdlc import LiteDSPHDLCFramer, LiteDSPHDLCDeframer
 from litedsp.comm.bch import LiteDSPBCHEncoder, LiteDSPBCHDecoder

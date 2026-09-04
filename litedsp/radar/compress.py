@@ -50,7 +50,8 @@ class LiteDSPPulseCompressor(LiteXModule):
         if shift is None:
             shift = (data_width - 1) + (pulse_len - 1).bit_length()
         check(0 <= shift <= 2*data_width + pulse_len.bit_length(), "expected a non-negative shift")
-        re_taps, im_taps = pulse_compressor_taps(pulse_len, bandwidth, data_width, window, phase_bits, lut_depth)
+        re_taps, im_taps = pulse_compressor_taps(pulse_len, bandwidth, data_width, window,
+                                                 phase_bits, lut_depth)
         self.pulse_len  = pulse_len
         self.data_width = data_width
         self.shift      = shift
@@ -58,9 +59,11 @@ class LiteDSPPulseCompressor(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.clear     = Signal()
         self.saturated = Signal()
-        self.fir_re = LiteDSPFIRFilterComplex(n_taps=pulse_len, data_width=data_width, coefficients=re_taps,
+        self.fir_re = LiteDSPFIRFilterComplex(n_taps=pulse_len, data_width=data_width,
+                                              coefficients=re_taps,
             shift=shift, with_csr=False, architecture=fir_architecture, n_macs=n_macs)
-        self.fir_im = LiteDSPFIRFilterComplex(n_taps=pulse_len, data_width=data_width, coefficients=im_taps,
+        self.fir_im = LiteDSPFIRFilterComplex(n_taps=pulse_len, data_width=data_width,
+                                              coefficients=im_taps,
             shift=shift, with_csr=False, architecture=fir_architecture, n_macs=n_macs)
         fir_latency  = self.fir_re.latency                                 # None for 'mac'.
         self.latency = None if fir_latency is None else fir_latency + 1
@@ -70,7 +73,8 @@ class LiteDSPPulseCompressor(LiteXModule):
         # Lock-stepped filters fed from one sink; the framing tags bypass them.
         # ---------------------------------------------------------------------
         adv, xfer_in, xfer_out = Signal(), Signal(), Signal()
-        self.tags = tags = stream.SyncFIFO([("pad", 1)], (fir_latency or pulse_len) + 8)  # Carries first/last.
+        # Carries first/last.
+        self.tags = tags = stream.SyncFIFO([("pad", 1)], (fir_latency or pulse_len) + 8)
         sr = [Signal(2, name=f"tag_sr{k}") for k in range(pulse_len - 1)]  # Re-align by P-1.
         self.comb += [
             self.sink.ready.eq(self.fir_re.sink.ready & self.fir_im.sink.ready & tags.sink.ready),

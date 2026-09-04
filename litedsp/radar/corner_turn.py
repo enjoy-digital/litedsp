@@ -53,7 +53,7 @@ class LiteDSPCornerTurn(LiteXModule):
         xfer_in = Signal()
         pos     = Signal(max=n_range_bins*n_pulses)
         col     = Signal(max=n_range_bins)
-        synced  = Signal()                                              # Seen the first frame start.
+        synced  = Signal()                                             # Seen the first frame start.
         accept  = Signal()
         self.comb += [
             # Beats before the first 'first' (an upstream filter's pipeline fill) are consumed and
@@ -70,7 +70,8 @@ class LiteDSPCornerTurn(LiteXModule):
                 If(col == n_range_bins - 1, col.eq(0)).Else(col.eq(col + 1)),
                 If(self.clear,
                     self.frame_error.eq(0),
-                ).Elif((self.sink.first != (col == 0)) | (self.sink.last != (col == n_range_bins - 1)),
+                ).Elif(
+                    (self.sink.first != (col == 0)) | (self.sink.last != (col == n_range_bins - 1)),
                     self.frame_error.eq(1),
                 ),
             ).Elif(self.clear,

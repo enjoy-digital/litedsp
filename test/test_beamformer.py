@@ -17,7 +17,8 @@ from litedsp.radar.design   import steering_weights
 
 from test.models import beamformer_model
 
-def simulate(dut, xs, n_out, rates=None, ready_rate=1.0, controls=None, seed=1, watchdog=200000, start=0):
+def simulate(dut, xs, n_out, rates=None, ready_rate=1.0, controls=None, seed=1, watchdog=200000,
+             start=0):
     """Drive the element sinks with independent random throttles (after ``start`` idle cycles),
     capture n_out beats."""
     prng = random.Random(seed)
@@ -63,7 +64,8 @@ class TestBeamformer(unittest.TestCase):
     # watchdog guards the join; single-beam latency pinned at 3.
     def test_bit_exact(self):
         prng = random.Random(2)
-        xs   = [([prng.randint(-30000, 30000) for _ in range(150)], [prng.randint(-30000, 30000) for _ in range(150)]) for _ in range(4)]
+        xs   = [([prng.randint(-30000, 30000) for _ in range(150)],
+                 [prng.randint(-30000, 30000) for _ in range(150)]) for _ in range(4)]
         w    = [steering_weights(4, 15.0, 0.5, "rect"), steering_weights(4, -30.0, 0.5, "hamming")]
         dut  = LiteDSPBeamformer(n_elements=4, n_beams=2, with_csr=False)
         load = []
@@ -72,7 +74,8 @@ class TestBeamformer(unittest.TestCase):
                 load.append((b*4 + e, re[e], im[e]))
         def loader():
             for idx, re, im in load:
-                yield dut.weight_index.eq(idx); yield dut.weight_re.eq(re); yield dut.weight_im.eq(im)
+                yield dut.weight_index.eq(idx); yield dut.weight_re.eq(re); yield dut.weight_im.eq(
+                    im)
                 yield dut.weight_we.eq(1)
                 yield
             yield dut.weight_we.eq(0)
@@ -80,7 +83,8 @@ class TestBeamformer(unittest.TestCase):
             yield
             yield dut.commit.eq(0)
             yield
-        out = simulate(dut, xs, 2*150, rates=[0.7, 0.9, 0.5, 0.8], ready_rate=0.7, controls=[loader()], start=16)
+        out = simulate(dut, xs, 2*150, rates=[0.7, 0.9, 0.5, 0.8], ready_rate=0.7,
+                       controls=[loader()], start=16)
         (ri, rq, rc), sat = beamformer_model(xs, w)
         self.assertEqual([signed(b["i"], 16) for b in out], ri.tolist())
         self.assertEqual([signed(b["q"], 16) for b in out], rq.tolist())
@@ -96,14 +100,17 @@ class TestBeamformer(unittest.TestCase):
     def test_steering_gain_and_null(self):
         N, A = 8, 20000
         def wave(sin_theta, n=32):
-            return [([int(round(A*math.cos(2*math.pi*0.5*e*sin_theta + 2*math.pi*0.05*k))) for k in range(n)],
-                     [int(round(A*math.sin(2*math.pi*0.5*e*sin_theta + 2*math.pi*0.05*k))) for k in range(n)]) for e in range(N)]
+            return [([int(round(A*math.cos(2*math.pi*0.5*e*sin_theta + 2*math.pi*0.05*k)))
+                                           for k in range(n)],
+                     [int(round(A*math.sin(2*math.pi*0.5*e*sin_theta + 2*math.pi*0.05*k)))
+                                           for k in range(n)]) for e in range(N)]
         re, im = steering_weights(N, 20.0, 0.5, "rect")
         def run(xs):
             dut = LiteDSPBeamformer(n_elements=N, n_beams=1, with_csr=False)
             def loader():
                 for e in range(N):
-                    yield dut.weight_index.eq(e); yield dut.weight_re.eq(re[e]); yield dut.weight_im.eq(im[e]); yield dut.weight_we.eq(1)
+                    yield dut.weight_index.eq(e); yield dut.weight_re.eq(
+                        re[e]); yield dut.weight_im.eq(im[e]); yield dut.weight_we.eq(1)
                     yield
                 yield dut.weight_we.eq(0); yield dut.commit.eq(1)
                 yield
@@ -119,22 +126,25 @@ class TestBeamformer(unittest.TestCase):
         # Reset weights: broadside average of identical elements passes the amplitude.
         dut = LiteDSPBeamformer(n_elements=N, n_beams=1, with_csr=False)
         out = simulate(dut, wave(0.0), 32)
-        self.assertLessEqual(abs(np.mean(np.abs([signed(b["i"], 16) + 1j*signed(b["q"], 16) for b in out[8:]]))/A - 1.0), 0.01)
+        self.assertLessEqual(abs(np.mean(
+            np.abs([signed(b["i"], 16) + 1j*signed(b["q"], 16) for b in out[8:]]))/A - 1.0), 0.01)
 
     # verify-tier: bound — a commit issued mid-sample takes effect exactly at the next sample
     # boundary (both beams of a sample use the same weight set); the saturation flag is sticky.
     def test_commit_atomicity_and_saturation(self):
         prng = random.Random(4)
         n    = 40
-        xs   = [([prng.randint(-20000, 20000) for _ in range(n)], [prng.randint(-20000, 20000) for _ in range(n)]) for _ in range(2)]
+        xs   = [([prng.randint(-20000, 20000) for _ in range(n)],
+                 [prng.randint(-20000, 20000) for _ in range(n)]) for _ in range(2)]
         dut  = LiteDSPBeamformer(n_elements=2, n_beams=2, with_csr=False)
-        w_new = ([1 << 14, 0], [0, 0])                                  # Beam 0/1 <- element 0 only, x2.
+        w_new = ([1 << 14, 0], [0, 0])                             # Beam 0/1 <- element 0 only, x2.
         def loader():
             for _ in range(60):
                 yield
             for b in range(2):
                 for e in range(2):
-                    yield dut.weight_index.eq(b*2 + e); yield dut.weight_re.eq(w_new[0][e]); yield dut.weight_im.eq(0); yield dut.weight_we.eq(1)
+                    yield dut.weight_index.eq(b*2 + e); yield dut.weight_re.eq(
+                        w_new[0][e]); yield dut.weight_im.eq(0); yield dut.weight_we.eq(1)
                     yield
             yield dut.weight_we.eq(0); yield dut.commit.eq(1)
             yield
@@ -150,7 +160,8 @@ class TestBeamformer(unittest.TestCase):
         self.assertEqual(got[k:], new_i[k:].tolist())
         self.assertGreater(k, 0)
         xs_big = [([30000]*8, [0]*8), ([30000]*8, [0]*8)]
-        dut = LiteDSPBeamformer(n_elements=2, n_beams=1, shift=13, with_csr=False)   # x2 gain: saturates.
+        # x2 gain: saturates.
+        dut = LiteDSPBeamformer(n_elements=2, n_beams=1, shift=13, with_csr=False)
         self.sat = None
         def watch():
             while True:

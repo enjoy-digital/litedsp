@@ -242,7 +242,8 @@ def power_model(i, q, window=1):
 # Clipper ------------------------------------------------------------------------------------------
 
 def clipper_model(i, q, threshold, data_width=16):
-    """Reference for litedsp.level.clipper.LiteDSPClipper (clamp I/Q to [-threshold, +threshold])."""
+    """Reference for litedsp.level.clipper.LiteDSPClipper (clamp I/Q to [-threshold,
+    +threshold])."""
     i, q = np.asarray(i, np.int64), np.asarray(q, np.int64)
     return np.clip(i, -threshold, threshold), np.clip(q, -threshold, threshold)
 
@@ -258,7 +259,8 @@ def cfr_model(i, q, threshold, pulse, data_width=16, beta_shift=2, index_bits=6,
     ``a = g * x_pk`` with ``g = (|x_pk| - T)/|x_pk|`` computed divider-free (leading-zero
     normalization + 64-entry midpoint reciprocal LUT, Q0.15, round-half-up, clamped), and
     ``a * pulse[k]`` (round + saturate at each step) is subtracted from the stream delayed
-    by ``len(pulse)//2 + 2 + pipeline + correction_pipeline`` samples so the pulse center lands on the peak. Peaks detected
+    by ``len(pulse)//2 + 2 + pipeline + correction_pipeline`` samples so the pulse
+    center lands on the peak. Peaks detected
     while the engine is busy pass uncorrected (``missed``). All state advances on accepted
     samples only, so the sequence is handshake-invariant (holds under backpressure).
 
@@ -641,7 +643,8 @@ def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14,
     Per accepted sample (the gateware gates everything on xfer, so the sequence is
     handshake-invariant): shift the input window, filter with the current weights, form the
     mode-selected error (0 = trained ``e = d - y``, 1 = CMA ``e = y*(R2 - |y|^2)`` with the
-    gateware's frac-(W-1-cma_egain) rescale/round/saturate, 2 = DD nearest-QPSK at ``dd_level``), then
+    gateware's frac-(W-1-cma_egain) rescale/round/saturate, 2 =
+    DD nearest-QPSK at ``dd_level``), then
     apply a prior sample's error on its window snapshot (delayed LMS), gated by
     ``train``. ``mode`` and ``train`` accept scalars or per-sample sequences (runtime
     switching). ``adaptation_delay`` selects the one-sample classic, eight-sample pipelined, or
@@ -680,8 +683,10 @@ def equalizer_model(i, q, d_i=None, d_q=None, n_taps=7, data_width=16, wfrac=14,
         if train[k] and len(errors) >= adaptation_delay:
             pei, peq, pxr, pxi = errors[-adaptation_delay]
             for t in range(n_taps):
-                wr[t] = int(np_saturated(np.int64(wr[t] + ((pei*pxr[t] + peq*pxi[t]) >> mu_shift)), ww))
-                wi[t] = int(np_saturated(np.int64(wi[t] + ((peq*pxr[t] - pei*pxi[t]) >> mu_shift)), ww))
+                wr[t] = int(
+                    np_saturated(np.int64(wr[t] + ((pei*pxr[t] + peq*pxi[t]) >> mu_shift)), ww))
+                wi[t] = int(
+                    np_saturated(np.int64(wi[t] + ((peq*pxr[t] - pei*pxi[t]) >> mu_shift)), ww))
         errors.append((e_i, e_q, list(xr), list(xi)))
         out_i[k], out_q[k] = yi, yq
     return out_i, out_q
@@ -870,7 +875,8 @@ def slicer_model(i, q, bits_per_axis=1, spacing=8192, data_width=16):
         for j in range(L - 1):
             k += (x >= (2*j - L + 2)*spacing)
         point = (2*k - (L - 1))*spacing
-        point = ((point + (1 << (data_width - 1))) & ((1 << data_width) - 1)) - (1 << (data_width - 1))
+        point = ((point + (1 << (data_width - 1))) & ((1 << data_width) - 1)) - (
+            1 << (data_width - 1))
         return k, point
     ki, pi = decide(i)
     kq, pq = decide(q)
@@ -1073,7 +1079,8 @@ def rs_encode_model(message, n=255, k=223, poly=RS_GF_POLY, fcr=0, prim=1):
     return [int(byte) for byte in message] + p[::-1]
 
 def rs_decode_model(codeword, n=255, k=223, poly=RS_GF_POLY, fcr=0, prim=1):
-    """Reference for litedsp.comm.rs.LiteDSPRSDecoder; returns ``(message, corrected, uncorrectable)``.
+    """Reference for litedsp.comm.rs.LiteDSPRSDecoder; returns
+    ``(message, corrected, uncorrectable)``.
 
     Full hard-decision decode (syndromes, Berlekamp-Massey, Chien, Forney), mirroring the
     hardware exactly — including the degree-t truncation of the BM register files and the
@@ -1197,7 +1204,8 @@ def ccsds_rs_decode_model(codeword):
 # Differential Encoder / Decoder -------------------------------------------------------------------
 
 def diff_encode_model(symbols, modulus=4):
-    """Reference for litedsp.comm.diff.LiteDSPDifferentialEncoder: out[n] = (in[n] + out[n-1]) mod M."""
+    """Reference for litedsp.comm.diff.LiteDSPDifferentialEncoder: out[n] = (in[n] + out[n-1]) mod
+    M."""
     acc = 0
     out = np.zeros(len(symbols), np.int64)
     for n, s in enumerate(symbols):
@@ -1206,7 +1214,8 @@ def diff_encode_model(symbols, modulus=4):
     return out
 
 def diff_decode_model(symbols, modulus=4):
-    """Reference for litedsp.comm.diff.LiteDSPDifferentialDecoder: out[n] = (in[n] - in[n-1]) mod M."""
+    """Reference for litedsp.comm.diff.LiteDSPDifferentialDecoder: out[n] = (in[n] - in[n-1]) mod
+    M."""
     prev = 0
     out  = np.zeros(len(symbols), np.int64)
     for n, s in enumerate(symbols):
@@ -1303,7 +1312,8 @@ def _np_wrapped(v, width):
     return np.where(v >= (1 << (width - 1)), v - (1 << width), v)
 
 def conjugate_model(i, q, data_width=16):
-    """Reference for litedsp.stream.ops.LiteDSPConjugate (q -> -q; -full-scale wraps, no saturation)."""
+    """Reference for litedsp.stream.ops.LiteDSPConjugate (q -> -q; -full-scale wraps, no
+    saturation)."""
     return np.asarray(i, np.int64), _np_wrapped(-np.asarray(q, np.int64), data_width)
 
 def swap_iq_model(i, q, data_width=16):
@@ -1736,18 +1746,30 @@ def block_deinterleave_model(data, rows=5, cols=255):
 # 27x27 block, s >= 0 = identity right-cyclic-shifted by s (block row r: one at column
 # (r + s) mod 27). Info blocks 0..11, dual-diagonal parity blocks 12..23.
 LDPC_BASE = [
-    [ 0, -1, -1, -1,  0,  0, -1, -1,  0, -1, -1,  0,  1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-    [22,  0, -1, -1, 17, -1,  0,  0, 12, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-    [ 6, -1,  0, -1, 10, -1, -1, -1, 24, -1,  0, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1],
-    [ 2, -1, -1,  0, 20, -1, -1, -1, 25,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1],
-    [23, -1, -1, -1,  3, -1, -1, -1,  0, -1,  9, 11, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1],
-    [24, -1, 23,  1, 17, -1,  3, -1, 10, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1],
-    [25, -1, -1, -1,  8, -1, -1, -1,  7, 18, -1, -1,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1],
-    [13, 24, -1, -1,  0, -1,  8, -1,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1],
-    [ 7, 20, -1, 16, 22, 10, -1, -1, 23, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1],
-    [11, -1, -1, -1, 19, -1, -1, -1, 13, -1,  3, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1],
-    [25, -1,  8, -1, 23, 18, -1, 14,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0],
-    [ 3, -1, -1, -1, 16, -1, -1,  2, 25,  5, -1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0],
+    [ 0, -1, -1, -1,  0,  0, -1, -1,  0, -1, -1,  0,  1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     -1],
+    [22,  0, -1, -1, 17, -1,  0,  0, 12, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1,
+     -1],
+    [ 6, -1,  0, -1, 10, -1, -1, -1, 24, -1,  0, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1,
+     -1],
+    [ 2, -1, -1,  0, 20, -1, -1, -1, 25,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1,
+     -1],
+    [23, -1, -1, -1,  3, -1, -1, -1,  0, -1,  9, 11, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1,
+     -1],
+    [24, -1, 23,  1, 17, -1,  3, -1, 10, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1,
+     -1],
+    [25, -1, -1, -1,  8, -1, -1, -1,  7, 18, -1, -1,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1,
+     -1],
+    [13, 24, -1, -1,  0, -1,  8, -1,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1,
+     -1],
+    [ 7, 20, -1, 16, 22, 10, -1, -1, 23, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1,
+     -1],
+    [11, -1, -1, -1, 19, -1, -1, -1, 13, -1,  3, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0,
+     -1],
+    [25, -1,  8, -1, 23, 18, -1, 14,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,
+     0],
+    [ 3, -1, -1, -1, 16, -1, -1,  2, 25,  5, -1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     0],
 ]
 
 LDPC_Z = 27
@@ -1815,7 +1837,8 @@ def ldpc_encode_model(message):
     return [int(b) for b in np.concatenate([msg, p.reshape(-1)])]
 
 def ldpc_decode_model(llrs, llr_bits=4, max_iters=8):
-    """Reference for litedsp.comm.ldpc.LiteDSPLDPCDecoder; returns ``(bits, iterations, parity_ok)``.
+    """Reference for litedsp.comm.ldpc.LiteDSPLDPCDecoder;
+    returns ``(bits, iterations, parity_ok)``.
 
     Row-layered normalized min-sum mirroring the hardware exactly: layers = base rows in
     order, z serial check rows per layer, edges in ascending column order, compressed check
@@ -1944,7 +1967,8 @@ def sincos_model(angle, data_width=16, angle_width=16, lut_depth=1024, method="r
         addr = (angle & ((1 << angle_width) - 1)) >> (angle_width - addr_bits)
         return cos_t[addr], sin_t[addr]
     scale = (1 << (data_width - 1)) - 1
-    out   = [cordic_rotation_model(scale, 0, int(z), data_width, angle_width, stages) for z in angle]
+    out   = [cordic_rotation_model(scale, 0, int(z), data_width, angle_width, stages)
+                                                 for z in angle]
     return (np.array([o[0] for o in out], np.int64), np.array([o[1] for o in out], np.int64))
 
 def angle_ramp_model(phase_inc, n, angle_width=16, phase_bits=32):
@@ -1958,13 +1982,15 @@ def angle_ramp_model(phase_inc, n, angle_width=16, phase_bits=32):
 
 def park_model(alpha, beta, angle, data_width=16, angle_width=16, lut_depth=1024, method="rom",
     stages=None):
-    """Bit-exact reference for litedsp.motor.transforms.LiteDSPPark: (alpha, beta, theta) -> (d, q)."""
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPPark: (alpha, beta, theta) -> (d,
+    q)."""
     cos, sin = sincos_model(angle, data_width, angle_width, lut_depth, method, stages)
     return mixer_model(alpha, beta, cos, sin, mode="down", data_width=data_width)
 
 def inverse_park_model(d, q, angle, data_width=16, angle_width=16, lut_depth=1024, method="rom",
     stages=None):
-    """Bit-exact reference for litedsp.motor.transforms.LiteDSPInversePark: (d, q, theta) -> (alpha, beta)."""
+    """Bit-exact reference for litedsp.motor.transforms.LiteDSPInversePark: (d, q, theta) ->
+    (alpha, beta)."""
     cos, sin = sincos_model(angle, data_width, angle_width, lut_depth, method, stages)
     return mixer_model(d, q, cos, sin, mode="up", data_width=data_width)
 
@@ -2033,7 +2059,8 @@ def dq_decoupling_model(i_d, i_q, speed, l_pu, psi_pu, data_width=16):
 def dq_controller_model(i_d, i_q, setpoint_d, setpoint_q, kp_d, ki_d, kp_q, ki_q, limit=None,
     data_width=16, gain_width=16, gain_frac=12, anti_windup="conditional", open_loop=0,
     voltage_d=0, voltage_q=0, decoupling=False, speed=0, l_pu=0, psi_pu=0):
-    """Bit-exact reference for LiteDSPDQController: two PI regulators (+ decoupling). Returns (v_d, v_q)."""
+    """Bit-exact reference for LiteDSPDQController: two PI regulators (+ decoupling). Returns (v_d,
+    v_q)."""
     n = len(i_d)
     if decoupling:
         ff_d, ff_q = dq_decoupling_model(i_d, i_q, speed, l_pu, psi_pu, data_width)
@@ -2237,7 +2264,8 @@ def quadrature_decoder_model(a, b, z, counts_per_rev=4096, pole_pairs=1, filter_
     pins = [dict(s1=0, s2=0, out=0, cnt=0) for _ in range(3)]
     a_p = b_p = z_p = 0
     position = epos = direction = error = angle_full = win_cnt = delta = speed = 0
-    out = {k: np.zeros(n, np.int64) for k in ("position", "epos", "direction", "error", "speed", "angle")}
+    out = {k: np.zeros(n, np.int64)
+                       for k in ("position", "epos", "direction", "error", "speed", "angle")}
     for t in range(n):
         out["position"][t], out["epos"][t] = position, epos
         out["direction"][t], out["error"][t], out["speed"][t] = direction, error, speed
@@ -2256,7 +2284,8 @@ def quadrature_decoder_model(a, b, z, counts_per_rev=4096, pole_pairs=1, filter_
             if filter_length == 1:
                 out_n, cnt_n = s["s2"], 0
             elif s["s2"] != s["out"]:
-                out_n, cnt_n = (s["s2"], 0) if s["cnt"] == filter_length - 1 else (s["out"], s["cnt"] + 1)
+                out_n, cnt_n = (s["s2"], 0) if s["cnt"] == filter_length - 1 else (s["out"],
+                    s["cnt"] + 1)
             else:
                 out_n, cnt_n = s["out"], 0
             pins[k] = dict(s1=int(pin[t]), s2=s["s1"], out=out_n, cnt=cnt_n)
@@ -2348,7 +2377,8 @@ def smo_model(i_a, i_b, v_a, v_b, g_v, g_r, k_sm, lpf_shift=3, data_width=16, an
             emf_n[ax] = emf[ax] + ((z - emf[ax]) >> lpf_shift)
             d      = v - emf[ax] - z
             upd    = d*int(g_v) - ih[ax]*int(g_r)
-            ih_n[ax] = int(np_saturated(np.int64(ih[ax] + int(np_rounded(np.int64(upd), gain_frac))), IW))
+            ih_n[ax] = int(
+                np_saturated(np.int64(ih[ax] + int(np_rounded(np.int64(upd), gain_frac))), IW))
         out[k] = cordic_vectoring_model(emf_n[1], -emf_n[0], EW, angle_width, stages)
         ih, emf = ih_n, emf_n
     return out
@@ -2461,7 +2491,8 @@ def volume_model(x, channel, gains, mute=0, n_channels=2, ramp_shift=8, gain_fra
 def stereo_matrix_model(l, r, a, b, c, d, coeff_frac=15, data_width=24):
     """Bit-exact reference for litedsp.audio.level.LiteDSPStereoMatrix: (L', R') per frame."""
     l, r = np.asarray(l, np.int64), np.asarray(r, np.int64)
-    return (np_scaled(a*l + b*r, coeff_frac, data_width), np_scaled(c*l + d*r, coeff_frac, data_width))
+    return (np_scaled(a*l + b*r, coeff_frac, data_width),
+            np_scaled(c*l + d*r, coeff_frac, data_width))
 
 # Audio: Dither ------------------------------------------------------------------------------------
 
@@ -2534,8 +2565,10 @@ def audio_eq_model(x, channel, sections, n_channels=2, data_width=24, frac_bits=
         for b, s in enumerate(sections):
             q = st[(c, b)]
             if (int(mask[k]) >> b) & 1:
-                fb  = q["e1"] if error_feedback == 1 else (2*q["e1"] - q["e2"] if error_feedback == 2 else 0)
-                acc = fb + s["b0"]*v + s["b1"]*q["x1"] + s["b2"]*q["x2"] - s["a1"]*q["y1"] - s["a2"]*q["y2"]
+                fb  = q["e1"] if error_feedback == 1 else (
+                    2*q["e1"] - q["e2"] if error_feedback == 2 else 0)
+                acc = fb + s["b0"]*v + s["b1"]*q["x1"] + s["b2"]*q["x2"] - s["a1"]*q["y1"] - s[
+                    "a2"]*q["y2"]
                 y_r = int(np_rounded(np.int64(acc), frac_bits))
                 y   = int(np_saturated(np.int64(y_r), data_width))
                 e   = acc - (y_r << frac_bits)
@@ -2658,7 +2691,8 @@ def delay_line_model(x, channel, delay, feedback=0, damping=0, wet=1 << 14, dry=
         d0 = buf[(ptr - d_int) % depth][c]
         d1 = buf[(ptr - d_int - 1) % depth][c]
         d  = int(np_saturated(np.int64(d0 + (((d1 - d0)*frac) >> MF)), DW)) if modulation else d0
-        filt_n  = int(np_saturated(np.int64(filt[c] + (((d - filt[c])*((1 << 15) - int(damping))) >> 15)), DW))
+        filt_n  = int(np_saturated(
+            np.int64(filt[c] + (((d - filt[c])*((1 << 15) - int(damping))) >> 15)), DW))
         filt[c] = filt_n
         buf[ptr][c] = int(np_saturated(np.int64(xv + ((filt_n*int(feedback)) >> CF)), DW))
         out[k] = np_scaled(np.int64(xv*int(dry) + d*int(wet)), CF, DW)
@@ -2771,7 +2805,8 @@ def pdm_receiver_model(bits, decimation=64, n_stages=4, data_width=24, with_dc_b
     for b in bits:
         y = bitstream_decimator_model(np.asarray(b, np.int64), decimation, n_stages, 1, data_width)
         if with_dc_blocker:
-            y = dc_blocker_model(y, pole_shift=dc_pole_shift, data_width=data_width, precision_bits=8)
+            y = dc_blocker_model(y, pole_shift=dc_pole_shift, data_width=data_width,
+                                 precision_bits=8)
         if comp_coefficients is not None:
             y = fir_model(y, comp_coefficients, data_width)
         outs.append(np.asarray(y, np.int64))
@@ -2779,7 +2814,8 @@ def pdm_receiver_model(bits, decimation=64, n_stages=4, data_width=24, with_dc_b
 
 def i2s_params(fmt, sample_width, slot_width):
     """``(msb_pos, polarity)`` of a serial audio format (see litedsp.audio.i2s)."""
-    return {"i2s": (1, 0), "left_justified": (0, 1), "right_justified": (slot_width - sample_width, 1),
+    return {"i2s": (1, 0), "left_justified": (0, 1),
+            "right_justified": (slot_width - sample_width, 1),
             "tdm": (1, None)}[fmt]
 
 def i2s_frame_model(frames, fmt="i2s", sample_width=24, slot_width=32, n_channels=2):
@@ -2801,7 +2837,8 @@ def i2s_frame_model(frames, fmt="i2s", sample_width=24, slot_width=32, n_channel
             else:
                 b = 0
             sdata.append(b)
-            lrck.append(int(pos == 0 and slot == 0) if pol is None else int((slot == 0) == bool(pol)))
+            lrck.append(int(pos == 0 and slot == 0) if pol is None
+                            else int((slot == 0) == bool(pol)))
         prev = w
     return sdata, lrck
 
@@ -2815,7 +2852,8 @@ def bit_reverse_model(cols, N):
     for c in cols:
         c = np.asarray(c, np.int64)
         n = (len(c)//N)*N
-        out.append(np.concatenate([c[f:f + N][rev] for f in range(0, n, N)]) if n else np.zeros(0, np.int64))
+        out.append(np.concatenate([c[f:f + N][rev] for f in range(0, n, N)]) if n
+                                                                  else np.zeros(0, np.int64))
     return out
 
 def range_gate_model(i, q, pri, gate_start, gate_len, n_pulses, enable=1, single=0, trigger=0):
@@ -2849,9 +2887,11 @@ def range_gate_model(i, q, pri, gate_start, gate_len, n_pulses, enable=1, single
             t = pulse = 0
         if trig[k] and single:
             armed = 1
-    return (np.array(oi, np.int64), np.array(oq, np.int64), np.array(of, np.int64), np.array(ol, np.int64))
+    return (np.array(oi, np.int64), np.array(oq, np.int64), np.array(of, np.int64),
+            np.array(ol, np.int64))
 
-def pulse_compressor_model(i, q, first, last, pulse_len=16, bandwidth=0.5, data_width=16, window="rect",
+def pulse_compressor_model(i, q, first, last, pulse_len=16, bandwidth=0.5, data_width=16,
+                           window="rect",
     shift=None, phase_bits=32, lut_depth=1024):
     """Bit-exact reference for litedsp.radar.compress.LiteDSPPulseCompressor: the two real-tap
     complex FIRs (Re h on I/Q, Im h on I/Q) recombined with saturation, the framing tags delayed
@@ -2859,14 +2899,16 @@ def pulse_compressor_model(i, q, first, last, pulse_len=16, bandwidth=0.5, data_
     from litedsp.radar.waveform import pulse_compressor_taps
     if shift is None:
         shift = (data_width - 1) + (pulse_len - 1).bit_length()
-    re_t, im_t = pulse_compressor_taps(pulse_len, bandwidth, data_width, window, phase_bits, lut_depth)
+    re_t, im_t = pulse_compressor_taps(pulse_len, bandwidth, data_width, window, phase_bits,
+                                       lut_depth)
     ri, rq = fir_complex_model(i, q, re_t, data_width, shift)
     mi, mq = fir_complex_model(i, q, im_t, data_width, shift)
     oi = np_saturated(np.asarray(ri, np.int64) - np.asarray(mq, np.int64), data_width)
     oq = np_saturated(np.asarray(rq, np.int64) + np.asarray(mi, np.int64), data_width)
     n  = len(oi)
     d  = pulse_len - 1
-    of = np.concatenate([np.zeros(min(d, n), np.int64), np.asarray(first, np.int64)[:max(0, n - d)]])
+    of = np.concatenate(
+        [np.zeros(min(d, n), np.int64), np.asarray(first, np.int64)[:max(0, n - d)]])
     ol = np.concatenate([np.zeros(min(d, n), np.int64), np.asarray(last, np.int64)[:max(0, n - d)]])
     return oi, oq, of, ol
 
@@ -2904,8 +2946,10 @@ def corner_turn_model(i, q, n_range_bins, n_pulses):
     n_cpi = len(i)//(n_range_bins*n_pulses)
     oi, oq = [], []
     for c in range(n_cpi):
-        blk_i = i[c*n_range_bins*n_pulses:(c + 1)*n_range_bins*n_pulses].reshape(n_pulses, n_range_bins)
-        blk_q = q[c*n_range_bins*n_pulses:(c + 1)*n_range_bins*n_pulses].reshape(n_pulses, n_range_bins)
+        blk_i = i[c*n_range_bins*n_pulses:(c + 1)*n_range_bins*n_pulses].reshape(n_pulses,
+            n_range_bins)
+        blk_q = q[c*n_range_bins*n_pulses:(c + 1)*n_range_bins*n_pulses].reshape(n_pulses,
+            n_range_bins)
         oi.append(blk_i.T.reshape(-1)); oq.append(blk_q.T.reshape(-1))
     n_out = n_cpi*n_range_bins*n_pulses
     first = np.array([int(k % n_pulses == 0) for k in range(n_out)], np.int64)
@@ -2914,7 +2958,8 @@ def corner_turn_model(i, q, n_range_bins, n_pulses):
         return np.zeros(0, np.int64), np.zeros(0, np.int64), first, last
     return np.concatenate(oi), np.concatenate(oq), first, last
 
-def doppler_model(i, q, n_pulses, window="hann", magnitude="approx", data_width=16, twiddle_width=16,
+def doppler_model(i, q, n_pulses, window="hann", magnitude="approx", data_width=16,
+                  twiddle_width=16,
     beta_shift=2):
     """Bit-exact reference for litedsp.radar.doppler.LiteDSPDopplerProcessor: per column of
     ``n_pulses`` beats (counted from the start of the stream) the window (``rect`` = none), the
@@ -2948,15 +2993,18 @@ def cfar_threshold(stat, alpha, recip, data_width, threshold_frac, threshold_min
     thr = (p2 + (1 << (threshold_frac + 15))) >> (threshold_frac + 16)
     return max(min(thr, (1 << data_width) - 1), int(threshold_min))
 
-def os_cfar_model(x, first, last, n_train=4, n_guard=2, rank=5, alpha=1024, data_width=17, threshold_frac=8,
+def os_cfar_model(x, first, last, n_train=4, n_guard=2, rank=5, alpha=1024, data_width=17,
+                  threshold_frac=8,
     threshold_min=0):
     """Bit-exact reference for litedsp.radar.cfar.LiteDSPOSCFAR: the CA-CFAR window with the
     statistic = ``rank``-th smallest (0-based) of the 2T training cells and
     ``threshold = rounded(stat * alpha, frac)``."""
-    return _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min,
+    return _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac,
+                          threshold_min,
         lambda lead, lag: sorted(lead + lag)[rank], alpha, 1 << 16)
 
-def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_width=17, threshold_frac=8,
+def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_width=17,
+                  threshold_frac=8,
     threshold_min=0):
     """Bit-exact reference for litedsp.radar.cfar.LiteDSPCACFAR: the sliding window with the
     cell under test in the centre, zero padded at frame edges (``first`` clears the window, the
@@ -2965,10 +3013,12 @@ def ca_cfar_model(x, first, last, n_train=8, n_guard=2, alpha=512, mode=0, data_
     def stat(lead, lag):
         a, b = sum(lead), sum(lag)
         return {0: a + b, 1: 2*max(a, b), 2: 2*min(a, b)}[int(mode)]
-    return _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min,
+    return _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac,
+                          threshold_min,
         stat, alpha, int(round((1 << 16)/(2*n_train))))
 
-def _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min, statistic,
+def _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac, threshold_min,
+                   statistic,
     alpha, recip):
     """Software mirror of the 1-D CFAR window engine (``_cfar_window`` / ``_cfar_output``)."""
     T, G  = n_train, n_guard
@@ -2985,7 +3035,8 @@ def _cfar_1d_model(x, first, last, n_train, n_guard, data_width, threshold_frac,
         nonlocal cells, real, firsts, lasts
         evaluate()
         if is_real and f:
-            cells, real, firsts, lasts = [int(cell)] + [0]*(L - 1), [1] + [0]*(L - 1), [1] + [0]*(L - 1), [int(l)] + [0]*(L - 1)
+            cells, real, firsts, lasts = [int(cell)] + [0]*(L - 1), [1] + [0]*(L - 1), [1] + [0]*(L
+                - 1), [int(l)] + [0]*(L - 1)
         else:
             cells  = [int(cell) if is_real else 0] + cells[:-1]
             real   = [int(is_real)] + real[:-1]
@@ -3018,7 +3069,8 @@ def cfar_2d_model(x, n_range_bins=64, n_doppler_bins=16, n_train=(4, 2), n_guard
             for c in range(M):
                 big   = int(pad[r:r + 2*R + 1, c:c + 2*C + 1].sum())
                 guard = int(pad[r + R - gr:r + R + gr + 1, c + C - gd:c + C + gd + 1].sum())
-                thr   = cfar_threshold(big - guard, alpha, recip, data_width, threshold_frac, threshold_min)
+                thr   = cfar_threshold(big - guard, alpha, recip, data_width, threshold_frac,
+                                       threshold_min)
                 v     = int(m[r, c])
                 for col, val in zip(out, (v, thr, int(v > thr), int(c == 0), int(c == M - 1))):
                     col.append(val)
@@ -3039,7 +3091,8 @@ def parabolic_offset(y_prev, y0, y_next, frac_bits):
         q = (a << frac_bits)//den
     return -q if num < 0 else q
 
-def peak_extractor_model(data, detect, n_range_bins=64, n_doppler_bins=16, local_max=1, interpolate=1,
+def peak_extractor_model(data, detect, n_range_bins=64, n_doppler_bins=16, local_max=1,
+                         interpolate=1,
     frac_bits=4, index_width=12):
     """Bit-exact reference for litedsp.radar.detect.LiteDSPPeakExtractor on whole CPIs (raster
     order): records for detected cells that are strict maxima over their raster-earlier 3x3
@@ -3112,7 +3165,8 @@ def alpha_beta_tracker_model(rng, dop, hit, n_tracks=4, alpha=128, beta=38, gate
     F, VF, GF, T = frac_bits, velocity_frac, gain_frac, n_tracks
     PW, PV, VW   = index_width + F, index_width + VF + 2, index_width + VF
     gr, gd = int(gate_r) << (VF - F), int(gate_d) << (VF - F)
-    trk = [dict(state=0, P=[0, 0], pred=[0, 0], V=[0, 0], meas=[0, 0], assigned=0, hits=0, misses=0) for _ in range(T)]
+    trk = [dict(state=0, P=[0, 0], pred=[0, 0], V=[0, 0], meas=[0, 0], assigned=0, hits=0,
+                misses=0) for _ in range(T)]
     out = [[] for _ in range(8)]
     stats = dict(dropped=0, cpi_count=0)
     for r, d, h in zip(rng, dop, hit):
@@ -3130,7 +3184,8 @@ def alpha_beta_tracker_model(rng, dop, hit, n_tracks=4, alpha=128, beta=38, gate
             else:
                 free = [k for k, t in enumerate(trk) if t["state"] == 0]
                 if free:
-                    trk[free[0]] = dict(state=1, P=list(m), pred=list(m), V=[0, 0], meas=list(m), assigned=1, hits=0, misses=0)
+                    trk[free[0]] = dict(state=1, P=list(m), pred=list(m), V=[0, 0], meas=list(m),
+                                        assigned=1, hits=0, misses=0)
                 else:
                     stats["dropped"] += 1
             continue
@@ -3156,7 +3211,8 @@ def alpha_beta_tracker_model(rng, dop, hit, n_tracks=4, alpha=128, beta=38, gate
         for k, t in enumerate(trk):
             if t["state"] == 2 or (emit_tentative and t["state"] == 1):
                 pos = [max(0, min((1 << PW) - 1, _rnd(t["P"][a], VF - F))) for a in range(2)]
-                for col, v in zip(out, (pos[0], pos[1], t["V"][0], k, t["hits"], 1, int(n == 0), 0)):
+                for col, v in zip(out,
+                                  (pos[0], pos[1], t["V"][0], k, t["hits"], 1, int(n == 0), 0)):
                     col.append(v)
                 n += 1
         for col, v in zip(out, (0, 0, 0, 0, active, 0, int(n == 0), 1)):
@@ -3181,16 +3237,21 @@ def tracker_scenario(n_cpi=12, seed=0, frac_bits=4, drop=((5, 0), (8, 1)), false
             truth.append((c, k, r, d))
             if (c, k) in drop:
                 continue
-            recs.append((int(round((r + prng.uniform(-0.1, 0.1))*(1 << F))), int(round((d + prng.uniform(-0.1, 0.1))*(1 << F))), 20000 - 1000*k))
+            recs.append((int(round((r + prng.uniform(-0.1, 0.1))*(1 << F))),
+                         int(round((d + prng.uniform(-0.1, 0.1))*(1 << F))), 20000 - 1000*k))
         if false_alarms:                                                # Last in record order so
-            recs.append((prng.randint(30 << F, 60 << F), prng.randint(0, 15 << F), 5000))   # the targets
+            # the targets
+            recs.append((prng.randint(30 << F, 60 << F), prng.randint(0, 15 << F), 5000))
         for r, d, v in recs:
-            beats.append({"range": r, "doppler": d, "data": v, "hit": 1, "first": int(n == 0), "last": 0})
+            beats.append(
+                {"range": r, "doppler": d, "data": v, "hit": 1, "first": int(n == 0), "last": 0})
             n += 1
-        beats.append({"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
+        beats.append(
+            {"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
     return beats, truth
 
-def clutter_map_model(x, first, last, n_cells=64, alpha=1024, avg_shift=3, learn_all=0, freeze=0, data_width=17,
+def clutter_map_model(x, first, last, n_cells=64, alpha=1024, avg_shift=3, learn_all=0, freeze=0,
+                      data_width=17,
     threshold_frac=8, threshold_min=0):
     """Bit-exact reference for litedsp.radar.clutter.LiteDSPClutterMap: per-cell leaky sums
     (``sum += x - (sum >> avg_shift)``, censored unless ``learn_all``, frozen with ``freeze``),
@@ -3238,8 +3299,10 @@ def kalman_tracker_model(rng, dop, hit, n_tracks=4, q=13, r=128, p_vel0=1024, ga
     NB, KW = CW + CF, CF + 4
     gr, gd = int(gate_r) << (VF - F), int(gate_d) << (VF - F)
     def new(m):
-        return dict(state=1, P=list(m), pred=list(m), V=[0, 0], meas=list(m), assigned=1, hits=0, misses=0,
-                    cov=[[int(r), 0, int(p_vel0)], [int(r), 0, int(p_vel0)]], gains=[[0, 0], [0, 0]])
+        return dict(state=1, P=list(m), pred=list(m), V=[0, 0], meas=list(m), assigned=1, hits=0,
+                    misses=0,
+                    cov=[[int(r), 0, int(p_vel0)], [int(r), 0, int(p_vel0)]],
+                    gains=[[0, 0], [0, 0]])
     trk = [dict(state=0, P=[0, 0], pred=[0, 0], V=[0, 0], meas=[0, 0], assigned=0, hits=0, misses=0,
                 cov=[[0, 0, 0], [0, 0, 0]], gains=[[0, 0], [0, 0]]) for _ in range(T)]
     out = [[] for _ in range(8)]
@@ -3267,7 +3330,8 @@ def kalman_tracker_model(rng, dop, hit, n_tracks=4, q=13, r=128, p_vel0=1024, ga
             if t["state"] != 0:
                 for a in range(2):
                     P11, P12, P22 = t["cov"][a]
-                    s11, s12, s22 = P11 + 2*P12 + P22 + (int(q) >> 2), P12 + P22 + (int(q) >> 1), P22 + int(q)
+                    s11, s12, s22 = P11 + 2*P12 + P22 + (int(q) >> 2), P12 + P22 + (
+                        int(q) >> 1), P22 + int(q)
                     if max(s11, s12, s22) > (1 << CW) - 1:
                         stats["cov_sat"] = 1
                     p11p, p12p, p22p = _clampc(s11, CW), _clampc(s12, CW), _clampc(s22, CW)
@@ -3279,7 +3343,8 @@ def kalman_tracker_model(rng, dop, hit, n_tracks=4, q=13, r=128, p_vel0=1024, ga
                         t["P"][a] = _sat(t["pred"][a] + _rnd(e*k1, CF), PV)
                         t["V"][a] = _sat(t["V"][a] + _rnd(e*k2, CF), VW)
                         one = (1 << CF) - k1
-                        t["cov"][a] = [_clampc(_rnd(p11p*one, CF), CW), _clampc(_rnd(p12p*one, CF), CW),
+                        t["cov"][a] = [_clampc(_rnd(p11p*one, CF), CW),
+                                       _clampc(_rnd(p12p*one, CF), CW),
                                        _clampc(p22p - _rnd(p12p*k2, CF), CW)]
                         t["gains"][a] = [k1, k2]
                     else:
@@ -3300,7 +3365,8 @@ def kalman_tracker_model(rng, dop, hit, n_tracks=4, q=13, r=128, p_vel0=1024, ga
         for k, t in enumerate(trk):
             if t["state"] == 2 or (emit_tentative and t["state"] == 1):
                 pos = [max(0, min((1 << PW) - 1, _rnd(t["P"][a], VF - F))) for a in range(2)]
-                for col, v in zip(out, (pos[0], pos[1], t["V"][0], k, t["hits"], 1, int(n == 0), 0)):
+                for col, v in zip(out,
+                                  (pos[0], pos[1], t["V"][0], k, t["hits"], 1, int(n == 0), 0)):
                     col.append(v)
                 n += 1
         for col, v in zip(out, (0, 0, 0, 0, active, 0, int(n == 0), 1)):
@@ -3319,8 +3385,10 @@ def beamformer_model(xs, weights, shift=14, data_width=16):
     sat = 0
     for k in range(n):
         for b, (wr, wi) in enumerate(weights):
-            si = sum(int(wr[e])*int(xs[e][0][k]) - int(wi[e])*int(xs[e][1][k]) for e in range(len(xs)))
-            sq = sum(int(wr[e])*int(xs[e][1][k]) + int(wi[e])*int(xs[e][0][k]) for e in range(len(xs)))
+            si = sum(int(wr[e])*int(xs[e][0][k]) - int(wi[e])*int(xs[e][1][k])
+                                                                           for e in range(len(xs)))
+            sq = sum(int(wr[e])*int(xs[e][1][k]) + int(wi[e])*int(xs[e][0][k])
+                                                                           for e in range(len(xs)))
             ri, rq = _rnd(si, shift), _rnd(sq, shift)
             hi, lo = (1 << (data_width - 1)) - 1, -(1 << (data_width - 1))
             sat |= int(ri > hi or ri < lo or rq > hi or rq < lo)
@@ -3334,7 +3402,8 @@ def monopulse_model(a_i, a_q, b_i, b_q, data_width=16, angle_width=16, stages=No
     return np.array([cordic_vectoring_model(int(x), int(y), data_width, angle_width, stages)
                      for x, y in zip(mi, mq)], np.int64)
 
-def tvg_model(i, q, first, n_range_bins=1024, g0=0, k_log=0, k_lin=0, gain_frac=8, max_gain_log2=8, data_width=16,
+def tvg_model(i, q, first, n_range_bins=1024, g0=0, k_log=0, k_lin=0, gain_frac=8, max_gain_log2=8,
+              data_width=16,
     bypass=0):
     """Bit-exact reference for litedsp.radar.sonar.LiteDSPTVG: range counter (restarted by
     ``first``, held at the last bin), log2 ROM, clamped log-domain ramp, Exp2 (Q.14 gain) and
@@ -3356,11 +3425,13 @@ def tvg_model(i, q, first, n_range_bins=1024, g0=0, k_log=0, k_lin=0, gain_frac=
         if bypass:
             oi.append(int(i[k])); oq.append(int(q[k]))
         else:
-            oi.append(_sat(_rnd(int(i[k])*gain, OF), data_width)); oq.append(_sat(_rnd(int(q[k])*gain, OF), data_width))
+            oi.append(_sat(_rnd(int(i[k])*gain, OF), data_width)); oq.append(
+                _sat(_rnd(int(q[k])*gain, OF), data_width))
         r = 1 if first[k] else min(N - 1, r + 1)
     return np.array(oi, np.int64), np.array(oq, np.int64)
 
-def pulse_generator_model(n_pulses=2, pulse_len=32, pri=128, bandwidth=0.5, data_width=16, phase_bits=32,
+def pulse_generator_model(n_pulses=2, pulse_len=32, pri=128, bandwidth=0.5, data_width=16,
+                          phase_bits=32,
     lut_depth=1024):
     """Bit-exact reference for litedsp.radar.timing.LiteDSPPulseGenerator: ``n_pulses`` framed
     chirps (``chirp_reference``) each followed by zeros up to the PRI. Returns ``(i, q, first,
@@ -3377,7 +3448,8 @@ def pulse_generator_model(n_pulses=2, pulse_len=32, pri=128, bandwidth=0.5, data
 
 # Image models -------------------------------------------------------------------------------------
 
-PIXEL_BARS = [(1, 1, 1), (1, 1, 0), (0, 1, 1), (0, 1, 0), (1, 0, 1), (1, 0, 0), (0, 0, 1), (0, 0, 0)]
+PIXEL_BARS = [(1, 1, 1), (1, 1, 0), (0, 1, 1), (0, 1, 0), (1, 0, 1), (1, 0, 0), (0, 0, 1),
+              (0, 0, 0)]
 
 def pixel_pattern_model(mode="bars", width=16, height=12, data_width=8, n_channels=3, const=None):
     """Bit-exact reference for litedsp.image.pattern.LiteDSPPixelPattern: one frame as an
@@ -3422,14 +3494,16 @@ def video_frames(imgs, h_blank=6, v_blank=3, h_sync=2, v_sync=1):
     h, w = imgs[0].shape[:2]
     for y in range(v_blank):                                            # Leading vertical blanking:
         for x in range(w + h_blank):                                    # the adapter arms on vsync.
-            beats.append({"hsync": int(w <= x < w + h_sync), "vsync": int(y < v_sync), "de": 0, "r": 0, "g": 0, "b": 0,
+            beats.append({"hsync": int(w <= x < w + h_sync), "vsync": int(y < v_sync), "de": 0,
+                          "r": 0, "g": 0, "b": 0,
                           "hcount": x, "vcount": h + y, "hres": w, "vres": h})
     for img in imgs:
         h, w = img.shape[:2]
         for y in range(h + v_blank):
             for x in range(w + h_blank):
                 de = int(x < w and y < h)
-                beats.append({"hsync": int(w <= x < w + h_sync), "vsync": int(h <= y < h + v_sync), "de": de,
+                beats.append(
+                    {"hsync": int(w <= x < w + h_sync), "vsync": int(h <= y < h + v_sync), "de": de,
                               "r": int(img[y, x, 0]) if de else 0, "g": int(img[y, x, 1]) if de else 0,
                               "b": int(img[y, x, 2]) if de else 0,
                               "hcount": x, "vcount": y, "hres": w, "vres": h})
@@ -3449,7 +3523,8 @@ def pixel_from_video_model(beats, width, height):
             c = 0 if not de_d else col
             if armed:
                 r.append(bt["r"]); g.append(bt["g"]); b.append(bt["b"])
-                eol.append(int(c == width - 1)); first.append(int(pending)); last.append(int(c == width - 1 and row == height - 1))
+                eol.append(int(c == width - 1)); first.append(int(pending)); last.append(
+                    int(c == width - 1 and row == height - 1))
             pending = False
             col = c + 1
         elif de_d:
@@ -3467,9 +3542,11 @@ def pack_channels(img, data_width=8):
     return sum(img[:, :, c] << (c*data_width) for c in range(img.shape[2]))
 
 def np_pad_border(img, p, border="replicate"):
-    """Pad a (H, W[, C]) image by ``p`` pixels: edge replication, mirror (``p[-1] = p[1]``) or zeros."""
+    """Pad a (H, W[, C]) image by ``p`` pixels: edge replication, mirror (``p[-1] = p[1]``) or
+    zeros."""
     pad = [(p, p), (p, p)] + ([(0, 0)] if np.ndim(img) == 3 else [])
-    return np.pad(img, pad, mode={"replicate": "edge", "mirror": "reflect", "zero": "constant"}[border])
+    return np.pad(img, pad,
+                  mode={"replicate": "edge", "mirror": "reflect", "zero": "constant"}[border])
 
 def line_buffer_model(img, kernel_size=3, border="replicate", data_width=8):
     """Bit-exact reference for litedsp.image.linebuffer.LiteDSPLineBuffer on one frame: a dict of
@@ -3487,7 +3564,8 @@ def line_buffer_model(img, kernel_size=3, border="replicate", data_width=8):
     out["last"]  = np.array([int(k == w*h - 1) for k in range(w*h)], np.int64)
     return out
 
-def kernel2d_model(img, coefficients, shift=0, offset=0, kernel_size=3, border="replicate", data_width=8, bypass=0):
+def kernel2d_model(img, coefficients, shift=0, offset=0, kernel_size=3, border="replicate",
+                   data_width=8, bypass=0):
     """Bit-exact reference for litedsp.image.kernel.LiteDSPKernel2D on one frame (per channel):
     correlation of the padded image with the row-major coefficients, ``clamp(rounded(acc, shift)
     + offset)``. Returns the (H, W[, 3]) image and the saturation flag."""
@@ -3512,7 +3590,8 @@ def kernel2d_model(img, coefficients, shift=0, offset=0, kernel_size=3, border="
         out[:, :, c] = np.clip(y, 0, (1 << data_width) - 1)
     return (out[:, :, 0] if mono else out), sat
 
-def sobel_model(img, mode="l1", shift=3, border="replicate", data_width=8, with_direction=False, bypass=0):
+def sobel_model(img, mode="l1", shift=3, border="replicate", data_width=8, with_direction=False,
+                bypass=0):
     """Bit-exact reference for litedsp.image.edge.LiteDSPSobel: gradients from the padded image,
     L1 / L-inf / alpha-max-beta-min magnitude, ``clamp(rounded(mag, shift))`` and the quantised
     direction. Returns the (H, W) magnitude image (and the direction image)."""
@@ -3522,7 +3601,8 @@ def sobel_model(img, mode="l1", shift=3, border="replicate", data_width=8, with_
         return (img, np.zeros_like(img)) if with_direction else img
     p = np_pad_border(img, 1, border)
     gx = (p[0:h, 2:] - p[0:h, :w]) + 2*(p[1:h + 1, 2:] - p[1:h + 1, :w]) + (p[2:, 2:] - p[2:, :w])
-    gy = (p[2:, 0:w] - p[0:h, 0:w]) + 2*(p[2:, 1:w + 1] - p[0:h, 1:w + 1]) + (p[2:, 2:] - p[0:h, 2:])
+    gy = (p[2:, 0:w] - p[0:h, 0:w]) + 2*(p[2:, 1:w + 1] - p[0:h, 1:w + 1]) + (p[2:, 2:]
+                                                                                - p[0:h, 2:])
     ax, ay = np.abs(gx), np.abs(gy)
     mx, mn = np.maximum(ax, ay), np.minimum(ax, ay)
     mag = {"l1": ax + ay, "linf": mx, "approx": mx + (mn >> 2)}[mode]
@@ -3591,14 +3671,17 @@ def pixel_lut_model(img, tables, bypass=0):
     if bypass:
         return img
     if img.ndim == 2:
-        return np.asarray(tables[0] if isinstance(tables[0], (list, np.ndarray)) else tables, np.int64)[img]
+        return np.asarray(tables[0] if isinstance(tables[0], (list, np.ndarray)) else tables,
+                          np.int64)[img]
     out = np.zeros_like(img)
     for c in range(3):
-        t = tables[c] if isinstance(tables[0], (list, np.ndarray)) and len(tables) == 3 else (tables[0] if isinstance(tables[0], (list, np.ndarray)) else tables)
+        t = tables[c] if isinstance(tables[0], (list, np.ndarray)) and len(tables) == 3 else (
+            tables[0] if isinstance(tables[0], (list, np.ndarray)) else tables)
         out[:, :, c] = np.asarray(t, np.int64)[img[:, :, c]]
     return out
 
-def color_matrix_model(img, coefficients, in_offsets=(0, 0, 0), out_offsets=(0, 0, 0), coeff_frac=12, data_width=8, bypass=0):
+def color_matrix_model(img, coefficients, in_offsets=(0, 0, 0), out_offsets=(0, 0, 0),
+                       coeff_frac=12, data_width=8, bypass=0):
     """Bit-exact reference for litedsp.image.color.LiteDSPColorMatrix: ``clamp(rounded(sum_k m[c][k]
     * (x_k - in_k), frac) + out_c)`` per pixel. Returns the image ((H, W, 3) or (H, W)) and the
     saturation flag."""
@@ -3683,7 +3766,8 @@ def histogram_model(img, channel=0, bins_log2=8, data_width=8):
     ``bins_log2`` bits."""
     img = np.asarray(img, np.int64)
     ch  = img if img.ndim == 2 else img[:, :, channel]
-    return np.bincount((ch >> (data_width - bins_log2)).reshape(-1), minlength=1 << bins_log2).astype(np.int64)
+    return np.bincount((ch >> (data_width - bins_log2)).reshape(-1),
+                       minlength=1 << bins_log2).astype(np.int64)
 
 def alpha_blend_model(a, b, alpha, data_width=8):
     """Bit-exact reference for litedsp.image.blend.LiteDSPAlphaBlend: ``rounded(alpha * A +
@@ -3694,7 +3778,8 @@ def alpha_blend_model(a, b, alpha, data_width=8):
         al = np.full(a.shape[:2], int(alpha), np.int64)
     else:
         m  = np.asarray(alpha, np.int64)
-        al = np.where(m == (1 << data_width) - 1, 256, m >> max(0, data_width - 8) if data_width >= 8 else m << (8 - data_width))
+        al = np.where(m == (1 << data_width) - 1, 256,
+                      m >> max(0, data_width - 8) if data_width >= 8 else m << (8 - data_width))
     if a.ndim == 3:
         al = al[:, :, None]
     return (al*a + (256 - al)*b + 128) >> 8
@@ -3710,12 +3795,14 @@ def box_overlay_model(img, boxes, thickness=1):
             for (x0, y0, x1, y1, color, en) in boxes:
                 if not en or not (x0 <= x <= x1 and y0 <= y <= y1):
                     continue
-                if x - x0 < thickness or x1 - x < thickness or y - y0 < thickness or y1 - y < thickness:
+                if (x - x0 < thickness or x1 - x < thickness or
+                        y - y0 < thickness or y1 - y < thickness):
                     out[y, x] = color
                     break
     return out
 
-def angle_modulator_model(x, mode="fm", phase_inc=0, deviation=0, phase_bits=32, data_width=16, lut_depth=1024):
+def angle_modulator_model(x, mode="fm", phase_inc=0, deviation=0, phase_bits=32, data_width=16,
+                          lut_depth=1024):
     """Bit-exact reference for litedsp.comm.fm_mod (FM / PM): ``mod = rounded(x * deviation,
     dw - 1)``; FM accumulates ``phase_inc + mod`` per sample, PM adds ``mod`` to the carrier phase;
     cos / sin from the NCO tables addressed by the top bits."""
@@ -3742,7 +3829,8 @@ def fm_modulator_model(x, phase_inc=0, deviation=0, phase_bits=32, data_width=16
 def pm_modulator_model(x, phase_inc=0, deviation=0, phase_bits=32, data_width=16, lut_depth=1024):
     return angle_modulator_model(x, "pm", phase_inc, deviation, phase_bits, data_width, lut_depth)
 
-def am_modulator_model(x, index=32768, carrier="baseband", phase_inc=0, data_width=16, phase_bits=32, lut_depth=1024):
+def am_modulator_model(x, index=32768, carrier="baseband", phase_inc=0, data_width=16,
+                       phase_bits=32, lut_depth=1024):
     """Bit-exact reference for litedsp.comm.am_mod.LiteDSPAMModulator: ``envelope = 2^(dw-2) +
     rounded(x * index, dw)`` (saturated), on I (baseband) or multiplied with the NCO carrier."""
     DW = data_width
@@ -3789,13 +3877,15 @@ def ssb_modulator_model(x, n_taps=31, sideband=0, data_width=16):
         q = np.where(q == -(1 << (data_width - 1)), (1 << (data_width - 1)) - 1, -q)
     return i, q
 
-def fsk_modulator_model(symbols, bits_per_symbol=1, sps=4, taps=None, deviation=0, phase_inc=0, data_width=16,
+def fsk_modulator_model(symbols, bits_per_symbol=1, sps=4, taps=None, deviation=0, phase_inc=0,
+                        data_width=16,
     phase_bits=32, lut_depth=1024):
     """Bit-exact reference for litedsp.comm.fsk_mod.LiteDSPFSKModulator: levels ``(2 s - (L-1)) *
     2^(dw-1-bps)`` held for ``sps`` samples, the Gaussian FIR (``taps``, Q1.15) when given, then
     the FM engine."""
     L = 1 << bits_per_symbol
-    x = np.repeat([(2*int(s) - (L - 1)) << (data_width - 1 - bits_per_symbol) for s in symbols], sps)
+    x = np.repeat([(2*int(s) - (L - 1)) << (data_width - 1 - bits_per_symbol) for s in symbols],
+                  sps)
     if taps is not None:
         x = np.asarray(fir_model(x, taps, data_width), np.int64)
     return angle_modulator_model(x, "fm", phase_inc, deviation, phase_bits, data_width, lut_depth)

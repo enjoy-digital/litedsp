@@ -102,7 +102,8 @@ def block_page(spec, budgets):
         for p in spec.params:
             desc = p.desc or ""
             if p.choices:
-                desc = (desc + " " if desc else "") + f"Choices: {', '.join(f'`{c}`' for c in p.choices)}."
+                desc = ((desc + " " if desc else "") +
+                        f"Choices: {', '.join(f'`{c}`' for c in p.choices)}.")
             out.append(f"| `{p.name}` | {_fmt_default(p)} | {p.kind} | {desc} |")
         out.append("")
     if spec.ports:
@@ -129,7 +130,8 @@ def block_page(spec, budgets):
                 out.append("| Bits | Field | Reset | Description |")
                 out.append("|---|---|---|---|")
                 for f in c.fields:
-                    bits = f"[{f.offset + f.size - 1}:{f.offset}]" if f.size > 1 else f"[{f.offset}]"
+                    bits = (f"[{f.offset + f.size - 1}:{f.offset}]" if f.size > 1
+                            else f"[{f.offset}]")
                     desc = f.description + (" (pulse)" if f.pulse else "")
                     if f.values:
                         desc += " " + "; ".join(f"{v}: {d}" for v, d in f.values)
@@ -162,7 +164,8 @@ def block_page(spec, budgets):
     if os.path.exists(os.path.join(_root(), test_mod)):
         out.append("## Verification")
         out.append("")
-        out.append(f"Golden-model tests: `{test_mod}` (bit-exact/SNR under randomized backpressure).")
+        out.append(f"Golden-model tests: `{test_mod}` (bit-exact/SNR under randomized "
+                   f"backpressure).")
         out.append("")
     return "\n".join(out).rstrip() + "\n"
 

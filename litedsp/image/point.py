@@ -13,7 +13,8 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import check, pixel_layout, pixel_fields, clamped, rounded, add_bypass, add_bypass_csr, bits_for
+from litedsp.common import (check, pixel_layout, pixel_fields, clamped, rounded, add_bypass,
+                            add_bypass_csr, bits_for)
 
 # Threshold ----------------------------------------------------------------------------------------
 
@@ -47,12 +48,14 @@ class LiteDSPThreshold(LiteXModule):
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
-            nstate.eq(Mux(self.sink.data >= self.high, 1, Mux(self.sink.data < self.low, 0, state & ~self.sink.first))),
+            nstate.eq(Mux(self.sink.data >= self.high, 1,
+                          Mux(self.sink.data < self.low, 0, state & ~self.sink.first))),
         ]
         self.sync += If(xfer, state.eq(Mux(self.sink.eol, 0, nstate)))
         self.sync += If(adv,
             self.source.valid.eq(self.sink.valid),
-            self.source.first.eq(self.sink.first), self.source.eol.eq(self.sink.eol), self.source.last.eq(self.sink.last),
+            self.source.first.eq(self.sink.first), self.source.eol.eq(self.sink.eol),
+            self.source.last.eq(self.sink.last),
             self.source.data.eq(Mux(nstate ^ self.invert, (1 << DW) - 1, 0)),
         )
         add_bypass(self)
@@ -95,7 +98,8 @@ class LiteDSPPixelGain(LiteXModule):
         self.latency    = 2
         self.sink   = stream.Endpoint(pixel_layout(data_width, n_channels))
         self.source = stream.Endpoint(pixel_layout(data_width, n_channels))
-        self.gain   = [Signal(gain_frac + 4, reset=1 << gain_frac, name=f"gain{c}") for c in range(n_channels)]
+        self.gain   = [Signal(gain_frac + 4, reset=1 << gain_frac, name=f"gain{c}")
+                              for c in range(n_channels)]
         self.offset = [Signal((data_width + 1, True), name=f"offset{c}") for c in range(n_channels)]
         self.sat    = Signal()
         self.clear_sat = Signal()
@@ -110,7 +114,8 @@ class LiteDSPPixelGain(LiteXModule):
         prods = [Signal(DW + GF + 4, name=f"prod{c}") for c in range(n_channels)]
         x1 = [Signal(DW, name=f"x1_{c}") for c in range(n_channels)]
         self.sync += If(adv,
-            v1.eq(self.sink.valid), f1.eq(self.sink.first), e1.eq(self.sink.eol), l1.eq(self.sink.last),
+            v1.eq(self.sink.valid), f1.eq(self.sink.first), e1.eq(self.sink.eol),
+            l1.eq(self.sink.last),
             *[prods[c].eq(getattr(self.sink, f)*self.gain[c]) for c, f in enumerate(fields)],
             *[x1[c].eq(getattr(self.sink, f)) for c, f in enumerate(fields)],
         )
@@ -119,11 +124,13 @@ class LiteDSPPixelGain(LiteXModule):
         ovf = Signal()
         for c in range(n_channels):
             ps = Signal((DW + GF + 5, True))
-            self.comb += [ps.eq(prods[c]), rs[c].eq(rounded(ps, GF)), ys[c].eq(rs[c] + self.offset[c])]
+            self.comb += [ps.eq(prods[c]), rs[c].eq(rounded(ps, GF)),
+                          ys[c].eq(rs[c] + self.offset[c])]
         self.comb += ovf.eq(reduce_or([(y < 0) | (y > (1 << DW) - 1) for y in ys]))
         self.sync += [
             If(adv,
-                self.source.valid.eq(v1), self.source.first.eq(f1), self.source.eol.eq(e1), self.source.last.eq(l1),
+                self.source.valid.eq(v1), self.source.first.eq(f1), self.source.eol.eq(e1),
+                self.source.last.eq(l1),
                 *[getattr(self.source, f).eq(clamped(ys[c], DW)) for c, f in enumerate(fields)],
             ),
             If(self.clear_sat, self.sat.eq(0)).Elif(adv & v1 & ovf, self.sat.eq(1)),
@@ -148,7 +155,8 @@ class LiteDSPPixelGain(LiteXModule):
             CSRField("clear_sat", size=1, offset=0, pulse=True, description="Clear the saturation flag."),
         ])
         self._status = CSRStatus(fields=[CSRField("sat", size=1, offset=0, description="Sticky: an output clamped.")])
-        self.comb += [self.clear_sat.eq(self._control.fields.clear_sat), self._status.fields.sat.eq(self.sat)]
+        self.comb += [self.clear_sat.eq(self._control.fields.clear_sat),
+                      self._status.fields.sat.eq(self.sat)]
         add_bypass_csr(self)
 
 def reduce_or(terms):

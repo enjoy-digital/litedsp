@@ -7,7 +7,8 @@
 """Packetize/depacketize an I/Q stream by marking frame boundaries.
 
 ``LiteDSPStreamFramer`` injects ``first``/``last`` every ``length`` samples (CSR-settable), which an
-AXI-Stream wrapper maps directly to ``tlast`` so a DMA sees fixed-size packets. ``LiteDSPStreamDeframer``
+AXI-Stream wrapper maps directly to ``tlast`` so a DMA sees
+fixed-size packets. ``LiteDSPStreamDeframer``
 is the pass-through counterpart that counts completed frames (read over CSR) and re-derives a
 ``first`` from incoming ``last`` — useful when consuming externally-framed data.
 """
@@ -76,7 +77,8 @@ class LiteDSPStreamFramer(LiteXModule):
 # Deframer -----------------------------------------------------------------------------------------
 
 class LiteDSPStreamDeframer(LiteXModule):
-    """Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each frame."""
+    """Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each
+    frame."""
     def __init__(self, data_width=16, with_csr=True):
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -117,7 +119,8 @@ class LiteDSPStreamDeframer(LiteXModule):
 
     def add_csr(self):
         self._frames = CSRStatus(32, name="frames", description="Completed frames since clear.")
-        self._clear  = CSRStorage(1, name="clear", description="Reset the frame counter (write to clear).")
+        self._clear  = CSRStorage(1, name="clear",
+                                  description="Reset the frame counter (write to clear).")
         self.comb += [
             self._frames.status.eq(self.frames),
             self.clear.eq(self._clear.re),

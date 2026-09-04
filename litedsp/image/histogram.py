@@ -23,13 +23,15 @@ class LiteDSPPixelHistogram(LiteXModule):
     """Histogram of one channel per frame into ``2**bins_log2`` bins (the code's top bits).
 
     Counts accumulate in one RAM per bank (ping-pong, one read and one write port each) at one
-    pixel per clock (read-modify-write with a same-bin forwarding register); ``last`` seals a bank and the block streams its bins out
+    pixel per clock (read-modify-write with a same-bin forwarding register); ``last`` seals a
+    bank and the block streams its bins out
     (``data`` = count, ``first`` on bin 0, ``last`` on the final bin, one beat per bin) while
     clearing them for reuse. A frame ending before the previous histogram drained sets the
     sticky ``overrun``. ``max_pixels`` sizes the counts. ``latency = None``; one output beat
     per bin per frame.
     """
-    def __init__(self, data_width=8, n_channels=1, channel=0, bins_log2=8, max_pixels=1920*1080, with_csr=True):
+    def __init__(self, data_width=8, n_channels=1, channel=0, bins_log2=8, max_pixels=1920*1080,
+                 with_csr=True):
         check(1 <= bins_log2 <= data_width, "expected 1 <= bins_log2 <= data_width")
         check(0 <= channel < n_channels, "expected channel < n_channels")
         self.data_width = data_width
@@ -58,7 +60,8 @@ class LiteDSPPixelHistogram(LiteXModule):
         xfer = Signal()
         self.comb += [self.sink.ready.eq(1), xfer.eq(self.sink.valid)]
         x = Signal(data_width)
-        self.comb += x.eq(Array([getattr(self.sink, f) for f in fields])[self.channel] if n_channels > 1 else self.sink.data)
+        self.comb += x.eq(Array([getattr(self.sink, f) for f in fields])[
+            self.channel] if n_channels > 1 else self.sink.data)
         bin0 = Signal(bins_log2)
         wbank = Signal()
         self.comb += bin0.eq(x[data_width - bins_log2:])
@@ -74,14 +77,15 @@ class LiteDSPPixelHistogram(LiteXModule):
         ]
         self.sync += [
             fwd_v.eq(v1), fwd_bin.eq(bin1), fwd_cnt.eq(cnt_new),
-            If(v1 & last1, fwd_v.eq(0)),                                # A new frame: no stale forward.
+            If(v1 & last1, fwd_v.eq(0)),                            # A new frame: no stale forward.
         ]
         # Frame end: seal the bank (the write of the last pixel lands at S1 of the same cycle).
         sealed = [Signal(name=f"sealed{b}") for b in range(2)]
         self.sync += If(xfer & self.sink.last,
             wbank.eq(~wbank),
             self.frames.eq(self.frames + 1),
-            *[If(wbank == b, sealed[b].eq(1), If(sealed[b] | sealed[1 - b], self.overrun.eq(1))) for b in range(2)],
+            *[If(wbank == b, sealed[b].eq(1), If(sealed[b] | sealed[1 - b], self.overrun.eq(1)))
+                for b in range(2)],
         )
         self.sync += If(self.clear, self.overrun.eq(0))
         # Output side: stream the sealed bank, clearing each bin (after the last write landed).
@@ -118,7 +122,8 @@ class LiteDSPPixelHistogram(LiteXModule):
             b_addr.eq(ri), b_bank.eq(rbank),
         )
         out_rd = Signal(CW)
-        self.comb += [out_rd.eq(Array([rp.dat_r for rp in rps])[b_bank]), self.source.data.eq(out_rd)]
+        self.comb += [out_rd.eq(Array([rp.dat_r for rp in rps])[b_bank]),
+                      self.source.data.eq(out_rd)]
         # Port muxes per bank: reads (input at bin0 while counting, readout at ri) and writes
         # (the count while counting, the clear while draining).
         for b in range(2):
@@ -149,7 +154,9 @@ class LiteDSPPixelHistogram(LiteXModule):
         ])
         self._frames = CSRStatus(32, name="frames", description="Frames counted.")
         self.comb += [
-            self.channel.eq(self._control.fields.channel), self.clear.eq(self._control.fields.clear),
-            self._status.fields.overrun.eq(self.overrun), self._config.fields.bins_log2.eq(self.bins_log2),
+            self.channel.eq(self._control.fields.channel),
+            self.clear.eq(self._control.fields.clear),
+            self._status.fields.overrun.eq(self.overrun),
+            self._config.fields.bins_log2.eq(self.bins_log2),
             self._frames.status.eq(self.frames),
         ]

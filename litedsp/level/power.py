@@ -34,7 +34,7 @@ class LiteDSPPower(LiteXModule):
         self.power_width     = 2*data_width
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
-        self.window_log2 = Signal(max=max_window_log2 + 1)        # Averaging window = 2**window_log2.
+        self.window_log2 = Signal(max=max_window_log2 + 1)      # Averaging window = 2**window_log2.
         self.power       = Signal(self.power_width)               # Latched average power.
         self.update      = Signal()                               # Pulses when `power` updates.
         self.latency = None  # Variable (one output per averaging block).
@@ -63,7 +63,8 @@ class LiteDSPPower(LiteXModule):
             self.update.eq(0),  # Default: single-cycle update pulse.
             If(sample,
                 If(last,
-                    self.power.eq((acc + inst) >> self.window_log2),  # Average includes the final sample.
+                    # Average includes the final sample.
+                    self.power.eq((acc + inst) >> self.window_log2),
                     self.update.eq(1),
                     acc.eq(0),
                     count.eq(0),

@@ -124,10 +124,11 @@ class LiteDSPTimingRecovery(LiteXModule):
         # registered per multiply stage (valid SETTLE cycles after window/mu are stable).
         mu_f = mu[:frac]
         mu_s = Signal((frac + 1, True))
-        self.comb += mu_s.eq(mu_f)                       # Explicit signed-positive multiplier input.
+        self.comb += mu_s.eq(mu_f)                      # Explicit signed-positive multiplier input.
         def interp(w):
             a0 = w[1]
-            a1 = Signal((data_width + 2, True)); a2 = Signal((data_width + 4, True)); a3 = Signal((data_width + 4, True))
+            a1 = Signal((data_width + 2, True)); a2 = Signal((data_width + 4, True)); a3 = Signal(
+                (data_width + 4, True))
             self.comb += [
                 a1.eq((w[2] - w[0]) >> 1),
                 a2.eq((2*w[0] - 5*w[1] + 4*w[2] - w[3]) >> 1),
@@ -253,5 +254,6 @@ class LiteDSPTimingRecovery(LiteXModule):
         # CSR.
         # ----
         if with_csr:
-            self._omega = CSRStatus(iw, name="omega", description="Samples/symbol estimate (Q.frac).")
+            self._omega = CSRStatus(iw, name="omega",
+                                    description="Samples/symbol estimate (Q.frac).")
             self.comb += self._omega.status.eq(omega)

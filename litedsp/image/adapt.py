@@ -28,7 +28,8 @@ class LiteDSPPixelPack(LiteXModule):
     ``mono``. Combinational (latency 0); ``eol`` is dropped, ``first`` / ``last`` kept."""
     def __init__(self, data_width=8, format="rgb888"):
         check(format in FORMATS, f"expected format in {FORMATS}")
-        check(data_width == 8 or format in ("rgb888", "mono"), "expected data_width 8 for xrgb8888 / rgb565")
+        check(data_width == 8 or format in ("rgb888", "mono"),
+              "expected data_width 8 for xrgb8888 / rgb565")
         self.data_width = data_width
         self.format     = format
         self.latency    = 0
@@ -59,7 +60,8 @@ class LiteDSPPixelUnpack(LiteXModule):
     ``width`` (``first`` restarts it). Latency 1."""
     def __init__(self, data_width=8, format="rgb888", width=640, coord_bits=12, with_csr=True):
         check(format in FORMATS, f"expected format in {FORMATS}")
-        check(data_width == 8 or format in ("rgb888", "mono"), "expected data_width 8 for xrgb8888 / rgb565")
+        check(data_width == 8 or format in ("rgb888", "mono"),
+              "expected data_width 8 for xrgb8888 / rgb565")
         check(2 <= width < 2**coord_bits, "expected 2 <= width < 2**coord_bits")
         self.data_width = data_width
         self.format     = format
@@ -81,14 +83,17 @@ class LiteDSPPixelUnpack(LiteXModule):
             xfer.eq(self.sink.valid & adv),
             c.eq(Mux(self.sink.first, 0, col)),
         ]
-        self.sync += If(xfer, If((c == self.width - 1) | self.sink.last, col.eq(0)).Else(col.eq(c + 1)))
+        self.sync += If(xfer, If((c == self.width - 1) | self.sink.last, col.eq(0)).Else(
+            col.eq(c + 1)))
         d = self.sink.data
         if format == "rgb888":
-            fields = [(self.source.r, d[0:data_width]), (self.source.g, d[data_width:2*data_width]), (self.source.b, d[2*data_width:3*data_width])]
+            fields = [(self.source.r, d[0:data_width]), (self.source.g, d[data_width:2*data_width]),
+                      (self.source.b, d[2*data_width:3*data_width])]
         elif format == "xrgb8888":
             fields = [(self.source.b, d[0:8]), (self.source.g, d[8:16]), (self.source.r, d[16:24])]
         elif format == "rgb565":
-            fields = [(self.source.b, Cat(C(0, 3), d[0:5])), (self.source.g, Cat(C(0, 2), d[5:11])), (self.source.r, Cat(C(0, 3), d[11:16]))]
+            fields = [(self.source.b, Cat(C(0, 3), d[0:5])), (self.source.g, Cat(C(0, 2), d[5:11])),
+                      (self.source.r, Cat(C(0, 3), d[11:16]))]
         else:
             fields = [(self.source.data, d)]
         self.sync += If(adv,
@@ -104,5 +109,6 @@ class LiteDSPPixelUnpack(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._width = CSRStorage(self.coord_bits, reset=self.width.reset.value, name="width", description="Pixels per line (eol regeneration).")
+        self._width = CSRStorage(self.coord_bits, reset=self.width.reset.value, name="width",
+                                 description="Pixels per line (eol regeneration).")
         self.comb += self.width.eq(self._width.storage)

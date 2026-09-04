@@ -158,7 +158,8 @@ class TestLDPC(unittest.TestCase):
         self.assertEqual([c["data"]  for c in cap], expected)
         n = LDPC_N
         self.assertEqual([c["first"] for c in cap], [1 if i % n == 0 else 0 for i in range(2*n)])
-        self.assertEqual([c["last"]  for c in cap], [1 if i % n == n - 1 else 0 for i in range(2*n)])
+        self.assertEqual([c["last"]  for c in cap],
+                         [1 if i % n == n - 1 else 0 for i in range(2*n)])
 
     # verify-tier: model — clean strong LLRs: decoder RTL terminates after one iteration
     # with parity_ok, output bit-exact vs model and message.

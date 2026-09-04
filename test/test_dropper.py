@@ -39,7 +39,8 @@ class TestDropper(unittest.TestCase):
             ri = decimate_model(xi, factor)[:n_out]
             rq = decimate_model(xq, factor)[:n_out]
             self.assertTrue(np.array_equal(gi, ri), f"down I mismatch factor={factor}")
-            self.assertTrue(np.array_equal(column(cap, "q", 16), rq), f"down Q mismatch factor={factor}")
+            self.assertTrue(np.array_equal(column(cap, "q", 16), rq),
+                            f"down Q mismatch factor={factor}")
 
     def test_upsample_hold(self):
         for factor in [1, 2, 4]:

@@ -76,7 +76,8 @@ class TestDither(unittest.TestCase):
         for enable in (0, 1):
             dut = LiteDSPDither(data_width=24, out_width=16, n_channels=1, with_csr=False)
             dut.dither_enable.reset = enable
-            cap = run_stream(dut, beats, n, ["data"], ["data"], sink_throttle=0.0, source_ready_rate=1.0)
+            cap = run_stream(dut, beats, n, ["data"], ["data"], sink_throttle=0.0,
+                             source_ready_rate=1.0)
             y    = column(cap, "data", 24).astype(float)
             spec = np.abs(np.fft.rfft(y))**2
             hbins = [h*k_tone for h in range(2, 10)]
@@ -98,7 +99,8 @@ class TestDither(unittest.TestCase):
         x    = np.clip(x - x.mean(), -FS24//2, FS24//2).astype(np.int64)
         inband = {}
         for shaping in ("none", "ef2"):
-            dut = LiteDSPDither(data_width=24, out_width=16, n_channels=1, shaping=shaping, with_csr=False)
+            dut = LiteDSPDither(data_width=24, out_width=16, n_channels=1, shaping=shaping,
+                                with_csr=False)
             cap = run_stream(dut, [{"data": int(v)} for v in x], n, ["data"], ["data"],
                 sink_throttle=0.0, source_ready_rate=1.0)
             err = column(cap, "data", 24).astype(float) - x

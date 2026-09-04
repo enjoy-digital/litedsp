@@ -5,7 +5,8 @@
 # Copyright (c) 2026 Florent Kermarrec <florent@enjoy-digital.fr>
 # SPDX-License-Identifier: BSD-2-Clause
 
-"""Stereo audio processor (AN010): I2S in -> EQ -> compressor -> limiter -> volume -> dither -> I2S out.
+"""Stereo audio processor (AN010): I2S in -> EQ -> compressor
+-> limiter -> volume -> dither -> I2S out.
 
 The RTL chain of a small digital audio product, exercised in three simulation passes that share
 one set of blocks (Migen simulates these serial engines at a few hundred cycles per second, so
@@ -64,7 +65,8 @@ FS24     = (1 << 23) - 1
 BCLK_DIV = 4                           # I2S pass: BCLK = sys/4.
 SLOT     = 24
 
-EQ_BANDS  = [("lowshelf", 80.0, 6.0, 0.7071), ("peaking", 1000.0, -4.0, 1.5), ("highshelf", 8000.0, 3.0, 0.7071)]
+EQ_BANDS  = [("lowshelf", 80.0, 6.0, 0.7071), ("peaking", 1000.0, -4.0, 1.5),
+             ("highshelf", 8000.0, 3.0, 0.7071)]
 EQ_TONES  = [250.0, 500.0, 1000.0, 3000.0, 8000.0]                # Multiples of the analysis bin.
 EQ_TOL_DB = 0.3
 
@@ -106,10 +108,12 @@ class ToneChain(LiteXModule):
     """AudioEQ -> Volume -> PeakMeter -> Dither (24-bit in, 16-bit MSB-aligned out)."""
     def __init__(self):
         sections, _ = biquad_sos_quantize(eq_rows(), 32, 28)
-        self.eq     = LiteDSPAudioEQ(data_width=DW, n_bands=3, n_channels=2, sections=sections, with_csr=False)
+        self.eq     = LiteDSPAudioEQ(data_width=DW, n_bands=3, n_channels=2, sections=sections,
+                                     with_csr=False)
         self.volume = LiteDSPVolume(data_width=DW, n_channels=2, with_csr=False)
         self.meter  = LiteDSPPeakMeter(data_width=DW, n_channels=2, with_csr=False)
-        self.dither = LiteDSPDither(data_width=DW, out_width=16, n_channels=2, shaping="ef2", with_csr=False)
+        self.dither = LiteDSPDither(data_width=DW, out_width=16, n_channels=2, shaping="ef2",
+                                    with_csr=False)
         self.comb += [
             self.eq.source.connect(self.volume.sink),
             self.volume.source.connect(self.meter.sink),
@@ -120,8 +124,10 @@ class ToneChain(LiteXModule):
 class DynamicsChain(LiteXModule):
     """Compressor -> Limiter -> PeakMeter."""
     def __init__(self):
-        self.comp    = LiteDSPCompressor(data_width=DW, n_channels=2, preset="compressor", with_csr=False)
-        self.limiter = LiteDSPCompressor(data_width=DW, n_channels=2, lookahead=32, preset="limiter", with_csr=False)
+        self.comp    = LiteDSPCompressor(data_width=DW, n_channels=2, preset="compressor",
+                                         with_csr=False)
+        self.limiter = LiteDSPCompressor(data_width=DW, n_channels=2, lookahead=32,
+                                         preset="limiter", with_csr=False)
         self.meter   = LiteDSPPeakMeter(data_width=DW, n_channels=2, with_csr=False)
         self.comb += [
             self.comp.source.connect(self.limiter.sink),
@@ -132,20 +138,27 @@ class DynamicsChain(LiteXModule):
 class I2SLoop(LiteXModule):
     """I2S TX (24-bit master) => RX (slave) -> Dither (rounding) -> I2S TX (16-bit master) => RX."""
     def __init__(self):
-        self.adc_tx = LiteDSPI2STransmitter(data_width=DW, sample_width=24, slot_width=SLOT, n_channels=2,
+        self.adc_tx = LiteDSPI2STransmitter(data_width=DW, sample_width=24, slot_width=SLOT,
+                                            n_channels=2,
             fmt="i2s", mode="master", bclk_div=BCLK_DIV, with_csr=False)
-        self.rx     = LiteDSPI2SReceiver(data_width=DW, sample_width=24, slot_width=SLOT, n_channels=2,
+        self.rx     = LiteDSPI2SReceiver(data_width=DW, sample_width=24, slot_width=SLOT,
+                                         n_channels=2,
             fmt="i2s", mode="slave", with_csr=False)
-        self.dither = LiteDSPDither(data_width=DW, out_width=16, n_channels=2, shaping="none", with_csr=False)
-        self.tx     = LiteDSPI2STransmitter(data_width=DW, sample_width=16, slot_width=SLOT, n_channels=2,
+        self.dither = LiteDSPDither(data_width=DW, out_width=16, n_channels=2, shaping="none",
+                                    with_csr=False)
+        self.tx     = LiteDSPI2STransmitter(data_width=DW, sample_width=16, slot_width=SLOT,
+                                            n_channels=2,
             fmt="i2s", mode="master", bclk_div=BCLK_DIV, with_csr=False)
-        self.dac_rx = LiteDSPI2SReceiver(data_width=DW, sample_width=16, slot_width=SLOT, n_channels=2,
+        self.dac_rx = LiteDSPI2SReceiver(data_width=DW, sample_width=16, slot_width=SLOT,
+                                         n_channels=2,
             fmt="i2s", mode="slave", with_csr=False)
         self.comb += [
-            self.rx.bclk.eq(self.adc_tx.bclk), self.rx.lrck.eq(self.adc_tx.lrck), self.rx.sdata.eq(self.adc_tx.sdata),
+            self.rx.bclk.eq(self.adc_tx.bclk), self.rx.lrck.eq(self.adc_tx.lrck),
+            self.rx.sdata.eq(self.adc_tx.sdata),
             self.rx.source.connect(self.dither.sink),
             self.dither.source.connect(self.tx.sink),
-            self.dac_rx.bclk.eq(self.tx.bclk), self.dac_rx.lrck.eq(self.tx.lrck), self.dac_rx.sdata.eq(self.tx.sdata),
+            self.dac_rx.bclk.eq(self.tx.bclk), self.dac_rx.lrck.eq(self.tx.lrck),
+            self.dac_rx.sdata.eq(self.tx.sdata),
         ]
         self.sink, self.source = self.adc_tx.sink, self.dac_rx.source
 
@@ -250,7 +263,8 @@ def pass_tone_chain(results):
     exp = sos_db(eq_rows(), EQ_TONES)
     got = np.array([20*math.log10(fit_amplitude(ya, f)/db_to_linear(-20.0)) for f in EQ_TONES])
     err = float(np.max(np.abs(got - exp)))
-    print("EQ    " + "  ".join(f"{f:.0f} Hz {g:+.2f} dB (design {e:+.2f})" for f, g, e in zip(EQ_TONES, got, exp))
+    print("EQ    " + "  ".join(f"{f:.0f} Hz {g:+.2f} dB (design {e:+.2f})" for f, g,
+                               e in zip(EQ_TONES, got, exp))
           + f"  -> max error {err:.2f} dB (limit {EQ_TOL_DB})")
     # D: THD+N of the dithered 16-bit output (EQ bypassed: its transient would take ~8 tau).
     frames = tone([(THDN_TONE_HZ, -6.0)], THDN_SETTLE + ANALYSIS).tolist()
@@ -259,8 +273,10 @@ def pass_tone_chain(results):
     yd   = (y[len(frames) - ANALYSIS:len(frames)] >> 8).astype(float)
     thdn = float(thd_n_db(yd, THDN_TONE_HZ/FS, band=(THDN_BAND_HZ[0]/FS, THDN_BAND_HZ[1]/FS)))
     full = float(thd_n_db(yd, THDN_TONE_HZ/FS))
-    print(f"THD+N {thdn:.1f} dB in {THDN_BAND_HZ[0]:.0f} Hz..{THDN_BAND_HZ[1]/1000:.0f} kHz ({full:.1f} dB full band: the "
-          f"2nd-order shaper moves the dither noise above the audio band), -6 dBFS {THDN_TONE_HZ:.0f} Hz at the "
+    print(f"THD+N {thdn:.1f} dB in {THDN_BAND_HZ[0]:.0f} Hz..{THDN_BAND_HZ[1]/1000:.0f} kHz "
+          f"({full:.1f} dB full band: the "
+          f"2nd-order shaper moves the dither noise above the audio band), -6 dBFS "
+          f"{THDN_TONE_HZ:.0f} Hz at the "
           f"16-bit output (limit {THDN_MAX_DB})")
     results.update(eq_got=got, eq_exp=exp, thdn=thdn, spectrum=yd)
     return err <= EQ_TOL_DB and thdn <= THDN_MAX_DB
@@ -280,7 +296,8 @@ def limiter_peak(y, c0, c1):
     return 20*math.log10(max(np.max(np.abs(y[c0 + SEG_STEP//2:c1])), 1)/float(1 << 23))
 
 def pass_dynamics_chain(results):
-    seg_b = np.concatenate([tone([(1000.0, db)], SEG_STEP, k*SEG_STEP) for k, db in enumerate(COMP_LEVELS_DB)])
+    seg_b = np.concatenate(
+        [tone([(1000.0, db)], SEG_STEP, k*SEG_STEP) for k, db in enumerate(COMP_LEVELS_DB)])
     seg_c = tone([(1000.0, 0.0)], SEG_STEP)
     frames, sched = build([
         (seg_b, [("comp.bypass", 0), ("limiter.bypass", 1)]),
@@ -302,11 +319,13 @@ def pass_dynamics_chain(results):
     # Bit-exact model of each stage on the same stimulus (the other stage is bypassed).
     thr, s_above, s_below, _, _, gr_max = PRESET_VALUES["compressor"]
     beats = [int(v) for v in np.concatenate([[0]*GAP, seg_b]) for _ in range(2)]
-    ym = compressor_model(beats, [k % 2 for k in range(len(beats))], thr, s_above, s_below, 65535, release,
+    ym = compressor_model(beats, [k % 2 for k in range(len(beats))], thr, s_above, s_below, 65535,
+                          release,
         gr_max, detector=0)[0][0::2]
     thr, s_above, s_below, att, rel, gr_max = PRESET_VALUES["limiter"]
     beats = [int(v) for v in np.concatenate([[0]*GAP, seg_c]) for _ in range(2)]
-    yl = compressor_model(beats, [k % 2 for k in range(len(beats))], thr, s_above, s_below, att, rel,
+    yl = compressor_model(beats, [k % 2 for k in range(len(beats))], thr, s_above, s_below, att,
+                          rel,
         gr_max, lookahead=32)[0][0::2]
     (mb0, _), = segments(np.asarray(ym))
     (mc0, mc1), = segments(np.asarray(yl))
@@ -316,24 +335,29 @@ def pass_dynamics_chain(results):
     merr = float(np.max(np.abs(np.array(comp_out) - np.array(model_out))))
     print("COMP  " + "  ".join(f"{l:+.0f} -> {o:+.2f} dBFS (design {e:+.2f}, model {m:+.2f})"
           for l, o, e, m in zip(COMP_LEVELS_DB, comp_out, comp_exp, model_out))
-          + f"  -> max error {cerr:.2f} dB vs design (limit {COMP_TOL_DB}), {merr:.3f} dB vs model (limit {MODEL_TOL_DB})")
+          + f"  -> max error {cerr:.2f} dB vs design (limit {COMP_TOL_DB}), {merr:.3f} dB vs model "
+            f"(limit {MODEL_TOL_DB})")
     clips = seen["clips"]
-    print(f"LIM   0 dBFS in -> peak {peak_db:+.2f} dBFS (model {model_peak:+.2f}, ceiling {LIMITER_CEILING_DB:+.1f} +{LIMITER_TOL_DB}), clip count {clips}")
+    print(f"LIM   0 dBFS in -> peak {peak_db:+.2f} dBFS (model {model_peak:+.2f}, ceiling "
+          f"{LIMITER_CEILING_DB:+.1f} +{LIMITER_TOL_DB}), clip count {clips}")
     results.update(comp_out=comp_out, comp_exp=comp_exp, peak_db=peak_db, clips=clips)
-    return (cerr <= COMP_TOL_DB and merr <= MODEL_TOL_DB and abs(peak_db - model_peak) <= MODEL_TOL_DB
+    return (cerr <= COMP_TOL_DB and merr <= MODEL_TOL_DB
+            and abs(peak_db - model_peak) <= MODEL_TOL_DB
             and peak_db <= LIMITER_CEILING_DB + LIMITER_TOL_DB and clips == 0)
 
 def pass_i2s_loop(results):
     prng = np.random.default_rng(1)
     x = prng.integers(-FS24, FS24, I2S_FRAMES).astype(np.int64)
     print(f"pass 3 (I2S transport): {I2S_FRAMES} frames")
-    y, _ = simulate(I2SLoop(), x.tolist(), {}, setup=[("dither.dither_enable", 0), ("dither.shaping_enable", 0)],
+    y, _ = simulate(I2SLoop(), x.tolist(), {},
+                    setup=[("dither.dither_enable", 0), ("dither.shaping_enable", 0)],
         tail_cycles=4*2*SLOT*BCLK_DIV)
     exp = np.clip((x + 128) >> 8, -32768, 32767).tolist()           # Round half up, 16-bit.
     got = (y >> 8).tolist()
     # The slave receivers lock on the first LRCK transition (the first frame's left slot sits at
     # the reset level), so the run starts a frame or two into the stimulus.
-    hit = next(((k, j) for j in range(3) for k in range(len(got)) if got[k:k + 32] == exp[j:j + 32]), None)
+    hit = next(
+        ((k, j) for j in range(3) for k in range(len(got)) if got[k:k + 32] == exp[j:j + 32]), None)
     ok  = hit is not None and got[hit[0]:] == exp[hit[1]:hit[1] + len(got) - hit[0]]
     print(f"I2S   {len(got)} words received, transport {'bit-exact' if ok else 'MISMATCH'}"
           + (f" (stimulus frame {hit[1]} onwards)" if hit else ""))
@@ -354,16 +378,19 @@ def plot(plot_dir, r):
     f = np.logspace(math.log10(20), math.log10(20000), 400)
     ax[0].semilogx(f, sos_db(eq_rows(), f), label="design")
     ax[0].plot(EQ_TONES, r["eq_got"], "o", label="measured")
-    ax[0].set(title="3-band EQ", xlabel="Hz", ylabel="dB"); ax[0].grid(True, which="both"); ax[0].legend()
+    ax[0].set(title="3-band EQ", xlabel="Hz", ylabel="dB"); ax[0].grid(True,
+                                                                       which="both"); ax[0].legend()
     lv = np.linspace(-40, 0, 100)
     ax[1].plot(lv, [compressor_curve(l) for l in lv], label="design")
     ax[1].plot(COMP_LEVELS_DB, r["comp_out"], "o", label="measured")
-    ax[1].set(title="Compressor static curve (peak, 4:1 above -20 dB)", xlabel="in dBFS", ylabel="out dBFS")
+    ax[1].set(title="Compressor static curve (peak, 4:1 above -20 dB)", xlabel="in dBFS",
+              ylabel="out dBFS")
     ax[1].grid(True); ax[1].legend()
     yd   = r["spectrum"]
     spec = np.abs(np.fft.rfft(yd*np.hanning(len(yd))))/(len(yd)/4)/32768
     ax[2].plot(np.fft.rfftfreq(len(yd), 1/FS), 20*np.log10(np.maximum(spec, 1e-9)))
-    ax[2].set(title=f"16-bit dithered output (-6 dBFS {THDN_TONE_HZ:.0f} Hz)", xlabel="Hz", ylabel="dBFS", ylim=(-140, 0))
+    ax[2].set(title=f"16-bit dithered output (-6 dBFS {THDN_TONE_HZ:.0f} Hz)", xlabel="Hz",
+              ylabel="dBFS", ylim=(-140, 0))
     ax[2].grid(True)
     fig.tight_layout()
     fig.savefig(os.path.join(plot_dir, "an010_audio.png"), dpi=110)
@@ -371,7 +398,8 @@ def plot(plot_dir, r):
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--plot-dir", default=None, help="Write an010_audio.png to this directory.")
     parser.add_argument("--passes", default="1,2,3", help="Comma-separated subset of the passes to run.")
     args = parser.parse_args()

@@ -36,7 +36,7 @@ class LiteDSPADCInterface(LiteXModule):
         check(adc_width <= data_width, "expected adc_width <= data_width")
         self.latency = 0
         self.sink    = stream.Endpoint([("i", adc_width), ("q", adc_width)])   # Raw.
-        self.source  = stream.Endpoint(iq_layout(data_width))                  # Signed, left-aligned.
+        self.source  = stream.Endpoint(iq_layout(data_width))                # Signed, left-aligned.
 
         # # #
 
@@ -67,7 +67,7 @@ class LiteDSPDACInterface(LiteXModule):
         check(fmt in ("offset_binary", "twos"), "expected fmt in ('offset_binary', 'twos')")
         check(dac_width <= data_width, "expected dac_width <= data_width")
         self.latency = 0
-        self.sink    = stream.Endpoint(iq_layout(data_width))                  # Signed, left-aligned.
+        self.sink    = stream.Endpoint(iq_layout(data_width))                # Signed, left-aligned.
         self.source  = stream.Endpoint([("i", dac_width), ("q", dac_width)])   # Raw.
 
         # # #

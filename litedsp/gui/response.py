@@ -83,7 +83,8 @@ def response_for(key, params=None, data_width=16, n_points=512):
 
     if key == "fir_interpolator":
         n_taps, L = int(p.get("n_taps", 32)), int(p.get("interpolation", 8))
-        coeffs = p.get("coefficients") or design.firwin_lowpass(n_taps, 0.5/L, data_width=dw, gain=L)
+        coeffs = p.get("coefficients") or design.firwin_lowpass(n_taps, 0.5/L, data_width=dw,
+                                                                gain=L)
         return fir_db(_int_taps(coeffs, dw))
 
     if key in ("halfband_dec", "halfband_int"):

@@ -29,12 +29,14 @@ class LiteDSPDownscaler(LiteXModule):
     ``width`` / ``height`` (``eol`` at the last full tile column, ``last`` on the last full tile
     row). Rate changer (one output per ``D^2`` inputs); latency 2 from the tile's last pixel.
     """
-    def __init__(self, data_width=8, n_channels=1, decimation=2, width=640, height=480, max_width=None,
+    def __init__(self, data_width=8, n_channels=1, decimation=2, width=640, height=480,
+                 max_width=None,
         coord_bits=12, with_csr=True):
         check(decimation in (2, 4, 8), "expected decimation in (2, 4, 8)")
         if max_width is None:
             max_width = width
-        check(decimation <= width <= max_width and height >= decimation, "expected decimation <= width <= max_width, height >= decimation")
+        check(decimation <= width <= max_width and height >= decimation,
+              "expected decimation <= width <= max_width, height >= decimation")
         self.data_width = data_width
         self.n_channels = n_channels
         self.decimation = decimation
@@ -53,14 +55,17 @@ class LiteDSPDownscaler(LiteXModule):
         SW = DW + 2*L
         fields = pixel_fields(n_channels)
         adv, xfer = Signal(), Signal()
-        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv), xfer.eq(self.sink.valid & adv)]
+        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv),
+                      xfer.eq(self.sink.valid & adv)]
         self.counter = cnt = LiteDSPPixelCounter(coord_bits)
-        self.comb += [cnt.xfer.eq(xfer), cnt.first.eq(self.sink.first), cnt.eol.eq(self.sink.eol), cnt.last.eq(self.sink.last)]
+        self.comb += [cnt.xfer.eq(xfer), cnt.first.eq(self.sink.first), cnt.eol.eq(self.sink.eol),
+                      cnt.last.eq(self.sink.last)]
         tiles_x, tiles_y = Signal(coord_bits), Signal(coord_bits)     # Full tiles per frame.
         self.comb += [tiles_x.eq(self.width >> L), tiles_y.eq(self.height >> L)]
-        tx, ty = Signal(coord_bits), Signal(coord_bits)                # Tile coordinates of the pixel.
+        tx, ty = Signal(coord_bits), Signal(coord_bits)             # Tile coordinates of the pixel.
         px, py = Signal(L), Signal(L)                                   # Position inside the tile.
-        self.comb += [tx.eq(cnt.col >> L), ty.eq(cnt.row >> L), px.eq(cnt.col[:L]), py.eq(cnt.row[:L])]
+        self.comb += [tx.eq(cnt.col >> L), ty.eq(cnt.row >> L), px.eq(cnt.col[:L]),
+                      py.eq(cnt.row[:L])]
         in_tile = Signal()
         self.comb += in_tile.eq((tx < tiles_x) & (ty < tiles_y))
         # Horizontal accumulator per channel (D pixels), vertical RAM per tile column.
@@ -102,7 +107,8 @@ class LiteDSPDownscaler(LiteXModule):
         self.comb += emit.eq(v1 & row_end & (py1 == D - 1) & in_tile1)
         self.sync += If(adv,
             self.source.valid.eq(emit),
-            *[getattr(self.source, f).eq((total[c] + (1 << (2*L - 1))) >> (2*L)) for c, f in enumerate(fields)],
+            *[getattr(self.source, f).eq((total[c] + (1 << (2*L - 1))) >> (2*L)) for c,
+              f in enumerate(fields)],
             self.source.first.eq((tx1 == 0) & (ty1 == 0)),
             self.source.eol.eq(tx1 == tiles_x - 1),
             self.source.last.eq((tx1 == tiles_x - 1) & (ty1 == tiles_y - 1)),
@@ -119,7 +125,8 @@ class LiteDSPDownscaler(LiteXModule):
             CSRField("width",  size=CB, offset=0,  reset=self.width.reset.value,  description="Input pixels per line."),
             CSRField("height", size=CB, offset=16, reset=self.height.reset.value, description="Input lines per frame."),
         ])
-        self.comb += [self.width.eq(self._geometry.fields.width), self.height.eq(self._geometry.fields.height)]
+        self.comb += [self.width.eq(self._geometry.fields.width),
+                      self.height.eq(self._geometry.fields.height)]
 
 # Crop ---------------------------------------------------------------------------------------------
 
@@ -132,10 +139,12 @@ class LiteDSPCrop(LiteXModule):
     corners). A ROI that extends beyond the learned frame sets the sticky ``geometry_error``.
     Rate changer; latency 1.
     """
-    def __init__(self, data_width=8, n_channels=3, x0=0, y0=0, roi_width=640, roi_height=480, coord_bits=12,
+    def __init__(self, data_width=8, n_channels=3, x0=0, y0=0, roi_width=640, roi_height=480,
+                 coord_bits=12,
         with_csr=True):
         check(roi_width >= 1 and roi_height >= 1, "expected roi_width, roi_height >= 1")
-        check(x0 + roi_width < 2**coord_bits and y0 + roi_height < 2**coord_bits, "expected the ROI inside the coordinate range")
+        check(x0 + roi_width < 2**coord_bits and y0 + roi_height < 2**coord_bits,
+              "expected the ROI inside the coordinate range")
         self.data_width = data_width
         self.n_channels = n_channels
         self.coord_bits = coord_bits
@@ -143,7 +152,8 @@ class LiteDSPCrop(LiteXModule):
         self.sink   = stream.Endpoint(pixel_layout(data_width, n_channels))
         self.source = stream.Endpoint(pixel_layout(data_width, n_channels))
         self.x0, self.y0 = Signal(coord_bits, reset=x0), Signal(coord_bits, reset=y0)
-        self.roi_width, self.roi_height = Signal(coord_bits, reset=roi_width), Signal(coord_bits, reset=roi_height)
+        self.roi_width, self.roi_height = Signal(coord_bits, reset=roi_width), Signal(coord_bits,
+            reset=roi_height)
         self.commit = Signal()
         self.commit_pending = Signal()
         self.geometry_error = Signal()
@@ -153,10 +163,13 @@ class LiteDSPCrop(LiteXModule):
 
         fields = pixel_fields(n_channels)
         adv, xfer = Signal(), Signal()
-        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv), xfer.eq(self.sink.valid & adv)]
+        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv),
+                      xfer.eq(self.sink.valid & adv)]
         self.counter = cnt = LiteDSPPixelCounter(coord_bits)
-        self.comb += [cnt.xfer.eq(xfer), cnt.first.eq(self.sink.first), cnt.eol.eq(self.sink.eol), cnt.last.eq(self.sink.last)]
-        ax0, ay0, aw, ah = [Signal(coord_bits, name=n) for n in ("ax0", "ay0", "aw", "ah")]   # Active ROI.
+        self.comb += [cnt.xfer.eq(xfer), cnt.first.eq(self.sink.first), cnt.eol.eq(self.sink.eol),
+                      cnt.last.eq(self.sink.last)]
+        # Active ROI.
+        ax0, ay0, aw, ah = [Signal(coord_bits, name=n) for n in ("ax0", "ay0", "aw", "ah")]
         do_commit = Signal()
         self.comb += do_commit.eq(xfer & self.sink.first & self.commit_pending)
         self.sync += [
@@ -218,7 +231,9 @@ class LiteDSPCrop(LiteXModule):
         ])
         self.comb += [
             self.x0.eq(self._origin.fields.x0), self.y0.eq(self._origin.fields.y0),
-            self.roi_width.eq(self._size.fields.width), self.roi_height.eq(self._size.fields.height),
+            self.roi_width.eq(self._size.fields.width),
+            self.roi_height.eq(self._size.fields.height),
             self.commit.eq(self._control.fields.commit), self.clear.eq(self._control.fields.clear),
-            self._status.fields.commit_pending.eq(self.commit_pending), self._status.fields.geometry_error.eq(self.geometry_error),
+            self._status.fields.commit_pending.eq(self.commit_pending),
+            self._status.fields.geometry_error.eq(self.geometry_error),
         ]

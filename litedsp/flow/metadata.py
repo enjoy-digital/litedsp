@@ -10,7 +10,8 @@ A :class:`BlockSpec` describes one DSP block well enough to drive both a GUI pal
 generation: its constructor parameters (from the signature), its stream ports + payload layouts
 (from a built instance's endpoints), and its CSRs (from ``get_csrs()`` with ``with_csr=True`` —
 LiteX recurses into sub-blocks and name-prefixes them automatically). Nothing is hand-duplicated;
-the registry only supplies construction kwargs + cosmetic overrides (see :mod:`litedsp.flow.registry`).
+the registry only supplies construction kwargs + cosmetic
+overrides (see :mod:`litedsp.flow.registry`).
 """
 
 import inspect
@@ -31,7 +32,7 @@ class ParamSpec:
 
 @dataclass
 class PortSpec:
-    name: str                       # Endpoint attribute, e.g. "sink", "source", "sinks[0]", "sink_a".
+    name: str                     # Endpoint attribute, e.g. "sink", "source", "sinks[0]", "sink_a".
     direction: str                  # "sink" (input) or "source" (output).
     layout: str                     # iq | iq_symbol | real | raw
 
@@ -117,7 +118,8 @@ PARAM_GLOSSARY = {
 # Reflection helpers -------------------------------------------------------------------------------
 
 def _real_init(cls):
-    """The block's own ``__init__``, skipping migen's ``@ResetInserter`` (ModuleTransformer) wrap."""
+    """The block's own ``__init__``, skipping migen's ``@ResetInserter`` (ModuleTransformer)
+    wrap."""
     for c in cls.__mro__:
         init = c.__dict__.get("__init__")
         if init is None:
@@ -169,7 +171,8 @@ def _doc_params(doc):
     return out
 
 def _params(cls, kwargs, choices):
-    """ParamSpec list from the constructor signature; ``kwargs`` override defaults shown in the GUI."""
+    """ParamSpec list from the constructor signature; ``kwargs`` override defaults shown in the
+    GUI."""
     specs = []
     doc   = inspect.getdoc(cls) or ""
     descs = _doc_params(doc)
@@ -238,7 +241,8 @@ def _layout(ep):
     return "raw"
 
 def _ports(dut):
-    """Discover every stream Endpoint on a built instance (singular, list, and named like sink_a)."""
+    """Discover every stream Endpoint on a built instance (singular, list, and named like
+    sink_a)."""
     found = {}
     for attr in dir(dut):
         if attr.startswith("__"):
@@ -262,7 +266,8 @@ def _ports(dut):
 # Public reflection entrypoint ---------------------------------------------------------------------
 
 def reflect(key, cls, kwargs=None, category="misc", display_name=None, choices=None, doc=None):
-    """Build a :class:`BlockSpec` for ``cls`` constructed with ``kwargs`` (with ``with_csr=True``)."""
+    """Build a :class:`BlockSpec` for ``cls`` constructed with ``kwargs`` (with
+    ``with_csr=True``)."""
     kwargs  = dict(kwargs or {})
     choices = choices or {}
     params  = _params(cls, kwargs, choices)

@@ -18,7 +18,8 @@ from test.models import peak_extractor_model
 FIELDS = ["range", "doppler", "data", "hit", "first", "last"]
 
 def cells(data, detect, m):
-    return [{"data": int(v), "detect": int(d), "threshold": 0, "first": int(k % m == 0), "last": int(k % m == m - 1)}
+    return [{"data": int(v), "detect": int(d), "threshold": 0, "first": int(k % m == 0),
+             "last": int(k % m == m - 1)}
             for k, (v, d) in enumerate(zip(data, detect))]
 
 class TestPeakExtractor(unittest.TestCase):
@@ -39,7 +40,8 @@ class TestPeakExtractor(unittest.TestCase):
                 ref = peak_extractor_model(data, detect, N, M, local_max, interpolate)
                 dut = LiteDSPPeakExtractor(n_range_bins=N, n_doppler_bins=M, with_csr=False)
                 dut.local_max.reset, dut.interpolate.reset = local_max, interpolate
-                cap = run_stream(dut, cells(data, detect, M), len(ref[0]), ["data", "detect", "first", "last"], FIELDS,
+                cap = run_stream(dut, cells(data, detect, M), len(ref[0]),
+                                 ["data", "detect", "first", "last"], FIELDS,
                     sink_throttle=0.2, source_ready_rate=0.7)
                 self._check(cap, ref)
                 self.assertIsNone(dut.latency)
@@ -50,7 +52,8 @@ class TestPeakExtractor(unittest.TestCase):
     def test_centroid_plateau_empty(self):
         N, M = 16, 8
         r0, c0 = 7.3, 3.6
-        data   = [int(round(60000*math.exp(-((r - r0)**2 + (c - c0)**2)/(2*1.2**2)))) for r in range(N) for c in range(M)]
+        data   = [int(round(60000*math.exp(
+            -((r - r0)**2 + (c - c0)**2)/(2*1.2**2)))) for r in range(N) for c in range(M)]
         detect = [int(v > 3000) for v in data]
         plateau = [0]*(N*M)
         for r, c in ((10, 4), (10, 5), (11, 4), (11, 5)):
@@ -62,7 +65,8 @@ class TestPeakExtractor(unittest.TestCase):
         dets    = detect + detect2 + [0]*(N*M)
         ref = peak_extractor_model(stream, dets, N, M, 1, 1)
         dut = LiteDSPPeakExtractor(n_range_bins=N, n_doppler_bins=M, with_csr=False)
-        cap = run_stream(dut, cells(stream, dets, M), len(ref[0]), ["data", "detect", "first", "last"], FIELDS,
+        cap = run_stream(dut, cells(stream, dets, M), len(ref[0]),
+                         ["data", "detect", "first", "last"], FIELDS,
             sink_throttle=0.0, source_ready_rate=1.0)
         self._check(cap, ref)
         hits = [b for b in cap if b["hit"]]
@@ -81,7 +85,8 @@ class TestPeakExtractor(unittest.TestCase):
         beats = cells([100]*(N*M), [0]*(N*M), M)
         beats[11]["first"] = 1
         dut = LiteDSPPeakExtractor(n_range_bins=N, n_doppler_bins=M, with_csr=False)
-        run_stream(dut, beats, 1, ["data", "detect", "first", "last"], FIELDS, sink_throttle=0.0, source_ready_rate=1.0,
+        run_stream(dut, beats, 1, ["data", "detect", "first", "last"], FIELDS, sink_throttle=0.0,
+                   source_ready_rate=1.0,
             extra=[self._read_error(dut)])
         self.assertEqual(self.error, 1)
         for kwargs in ({"n_range_bins": 1}, {"frac_bits": 0}, {"index_width": 3}):

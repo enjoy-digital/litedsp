@@ -55,7 +55,8 @@ class LiteDSPPeakBin(LiteXModule):
         # Output.
         # -------
         self.sync += [
-            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),  # Held until consumed.
+            # Held until consumed.
+            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
             If(xfer,
                 best_idx.eq(new_idx),
                 best_val.eq(new_val),

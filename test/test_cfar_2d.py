@@ -18,7 +18,8 @@ from test.models import cfar_2d_model
 FIELDS = ["data", "threshold", "detect", "first", "last"]
 
 def rows(values, m):
-    return [{"data": int(v), "first": int(k % m == 0), "last": int(k % m == m - 1)} for k, v in enumerate(values)]
+    return [{"data": int(v), "first": int(k % m == 0), "last": int(k % m == m - 1)} for k,
+            v in enumerate(values)]
 
 class TestCFAR2D(unittest.TestCase):
     def _check(self, cap, ref, n):
@@ -26,7 +27,8 @@ class TestCFAR2D(unittest.TestCase):
             self.assertEqual(column(cap, name).tolist(), col[:n].tolist(), name)
 
     # verify-tier: model — two CPIs of 16x8 (box (2,1)/(1,1)) and of 8x16 (box (1,2)/(1,1), with a
-    # threshold floor), exponential-like cells with a few strong targets, bit-exact (cell, threshold,
+    # threshold floor), exponential-like cells with a few strong targets, bit-exact (cell,
+    # threshold,
     # decision, framing) under backpressure.
     def test_bit_exact(self):
         prng = random.Random(4)
@@ -35,11 +37,13 @@ class TestCFAR2D(unittest.TestCase):
                 x = [min(int(prng.expovariate(1/3000)), 2**17 - 1) for _ in range(2*N*M)]
                 for k in (0, N*M//2 + 3, 2*N*M - 1):
                     x[k] = 90000
-                dut = LiteDSPCFAR2D(n_range_bins=N, n_doppler_bins=M, n_train=n_train, n_guard=(1, 1), with_csr=False)
+                dut = LiteDSPCFAR2D(n_range_bins=N, n_doppler_bins=M, n_train=n_train,
+                                    n_guard=(1, 1), with_csr=False)
                 dut.threshold_min.reset = floor
                 cap = run_stream(dut, rows(x, M), 2*N*M, ["data", "first", "last"], FIELDS,
                     sink_throttle=0.2, source_ready_rate=0.7)
-                self._check(cap, cfar_2d_model(x, N, M, n_train, (1, 1), alpha=512, threshold_min=floor), 2*N*M)
+                self._check(cap, cfar_2d_model(x, N, M, n_train, (1, 1), alpha=512,
+                                               threshold_min=floor), 2*N*M)
                 self.assertIsNone(dut.latency)
 
     # verify-tier: bound — a 64x16 exponential map with alpha for Pfa = 1e-3 over the 68-cell
@@ -56,7 +60,8 @@ class TestCFAR2D(unittest.TestCase):
         dut   = LiteDSPCFAR2D(with_csr=False)
         alpha = cfar_alpha(1e-3, dut.n_training, "power", frac_bits=8)
         dut.alpha.reset = alpha
-        cap   = run_stream(dut, rows(x, M), N*M, ["data", "first", "last"], FIELDS, sink_throttle=0.0,
+        cap   = run_stream(dut, rows(x, M), N*M, ["data", "first", "last"], FIELDS,
+                           sink_throttle=0.0,
             source_ready_rate=1.0, extra=[self._read_detections(dut)])
         detect = column(cap, "detect").reshape(N, M)
         for r, c in targets:
@@ -73,10 +78,12 @@ class TestCFAR2D(unittest.TestCase):
         beats = rows(x, 8)
         beats[8*5 + 3]["first"] = 1
         dut   = LiteDSPCFAR2D(n_range_bins=16, n_doppler_bins=8, n_train=(2, 1), with_csr=False)
-        run_stream(dut, beats, 4*8, ["data", "first", "last"], FIELDS, sink_throttle=0.0, source_ready_rate=1.0,
+        run_stream(dut, beats, 4*8, ["data", "first", "last"], FIELDS, sink_throttle=0.0,
+                   source_ready_rate=1.0,
             extra=[self._read_error(dut)])
         self.assertEqual(self.error, 1)
-        for kwargs in ({"n_train": (0, 2)}, {"n_guard": (1, 5)}, {"n_doppler_bins": 4}, {"n_train": (4,)}):
+        for kwargs in ({"n_train": (0, 2)}, {"n_guard": (1, 5)}, {"n_doppler_bins": 4},
+                       {"n_train": (4,)}):
             with self.assertRaises(ValueError, msg=str(kwargs)):
                 LiteDSPCFAR2D(with_csr=False, **kwargs)
 

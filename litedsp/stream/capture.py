@@ -118,7 +118,8 @@ class LiteDSPCapture(LiteXModule):
         # CSR.
         # ----
         if with_csr:
-            self._threshold = CSRStorage(data_width, name="threshold", description="Trigger level (I).")
+            self._threshold = CSRStorage(data_width, name="threshold",
+                                         description="Trigger level (I).")
             self._force     = CSRStorage(1, name="force", description="Force trigger.")
             self._status    = CSRStatus(fields=[
                 CSRField("armed", size=1, description="Waiting for trigger."),
@@ -140,7 +141,8 @@ class LiteDSPCapture(LiteXModule):
 
     def add_irq(self):
         self.ev      = EventManager()
-        self.ev.done = EventSourceProcess(edge="rising", description="Capture complete, buffer ready.")
+        self.ev.done = EventSourceProcess(edge="rising",
+                                          description="Capture complete, buffer ready.")
         self.ev.finalize()
         self.comb += self.ev.done.trigger.eq(self.done)
 

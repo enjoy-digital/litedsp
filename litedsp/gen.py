@@ -72,7 +72,8 @@ def parse_config(path):
         core_config["name"] = config["name"]
     for key in ("csr_base", "axil_address_width", "csr_data_width"):
         if key in config:
-            core_config[key] = int(config[key], 0) if isinstance(config[key], str) else int(config[key])
+            core_config[key] = int(config[key], 0) if isinstance(config[key],
+                                                                 str) else int(config[key])
     return nl, core_config
 
 # Core generation ----------------------------------------------------------------------------------
@@ -97,7 +98,8 @@ def main():
     parser.add_argument("--vivado-part", default=DEFAULT_PART,
         help=f"Vivado packaging/project part (default: {DEFAULT_PART}).")
     parser.add_argument("--vivado-validate", action="store_true",
-        help="Instantiate the packaged core in IP Integrator and synthesize the block-design wrapper.")
+        help="Instantiate the packaged core in IP Integrator and synthesize the block-design "
+             "wrapper.")
     args = parser.parse_args()
     if args.vivado_validate and not args.vivado_ip:
         parser.error("--vivado-validate requires --vivado-ip")
@@ -118,7 +120,8 @@ def main():
         print(f"  0x{region.origin:08x}: {bank_name}")
     if args.vivado_ip:
         package_dir = os.path.join(build_dir, "vivado_ip")
-        component = package_vivado(ip, path, package_dir, name=os.path.splitext(os.path.basename(path))[0],
+        component = package_vivado(ip, path, package_dir,
+                                   name=os.path.splitext(os.path.basename(path))[0],
             part=args.vivado_part)
         print(f"Vivado IP: {component}")
         if args.vivado_validate:

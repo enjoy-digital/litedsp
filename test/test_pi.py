@@ -250,7 +250,8 @@ class TestDQController(unittest.TestCase):
     def test_open_loop_passes_voltages(self):
         n   = 50
         dut = LiteDSPDQController(data_width=16, with_csr=False)
-        dut.open_loop.reset, dut.voltage_d.reset, dut.voltage_q.reset = 1, 1234 & 0xFFFF, (-4321) & 0xFFFF
+        dut.open_loop.reset, dut.voltage_d.reset, dut.voltage_q.reset = 1, 1234 & 0xFFFF, (
+            -4321) & 0xFFFF
         cap = run_stream(dut, [{"i": 100, "q": -100}]*n, n, ["i", "q"], ["i", "q"],
             sink_throttle=0.0, source_ready_rate=1.0)
         self.assertTrue(np.all(column(cap, "i", 16) == 1234))

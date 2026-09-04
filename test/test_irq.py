@@ -77,7 +77,8 @@ class TestIRQ(unittest.TestCase):
 
     def test_agc_railed_event(self):
         # Tiny gain_max + weak input: the loop integrates up and hits the clamp.
-        dut = LiteDSPAGC(data_width=16, gain_frac=8, mu=2, gain_max=300, with_csr=False, with_irq=True)
+        dut = LiteDSPAGC(data_width=16, gain_frac=8, mu=2, gain_max=300, with_csr=False,
+                         with_irq=True)
         samples = [(10, 0)]*64
 
         def check():

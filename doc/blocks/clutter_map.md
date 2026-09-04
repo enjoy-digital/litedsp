@@ -11,7 +11,8 @@ Scan-to-scan clutter map detector on framed cell streams.
 Keeps one exponential average per cell (``n_range_bins * n_doppler_bins`` cells, addressed
 by a counter that ``first`` restarts) in a RAM holding ``sum = average << avg_shift``:
 ``sum += x - (sum >> avg_shift)`` on every scan unless the cell detects (censored update,
-overridden by ``learn_all``) or ``freeze`` is set. The scan after reset or ``clear`` (up to its ``last``)
+overridden by ``learn_all``) or ``freeze`` is set. The scan after
+reset or ``clear`` (up to its ``last``)
 initialises the visited cells (``sum = x << avg_shift``, no detection); scans must cover every
 cell. ``threshold =
 rounded(sum * alpha, threshold_frac + avg_shift)`` saturated and floored at ``threshold_min``,

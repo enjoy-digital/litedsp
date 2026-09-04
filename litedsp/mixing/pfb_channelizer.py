@@ -135,21 +135,24 @@ class LiteDSPPFBChannelizer(LiteXModule):
             self.cycles_per_frame = H + M*(2*T + 1) + 2*M*int(math.log2(M)) + M
         self.latency = self.cycles_per_frame               # Burst latency (cycles per frame).
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Wide-band I/Q input.
-        self.source = stream.Endpoint(iq_layout(data_width))  # Framed channel samples (M per frame).
+        # Framed channel samples (M per frame).
+        self.source = stream.Endpoint(iq_layout(data_width))
 
         # # #
 
         # Memories.
         # ---------
-        depth  = _pow2_ceil(M*T)                             # Sample history (pow2: free pointer wrap).
-        acc_w  = 2*data_width + (T - 1).bit_length() + 1     # Branch: product + log2(T) accumulation.
-        dacc_w = acc_w + data_width + (M - 1).bit_length() + 1  # DFT: + twiddle product + log2(M) sum.
-        shift  = 2*(data_width - 1)                          # Coefficient + twiddle fractional bits.
+        depth  = _pow2_ceil(M*T)                         # Sample history (pow2: free pointer wrap).
+        acc_w  = 2*data_width + (T - 1).bit_length() + 1   # Branch: product + log2(T) accumulation.
+        # DFT: + twiddle product + log2(M) sum.
+        dacc_w = acc_w + data_width + (M - 1).bit_length() + 1
+        shift  = 2*(data_width - 1)                         # Coefficient + twiddle fractional bits.
         mask   = (1 << data_width) - 1
         tw     = (1 << (data_width - 1)) - 1                 # Twiddle scale (Q1.(W-1)).
 
         # Coefficients laid out by phase: crom[p*T + t] = c[p + t*M] (branch-major, MAC order).
-        crom = Memory(data_width, M*T, init=[coefficients[p + t*M] & mask for p in range(M) for t in range(T)])
+        crom = Memory(data_width, M*T,
+                      init=[coefficients[p + t*M] & mask for p in range(M) for t in range(T)])
         # Sample history (I and Q), written by the commutator, read back with stride M.
         mi = Memory(data_width, depth)
         mq = Memory(data_width, depth)
@@ -157,8 +160,10 @@ class LiteDSPPFBChannelizer(LiteXModule):
         ui = Memory(acc_w, M)
         uq = Memory(acc_w, M)
         # M-entry DFT twiddle ROMs: exp(+2j*pi*j/M) (kernel index j = k*p mod M).
-        cos_rom = Memory(data_width, M, init=[int(round(math.cos(2*math.pi*j/M)*tw)) & mask for j in range(M)])
-        sin_rom = Memory(data_width, M, init=[int(round(math.sin(2*math.pi*j/M)*tw)) & mask for j in range(M)])
+        cos_rom = Memory(data_width, M,
+                         init=[int(round(math.cos(2*math.pi*j/M)*tw)) & mask for j in range(M)])
+        sin_rom = Memory(data_width, M,
+                         init=[int(round(math.sin(2*math.pi*j/M)*tw)) & mask for j in range(M)])
         crp      = crom.get_port(async_read=True)
         wip, wqp = mi.get_port(write_capable=True), mq.get_port(write_capable=True)
         rip, rqp = mi.get_port(async_read=True),    mq.get_port(async_read=True)

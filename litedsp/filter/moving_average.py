@@ -67,7 +67,7 @@ class LiteDSPMovingAverage(LiteXModule):
             rp  = mem.get_port(async_read=True)
             self.specials += mem, wp, rp
             ptr = Signal(max=L)                   # Circular delay-line pointer.
-            old = Signal((data_width, True))      # x[n-L] (async read before the same-address write).
+            old = Signal((data_width, True))    # x[n-L] (async read before the same-address write).
             acc = Signal((acc_width, True))       # Running sum of the last L samples.
             acc_next = Signal((acc_width, True))
             self.comb += [

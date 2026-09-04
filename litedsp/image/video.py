@@ -29,7 +29,8 @@ class LiteDSPPixelFromVideo(LiteXModule):
     shorter or longer than ``width`` sets the sticky ``geometry_error``. Latency 1.
     """
     def __init__(self, data_width=8, width=640, height=480, coord_bits=12, with_csr=True):
-        check(2 <= width < 2**coord_bits and 1 <= height < 2**coord_bits, "expected 2 <= width, 1 <= height < 2**coord_bits")
+        check(2 <= width < 2**coord_bits and 1 <= height < 2**coord_bits,
+              "expected 2 <= width, 1 <= height < 2**coord_bits")
         self.data_width = data_width
         self.coord_bits = coord_bits
         self.latency    = 1
@@ -77,7 +78,8 @@ class LiteDSPPixelFromVideo(LiteXModule):
                 If(~self.sink.de & de_d,
                     col.eq(0),
                     If(col != self.width, self.geometry_error.eq(1)),  # The row still advances.
-                    If(row != self.height - 1, row.eq(row + 1)).Else(self.frames.eq(self.frames + 1)),
+                    If(row != self.height - 1, row.eq(row + 1)).Else(
+                        self.frames.eq(self.frames + 1)),
                 ),
                 If(active & (c >= self.width), self.geometry_error.eq(1)),
                 If(active, pending_first.eq(0)),
@@ -86,7 +88,8 @@ class LiteDSPPixelFromVideo(LiteXModule):
         ]
         self.sync += If(adv,
             self.source.valid.eq(active & armed),
-            self.source.r.eq(self.sink.r), self.source.g.eq(self.sink.g), self.source.b.eq(self.sink.b),
+            self.source.r.eq(self.sink.r), self.source.g.eq(self.sink.g),
+            self.source.b.eq(self.sink.b),
             self.source.eol.eq(eol),
             self.source.first.eq(active & pending_first),
             self.source.last.eq(eol & (row == self.height - 1)),
@@ -111,7 +114,8 @@ class LiteDSPPixelFromVideo(LiteXModule):
         ])
         self._frames = CSRStatus(32, name="frames", description="Frames received.")
         self.comb += [
-            self.width.eq(self._geometry.fields.width), self.height.eq(self._geometry.fields.height),
+            self.width.eq(self._geometry.fields.width),
+            self.height.eq(self._geometry.fields.height),
             self.clear.eq(self._control.fields.clear),
             self._status.fields.geometry_error.eq(self.geometry_error),
             self._frames.status.eq(self.frames),
@@ -149,7 +153,7 @@ class LiteDSPPixelToVideo(LiteXModule):
 
         adv = Signal()
         vtg = self.vtg_sink
-        frame_start = Signal()                                          # First active pixel of a frame.
+        frame_start = Signal()                                      # First active pixel of a frame.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             frame_start.eq(vtg.de & (vtg.hcount == 0) & (vtg.vcount == 0)),
@@ -186,9 +190,11 @@ class LiteDSPPixelToVideo(LiteXModule):
         self.sync += [
             If(adv,
                 self.source.valid.eq(vtg.valid),
-                self.source.hsync.eq(vtg.hsync), self.source.vsync.eq(vtg.vsync), self.source.de.eq(vtg.de),
+                self.source.hsync.eq(vtg.hsync), self.source.vsync.eq(vtg.vsync),
+                self.source.de.eq(vtg.de),
                 If(take & have,
-                    self.source.r.eq(self.sink.r), self.source.g.eq(self.sink.g), self.source.b.eq(self.sink.b),
+                    self.source.r.eq(self.sink.r), self.source.g.eq(self.sink.g),
+                    self.source.b.eq(self.sink.b),
                 ).Else(
                     self.source.r.eq(0), self.source.g.eq(0), self.source.b.eq(0),
                 ),
@@ -215,11 +221,14 @@ class LiteDSPPixelToVideo(LiteXModule):
             CSRField("underflow", size=1, offset=0, description="Sticky: an active beat had no pixel."),
             CSRField("synced",    size=1, offset=1, description="Pixels are locked to the timing."),
         ])
-        self._underflows = CSRStatus(32, name="underflows", description="Active beats without a pixel.")
-        self._dropped    = CSRStatus(32, name="dropped", description="Pixels dropped while synchronising.")
+        self._underflows = CSRStatus(32, name="underflows",
+                                     description="Active beats without a pixel.")
+        self._dropped    = CSRStatus(32, name="dropped",
+                                     description="Pixels dropped while synchronising.")
         self.comb += [
             self.clear.eq(self._control.fields.clear),
-            self._status.fields.underflow.eq(self.underflow), self._status.fields.synced.eq(self.synced),
+            self._status.fields.underflow.eq(self.underflow),
+            self._status.fields.synced.eq(self.synced),
             self._underflows.status.eq(self.underflows), self._dropped.status.eq(self.dropped),
         ]
 

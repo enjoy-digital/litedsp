@@ -217,7 +217,8 @@ class TestRS(unittest.TestCase):
         expected = [b for m in msgs for b in rs_encode_model(m, n, k)]
         self.assertEqual([c["data"]  for c in cap], expected)
         self.assertEqual([c["first"] for c in cap], [1 if i % n == 0 else 0 for i in range(2*n)])
-        self.assertEqual([c["last"]  for c in cap], [1 if i % n == n - 1 else 0 for i in range(2*n)])
+        self.assertEqual([c["last"]  for c in cap],
+                         [1 if i % n == n - 1 else 0 for i in range(2*n)])
 
     # verify-tier: model — default RS(255,223) encoder RTL, one full block vs the model.
     def test_rtl_encoder_t16_block(self):

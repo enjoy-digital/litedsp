@@ -48,13 +48,14 @@ class LiteDSPAlphaBlend(LiteXModule):
         self.comb += adv.eq(self.source.ready | ~self.source.valid)
         all_valid = Signal()
         self.comb += all_valid.eq(reduce_and([s.valid for s in sinks]))
-        for k, s in enumerate(sinks):                                   # Ready from the other sinks only.
+        for k, s in enumerate(sinks):                             # Ready from the other sinks only.
             others = [o.valid for j, o in enumerate(sinks) if j != k]
             self.comb += s.ready.eq(adv & reduce_and(others))
         a = Signal(9)
         if with_alpha_sink:
             full = (1 << DW) - 1
-            self.comb += a.eq(Mux(self.sink_alpha.data == full, 256, self.sink_alpha.data[DW - 8:] if DW >= 8 else (self.sink_alpha.data << (8 - DW))))
+            self.comb += a.eq(Mux(self.sink_alpha.data == full, 256, self.sink_alpha.data[DW - 8:]
+                if DW >= 8 else (self.sink_alpha.data << (8 - DW))))
         else:
             self.comb += a.eq(self.alpha)
         ia = Signal(9)
@@ -65,7 +66,8 @@ class LiteDSPAlphaBlend(LiteXModule):
             self.sync += If(adv, getattr(self.source, f).eq((p + 128) >> 8))
         self.sync += If(adv,
             self.source.valid.eq(all_valid),
-            self.source.first.eq(self.sink_a.first), self.source.eol.eq(self.sink_a.eol), self.source.last.eq(self.sink_a.last),
+            self.source.first.eq(self.sink_a.first), self.source.eol.eq(self.sink_a.eol),
+            self.source.last.eq(self.sink_a.last),
         )
 
         # CSR.
@@ -74,7 +76,9 @@ class LiteDSPAlphaBlend(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._alpha = CSRStorage(9, reset=self.alpha.reset.value, name="alpha", description="Blend factor (256 = 1.0, unused with an alpha stream).")
+        self._alpha = CSRStorage(9, reset=self.alpha.reset.value, name="alpha",
+                                 description="Blend factor (256 = 1.0, unused with an alpha "
+                                             "stream).")
         self.comb += self.alpha.eq(self._alpha.storage)
 
 def reduce_and(terms):

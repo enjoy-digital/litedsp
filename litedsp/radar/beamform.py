@@ -38,11 +38,13 @@ class LiteDSPBeamformer(LiteXModule):
     """
     def __init__(self, n_elements=4, n_beams=1, data_width=16, weight_width=16, weight_frac=14,
         shift=None, with_csr=True):
-        check(1 <= n_elements <= 16 and 1 <= n_beams <= 8, "expected 1 <= n_elements <= 16, 1 <= n_beams <= 8")
+        check(1 <= n_elements <= 16 and 1 <= n_beams <= 8,
+              "expected 1 <= n_elements <= 16, 1 <= n_beams <= 8")
         check(weight_frac < weight_width, "expected weight_frac < weight_width")
         if shift is None:
             shift = weight_frac
-        check(0 <= shift <= weight_frac + bits_for(n_elements) + 1, "expected a shift within the accumulator range")
+        check(0 <= shift <= weight_frac + bits_for(n_elements) + 1,
+              "expected a shift within the accumulator range")
         self.n_elements   = n_elements
         self.n_beams      = n_beams
         self.data_width   = data_width
@@ -51,7 +53,8 @@ class LiteDSPBeamformer(LiteXModule):
         self.shift        = shift
         self.cycles_per_sample = n_beams
         self.latency      = 3 if n_beams == 1 else None
-        layout = iq_layout(data_width) + ([("channel", bits_for(n_beams - 1))] if n_beams > 1 else [])
+        layout = iq_layout(data_width) + ([("channel", bits_for(n_beams - 1))] if n_beams > 1
+                                                                else [])
         self.sinks  = [stream.Endpoint(iq_layout(data_width)) for _ in range(n_elements)]
         self.source = stream.Endpoint(layout)
         self.weight_index = Signal(max=n_beams*n_elements)
@@ -68,13 +71,16 @@ class LiteDSPBeamformer(LiteXModule):
         N, K, WW, WF = n_elements, n_beams, weight_width, weight_frac
         w0 = int(round((1 << WF)/N))
         # Active and shadow weight sets.
-        act_re = [[Signal((WW, True), reset=w0, name=f"w_re{k}_{e}") for e in range(N)] for k in range(K)]
+        act_re = [[Signal((WW, True), reset=w0, name=f"w_re{k}_{e}") for e in range(N)]
+            for k in range(K)]
         act_im = [[Signal((WW, True), name=f"w_im{k}_{e}") for e in range(N)] for k in range(K)]
-        sh_re  = [[Signal((WW, True), reset=w0, name=f"s_re{k}_{e}") for e in range(N)] for k in range(K)]
+        sh_re  = [[Signal((WW, True), reset=w0, name=f"s_re{k}_{e}") for e in range(N)]
+            for k in range(K)]
         sh_im  = [[Signal((WW, True), name=f"s_im{k}_{e}") for e in range(N)] for k in range(K)]
         self.sync += [
             If(self.weight_we,
-                *[If(self.weight_index == k*N + e, sh_re[k][e].eq(self.weight_re), sh_im[k][e].eq(self.weight_im))
+                *[If(self.weight_index == k*N + e, sh_re[k][e].eq(self.weight_re),
+                     sh_im[k][e].eq(self.weight_im))
                   for k in range(K) for e in range(N)],
             ),
         ]
@@ -89,14 +95,16 @@ class LiteDSPBeamformer(LiteXModule):
             capture.eq(adv & (beam == 0) & all_valid),
         ]
         for e, s in enumerate(self.sinks):                              # Join: ready depends on the
-            others = [o.valid for k, o in enumerate(self.sinks) if k != e]   # *other* sinks' valid only.
+            # *other* sinks' valid only.
+            others = [o.valid for k, o in enumerate(self.sinks) if k != e]
             self.comb += s.ready.eq(adv & (beam == 0) & (reduce(and_, others) if others else 1))
         # Stage 1: the captured sample (held during the beam loop).
         xi = [Signal((data_width, True), name=f"xi{e}") for e in range(N)]
         xq = [Signal((data_width, True), name=f"xq{e}") for e in range(N)]
         v1, b1 = Signal(), Signal(max=max(K, 2))
         self.sync += If(adv,
-            If(capture, *[xi[e].eq(self.sinks[e].i) for e in range(N)], *[xq[e].eq(self.sinks[e].q) for e in range(N)]),
+            If(capture, *[xi[e].eq(self.sinks[e].i) for e in range(N)],
+               *[xq[e].eq(self.sinks[e].q) for e in range(N)]),
             v1.eq(capture | (beam != 0)),
             b1.eq(beam),
             If((beam != 0) | capture,
@@ -119,7 +127,8 @@ class LiteDSPBeamformer(LiteXModule):
         wi_sel = [Array([act_im[k][e] for k in range(K)])[b1] for e in range(N)]
         m = {}
         for e in range(N):
-            for n, (a, b) in (("rr", (wr_sel[e], xi[e])), ("iq", (wi_sel[e], xq[e])), ("rq", (wr_sel[e], xq[e])), ("ir", (wi_sel[e], xi[e]))):
+            for n, (a, b) in (("rr", (wr_sel[e], xi[e])), ("iq", (wi_sel[e], xq[e])),
+                              ("rq", (wr_sel[e], xq[e])), ("ir", (wi_sel[e], xi[e]))):
                 m[n, e] = Signal((PW, True), name=f"m_{n}{e}")
                 self.comb += m[n, e].eq(a*b)
         v2, b2 = Signal(), Signal(max=max(K, 2))
@@ -150,7 +159,9 @@ class LiteDSPBeamformer(LiteXModule):
 
     def add_csr(self):
         WW = self.weight_width
-        self._weight_index = CSRStorage(len(self.weight_index), name="weight_index", description="Shadow weight index (beam * n_elements + element).")
+        self._weight_index = CSRStorage(len(self.weight_index), name="weight_index",
+                                        description="Shadow weight index (beam * n_elements + "
+                                                    "element).")
         self._weight = CSRStorage(fields=[
             CSRField("re", size=WW, offset=0,  description=f"Weight real part (signed Q2.{self.weight_frac})."),
             CSRField("im", size=WW, offset=16, description="Weight imaginary part."),
@@ -173,8 +184,10 @@ class LiteDSPBeamformer(LiteXModule):
             self.weight_re.eq(self._weight.fields.re), self.weight_im.eq(self._weight.fields.im),
             self.weight_we.eq(self._weight.re),
             self.commit.eq(self._control.fields.commit), self.clear.eq(self._control.fields.clear),
-            self._status.fields.commit_pending.eq(self.commit_pending), self._status.fields.saturated.eq(self.saturated),
-            self._config.fields.n_elements.eq(self.n_elements), self._config.fields.n_beams.eq(self.n_beams),
+            self._status.fields.commit_pending.eq(self.commit_pending),
+            self._status.fields.saturated.eq(self.saturated),
+            self._config.fields.n_elements.eq(self.n_elements),
+            self._config.fields.n_beams.eq(self.n_beams),
             self._config.fields.weight_frac.eq(self.weight_frac),
         ]
 

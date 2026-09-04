@@ -234,7 +234,8 @@ class LiteDSPAGC(LiteXModule):
     def add_csr(self):
         self._target = CSRStorage(self.target.nbits, reset=1 << (self.data_width - 2),
             name="target", description="Target output magnitude.")
-        self._gain   = CSRStatus(self.gain.nbits, name="gain", description="Current gain (Q?.frac).")
+        self._gain   = CSRStatus(self.gain.nbits, name="gain",
+                                 description="Current gain (Q?.frac).")
         self._config = CSRStatus(fields=[
             CSRField("feedback_delay", size=2,
                 description="Accepted-sample delay in the gain feedback path."),

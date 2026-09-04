@@ -25,12 +25,13 @@ class TestRangeGate(unittest.TestCase):
     def test_bit_exact_continuous(self):
         prng = random.Random(1)
         x    = beats(prng, 300)
-        dut  = LiteDSPRangeGate(data_width=16, n_range_bins=8, n_pulses=3, pri=24, gate_start=4, with_csr=False)
+        dut  = LiteDSPRangeGate(data_width=16, n_range_bins=8, n_pulses=3, pri=24, gate_start=4,
+                                with_csr=False)
         dut.enable.reset = 1
         ri, rq, rf, rl = range_gate_model([b["i"] for b in x], [b["q"] for b in x], 24, 4, 8, 3)
         cap = run_stream(dut, x, len(ri), ["i", "q"], ["i", "q", "first", "last"],
             sink_throttle=0.2, source_ready_rate=0.7)
-        self.assertEqual(len(ri), 13*8)                              # 300 samples: 12 PRIs + a gated tail.
+        self.assertEqual(len(ri), 13*8)                       # 300 samples: 12 PRIs + a gated tail.
         self.assertTrue(np.array_equal(column(cap, "i", 16), ri))
         self.assertTrue(np.array_equal(column(cap, "q", 16), rq))
         self.assertEqual(column(cap, "first").tolist(), rf.tolist())
@@ -64,7 +65,8 @@ class TestRangeGate(unittest.TestCase):
             seen["irq"]   = (yield dut.ev.cpi.pending)
             seen["count"] = (yield dut.pulse_count)
             seen["run"]   = (yield dut.running)
-        run_simulation(dut, [driver(), stream_capture(dut.source, captured, len(ri), ["i", "q", "first", "last"],
+        run_simulation(dut, [
+            driver(), stream_capture(dut.source, captured, len(ri), ["i", "q", "first", "last"],
             seed=3, ready_rate=0.7)])
         self.assertTrue(np.array_equal(column(captured, "i", 16), ri))
         self.assertEqual(column(captured, "first").tolist(), rf.tolist())
@@ -72,7 +74,8 @@ class TestRangeGate(unittest.TestCase):
         self.assertEqual((seen["irq"], seen["count"], seen["run"]), (1, 6, 0))
 
     def test_invalid(self):
-        for kwargs in ({"n_range_bins": 0}, {"gate_start": 100}, {"pri": 1}, {"pulse_width": 200}, {"n_pulses": 0}):
+        for kwargs in ({"n_range_bins": 0}, {"gate_start": 100}, {"pri": 1}, {"pulse_width": 200},
+                       {"n_pulses": 0}):
             with self.assertRaises(ValueError, msg=str(kwargs)):
                 LiteDSPRangeGate(with_csr=False, **kwargs)
 

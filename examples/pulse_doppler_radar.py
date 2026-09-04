@@ -48,8 +48,8 @@ from litedsp.radar.design      import cfar_alpha
 
 # Scene --------------------------------------------------------------------------------------------
 
-P, B      = 16, 0.5                                                     # Chirp: samples, bandwidth (fs).
-N, M, PRI = 64, 16, 80                                                  # Range bins, pulses / CPI, PRI.
+P, B      = 16, 0.5                                                # Chirp: samples, bandwidth (fs).
+N, M, PRI = 64, 16, 80                                              # Range bins, pulses / CPI, PRI.
 N_CPI     = 2                                                           # RTL CPIs.
 FRAC      = 4                                                           # Sub-bin bits (Q.4).
 # (range bin, Doppler bin, amplitude, range rate, Doppler rate) - rates in bins per CPI.
@@ -65,7 +65,7 @@ def scene(seed=11):
     Doppler bin per pulse, plus clutter and noise."""
     rng   = np.random.default_rng(seed)
     pulse = chirp_reference(P, B)
-    n     = (N_CPI*M + 1)*PRI                                           # + one PRI: flushes the FIR tail.
+    n     = (N_CPI*M + 1)*PRI                                     # + one PRI: flushes the FIR tail.
     rx    = rng.normal(0, SIGMA, n) + 1j*rng.normal(0, SIGMA, n)
     for c in range(N_CPI):
         for p in range(M):
@@ -88,7 +88,7 @@ def simulate(top, beats, in_fields, out_fields, done, taps=(), max_cycles=12000)
     and record every transfer on the ``taps`` ``(endpoint, fields)``."""
     out  = []
     data = [[] for _ in taps]
-    def read(ep, fields):                                               # (no yield in comprehensions)
+    def read(ep, fields):                                             # (no yield in comprehensions)
         beat = {}
         for f in fields:
             beat[f] = (yield getattr(ep, f))
@@ -129,7 +129,8 @@ def simulate(top, beats, in_fields, out_fields, done, taps=(), max_cycles=12000)
 
 class FrontEnd(LiteXModule):
     def __init__(self):
-        self.rg = LiteDSPRangeGate(n_range_bins=N, n_pulses=M, pri=PRI, gate_start=0, pulse_width=P, with_csr=False)
+        self.rg = LiteDSPRangeGate(n_range_bins=N, n_pulses=M, pri=PRI, gate_start=0, pulse_width=P,
+                                   with_csr=False)
         self.pc = LiteDSPPulseCompressor(pulse_len=P, bandwidth=B, window="hamming", with_csr=False)
         self.mti = LiteDSPMTICanceller(n_range_bins=N, order=3, with_csr=False)
         self.ct = LiteDSPCornerTurn(n_range_bins=N, n_pulses=M, with_csr=False)
@@ -145,7 +146,8 @@ class FrontEnd(LiteXModule):
 def pass_front_end(adc):
     top = FrontEnd()
     n_out = N_CPI*N*M
-    out, (pc, mti) = simulate(top, adc, ["i", "q"], ["i", "q", "first", "last"], lambda o: len(o) >= n_out,
+    out, (pc, mti) = simulate(top, adc, ["i", "q"], ["i", "q", "first", "last"],
+                              lambda o: len(o) >= n_out,
         taps=[(top.pc.source, ["i", "q", "first"]), (top.mti.source, ["i", "q", "first"])])
     out = out[:n_out]
     # The compressor emits P-1 pipeline beats before its first frame tag: align on 'first'.
@@ -153,10 +155,13 @@ def pass_front_end(adc):
     mti = mti[next(k for k, b in enumerate(mti) if b["first"]):]
     r = {}
     # Framing: one slow-time column (M beats) per range bin.
-    r["framing_ok"] = all(b["first"] == (k % M == 0) and b["last"] == (k % M == M - 1) for k, b in enumerate(out))
+    r["framing_ok"] = all(b["first"] == (k % M == 0) and b["last"] == (k % M == M - 1) for k,
+                          b in enumerate(out))
     # Compressed range profiles (fast time, one frame per pulse).
-    comp = np.array([signed(b["i"], 16) + 1j*signed(b["q"], 16) for b in pc[:N_CPI*M*N]]).reshape(-1, N)
-    mtio = np.array([signed(b["i"], 16) + 1j*signed(b["q"], 16) for b in mti[:N_CPI*M*N]]).reshape(-1, N)
+    comp = np.array([signed(b["i"], 16) + 1j*signed(b["q"], 16) for b in pc[:N_CPI*M*N]]).reshape(
+        -1, N)
+    mtio = np.array([signed(b["i"], 16) + 1j*signed(b["q"], 16) for b in mti[:N_CPI*M*N]]).reshape(
+        -1, N)
     profile = np.abs(comp[5])                                           # Pulse 5 of CPI 0.
     expected = sorted([int(round(t[0])) for t in truth(0)] + [CLUTTER[0]])
     peaks = []
@@ -171,7 +176,8 @@ def pass_front_end(adc):
     r["profile"], r["profile_mti"] = profile, np.abs(mtio[5])
     r["columns"] = out
     ok = r["framing_ok"] and peaks == expected and r["clutter_db"] >= 30
-    print(f"[pass 1] framing {'ok' if r['framing_ok'] else 'BAD'}, compressed peaks {peaks} (expected {expected}), "
+    print(f"[pass 1] framing {'ok' if r['framing_ok'] else 'BAD'}, compressed peaks {peaks} "
+          f"(expected {expected}), "
           f"MTI clutter suppression {r['clutter_db']:.1f} dB")
     return ok, r
 
@@ -179,14 +185,17 @@ def pass_front_end(adc):
 
 class Detector(LiteXModule):
     def __init__(self):
-        self.dp   = LiteDSPDopplerProcessor(n_pulses=M, window="hann", magnitude="approx", with_csr=False)
+        self.dp   = LiteDSPDopplerProcessor(n_pulses=M, window="hann", magnitude="approx",
+                                            with_csr=False)
         self.cfar = LiteDSPCFAR2D(n_range_bins=N, n_doppler_bins=M, n_train=(3, 2), n_guard=(1, 1),
             data_width=17, with_csr=False)
-        self.pe   = LiteDSPPeakExtractor(n_range_bins=N, n_doppler_bins=M, data_width=17, frac_bits=FRAC, with_csr=False)
+        self.pe   = LiteDSPPeakExtractor(n_range_bins=N, n_doppler_bins=M, data_width=17,
+                                         frac_bits=FRAC, with_csr=False)
         self.tl   = LiteDSPTargetList(max_targets=16, data_width=17, frac_bits=FRAC, with_csr=False)
         self.cfar.alpha.reset = cfar_alpha(1e-4, self.cfar.n_training, "magnitude")
-        self.cfar.threshold_min.reset = 40                              # Noise floor: guards the zero-padded
-                                                                        # edges and the MTI notch column.
+        self.cfar.threshold_min.reset = 40                     # Noise floor: guards the zero-padded
+                                                                        # edges and the MTI notch
+                                                                        # column.
         self.sink, self.source = self.dp.sink, self.tl.source
         self.comb += [
             self.dp.source.connect(self.cfar.sink),
@@ -201,7 +210,8 @@ def pass_detection(columns):
     flush = [{"i": 0, "q": 0, "first": int(k == 0), "last": int(k == M - 1)} for k in range(M)]
     def done(o):
         return sum(1 for b in o if not b["hit"]) >= N_CPI
-    out, (cells, dets) = simulate(top, columns + flush, ["i", "q", "first", "last"], ["range", "doppler", "data", "hit", "first", "last"],
+    out, (cells, dets) = simulate(top, columns + flush, ["i", "q", "first", "last"],
+                                  ["range", "doppler", "data", "hit", "first", "last"],
         done, taps=[(top.dp.source, ["data"]), (top.cfar.source, ["detect"])])
     maps    = np.array([b["data"] for b in cells][:N_CPI*N*M]).reshape(N_CPI, N, M)
     detects = np.array([b["detect"] for b in dets][:N_CPI*N*M]).reshape(N_CPI, N, M)
@@ -213,7 +223,8 @@ def pass_detection(columns):
             bursts.append((cur, b["data"])); cur = []
             if len(bursts) == N_CPI:
                 break
-    r = dict(maps=maps, detects=detects, bursts=[b for b, _ in bursts], found=[], false_alarms=[], sidelobes=[], errors=[])
+    r = dict(maps=maps, detects=detects, bursts=[b for b, _ in bursts], found=[], false_alarms=[],
+             sidelobes=[], errors=[])
     ok = True
     for c, (recs, count) in enumerate(bursts):
         ok &= count == len(recs)
@@ -228,7 +239,8 @@ def pass_detection(columns):
                 ok = False
                 found.append(None)
             else:
-                used.add(best[1]); found.append(recs[best[1]]); r["errors"].append((c, k, abs(recs[best[1]][0] - round(tr)), abs(recs[best[1]][1] - td)))
+                used.add(best[1]); found.append(recs[best[1]]); r["errors"].append(
+                    (c, k, abs(recs[best[1]][0] - round(tr)), abs(recs[best[1]][1] - td)))
         # Unmatched records at a target's Doppler within the pulse length in range are its
         # compression sidelobes (P = 16 Hamming: ~-15 dB, above the threshold for a 40 dB target);
         # the rest are false alarms.
@@ -241,18 +253,23 @@ def pass_detection(columns):
             else:
                 fa += 1
         r["found"].append(found); r["false_alarms"].append(fa); r["sidelobes"].append(side)
-        r.setdefault("unmatched", []).append([(rr, dd, v) for i, (rr, dd, v) in enumerate(recs) if i not in used])
+        r.setdefault("unmatched", []).append(
+            [(rr, dd, v) for i, (rr, dd, v) in enumerate(recs) if i not in used])
         ok &= fa <= 1 and side <= 3
-        ok &= detects[c, CLUTTER[0], 0] == 0                            # MTI notch: no clutter detection.
+        ok &= detects[c, CLUTTER[0], 0] == 0                      # MTI notch: no clutter detection.
     # The 6.4-bin target: interpolated Doppler within 0.35 bin.
     ok &= all(dd <= 0.35 for (_, k, _, dd) in r["errors"] if k == 2)
-    print(f"[pass 2] targets found per CPI {[sum(f is not None for f in ff) for ff in r['found']]} / {len(TARGETS)}, "
-          f"sidelobe detections {r['sidelobes']}, false alarms {r['false_alarms']}, max range / Doppler error "
-          f"{max(e[2] for e in r['errors']) if r['errors'] else float('nan'):.2f} / {max(e[3] for e in r['errors']) if r['errors'] else float('nan'):.2f} bin, "
+    print(f"[pass 2] targets found per CPI {[sum(f is not None for f in ff) for ff in r['found']]} "
+          f"/ {len(TARGETS)}, "
+          f"sidelobe detections {r['sidelobes']}, false alarms {r['false_alarms']}, max range / "
+          f"Doppler error "
+          f"{max(e[2] for e in r['errors']) if r['errors'] else float('nan'):.2f} / "
+          f"{max(e[3] for e in r['errors']) if r['errors'] else float('nan'):.2f} bin, "
           f"clutter cell detected: {int(detects[:, CLUTTER[0], 0].sum())}")
     for c, u in enumerate(r["unmatched"]):
         if u:
-            print(f"         CPI {c} unmatched records (range, Doppler, cell): {[(round(a, 2), round(b, 2), v) for a, b, v in u]}; "
+            print(f"         CPI {c} unmatched records (range, Doppler, cell): "
+                  f"{[(round(a, 2), round(b, 2), v) for a, b, v in u]}; "
                   f"targets {[(round(a, 1), round(b, 1)) for a, b in truth(c)]}")
     return ok, r
 
@@ -268,10 +285,12 @@ def tracker_input(bursts, seed=5):
     def burst(recs):
         n = 0
         for rr, dd, v in recs:
-            beats.append({"range": int(round(rr*(1 << FRAC))), "doppler": int(round(dd*(1 << FRAC))), "data": int(v),
+            beats.append({"range": int(round(rr*(1 << FRAC))),
+                          "doppler": int(round(dd*(1 << FRAC))), "data": int(v),
                           "hit": 1, "first": int(n == 0), "last": 0})
             n += 1
-        beats.append({"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
+        beats.append(
+            {"range": 0, "doppler": 0, "data": n, "hit": 0, "first": int(n == 0), "last": 1})
     for recs in bursts:
         burst(recs)
     for c in range(len(bursts), N_TRACK_CPI):
@@ -295,7 +314,8 @@ def pass_tracking(bursts):
     tracks, cur = [], {}
     for b in out:
         if b["hit"]:
-            cur[b["id"]] = (b["range"]/(1 << FRAC), b["doppler"]/(1 << FRAC), signed(b["velocity"], VW)/256)
+            cur[b["id"]] = (b["range"]/(1 << FRAC), b["doppler"]/(1 << FRAC),
+                            signed(b["velocity"], VW)/256)
         else:
             tracks.append(cur); cur = {}
             if len(tracks) == N_TRACK_CPI:
@@ -311,7 +331,8 @@ def pass_tracking(bursts):
     if ok:
         for i in ids:
             rr, dd, _ = tracks[3][i]
-            assoc[i] = min(range(len(TARGETS)), key=lambda k: abs(truth(3)[k][0] - rr) + abs(truth(3)[k][1] - dd))
+            assoc[i] = min(range(len(TARGETS)),
+                           key=lambda k: abs(truth(3)[k][0] - rr) + abs(truth(3)[k][1] - dd))
         ok &= sorted(assoc.values()) == list(range(len(TARGETS)))
     err = []
     if ok:
@@ -319,11 +340,14 @@ def pass_tracking(bursts):
             for i, k in assoc.items():
                 err.append(tracks[c][i][0] - truth(c)[k][0])
         r["rms"] = float(np.sqrt(np.mean(np.square(err))))
-        r["velocity_error"] = max(abs(tracks[N_TRACK_CPI - 1][i][2] - TARGETS[k][3]) for i, k in assoc.items())
+        r["velocity_error"] = max(abs(tracks[N_TRACK_CPI - 1][i][2] - TARGETS[k][3]) for i,
+                                  k in assoc.items())
         ok &= r["rms"] <= 0.35 and r["velocity_error"] <= 0.1
         r["assoc"] = assoc
-    print(f"[pass 3] confirmed tracks {ids} (targets {len(TARGETS)}), range RMS over CPIs 8..{N_TRACK_CPI - 1} "
-          f"{r.get('rms', float('nan')):.2f} bin, max range-rate error {r.get('velocity_error', float('nan')):.3f} bin/CPI")
+    print(f"[pass 3] confirmed tracks {ids} (targets {len(TARGETS)}), range RMS over CPIs "
+          f"8..{N_TRACK_CPI - 1} "
+          f"{r.get('rms', float('nan')):.2f} bin, max range-rate error "
+          f"{r.get('velocity_error', float('nan')):.3f} bin/CPI")
     return ok, r
 
 # Plots --------------------------------------------------------------------------------------------
@@ -342,7 +366,8 @@ def plot(plot_dir, r1, r2, r3):
     ax[0].plot(20*np.log10(np.maximum(r1["profile_mti"], 1)), label="after MTI")
     for e in r1["peaks_expected"]:
         ax[0].axvline(e, color="k", alpha=0.2)
-    ax[0].set(title="Range profile (pulse 5, CPI 0)", xlabel="range bin", ylabel="dB"); ax[0].legend(fontsize=8)
+    ax[0].set(title="Range profile (pulse 5, CPI 0)", xlabel="range bin",
+              ylabel="dB"); ax[0].legend(fontsize=8)
     m = 20*np.log10(np.maximum(r2["maps"][0], 1))
     ax[1].imshow(m, aspect="auto", origin="lower", cmap="viridis")
     dr, dc = np.nonzero(r2["detects"][0])
@@ -351,11 +376,15 @@ def plot(plot_dir, r1, r2, r3):
         ax[1].plot(rec[1], rec[0], "r+", ms=10)
     for tr, td in truth(0):
         ax[1].plot(td, tr, "cx", ms=7)
-    ax[1].set(title="Range-Doppler map (CPI 0): detections, centroids (+), truth (x)", xlabel="Doppler bin", ylabel="range bin")
+    ax[1].set(title="Range-Doppler map (CPI 0): detections, centroids (+), truth (x)",
+              xlabel="Doppler bin", ylabel="range bin")
     for i, k in r3.get("assoc", {}).items():
-        ax[2].plot([t[i][0] for t in r3["tracks"][3:]], range(3, N_TRACK_CPI), "-", label=f"track {i}")
-        ax[2].plot([truth(c)[k][0] for c in range(N_TRACK_CPI)], range(N_TRACK_CPI), "k:", alpha=0.5)
-    ax[2].set(title="Tracks (range vs CPI, truth dotted)", xlabel="range bin", ylabel="CPI"); ax[2].legend(fontsize=8)
+        ax[2].plot([t[i][0] for t in r3["tracks"][3:]], range(3, N_TRACK_CPI), "-",
+                   label=f"track {i}")
+        ax[2].plot([truth(c)[k][0] for c in range(N_TRACK_CPI)], range(N_TRACK_CPI), "k:",
+                   alpha=0.5)
+    ax[2].set(title="Tracks (range vs CPI, truth dotted)", xlabel="range bin",
+              ylabel="CPI"); ax[2].legend(fontsize=8)
     fig.tight_layout()
     path = os.path.join(plot_dir, "an011_pulse_doppler.png")
     fig.savefig(path, dpi=110)

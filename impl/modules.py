@@ -94,10 +94,12 @@ from litedsp.audio.dither         import LiteDSPDither
 from litedsp.audio.eq             import LiteDSPAudioEQ
 from litedsp.level.logdb          import LiteDSPLog2, LiteDSPExp2
 from litedsp.audio.dynamics       import LiteDSPCompressor
-from litedsp.audio.effects        import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
+from litedsp.audio.effects        import (LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix,
+                                          LiteDSPReverb)
 from litedsp.stream.route         import LiteDSPTDMMux, LiteDSPTDMDemux
 from litedsp.audio.meter          import LiteDSPPeakMeter, LiteDSPLoudness
-from litedsp.audio.pdm            import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
+from litedsp.audio.pdm            import (LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC,
+                                          LiteDSPPDMReceiver)
 from litedsp.audio.i2s            import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.comm.fm_mod          import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
 from litedsp.comm.am_mod          import LiteDSPAMModulator
@@ -106,7 +108,8 @@ from litedsp.comm.ssb_mod         import LiteDSPSSBModulator
 from litedsp.comm.fsk_mod         import LiteDSPFSKModulator
 from litedsp.comm.line_code       import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming         import LiteDSPHammingEncoder, LiteDSPHammingDecoder
-from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+from litedsp.comm.conv_interleaver import (LiteDSPConvolutionalInterleaver,
+                                           LiteDSPConvolutionalDeinterleaver)
 from litedsp.comm.hdlc            import LiteDSPHDLCFramer, LiteDSPHDLCDeframer
 from litedsp.comm.bch             import LiteDSPBCHEncoder, LiteDSPBCHDecoder
 from litedsp.radar.timing         import LiteDSPRangeGate, LiteDSPPulseGenerator
@@ -762,7 +765,8 @@ def compressor():
     return d, _compressor_ios(d), 10.0
 
 def limiter():
-    d = LiteDSPCompressor(data_width=24, n_channels=2, lookahead=32, preset="limiter", with_csr=False)
+    d = LiteDSPCompressor(data_width=24, n_channels=2, lookahead=32, preset="limiter",
+                          with_csr=False)
     return d, _compressor_ios(d), 10.0
 
 def lfo():
@@ -775,7 +779,8 @@ def delay_line():
            _eps(d.sink, d.source), 10.0
 
 def chorus():
-    d = LiteDSPDelayLine(data_width=24, n_channels=2, max_delay=512, modulation=True, with_csr=False)
+    d = LiteDSPDelayLine(data_width=24, n_channels=2, max_delay=512, modulation=True,
+                         with_csr=False)
     return d, {d.delay, d.feedback, d.damping, d.wet, d.dry, d.mod_depth, d.bypass, d.clear_sat,
                d.sat} | _eps(d.sink, d.sink_mod, d.source), 10.0
 
@@ -846,7 +851,8 @@ def line_encoder():
 
 def line_decoder():
     d = LiteDSPLineDecoder(code="diff_manchester", with_csr=False)
-    return d, {d.invert, d.phase_rst, d.violation, d.violations, d.clear} | _eps(d.sink, d.source), 10.0
+    return d, {d.invert, d.phase_rst, d.violation, d.violations, d.clear} | _eps(d.sink,
+        d.source), 10.0
 
 def hamming_encoder():
     d = LiteDSPHammingEncoder(m=4, secded=True, with_csr=False)
@@ -854,7 +860,8 @@ def hamming_encoder():
 
 def hamming_decoder():
     d = LiteDSPHammingDecoder(m=4, secded=True, with_csr=False)
-    return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count, d.blocks, d.clear} | _eps(d.sink, d.source), 10.0
+    return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count, d.blocks,
+               d.clear} | _eps(d.sink, d.source), 10.0
 
 def convolutional_interleaver():
     d = LiteDSPConvolutionalInterleaver(with_csr=False)
@@ -870,7 +877,8 @@ def hdlc_framer():
 
 def hdlc_deframer():
     d = LiteDSPHDLCDeframer(with_csr=False)
-    return d, {d.fcs_ok, d.fcs_error, d.frames, d.fcs_errors, d.aborts, d.clear} | _eps(d.sink, d.source), 10.0
+    return d, {d.fcs_ok, d.fcs_error, d.frames, d.fcs_errors, d.aborts, d.clear} | _eps(d.sink,
+        d.source), 10.0
 
 def bch_encoder():
     d = LiteDSPBCHEncoder(m=6, t=3, with_csr=False)
@@ -878,7 +886,8 @@ def bch_encoder():
 
 def bch_decoder():
     d = LiteDSPBCHDecoder(m=6, t=3, with_csr=False)
-    return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count, d.blocks, d.clear} | _eps(d.sink, d.source), 10.0
+    return d, {d.corrected, d.corrected_total, d.uncorrectable, d.uncorrectable_count, d.blocks,
+               d.clear} | _eps(d.sink, d.source), 10.0
 
 def pm_modulator():
     d = LiteDSPPhaseModulator(with_csr=False)
@@ -886,15 +895,18 @@ def pm_modulator():
 
 def pixel_pattern():
     d = LiteDSPPixelPattern(with_csr=False)
-    return d, {d.mode, d.width, d.height, *d.const, d.enable, d.trigger, d.busy, d.frames} | _eps(d.source), 10.0
+    return d, {d.mode, d.width, d.height, *d.const, d.enable, d.trigger, d.busy,
+               d.frames} | _eps(d.source), 10.0
 
 def pixel_from_video():
     d = LiteDSPPixelFromVideo(with_csr=False)
-    return d, {d.width, d.height, d.clear, d.geometry_error, d.frames} | _eps(d.sink, d.source), 10.0
+    return d, {d.width, d.height, d.clear, d.geometry_error, d.frames} | _eps(d.sink,
+                                                                              d.source), 10.0
 
 def pixel_to_video():
     d = LiteDSPPixelToVideo(with_csr=False)
-    return d, {d.underflow, d.underflows, d.dropped, d.clear, d.synced} | _eps(d.sink, d.vtg_sink, d.source), 10.0
+    return d, {d.underflow, d.underflows, d.dropped, d.clear, d.synced} | _eps(d.sink, d.vtg_sink,
+                                                                               d.source), 10.0
 
 def line_buffer():
     d = LiteDSPLineBuffer(width=640, with_csr=False)
@@ -906,8 +918,10 @@ def line_buffer_5x5_rgb():
 
 def _kernel(preset, K=3, nc=1):
     c, sh, off = kernel_preset(preset)
-    d = LiteDSPKernel2D(n_channels=nc, kernel_size=K, coefficients=c, shift=sh, offset=off, width=640, with_csr=False)
-    return d, {d.coeff_index, d.coeff_value, d.coeff_we, d.commit, d.commit_now, d.commit_pending, d.shift, d.offset, d.bypass,
+    d = LiteDSPKernel2D(n_channels=nc, kernel_size=K, coefficients=c, shift=sh, offset=off,
+                        width=640, with_csr=False)
+    return d, {d.coeff_index, d.coeff_value, d.coeff_we, d.commit, d.commit_now, d.commit_pending,
+               d.shift, d.offset, d.bypass,
                d.sat, d.clear_sat, d.clear, d.geometry_error} | _eps(d.sink, d.source), 10.0
 
 def kernel_2d():
@@ -937,12 +951,14 @@ def pixel_gain():
 
 def pixel_lut():
     d = LiteDSPPixelLUT(n_channels=3, gamma=2.2, with_csr=False)
-    return d, {d.lut_addr, d.lut_data, d.lut_channel, d.lut_we, d.bypass} | _eps(d.sink, d.source), 10.0
+    return d, {d.lut_addr, d.lut_data, d.lut_channel, d.lut_we, d.bypass} | _eps(d.sink,
+        d.source), 10.0
 
 def color_matrix():
     c, i, o = color_preset("rgb_to_ycbcr_601")
     d = LiteDSPColorMatrix(coefficients=c, in_offsets=i, out_offsets=o, with_csr=False)
-    return d, {d.coeff_index, d.coeff_value, d.coeff_we, d.commit, d.commit_now, d.commit_pending, d.sat, d.clear_sat, d.bypass} | _eps(d.sink, d.source), 10.0
+    return d, {d.coeff_index, d.coeff_value, d.coeff_we, d.commit, d.commit_now, d.commit_pending,
+               d.sat, d.clear_sat, d.bypass} | _eps(d.sink, d.source), 10.0
 
 def debayer():
     d = LiteDSPDebayer(width=640, with_csr=False)
@@ -954,11 +970,13 @@ def downscaler():
 
 def crop():
     d = LiteDSPCrop(with_csr=False)
-    return d, {d.x0, d.y0, d.roi_width, d.roi_height, d.commit, d.commit_pending, d.clear, d.geometry_error} | _eps(d.sink, d.source), 10.0
+    return d, {d.x0, d.y0, d.roi_width, d.roi_height, d.commit, d.commit_pending, d.clear,
+               d.geometry_error} | _eps(d.sink, d.source), 10.0
 
 def pixel_stats():
     d = LiteDSPPixelStats(n_channels=3, with_csr=False)
-    return d, {d.channel, d.zone_width, d.zone_height, d.sum, d.min, d.max, d.count, *d.zone, d.update} | _eps(d.sink, d.source), 10.0
+    return d, {d.channel, d.zone_width, d.zone_height, d.sum, d.min, d.max, d.count, *d.zone,
+               d.update} | _eps(d.sink, d.source), 10.0
 
 def pixel_histogram():
     d = LiteDSPPixelHistogram(with_csr=False)
@@ -970,7 +988,8 @@ def alpha_blend():
 
 def box_overlay():
     d = LiteDSPBoxOverlay(with_csr=False)
-    return d, {d.box_index, d.box_x0, d.box_y0, d.box_x1, d.box_y1, d.box_color, d.box_enable, d.box_we, d.commit, d.commit_pending,
+    return d, {d.box_index, d.box_x0, d.box_y0, d.box_x1, d.box_y1, d.box_color, d.box_enable,
+               d.box_we, d.commit, d.commit_pending,
                d.thickness, d.bypass} | _eps(d.sink, d.source), 10.0
 
 def pixel_fifo():
@@ -987,13 +1006,16 @@ def pixel_unpack():
 
 def pulse_generator():
     d = LiteDSPPulseGenerator(with_csr=False)
-    return d, {d.start, d.rate, d.pulse_len, d.pri, d.n_pulses, d.enable, d.single, d.trigger, d.tx, d.pulse_start, d.running,
+    return d, {d.start, d.rate, d.pulse_len, d.pri, d.n_pulses, d.enable, d.single, d.trigger, d.tx,
+               d.pulse_start, d.running,
                d.pulse_count} | _eps(d.source), 10.0
 
 def range_gate():
     d = LiteDSPRangeGate(data_width=16, with_csr=False)
-    return d, {d.pri, d.gate_start, d.gate_len, d.pulse_width, d.n_pulses_cpi, d.enable, d.single, d.trigger,
-               d.tx, d.rx_gate, d.cpi_start, d.running, d.pulse_index, d.pulse_count} | _eps(d.sink, d.source), 10.0
+    return d, {d.pri, d.gate_start, d.gate_len, d.pulse_width, d.n_pulses_cpi, d.enable, d.single,
+               d.trigger,
+               d.tx, d.rx_gate, d.cpi_start, d.running, d.pulse_index, d.pulse_count} | _eps(d.sink,
+               d.source), 10.0
 
 def corner_turn():
     d = LiteDSPCornerTurn(n_range_bins=64, n_pulses=16, with_csr=False)
@@ -1009,37 +1031,46 @@ def os_cfar():
 
 def clutter_map():
     d = LiteDSPClutterMap(with_csr=False)
-    return d, {d.alpha, d.threshold_min, d.learn_all, d.freeze, d.clear, d.detections, d.scans} | _eps(d.sink, d.source), 10.0
+    return d, {d.alpha, d.threshold_min, d.learn_all, d.freeze, d.clear, d.detections,
+               d.scans} | _eps(d.sink, d.source), 10.0
 
 def cfar_2d():
     d = LiteDSPCFAR2D(with_csr=False)
-    return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
+    return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink,
+        d.source), 10.0
 
 def cfar_2d_wide():
     d = LiteDSPCFAR2D(n_train=(6, 3), with_csr=False)
-    return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink, d.source), 10.0
+    return d, {d.alpha, d.threshold_min, d.clear, d.frame_error, d.detections} | _eps(d.sink,
+        d.source), 10.0
 
 def peak_extractor():
     d = LiteDSPPeakExtractor(with_csr=False)
-    return d, {d.local_max, d.interpolate, d.clear, d.frame_error, d.count, d.last_count, d.cpi_count, d.cpi_done} | _eps(d.sink, d.source), 10.0
+    return d, {d.local_max, d.interpolate, d.clear, d.frame_error, d.count, d.last_count,
+               d.cpi_count, d.cpi_done} | _eps(d.sink, d.source), 10.0
 
 def target_list():
     d = LiteDSPTargetList(with_csr=False)
-    return d, {d.clear, d.overflow, d.dropped, d.cpi_count, d.sealed, d.rd_index, d.rd_range, d.rd_doppler, d.rd_data, d.rd_count} | _eps(d.sink, d.source), 10.0
+    return d, {d.clear, d.overflow, d.dropped, d.cpi_count, d.sealed, d.rd_index, d.rd_range,
+               d.rd_doppler, d.rd_data, d.rd_count} | _eps(d.sink, d.source), 10.0
 
 def kalman_tracker():
     d = LiteDSPKalmanTracker(with_csr=False)
-    return d, {d.q, d.r, d.p_vel0, d.cov_sat, d.clear_sat, d.gate_r, d.gate_d, d.confirm_hits, d.max_misses, d.emit_tentative,
-               d.clear, d.active, d.confirmed, d.dropped, d.cpi_count, d.cpi_done} | _eps(d.sink, d.source), 10.0
+    return d, {d.q, d.r, d.p_vel0, d.cov_sat, d.clear_sat, d.gate_r, d.gate_d, d.confirm_hits,
+               d.max_misses, d.emit_tentative,
+               d.clear, d.active, d.confirmed, d.dropped, d.cpi_count, d.cpi_done} | _eps(d.sink,
+               d.source), 10.0
 
 def beamformer():
     d = LiteDSPBeamformer(with_csr=False)
-    ports = {d.weight_index, d.weight_re, d.weight_im, d.weight_we, d.commit, d.commit_pending, d.saturated, d.clear} | _eps(d.source, *d.sinks)
+    ports = {d.weight_index, d.weight_re, d.weight_im, d.weight_we, d.commit, d.commit_pending,
+             d.saturated, d.clear} | _eps(d.source, *d.sinks)
     return d, ports, 10.0
 
 def beamformer_4beams():
     d = LiteDSPBeamformer(n_beams=4, with_csr=False)
-    ports = {d.weight_index, d.weight_re, d.weight_im, d.weight_we, d.commit, d.commit_pending, d.saturated, d.clear} | _eps(d.source, *d.sinks)
+    ports = {d.weight_index, d.weight_re, d.weight_im, d.weight_we, d.commit, d.commit_pending,
+             d.saturated, d.clear} | _eps(d.source, *d.sinks)
     return d, ports, 10.0
 
 def monopulse():
@@ -1048,11 +1079,13 @@ def monopulse():
 
 def tvg():
     d = LiteDSPTVG(with_csr=False)
-    return d, {d.g0, d.k_log, d.k_lin, d.bypass, d.saturated, d.clear} | _eps(d.sink, d.source), 10.0
+    return d, {d.g0, d.k_log, d.k_lin, d.bypass, d.saturated, d.clear} | _eps(d.sink,
+                                                                              d.source), 10.0
 
 def alpha_beta_tracker():
     d = LiteDSPAlphaBetaTracker(with_csr=False)
-    return d, {d.alpha, d.beta, d.gate_r, d.gate_d, d.confirm_hits, d.max_misses, d.emit_tentative, d.clear, d.active,
+    return d, {d.alpha, d.beta, d.gate_r, d.gate_d, d.confirm_hits, d.max_misses, d.emit_tentative,
+               d.clear, d.active,
                d.confirmed, d.dropped, d.cpi_count, d.cpi_done} | _eps(d.sink, d.source), 10.0
 
 def doppler():
@@ -1145,7 +1178,8 @@ REGISTRY = {
 # Subset for the slower full place-&-route flows.
 PNR_SUBSET = ["cfar_2d", "doppler", "nco", "mixer", "fir_complex", "fir_decimator", "cic_decimator",
               "cic_interpolator", "iir_biquad", "fft", "fft_iter", "cordic_vec", "ddc",
-              "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder", "viterbi_decoder", "viterbi_decoder_soft",
+              "duc", "channelizer", "frame_sync", "resampler_farm", "ldpc_decoder",
+              "viterbi_decoder", "viterbi_decoder_soft",
               "viterbi_decoder_acs32",
               "rs_decoder", "ccsds_rs_decoder",
               "cic_parallel_x2", "cic_parallel_x4", "mixer_parallel_x2", "farrow", "window",

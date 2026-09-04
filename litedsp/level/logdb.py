@@ -162,7 +162,8 @@ class LiteDSPExp2(LiteXModule):
     """
     def __init__(self, in_width=16, frac_bits=8, out_frac=20, out_width=25, with_csr=True):
         check(0 < frac_bits < in_width, "expected 0 < frac_bits < in_width")
-        check(out_frac >= 1 and out_width > out_frac, "expected out_frac >= 1 and out_width > out_frac")
+        check(out_frac >= 1 and out_width > out_frac,
+              "expected out_frac >= 1 and out_width > out_frac")
         self.in_width  = in_width
         self.frac_bits = frac_bits
         self.out_frac  = out_frac

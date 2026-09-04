@@ -89,7 +89,8 @@ class TestIIRBiquad(unittest.TestCase):
         def tone(f):
             return np.round(15000*np.cos(2*np.pi*f*np.arange(n))).astype(int)
         def run(x):
-            dut = LiteDSPIIRBiquad(data_width=16, coefficients=secs[0], frac_bits=frac, with_csr=False)
+            dut = LiteDSPIIRBiquad(data_width=16, coefficients=secs[0], frac_bits=frac,
+                                   with_csr=False)
             cap = run_stream(dut, [{"i": int(x[k]), "q": 0} for k in range(n)], n,
                 ["i", "q"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
             return column(cap, "i", 16)[n//2:]

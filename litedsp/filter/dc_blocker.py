@@ -94,18 +94,20 @@ class LiteDSPDCBlocker(LiteXModule):
                 # Legacy data_width-wide recursion (bit-identical to pre-precision_bits builds).
                 y_prev = Signal((data_width, True))  # y[n-1] (saturated feedback state).
                 y_next = Signal((data_width, True))
-                self.comb += y_next.eq(saturated(x - x_prev + y_prev - (y_prev >> pole_shift), data_width))
+                self.comb += y_next.eq(
+                    saturated(x - x_prev + y_prev - (y_prev >> pole_shift), data_width))
                 # State advances only on real transfers, so bubbles never corrupt the recursion.
                 self.sync += If(xfer,
                     x_prev.eq(x),
                     y_prev.eq(y_next),
                 )
-                self.sync += If(adv, getattr(self.source, field).eq(y_next))  # Bubbles masked by valid.
+                # Bubbles masked by valid.
+                self.sync += If(adv, getattr(self.source, field).eq(y_next))
             else:
                 # High-precision recursion: state carries p fractional bits (see class doc).
                 W      = data_width + p
                 y_wide = Signal((W, True))               # y[n-1] state, Qm.(n+p).
-                e      = Signal((p, True))               # Error-feedback state, in [-2**(p-1), 2**(p-1)).
+                e      = Signal((p, True))         # Error-feedback state, in [-2**(p-1), 2**(p-1)).
                 y_ceil = Signal((W + 1, True))           # y + 2**pole_shift - 1 (explicit width).
                 leak   = Signal((W, True))
                 diff   = Signal((W + 1, True))           # (x - x[n-1]) << p.

@@ -30,21 +30,28 @@ from test.registry import VSPEC
 # Blocks excluded from the generic cycle-latency check (layout/rate/semantic reasons; each
 # has its latency pinned by its own golden-model test instead).
 EXCLUDED = {
-    "pixel_from_video", "pixel_to_video", "line_buffer", "kernel_2d", "kernel_5x5", "gaussian_blur", "sharpen", "laplacian", "sobel", "rank_filter", "erode", "dilate", "debayer", "downscaler", "crop", "pixel_histogram", "fsk_modulator", "manchester_encoder", "manchester_decoder", "hamming_encoder", "hamming_decoder", "hdlc_framer", "hdlc_deframer", "bch_encoder", "bch_decoder",
+    "pixel_from_video", "pixel_to_video", "line_buffer", "kernel_2d", "kernel_5x5", "gaussian_blur",
+    "sharpen", "laplacian", "sobel", "rank_filter", "erode", "dilate", "debayer", "downscaler",
+    "crop", "pixel_histogram", "fsk_modulator", "manchester_encoder", "manchester_decoder",
+    "hamming_encoder", "hamming_decoder", "hdlc_framer", "hdlc_deframer", "bch_encoder",
+    "bch_decoder",
     "cordic_rot", "cordic_vec", "hilbert", "fm_demod", "am_demod", "phase_detect", "slicer",
     "symbol_mapper", "correlator", "carrier_loop", "scrambler", "descrambler", "conv_encoder",
     "viterbi_decoder", "crc", "diff_encoder", "diff_decoder", "stats", "fft", "fft_iter",
     "parallel_fft",  # Transform (like fft); latency pinned cycle-exact in test_fft_parallel.
     "window", "magnitude", "magnitude_cordic", "log2", "log_power", "envelope", "channel_mux",
-    "channel_demux", "tdm_mux", "tdm_demux", "combine", "split", "framer", "deframer", "mixer", "equalizer", "farrow",
-    "derotator", "ddc", "duc", "channelizer", "pfb_channelizer", "decimator", "interpolator", "fir_decimator",
+    "channel_demux", "tdm_mux", "tdm_demux", "combine", "split", "framer", "deframer", "mixer",
+    "equalizer", "farrow",
+    "derotator", "ddc", "duc", "channelizer", "pfb_channelizer", "decimator", "interpolator",
+    "fir_decimator",
     "fir_interpolator", "cic_decimator", "cic_interpolator", "halfband_dec", "halfband_int",
     "pulse_shaper", "downsampler", "upsampler", "iq_pack", "iq_unpack", "energy_detector",
     "cp_remove",  # Rate changer (drops the cyclic prefix); alignment pinned in test_ofdm.
     "bitstream_decimator",  # Rate changer (runtime rate); pinned in test_bitstream.
     "stereo_matrix",        # Serial two-beat engine; cycles_per_frame pinned in test_audio_level.
     "exp2",                 # Unsigned in/out widths differ; latency pinned in test_logdb.
-    "compressor", "limiter", "noise_gate",   # Serial engine; cycles_per_sample pinned in test_dynamics.
+    # Serial engine; cycles_per_sample pinned in test_dynamics.
+    "compressor", "limiter", "noise_gate",
     "delay_line", "chorus", "lfo", "reverb", # Serial engines / source; pinned in test_effects.
     "sigma_delta_mod", "sigma_delta_dac", "pdm_rx",   # Rate changer / pin-level sink and source.
     "i2s_rx", "i2s_tx",                                # Pin-level serial audio.

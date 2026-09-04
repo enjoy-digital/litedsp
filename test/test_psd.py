@@ -126,7 +126,8 @@ class TestPSD(unittest.TestCase):
         xi[:half][p::N] = amp            # Strong tone in every frame of the first spectrum only.
         k = bit_reverse(p, N.bit_length() - 1)
         for clear, retained in [(False, True), (True, False)]:
-            dut      = LiteDSPPSD(N, fft_latency=0, data_width=16, avg_log2=avg_log2, with_csr=False)
+            dut      = LiteDSPPSD(N, fft_latency=0, data_width=16, avg_log2=avg_log2,
+                                  with_csr=False)
             samples  = [{"i": int(xi[j]), "q": int(xq[j])} for j in range(n)]
             captured = []
             # Manual generator set (not run_stream): the clear pulse is timed off the shared

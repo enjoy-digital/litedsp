@@ -19,7 +19,8 @@ previous duties are held and the sticky ``missed`` flag is set.
 
 ``pwm_h[k]`` is high while ``count < cmp[k]`` (``2*cmp - 1`` cycles centered on the
 valley), ``pwm_l[k]`` is its complement; on every edge both outputs stay low for
-``dead_time`` cycles. ``enable`` gates the outputs; a ``fault`` input (over-current comparator, driver
+``dead_time`` cycles. ``enable`` gates the outputs; a ``fault``
+input (over-current comparator, driver
 fault) switches all six outputs off within one cycle and latches ``fault_latched`` until
 ``fault_clear`` (with ``with_irq=True``: ``ev.fault``; ``ev.period`` fires every valley
 for a CPU-driven loop). ``trigger`` pulses when the carrier passes ``trigger_count`` on the

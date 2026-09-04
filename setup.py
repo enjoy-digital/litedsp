@@ -27,7 +27,8 @@ setup(
         "design":  ["numpy"],      # Filter coefficient design (litedsp/filter/design.py).
         "gui":     ["dearpygui"],  # Flow-graph editor (litedsp/gui).
     },
-    packages                      = find_packages(exclude=("test*", "sim*", "impl*", "bench*", "doc*", "examples*")),
+    packages                      = find_packages(
+        exclude=("test*", "sim*", "impl*", "bench*", "doc*", "examples*")),
     include_package_data          = True,
     package_data                  = {"litedsp.flow": ["examples/*.json"]},
     keywords                      = "HDL ASIC FPGA hardware design",

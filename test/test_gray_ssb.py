@@ -29,14 +29,17 @@ class TestGray(unittest.TestCase):
             with self.subTest(width=width):
                 n = 1 << width
                 g = gray_model(range(n), width)
-                self.assertTrue(all(bin(int(g[k]) ^ int(g[(k + 1) % n])).count("1") == 1 for k in range(n)))
+                self.assertTrue(
+                    all(bin(int(g[k]) ^ int(g[(k + 1) % n])).count("1") == 1 for k in range(n)))
                 self.assertEqual(gray_model(g, width, encode=False).tolist(), list(range(n)))
                 words = [(a << width) | b for a in range(n) for b in range(n)][:400]
                 enc = LiteDSPGrayMapper(width=width, n_lanes=2, with_csr=False)
-                cap = run_stream(enc, [{"data": w} for w in words], len(words), ["data"], ["data"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(enc, [{"data": w} for w in words], len(words), ["data"], ["data"],
+                                 sink_throttle=0.2, source_ready_rate=0.7)
                 self.assertEqual(column(cap, "data").tolist(), gray_model(words, width, 2).tolist())
                 dec = LiteDSPGrayDemapper(width=width, n_lanes=2, with_csr=False)
-                cap = run_stream(dec, [{"data": w} for w in column(cap, "data").tolist()], len(words), ["data"], ["data"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(dec, [{"data": w} for w in column(cap, "data").tolist()], len(
+                    words), ["data"], ["data"], sink_throttle=0.2, source_ready_rate=0.7)
                 self.assertEqual(column(cap, "data").tolist(), words)
                 self.assertEqual(enc.latency, 1)
         with self.assertRaises(ValueError):
@@ -52,7 +55,8 @@ class TestSSB(unittest.TestCase):
             with self.subTest(sideband=sb):
                 dut = LiteDSPSSBModulator(with_csr=False)
                 dut.sideband.reset = sb
-                cap = run_stream(dut, [{"data": v} for v in x], 300, ["data"], ["i", "q"], sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(dut, [{"data": v} for v in x], 300, ["data"], ["i", "q"],
+                                 sink_throttle=0.2, source_ready_rate=0.7)
                 ri, rq = ssb_modulator_model(x, 31, sb)
                 self.assertEqual(column(cap, "i", 16).tolist(), ri.tolist())
                 self.assertEqual(column(cap, "q", 16).tolist(), rq.tolist())
@@ -60,7 +64,8 @@ class TestSSB(unittest.TestCase):
         for f in (0.1, 0.25, 0.4):
             tone = [int(round(16000*math.cos(2*math.pi*f*k))) for k in range(n)]
             dut = LiteDSPSSBModulator(with_csr=False)
-            cap = run_stream(dut, [{"data": v} for v in tone], n, ["data"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
+            cap = run_stream(dut, [{"data": v} for v in tone], n, ["data"], ["i", "q"],
+                             sink_throttle=0.0, source_ready_rate=1.0)
             z = (column(cap, "i", 16) + 1j*column(cap, "q", 16))[64:]
             spec = np.abs(np.fft.fft(z*np.hanning(len(z))))
             freqs = np.fft.fftfreq(len(z))

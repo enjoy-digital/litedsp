@@ -37,7 +37,8 @@ class TestLog2LUT(unittest.TestCase):
     # verify-tier: model — ROM-refined mantissa, bit-exact incl. 0 and the extremes.
     def test_bit_exact(self):
         prng = random.Random(5)
-        x = [0, 1, 2, 3, (1 << 32) - 1, 1 << 31] + [prng.randint(0, (1 << 32) - 1) for _ in range(300)]
+        x = [0, 1, 2, 3, (1 << 32) - 1,
+             1 << 31] + [prng.randint(0, (1 << 32) - 1) for _ in range(300)]
         dut = LiteDSPLog2(in_width=32, frac_bits=8, lut=True, with_csr=False)
         cap = run_stream(dut, [{"data": v} for v in x], len(x), ["data"], ["data"],
             sink_throttle=0.2, source_ready_rate=0.7)
@@ -59,21 +60,22 @@ class TestExp2(unittest.TestCase):
     # verify-tier: model — ROM + shifts, saturation and underflow, bit-exact under backpressure.
     def test_bit_exact(self):
         prng = random.Random(7)
-        v = [prng.randint(-47*256, 47*256) for _ in range(300)] + [0, 255, -1, 5*256, 6*256, -22*256, -30*256]
+        v = [prng.randint(-47*256, 47*256) for _ in range(300)] + [0, 255, -1, 5*256, 6*256,
+                                                                   -22*256, -30*256]
         dut = LiteDSPExp2(with_csr=False)
         cap = run_stream(dut, [{"data": x} for x in v], len(v), ["data"], ["data"],
             sink_throttle=0.2, source_ready_rate=0.7)
         self.assertTrue(np.array_equal(column(cap, "data"), exp2_model(v)))
         self.assertEqual(dut.latency, 2)
         self.assertEqual(int(exp2_model([0])[0]), 1 << 20)                  # 2**0 = 1.0.
-        self.assertEqual(int(exp2_model([6*256])[0]), (1 << 25) - 1)        # Saturates (2**6 > 2**5).
+        self.assertEqual(int(exp2_model([6*256])[0]), (1 << 25) - 1)      # Saturates (2**6 > 2**5).
 
     # verify-tier: bound — exp2(log2_lut(x))/x within 2**-7 (the log's residual mantissa error
     # plus the exp ROM rounding) over 30 octaves of input.
     def test_log_exp_round_trip(self):
         prng = random.Random(8)
         x = np.array([prng.randint(1, (1 << 30) - 1) for _ in range(500)], np.int64)
-        v = log2_model(x, 32, 8, lut=True) - 20*256                        # Scale into the output range.
+        v = log2_model(x, 32, 8, lut=True) - 20*256                   # Scale into the output range.
         y = exp2_model(v, out_frac=20, out_width=32)
         self.assertLess(np.max(np.abs(y/x - 1.0)), 2**-7)
 

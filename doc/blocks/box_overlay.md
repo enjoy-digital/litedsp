@@ -11,7 +11,8 @@ Draw up to ``n_boxes`` rectangle outlines on a pixel stream.
 Each box (``x0``, ``y0``, ``x1``, ``y1`` inclusive corners, colour, enable) lives in a shadow
 table written through ``box_index`` and committed at the next accepted ``first``; the
 runtime ``thickness`` (1..15) sets the outline width and the lowest enabled box wins where
-outlines overlap; ``boxes`` seeds both tables at build time. Coordinates come from a :class:`LiteDSPPixelCounter`. ``bypass``;
+outlines overlap; ``boxes`` seeds both tables at build time. Coordinates come from a
+:class:`LiteDSPPixelCounter`. ``bypass``;
 latency 1.
 
 ## Parameters

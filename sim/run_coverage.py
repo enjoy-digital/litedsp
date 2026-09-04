@@ -117,7 +117,8 @@ def console(results, waivers, min_pct):
         pct = 100.0*covered/total if total else 0.0
         if name in waivers:
             waiver = waivers[name]
-            status = f"waived ({len(waiver['semantic_checks'])} semantic checks: {waiver['reason']})"
+            status = (f"waived ({len(waiver['semantic_checks'])} semantic checks: "
+                      f"{waiver['reason']})")
         elif total == 0:
             status = "NO DATA"
         elif min_pct is not None and pct < min_pct:
@@ -127,12 +128,14 @@ def console(results, waivers, min_pct):
         print(f"{name:18} {f'{covered}/{total}':>11} {pct:8.1f}%  {status}")
     covered = sum(c for c, _ in results.values())
     total   = sum(t for _, t in results.values())
-    print(f"{'overall':18} {f'{covered}/{total}':>11} {100.0*covered/total if total else 0.0:8.1f}%")
+    print(
+        f"{'overall':18} {f'{covered}/{total}':>11} {100.0*covered/total if total else 0.0:8.1f}%")
 
 # Main ---------------------------------------------------------------------------------------------
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Verilator line coverage of the LiteDSP co-simulation suite.")
+    parser = argparse.ArgumentParser(description="Verilator line coverage of the LiteDSP "
+                                                 "co-simulation suite.")
     parser.add_argument("blocks", nargs="*",                 help="Blocks to run (default: all table entries).")
     parser.add_argument("--min",       default=None, type=float, help="Gate: fail if a non-waived block is below this %%.")
     parser.add_argument("--output",    default=os.path.join(ROOT, "coverage.json"), help="coverage.json path.")

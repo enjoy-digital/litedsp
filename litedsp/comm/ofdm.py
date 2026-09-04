@@ -52,7 +52,8 @@ class LiteDSPCPInsert(LiteXModule):
         # -------
         mem = Memory(2*data_width, fft_size)    # One I/Q symbol buffer ({q, i} packed).
         wp  = mem.get_port(write_capable=True)  # Fill port (FILL state).
-        rp  = mem.get_port(async_read=True)     # Emit port (async read: data valid in the same EMIT cycle).
+        # Emit port (async read: data valid in the same EMIT cycle).
+        rp  = mem.get_port(async_read=True)
         self.specials += mem, wp, rp
 
         # Signals.
@@ -88,7 +89,8 @@ class LiteDSPCPInsert(LiteXModule):
                 )
             )
         )
-        fsm.act("EMIT",  # Stream CP + N samples; input stalled (upstream backpressure does the rate expansion).
+        # Stream CP + N samples; input stalled (upstream backpressure does the rate expansion).
+        fsm.act("EMIT",
             self.source.valid.eq(1),
             self.source.first.eq(out_cnt == 0),
             self.source.last.eq(out_cnt == (fft_size + cp_len - 1)),

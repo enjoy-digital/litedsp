@@ -71,18 +71,30 @@ from litedsp.common import check
 # IEEE 802.11-2012 Annex F, Table F-1: n = 648, rate 1/2, z = 27. -1 = zero block, s >= 0 =
 # identity right-cyclic-shifted by s (row r of the block has its one at column (r + s) mod z).
 LDPC_BASE = [
-    [ 0, -1, -1, -1,  0,  0, -1, -1,  0, -1, -1,  0,  1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-    [22,  0, -1, -1, 17, -1,  0,  0, 12, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-    [ 6, -1,  0, -1, 10, -1, -1, -1, 24, -1,  0, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1],
-    [ 2, -1, -1,  0, 20, -1, -1, -1, 25,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1],
-    [23, -1, -1, -1,  3, -1, -1, -1,  0, -1,  9, 11, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1],
-    [24, -1, 23,  1, 17, -1,  3, -1, 10, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1],
-    [25, -1, -1, -1,  8, -1, -1, -1,  7, 18, -1, -1,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1],
-    [13, 24, -1, -1,  0, -1,  8, -1,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1],
-    [ 7, 20, -1, 16, 22, 10, -1, -1, 23, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1],
-    [11, -1, -1, -1, 19, -1, -1, -1, 13, -1,  3, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1],
-    [25, -1,  8, -1, 23, 18, -1, 14,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0],
-    [ 3, -1, -1, -1, 16, -1, -1,  2, 25,  5, -1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0],
+    [ 0, -1, -1, -1,  0,  0, -1, -1,  0, -1, -1,  0,  1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     -1],
+    [22,  0, -1, -1, 17, -1,  0,  0, 12, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1,
+     -1],
+    [ 6, -1,  0, -1, 10, -1, -1, -1, 24, -1,  0, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1, -1,
+     -1],
+    [ 2, -1, -1,  0, 20, -1, -1, -1, 25,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1, -1,
+     -1],
+    [23, -1, -1, -1,  3, -1, -1, -1,  0, -1,  9, 11, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1, -1,
+     -1],
+    [24, -1, 23,  1, 17, -1,  3, -1, 10, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1, -1,
+     -1],
+    [25, -1, -1, -1,  8, -1, -1, -1,  7, 18, -1, -1,  0, -1, -1, -1, -1, -1,  0,  0, -1, -1, -1,
+     -1],
+    [13, 24, -1, -1,  0, -1,  8, -1,  6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1,
+     -1],
+    [ 7, 20, -1, 16, 22, 10, -1, -1, 23, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1,
+     -1],
+    [11, -1, -1, -1, 19, -1, -1, -1, 13, -1,  3, 17, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0,
+     -1],
+    [25, -1,  8, -1, 23, 18, -1, 14,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  0,
+     0],
+    [ 3, -1, -1, -1, 16, -1, -1,  2, 25,  5, -1, -1,  1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     0],
 ]
 
 LDPC_Z  = 27                 # Circulant (lifting) size.
@@ -168,7 +180,8 @@ class LiteDSPLDPCEncoder(LiteXModule):
         # next block is computed at each drain boundary from the running accumulator and the
         # head of the lambda bank, which shifts down by one block per boundary.
         p0r    = Signal(z)  # p0 (kept for the r = 6 step).
-        pacc   = Signal(z)  # Chain accumulator: p_pb at the start of drain block pb (seeded P(1) p0).
+        # Chain accumulator: p_pb at the start of drain block pb (seeded P(1) p0).
+        pacc   = Signal(z)
         pdrain = Signal(z)  # Shift-out copy of the block being drained.
         pnext  = Signal(z)  # p_{pb+1}, solved at the drain boundary of block pb.
         p0_x   = reduce(xor, lam)
@@ -286,7 +299,7 @@ class LiteDSPLDPCDecoder(LiteXModule):
         appmax  = (1 << (llr_bits + 1)) - 1  # APP saturation (31).
         app_w   = llr_bits + 2               # APP width, signed.
         mag_w   = llr_bits                   # Check-message magnitude width (<= norm(qmax)).
-        q_w     = llr_bits + 3               # Full-precision Q width, signed (<= appmax + norm(qmax)).
+        q_w     = llr_bits + 3            # Full-precision Q width, signed (<= appmax + norm(qmax)).
         idx_w   = bits_for(max_deg - 1)
         self.llr_bits  = llr_bits
         self.max_iters = max_iters
@@ -599,7 +612,8 @@ class LiteDSPLDPCDecoder(LiteXModule):
             CSRField("iterations", size=5, description="Iterations used by the last decoded block."),
             CSRField("parity_ok",  size=1, description="Last block converged to a zero syndrome."),
         ])
-        self._failures = CSRStatus(16, description="Blocks that exhausted max_iters unconverged since clear.")
+        self._failures = CSRStatus(16, description="Blocks that exhausted max_iters unconverged "
+                                                   "since clear.")
         self._clear    = CSRStorage(1,  description="Clear the failure counter (write to clear).")
         self.comb += [
             self._config.fields.n.eq(self.n),

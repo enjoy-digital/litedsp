@@ -35,7 +35,8 @@ class LiteDSPHilbert(LiteXModule):
 
         # FIR Paths.
         # ----------
-        self.fir_i = LiteDSPFIRFilter(n_taps, data_width=data_width)   # Delay path (matches group delay).
+        # Delay path (matches group delay).
+        self.fir_i = LiteDSPFIRFilter(n_taps, data_width=data_width)
         self.fir_q = LiteDSPFIRFilter(n_taps, data_width=data_width)   # Hilbert (90 deg) path.
         self.latency = self.fir_i.latency
 

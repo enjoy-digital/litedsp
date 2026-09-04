@@ -113,8 +113,10 @@ class _LiteDSPFFTVectorStage(LiteXModule):
                         self.sync += If(xfer, tr.eq(cos_rp.dat_r), ti.eq(sin_rp.dat_r))
                     else:
                         sign = 1 << (twiddle_width - 1)
-                        tr_v = cos_init[k] - (1 << twiddle_width) if cos_init[k] & sign else cos_init[k]
-                        ti_v = sin_init[k] - (1 << twiddle_width) if sin_init[k] & sign else sin_init[k]
+                        tr_v = cos_init[k] - (1 << twiddle_width) if cos_init[
+                            k] & sign else cos_init[k]
+                        ti_v = sin_init[k] - (1 << twiddle_width) if sin_init[
+                            k] & sign else sin_init[k]
                         tr = Constant(tr_v, (twiddle_width, True))
                         ti = Constant(ti_v, (twiddle_width, True))
                     twiddles.append((tr, ti))
@@ -188,8 +190,10 @@ class _LiteDSPFFTVectorStage(LiteXModule):
                         cos_init = _twiddle_rom(D, math.cos, twiddle_width)
                         sin_init = _twiddle_rom(D, math.sin, twiddle_width)
                         sign = 1 << (twiddle_width - 1)
-                        tr_v = cos_init[p] - (1 << twiddle_width) if cos_init[p] & sign else cos_init[p]
-                        ti_v = sin_init[p] - (1 << twiddle_width) if sin_init[p] & sign else sin_init[p]
+                        tr_v = cos_init[p] - (1 << twiddle_width) if cos_init[
+                            p] & sign else cos_init[p]
+                        ti_v = sin_init[p] - (1 << twiddle_width) if sin_init[
+                            p] & sign else sin_init[p]
                         tr = Constant(tr_v, (twiddle_width, True))
                         ti = Constant(ti_v, (twiddle_width, True))
                         prod_i = Signal((data_width + twiddle_width + 2, True))

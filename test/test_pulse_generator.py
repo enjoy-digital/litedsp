@@ -25,7 +25,8 @@ class TestPulseGenerator(unittest.TestCase):
         dut = LiteDSPPulseGenerator(pulse_len=16, bandwidth=0.5, pri=48, n_pulses=2, with_csr=False)
         dut.enable.reset = 1
         self.starts = 0
-        cap = run_stream(dut, None, 2*48, [], OUT, source_ready_rate=0.7, extra=[self._monitor(dut)])
+        cap = run_stream(dut, None, 2*48, [], OUT, source_ready_rate=0.7,
+                         extra=[self._monitor(dut)])
         ref = pulse_generator_model(2, 16, 48, 0.5)
         for name, col, w in zip(OUT, ref, (16, 16, None, None)):
             self.assertEqual(column(cap, name, w).tolist(), col.tolist(), name)
@@ -40,7 +41,8 @@ class TestPulseGenerator(unittest.TestCase):
         dut.single.reset = 1
         start, rate = chirp_words(0.25, 24)
         dut.start.reset, dut.rate.reset, dut.pulse_len.reset = start, rate, 24
-        cap = run_stream(dut, None, 40, [], OUT, source_ready_rate=1.0, extra=[self._trigger(dut, at=3)])
+        cap = run_stream(dut, None, 40, [], OUT, source_ready_rate=1.0,
+                         extra=[self._trigger(dut, at=3)])
         ref = pulse_generator_model(1, 24, 40, 0.25)
         for name, col, w in zip(OUT, ref, (16, 16, None, None)):
             self.assertEqual(column(cap, name, w).tolist(), col.tolist(), name)

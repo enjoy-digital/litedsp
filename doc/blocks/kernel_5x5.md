@@ -9,7 +9,8 @@ latency: 139 samples · CSR: yes · bypass: yes
 ``kernel_size x kernel_size`` correlation kernel on a raster stream (per channel).
 
 A :class:`LiteDSPLineBuffer` supplies the neighbourhood; each channel computes
-``sum(coef[i][j] * w[i][j])`` with signed ``coeff_width`` coefficients (row-major, ``coef[0][0]``
+``sum(coef[i][j] * w[i][j])`` with signed ``coeff_width``
+coefficients (row-major, ``coef[0][0]``
 on the top-left neighbour), then ``y = clamped(rounded(acc, shift) + offset)`` with the sticky
 ``sat`` flag. Coefficients live in shadow registers loaded through ``coeff_index`` (auto-
 incremented by a ``coeff_we`` write) and copied to the active set by ``commit`` at the next

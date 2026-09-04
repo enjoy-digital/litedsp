@@ -38,10 +38,12 @@ from litedsp.comm.fm_demod import LiteDSPFMDemod
 from litedsp.comm.design   import fsk_deviation
 from litedsp.filter.design import gaussian_coefficients
 
-from test.models import hdlc_frame_model, hamming_encode_model, fsk_modulator_model, hamming_decode_model, hdlc_deframe_model
+from test.models import (hdlc_frame_model, hamming_encode_model, fsk_modulator_model,
+                         hamming_decode_model, hdlc_deframe_model)
 
 SPS, BT = 8, 0.5
-MESSAGE = b"LiteDSP AN013: GFSK link with Hamming(7,4) FEC and HDLC framing, 64 bytes of text!!"[:64]
+MESSAGE = b"LiteDSP AN013: GFSK link with Hamming(7,4) FEC and HDLC framing, 64 bytes of text!!"[
+    :64]
 
 def text_bits(msg):
     return [(b >> i) & 1 for b in msg for i in range(8)]
@@ -90,7 +92,8 @@ class TX(LiteXModule):
         self.mod    = LiteDSPFSKModulator(sps=SPS, bt=BT, with_csr=False)
         self.mod.deviation.reset = fsk_deviation(1.0, SPS)
         self.sink, self.source = self.framer.sink, self.mod.source
-        self.comb += [self.framer.source.connect(self.fec.sink), self.fec.source.connect(self.mod.sink)]
+        self.comb += [self.framer.source.connect(self.fec.sink),
+                      self.fec.source.connect(self.mod.sink)]
 
 class RX(LiteXModule):
     def __init__(self):
@@ -105,7 +108,8 @@ def tx_model(payload_bits):
     frame += [0]*((-len(frame)) % 4)                                    # Pad to whole codewords.
     coded, _, _ = hamming_encode_model(frame, 3)
     coded = coded.tolist()
-    i, q = fsk_modulator_model(coded, 1, SPS, gaussian_coefficients(SPS, 4, BT, 16), fsk_deviation(1.0, SPS), 0)
+    i, q = fsk_modulator_model(coded, 1, SPS, gaussian_coefficients(SPS, 4, BT, 16),
+                               fsk_deviation(1.0, SPS), 0)
     return frame, coded, i, q
 
 def demod_slice(y, n_bits, ref_bits=None):
@@ -155,13 +159,16 @@ def model_link(coded, i, q, ebn0_db, rng):
 def pass_tx(payload_bits):
     frame, coded, ri, rq = tx_model(payload_bits)
     top = TX()
-    beats = [{"data": b, "first": int(k == 0), "last": int(k == len(payload_bits) - 1)} for k, b in enumerate(payload_bits)]
+    beats = [{"data": b, "first": int(k == 0), "last": int(k == len(payload_bits) - 1)} for k,
+             b in enumerate(payload_bits)]
     n = len(coded)*SPS
-    out = run_chain(top, beats, ["data", "first", "last"], ["i", "q"], n, done=lambda o: len(o) >= n)
+    out = run_chain(top, beats, ["data", "first", "last"], ["i", "q"], n,
+                    done=lambda o: len(o) >= n)
     def signed(v): return v - 65536 if v >= 32768 else v
     gi = [signed(o["i"]) for o in out[:n]]; gq = [signed(o["q"]) for o in out[:n]]
     ok = gi == ri.tolist() and gq == rq.tolist()
-    print(f"[tx] {len(payload_bits)} payload bits -> {len(frame)} framed -> {len(coded)} coded bits -> {n} I/Q samples; bit-exact vs the models: {ok}")
+    print(f"[tx] {len(payload_bits)} payload bits -> {len(frame)} framed -> {len(coded)} coded "
+          f"bits -> {n} I/Q samples; bit-exact vs the models: {ok}")
     return ok, dict(frame=frame, coded=coded, i=ri, q=rq)
 
 def pass_rx(coded, rx_bits, label, expect_text, expect_unc, expect_fcs_ok):
@@ -169,7 +176,8 @@ def pass_rx(coded, rx_bits, label, expect_text, expect_unc, expect_fcs_ok):
     beats = [{"data": b} for b in rx_bits]
     def done(o):
         return any(x["last"] for x in o) or len(o) >= 4000
-    out = run_chain(top, beats + [{"data": (0x7E >> i) & 1} for i in range(8)]*3, ["data"], ["data", "first", "last", "fcs_ok"], 0, done=done)
+    out = run_chain(top, beats + [{"data": (0x7E >> i) & 1} for i in range(8)]*3, ["data"],
+                    ["data", "first", "last", "fcs_ok"], 0, done=done)
     payload = [o["data"] for o in out]
     fcs_ok  = int(out[-1]["fcs_ok"]) if out and out[-1]["last"] else 0
     text = bits_text(payload)
@@ -205,7 +213,8 @@ def main():
     for e in ebn0:
         raw_e, cod_e, n_bits = 0, 0, 0
         for _ in range(6):
-            rx, raw_err, dec = model_link(coded, np.concatenate([tx["i"], np.zeros(4*SPS)]), np.concatenate([tx["q"], np.zeros(4*SPS)]), e, rng)
+            rx, raw_err, dec = model_link(coded, np.concatenate([tx["i"], np.zeros(4*SPS)]),
+                                          np.concatenate([tx["q"], np.zeros(4*SPS)]), e, rng)
             raw_e += raw_err; n_bits += len(coded)
             cod_e += sum(int(a != b) for a, b in zip(dec, tx["frame"]))
         raw_ber.append(raw_e/n_bits); coded_ber.append(cod_e/(n_bits*4/7))
@@ -213,7 +222,8 @@ def main():
     print("[ber] raw      " + " ".join(f"{b:5.3f}" for b in raw_ber))
     print("[ber] coded    " + " ".join(f"{b:5.3f}" for b in coded_ber))
     # RTL point at 8 dB: demodulate through LiteDSPFMDemod, decode through the RTL FEC.
-    ci, cq = channel(np.concatenate([tx["i"], np.zeros(4*SPS)]), np.concatenate([tx["q"], np.zeros(4*SPS)]), 8, np.random.default_rng(21))
+    ci, cq = channel(np.concatenate([tx["i"], np.zeros(4*SPS)]),
+                     np.concatenate([tx["q"], np.zeros(4*SPS)]), 8, np.random.default_rng(21))
     demod = LiteDSPFMDemod(with_csr=False)
     beats = [{"i": int(a), "q": int(b)} for a, b in zip(ci, cq)]
     class D(LiteXModule):
@@ -238,8 +248,10 @@ def main():
             ax.semilogy(ebn0, np.maximum(raw_ber, 1e-5), "o-", label="raw (model)")
             ax.semilogy(ebn0, np.maximum(coded_ber, 1e-5), "s-", label="Hamming(7,4) (model)")
             ax.semilogy([8], [max(raw_rtl, 1e-5)], "r*", ms=12, label="raw (RTL demod)")
-            ax.set(xlabel="Eb/N0 (dB)", ylabel="BER", title="GFSK (BT 0.5, h = 1) link"); ax.grid(True, which="both"); ax.legend()
-            fig.tight_layout(); path = os.path.join(args.plot_dir, "an013_fsk_hamming_link.png"); fig.savefig(path, dpi=110)
+            ax.set(xlabel="Eb/N0 (dB)", ylabel="BER",
+                   title="GFSK (BT 0.5, h = 1) link"); ax.grid(True, which="both"); ax.legend()
+            fig.tight_layout(); path = os.path.join(
+                args.plot_dir, "an013_fsk_hamming_link.png"); fig.savefig(path, dpi=110)
             print(f"  plot -> {path}")
         except ImportError:
             print("[plot] matplotlib not installed, skipping the figure")

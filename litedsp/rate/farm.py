@@ -114,8 +114,9 @@ class LiteDSPResamplerFarm(LiteXModule):
 
         # Memories.
         # ---------
-        depth = _pow2_ceil(n_taps + R)                        # Per-channel history (pow2: free wrap).
-        acc_w = 2*data_width + (n_taps - 1).bit_length() + 1  # Product + log2(n_taps) accumulation growth.
+        depth = _pow2_ceil(n_taps + R)                      # Per-channel history (pow2: free wrap).
+        # Product + log2(n_taps) accumulation growth.
+        acc_w = 2*data_width + (n_taps - 1).bit_length() + 1
 
         tap_aw = max(1, bits_for(n_taps - 1))
         tap_stride = 1 << tap_aw
@@ -129,7 +130,7 @@ class LiteDSPResamplerFarm(LiteXModule):
             coeff_init = [c & ((1 << data_width) - 1) for c in coefficients]
             crom_depth = n_taps
         crom = Memory(data_width, crom_depth, init=coeff_init)
-        mi   = Memory(data_width, depth << cw)                # Channel-major: address = {channel, ptr}.
+        mi   = Memory(data_width, depth << cw)            # Channel-major: address = {channel, ptr}.
         mq   = Memory(data_width, depth << cw)
         crp  = crom.get_port(async_read=True)
         cwp  = crom.get_port(write_capable=True)              # Runtime coefficient reload.
@@ -161,7 +162,7 @@ class LiteDSPResamplerFarm(LiteXModule):
         wptr  = Signal(max=depth)                     # Sample write pointer (per-channel offset).
         decim = Signal(max=R) if R > 1 else Signal()  # Position within the R-sample window.
         t     = Signal(max=n_taps + 1)                # Tap index (MAC step / coefficient address).
-        radr  = Signal(max=depth)                     # History read pointer (walks back from newest).
+        radr  = Signal(max=depth)                   # History read pointer (walks back from newest).
         acc_i, acc_q = Signal((acc_w, True)), Signal((acc_w, True))
         ci = Signal((data_width, True))               # Signed views of the I/Q/coeff read data.
         cq = Signal((data_width, True))
@@ -299,7 +300,8 @@ class LiteDSPResamplerFarm(LiteXModule):
             description="Write the next FIR coefficient (auto-incrementing tap index).")
         if self.per_channel_taps:
             self._coeff_channel = CSRStorage(cw, name="coeff_channel",
-                description="Per-channel coefficient bank selected for subsequent coefficient writes.")
+                description="Per-channel coefficient bank selected for subsequent coefficient "
+                            "writes.")
         self.comb += [
             self._config.fields.taps.eq(self.n_taps),
             self._config.fields.rate.eq(self.decimation),

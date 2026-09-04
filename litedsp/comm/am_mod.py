@@ -30,9 +30,11 @@ class LiteDSPAMModulator(LiteXModule):
     envelope x cos / sin rounded to ``data_width``, latency 4. Loops back through
     :class:`~litedsp.comm.am_demod.LiteDSPAMDemod`.
     """
-    def __init__(self, data_width=16, carrier="baseband", phase_bits=32, lut_depth=1024, with_csr=True):
+    def __init__(self, data_width=16, carrier="baseband", phase_bits=32, lut_depth=1024,
+                 with_csr=True):
         check(carrier in ("baseband", "nco"), "expected carrier in ('baseband', 'nco')")
-        check(lut_depth & (lut_depth - 1) == 0 and lut_depth >= 16, "expected lut_depth a power of two >= 16")
+        check(lut_depth & (lut_depth - 1) == 0 and lut_depth >= 16,
+              "expected lut_depth a power of two >= 16")
         self.data_width = data_width
         self.carrier    = carrier
         self.phase_bits = phase_bits
@@ -46,15 +48,17 @@ class LiteDSPAMModulator(LiteXModule):
 
         DW = data_width
         adv, xfer = Signal(), Signal()
-        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv), xfer.eq(self.sink.valid & adv)]
+        self.comb += [adv.eq(self.source.ready | ~self.source.valid), self.sink.ready.eq(adv),
+                      xfer.eq(self.sink.valid & adv)]
         # S1: m * x (registered), tags.
         idx_s = Signal((DW + 1, True))
         prod  = Signal((2*DW + 1, True))
         v1, f1, l1 = Signal(), Signal(), Signal()
         self.comb += idx_s.eq(self.index)
-        self.sync += If(adv, prod.eq(self.sink.data*idx_s), v1.eq(xfer), f1.eq(self.sink.first), l1.eq(self.sink.last))
+        self.sync += If(adv, prod.eq(self.sink.data*idx_s), v1.eq(xfer), f1.eq(self.sink.first),
+                        l1.eq(self.sink.last))
         env = Signal((DW + 1, True))
-        self.comb += env.eq((1 << (DW - 2)) + rounded(prod, DW))       # 0 .. 2^(dw-1) - 1 for m <= 1.
+        self.comb += env.eq((1 << (DW - 2)) + rounded(prod, DW))     # 0 .. 2^(dw-1) - 1 for m <= 1.
         envc = Signal((DW, True))
         self.comb += envc.eq(saturated(env, DW))
         if carrier == "baseband":
@@ -67,8 +71,10 @@ class LiteDSPAMModulator(LiteXModule):
             phase = Signal(phase_bits)
             phase_next = Signal(phase_bits)
             self.comb += phase_next.eq(phase + self.phase_inc)
-            self.sync += If(adv & xfer, phase.eq(phase_next))           # ROM read at S0 -> S1 aligned with prod.
-            cos, sin = sincos_rom(self, phase_next[phase_bits - addr_bits:], adv, DW, lut_depth, quarter_wave=True)
+            # ROM read at S0 -> S1 aligned with prod.
+            self.sync += If(adv & xfer, phase.eq(phase_next))
+            cos, sin = sincos_rom(self, phase_next[phase_bits - addr_bits:], adv, DW, lut_depth,
+                                  quarter_wave=True)
             # S2: envelope x carrier (registered); S3: rounded output.
             pi, pq = Signal((2*DW, True)), Signal((2*DW, True))
             e2 = Signal((DW, True))
@@ -76,7 +82,8 @@ class LiteDSPAMModulator(LiteXModule):
             self.sync += If(adv, pi.eq(envc*cos), pq.eq(envc*sin), v2.eq(v1), f2.eq(f1), l2.eq(l1))
             self.sync += If(adv,
                 self.source.valid.eq(v2), self.source.first.eq(f2), self.source.last.eq(l2),
-                self.source.i.eq(saturated(rounded(pi, DW - 1), DW)), self.source.q.eq(saturated(rounded(pq, DW - 1), DW)),
+                self.source.i.eq(saturated(rounded(pi, DW - 1), DW)),
+                self.source.q.eq(saturated(rounded(pq, DW - 1), DW)),
             )
 
         # CSR.
@@ -86,8 +93,10 @@ class LiteDSPAMModulator(LiteXModule):
 
     def add_csr(self):
         self._index = CSRStorage(self.data_width, reset=self.index.reset.value, name="index",
-            description=f"Modulation index (unsigned Q1.{self.data_width - 1}, 1.0 = {1 << (self.data_width - 1)}).")
+            description=f"Modulation index (unsigned Q1.{self.data_width - 1}, 1.0 = "
+                        f"{1 << (self.data_width - 1)}).")
         self.comb += self.index.eq(self._index.storage)
         if self.carrier == "nco":
-            self._phase_inc = CSRStorage(self.phase_bits, name="phase_inc", description="Carrier phase increment per sample.")
+            self._phase_inc = CSRStorage(self.phase_bits, name="phase_inc",
+                                         description="Carrier phase increment per sample.")
             self.comb += self.phase_inc.eq(self._phase_inc.storage)

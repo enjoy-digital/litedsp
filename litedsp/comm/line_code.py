@@ -52,13 +52,15 @@ class LiteDSPLineEncoder(LiteXModule):
             self.comb += nxt.eq(Mux(self.phase_rst, 0, level ^ toggle))
             self.sync += If(xfer, level.eq(nxt))
             self.sync += If(adv,
-                self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
+                self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first),
+                self.source.last.eq(self.sink.last),
                 self.source.data.eq(nxt ^ self.invert),
             )
         else:
             phase = Signal()                                            # 0: first chip, 1: second.
             bit   = Signal()
-            self.comb += [self.sink.ready.eq(adv & ~phase), xfer.eq(self.sink.valid & self.sink.ready)]
+            self.comb += [self.sink.ready.eq(adv & ~phase),
+                          xfer.eq(self.sink.valid & self.sink.ready)]
             first_chip, second_chip = Signal(), Signal()
             if code == "manchester":
                 self.comb += [first_chip.eq(self.sink.data), second_chip.eq(~bit)]
@@ -66,16 +68,19 @@ class LiteDSPLineEncoder(LiteXModule):
                 # Differential: start level = ~level for a 0 (transition), = level for a 1; the
                 # second chip is the complement of the first.
                 start = Signal()
-                self.comb += [start.eq(Mux(self.sink.data, level, ~level)), first_chip.eq(start), second_chip.eq(~bit)]
+                self.comb += [start.eq(Mux(self.sink.data, level, ~level)), first_chip.eq(start),
+                              second_chip.eq(~bit)]
             self.sync += [
                 If(self.phase_rst, phase.eq(0), level.eq(0)),
                 If(adv,
                     If(~phase,
-                        self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first), self.source.last.eq(0),
+                        self.source.valid.eq(self.sink.valid),
+                        self.source.first.eq(self.sink.first), self.source.last.eq(0),
                         self.source.data.eq(first_chip ^ self.invert),
                         If(xfer, phase.eq(1), bit.eq(first_chip), level.eq(~first_chip)),
                     ).Else(
-                        self.source.valid.eq(1), self.source.first.eq(0), self.source.last.eq(self.sink.last),
+                        self.source.valid.eq(1), self.source.first.eq(0),
+                        self.source.last.eq(self.sink.last),
                         self.source.data.eq(second_chip ^ self.invert),
                         phase.eq(0),
                     ),
@@ -92,7 +97,8 @@ class LiteDSPLineEncoder(LiteXModule):
             CSRField("invert",    size=1, offset=0, reset=self.invert.reset.value, description="Invert the line."),
             CSRField("phase_rst", size=1, offset=1, pulse=True, description="Restart the chip phase / level."),
         ])
-        self.comb += [self.invert.eq(self._control.fields.invert), self.phase_rst.eq(self._control.fields.phase_rst)]
+        self.comb += [self.invert.eq(self._control.fields.invert),
+                      self.phase_rst.eq(self._control.fields.phase_rst)]
 
 # Line Decoder -------------------------------------------------------------------------------------
 
@@ -127,7 +133,8 @@ class LiteDSPLineDecoder(LiteXModule):
             self.comb += changed.eq(d ^ level)
             self.sync += If(xfer, level.eq(d)), If(self.phase_rst, level.eq(0))
             self.sync += If(adv,
-                self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
+                self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first),
+                self.source.last.eq(self.sink.last),
                 self.source.data.eq(~changed if code == "nrzi_s" else changed),
             )
         else:
@@ -152,7 +159,8 @@ class LiteDSPLineDecoder(LiteXModule):
                     self.source.first.eq(0), self.source.last.eq(self.sink.last),
                     self.source.data.eq(bit),
                 ),
-                If(xfer & phase & viol, self.violation.eq(1), self.violations.eq(self.violations + 1)),
+                If(xfer & phase & viol, self.violation.eq(1),
+                   self.violations.eq(self.violations + 1)),
                 If(self.clear, self.violation.eq(0)),
             ]
 
@@ -170,7 +178,9 @@ class LiteDSPLineDecoder(LiteXModule):
         self._status = CSRStatus(fields=[CSRField("violation", size=1, offset=0, description="Sticky: a chip pair without a mid-bit transition.")])
         self._violations = CSRStatus(32, name="violations", description="Violations since reset.")
         self.comb += [
-            self.invert.eq(self._control.fields.invert), self.phase_rst.eq(self._control.fields.phase_rst),
+            self.invert.eq(self._control.fields.invert),
+            self.phase_rst.eq(self._control.fields.phase_rst),
             self.clear.eq(self._control.fields.clear),
-            self._status.fields.violation.eq(self.violation), self._violations.status.eq(self.violations),
+            self._status.fields.violation.eq(self.violation),
+            self._violations.status.eq(self.violations),
         ]

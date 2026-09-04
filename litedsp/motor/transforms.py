@@ -185,7 +185,8 @@ class LiteDSPSinCos(LiteXModule):
         check(method in ("rom", "cordic"), "expected method in ('rom', 'cordic')")
         check(angle_width >= 2, "expected angle_width >= 2")
         addr_bits = int(math.log2(lut_depth)) if lut_depth > 0 else 0
-        check(lut_depth >= 8 and (1 << addr_bits) == lut_depth, "lut_depth must be a power of two >= 8")
+        check(lut_depth >= 8 and (1 << addr_bits) == lut_depth,
+              "lut_depth must be a power of two >= 8")
         check(addr_bits <= angle_width, "expected log2(lut_depth) <= angle_width")
         if stages is None:
             stages = data_width

@@ -122,7 +122,8 @@ class TestDMACapture(unittest.TestCase):
             wait_done(dut.writer._done.status),
         ])
         for k in range(n // 2):
-            pair = [(samples[2*k]["i"], samples[2*k]["q"]), (samples[2*k+1]["i"], samples[2*k+1]["q"])]
+            pair = [(samples[2*k]["i"], samples[2*k]["q"]),
+                    (samples[2*k+1]["i"], samples[2*k+1]["q"])]
             self.assertEqual(mem[(base >> 3) + k], iq_word(pair))
 
 class TestDMAReplay(unittest.TestCase):

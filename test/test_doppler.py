@@ -16,7 +16,8 @@ from test.common import run_stream, column
 from test.models import doppler_model
 
 def columns(values, M):
-    return [{"i": int(v.real), "q": int(v.imag), "first": int(k % M == 0), "last": int(k % M == M - 1)}
+    return [
+        {"i": int(v.real), "q": int(v.imag), "first": int(k % M == 0), "last": int(k % M == M - 1)}
             for k, v in enumerate(values)]
 
 class TestDopplerProcessor(unittest.TestCase):
@@ -24,11 +25,14 @@ class TestDopplerProcessor(unittest.TestCase):
     # (approx) or power and reorder, bit-exact under backpressure, framed per column.
     def test_bit_exact(self):
         prng = random.Random(1)
-        x    = np.array([complex(prng.randint(-20000, 20000), prng.randint(-20000, 20000)) for _ in range(7*16)])
+        x    = np.array([complex(prng.randint(-20000, 20000), prng.randint(-20000, 20000))
+                                                                           for _ in range(7*16)])
         for magnitude, window in (("approx", "hann"), ("power", "rect")):
             with self.subTest(magnitude=magnitude, window=window):
-                dut = LiteDSPDopplerProcessor(n_pulses=16, window=window, magnitude=magnitude, with_csr=False)
-                cap = run_stream(dut, columns(x, 16), 6*16, ["i", "q", "first", "last"], ["data", "first", "last"],
+                dut = LiteDSPDopplerProcessor(n_pulses=16, window=window, magnitude=magnitude,
+                                              with_csr=False)
+                cap = run_stream(dut, columns(x, 16), 6*16, ["i", "q", "first", "last"],
+                                 ["data", "first", "last"],
                     sink_throttle=0.2, source_ready_rate=0.7)
                 data, first, last = doppler_model(x.real, x.imag, 16, window, magnitude)
                 self.assertTrue(np.array_equal(column(cap, "data"), data[:6*16]))
@@ -56,11 +60,13 @@ class TestDopplerProcessor(unittest.TestCase):
 
     def test_frame_error_and_invalid(self):
         prng  = random.Random(2)
-        x     = np.array([complex(prng.randint(-2000, 2000), prng.randint(-2000, 2000)) for _ in range(3*16)])
+        x     = np.array(
+            [complex(prng.randint(-2000, 2000), prng.randint(-2000, 2000)) for _ in range(3*16)])
         beats = columns(x, 16)
         beats[20]["first"] = 1
         dut   = LiteDSPDopplerProcessor(n_pulses=16, with_csr=False)
-        run_stream(dut, beats, 2*16, ["i", "q", "first", "last"], ["data"], sink_throttle=0.0, source_ready_rate=1.0,
+        run_stream(dut, beats, 2*16, ["i", "q", "first", "last"], ["data"], sink_throttle=0.0,
+                   source_ready_rate=1.0,
             extra=[self._read_error(dut)])
         self.assertEqual(self.error, 1)
         for kwargs in ({"n_pulses": 12}, {"magnitude": "cordic"}, {"window": "kaiser"}):

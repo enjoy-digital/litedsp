@@ -87,14 +87,16 @@ class PhaseModulatorDriver(NCODriver):
 
     def set_deviation(self, radians):
         import math
-        self.deviation.write(int(round(radians/(2*math.pi)*(1 << self.phase_bits))) & ((1 << self.phase_bits) - 1))
+        self.deviation.write(int(round(radians/(2*math.pi)*(1 << self.phase_bits)))
+                                                            & ((1 << self.phase_bits) - 1))
 
 class AMModulatorDriver(NCODriver):
     """AM modulator: modulation index 0.0 .. 1.0 (and the carrier in Hz for the NCO variant)."""
     regs = ("index", "phase_inc")
 
     def set_index(self, index, data_width=16):
-        self.index.write(max(0, min((1 << (data_width - 1)), int(round(float(index)*(1 << (data_width - 1)))))))
+        self.index.write(
+            max(0, min((1 << (data_width - 1)), int(round(float(index)*(1 << (data_width - 1)))))))
 
 class FSKModulatorDriver(NCODriver):
     """FSK modulator: centre frequency in Hz and the modulation index h."""
@@ -558,7 +560,8 @@ class AngleTrackerDriver(Driver):
 
     def set_offset_degrees(self, degrees, angle_width=16):
         """Alignment / lag-compensation offset added to the tracked angle."""
-        self.angle_offset.write(int(round(degrees/360.0*(1 << angle_width))) & ((1 << angle_width) - 1))
+        self.angle_offset.write(
+            int(round(degrees/360.0*(1 << angle_width))) & ((1 << angle_width) - 1))
 
     def set_bandwidth(self, samples):
         """Set kp/ki shifts for a lock time of ~samples (kp = log2(samples/6)/2, ki = kp + ...)."""
@@ -598,7 +601,8 @@ class StereoMatrixDriver(Driver):
 
     def _q(self, x):
         lim = (1 << (self.coeff_width - 1)) - 1
-        return int(round(max(-lim, min(lim, x*(1 << self.coeff_frac))))) & ((1 << self.coeff_width) - 1)
+        return int(round(max(-lim, min(lim, x*(1 << self.coeff_frac))))) & ((1 << self.coeff_width)
+                                                                             - 1)
 
     def set_matrix(self, a, b, c, d):
         """``L' = a L + b R``, ``R' = c L + d R``."""
@@ -661,7 +665,8 @@ class CompressorDriver(Driver):
 
     def set_detector(self, rms=False, rms_shift=6, stereo_link=False):
         v = self.control.read() & ~0x1FF
-        self.control.write(v | int(bool(rms)) | ((rms_shift & 0xF) << 4) | (int(bool(stereo_link)) << 8))
+        self.control.write(v | int(bool(rms)) | ((rms_shift & 0xF) << 4)
+                                                  | (int(bool(stereo_link)) << 8))
 
     def set_bypass(self, bypass):
         self.control.write((self.control.read() & ~(1 << 9)) | (int(bool(bypass)) << 9))
@@ -870,7 +875,8 @@ class CFARDriver(Driver):
         self.alpha.write(cfar_alpha(pfa, n_train_cells, domain, frac_bits=self.frac_bits))
 
     def set_mode(self, mode):
-        self.control.write({"ca": 0, "go": 1, "so": 2}[mode] if isinstance(mode, str) else int(mode))
+        self.control.write({"ca": 0, "go": 1, "so": 2}[mode] if isinstance(mode, str)
+                                                                           else int(mode))
 
     @property
     def detection_count(self):
@@ -910,7 +916,8 @@ class ClutterMapDriver(Driver):
 
 class TargetListDriver(Driver):
     """Read back the last sealed target list as bin-unit dicts."""
-    regs = ("config", "control", "status", "index", "range", "doppler", "data", "count", "cpi_count", "dropped")
+    regs = ("config", "control", "status", "index", "range", "doppler", "data", "count",
+            "cpi_count", "dropped")
 
     @property
     def frac_bits(self):
@@ -953,10 +960,12 @@ class TrackerDriver(Driver):
 
     def set_gates(self, range_bins, doppler_bins):
         f, _ = self._fracs
-        self.gates.write(int(round(range_bins*(1 << f))) | (int(round(doppler_bins*(1 << f))) << 16))
+        self.gates.write(int(round(range_bins*(1 << f)))
+                                               | (int(round(doppler_bins*(1 << f))) << 16))
 
     def set_confirm(self, confirm_hits, max_misses, emit_tentative=False):
-        self.control.write((int(confirm_hits) & 0xF) | ((int(max_misses) & 0xF) << 4) | (int(bool(emit_tentative)) << 8))
+        self.control.write((int(confirm_hits) & 0xF) | ((int(max_misses) & 0xF) << 4)
+                                                             | (int(bool(emit_tentative)) << 8))
 
     def clear(self):
         self.control.write(self.control.read() | (1 << 9))
@@ -999,7 +1008,8 @@ class BeamformerDriver(Driver):
     @property
     def geometry(self):
         cfg = self.config.read()
-        return cfg & 0x1F, (cfg >> 8) & 0xF, (cfg >> 16) & 0x1F         # (n_elements, n_beams, weight_frac).
+        # (n_elements, n_beams, weight_frac).
+        return cfg & 0x1F, (cfg >> 8) & 0xF, (cfg >> 16) & 0x1F
 
     def set_weights(self, beam, real, imag):
         n, _, _ = self.geometry
@@ -1010,7 +1020,8 @@ class BeamformerDriver(Driver):
     def set_steering(self, beam, angle_deg, d_over_lambda=0.5, taper="rect"):
         from litedsp.radar.design import steering_weights
         n, _, wf = self.geometry
-        self.set_weights(beam, *steering_weights(n, angle_deg, d_over_lambda, taper, weight_frac=wf))
+        self.set_weights(beam,
+                         *steering_weights(n, angle_deg, d_over_lambda, taper, weight_frac=wf))
 
     def commit(self):
         self.control.write(1)
@@ -1029,7 +1040,8 @@ class TVGDriver(Driver):
 
     def set_law(self, db_per_decade=40.0, alpha_db_per_bin=0.0, g0_db=0.0):
         from litedsp.radar.design import tvg_coefficients
-        g0, k_log, k_lin = tvg_coefficients(db_per_decade, alpha_db_per_bin, g0_db, gain_frac=self.gain_frac)
+        g0, k_log, k_lin = tvg_coefficients(db_per_decade, alpha_db_per_bin, g0_db,
+                                            gain_frac=self.gain_frac)
         mask = 0xFFFFFFFF
         self.g0.write(g0 & mask); self.k_log.write(k_log & mask); self.k_lin.write(k_lin & mask)
 
@@ -1166,7 +1178,8 @@ class PixelGainDriver(Driver):
     def set_gains(self, gains, offsets=(0, 0, 0)):
         for c, (g, o) in enumerate(zip(gains, offsets)):
             word = max(0, min((1 << (self.gain_frac + 4)) - 1, int(round(g*(1 << self.gain_frac)))))
-            getattr(self, f"gain{c}").write(word | ((int(round(o)) & ((1 << (self.data_width + 1)) - 1)) << 16))
+            getattr(self, f"gain{c}").write(
+                word | ((int(round(o)) & ((1 << (self.data_width + 1)) - 1)) << 16))
 
     def set_brightness_contrast(self, brightness=0.0, contrast=1.0):
         """``y = contrast * (x - mid) + mid + brightness * full`` on every channel."""
@@ -1245,7 +1258,8 @@ class PixelStatsDriver(Driver):
         mm = self.minmax.read()
         count = self.count.read()
         s = self.sum.read()
-        return dict(sum=s, min=mm & 0xFFFF, max=(mm >> 16) & 0xFFFF, count=count, mean=(s/count if count else 0.0))
+        return dict(sum=s, min=mm & 0xFFFF, max=(mm >> 16) & 0xFFFF, count=count,
+                    mean=(s/count if count else 0.0))
 
     def zones(self, n):
         out = []
@@ -1273,7 +1287,8 @@ class BoxOverlayDriver(Driver):
 
     def set_boxes(self, boxes, n_channels=3, data_width=8):
         for k, (x0, y0, x1, y1, color, enable) in enumerate(boxes):
-            packed = int(color) if n_channels == 1 else sum(int(v) << (i*data_width) for i, v in enumerate(color))
+            packed = int(color) if n_channels == 1 else sum(int(v) << (i*data_width) for i,
+                                                            v in enumerate(color))
             self.box_index.write(k)
             self.box_origin.write((int(x0) & 0xFFFF) | (int(y0) << 16))
             self.box_corner.write((int(x1) & 0xFFFF) | (int(y1) << 16))
@@ -1359,12 +1374,18 @@ TYPED = {
 
 # Discovery ----------------------------------------------------------------------------------------
 
-DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver, FSKModulatorDriver, FECDecoderDriver, CaptureDriver, CSRReaderDriver, DMADriver, SquelchDriver, AGCDriver,
+DRIVERS = [NCODriver, FMModulatorDriver, PhaseModulatorDriver, AMModulatorDriver,
+           FSKModulatorDriver, FECDecoderDriver, CaptureDriver, CSRReaderDriver, DMADriver,
+           SquelchDriver, AGCDriver,
            FramerDriver, FrameSyncDriver, FIRDriver, GainDriver, MixerDriver, PLLDriver,
            TimeCoreDriver, DPDDriver, FOCDriver, PWMDriver, QuadratureDecoderDriver,
            AngleTrackerDriver, VolumeDriver, StereoMatrixDriver, CompressorDriver, AudioEQDriver,
-           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver, ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver, TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver, ThresholdDriver,
-           PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver, PixelStatsDriver, AlphaBlendDriver,
+           LFODriver, PeakMeterDriver, LoudnessDriver, RangeGateDriver, CFARDriver, OSCFARDriver,
+           ClutterMapDriver, TargetListDriver, TrackerDriver, KalmanTrackerDriver, BeamformerDriver,
+           TVGDriver, PulseGeneratorDriver, PixelPatternDriver, ImageKernelDriver, RankFilterDriver,
+           ThresholdDriver,
+           PixelGainDriver, PixelLUTDriver, ColorDriver, CropDriver, PixelStatsDriver,
+           AlphaBlendDriver,
            BoxOverlayDriver]
 
 def _reg_names(bus):

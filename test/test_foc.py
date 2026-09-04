@@ -120,7 +120,7 @@ class TestFOC(unittest.TestCase):
                 theta = st["theta"]
                 i_ab  = (st["d"] + 1j*st["q"])*np.exp(1j*theta)
                 al, be = i_ab.real*FS, i_ab.imag*FS
-                ia, ib, ic = al, (-al + np.sqrt(3)*be)/2, (-al - np.sqrt(3)*be)/2   # Inverse Clarke.
+                ia, ib, ic = al, (-al + np.sqrt(3)*be)/2, (-al - np.sqrt(3)*be)/2  # Inverse Clarke.
                 ang = int(round(theta/(2*np.pi)*TURN)) % TURN
                 ang = ang - TURN if ang >= TURN//2 else ang
                 yield dut.sink.a.eq(int(round(ia)))

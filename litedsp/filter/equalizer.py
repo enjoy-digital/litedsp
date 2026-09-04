@@ -108,8 +108,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.train    = Signal(reset=1)                  # Enable weight adaptation (freeze when 0).
         self.mode     = Signal(2, reset=MODE_TRAINED)    # Error-term select (MODE_*).
-        self.cma_r2   = Signal(data_width + 1)           # CMA target modulus R2 (frac = data_width - 1).
-        self.dd_level = Signal(data_width - 1)           # DD per-axis decision amplitude (positive).
+        self.cma_r2   = Signal(data_width + 1)      # CMA target modulus R2 (frac = data_width - 1).
+        self.dd_level = Signal(data_width - 1)          # DD per-axis decision amplitude (positive).
         self.latency  = 1 if architecture == "classic" else 3
 
         # # #
@@ -117,7 +117,7 @@ class LiteDSPLMSEqualizer(LiteXModule):
         # Handshake.
         # ----------
         adv  = Signal()                                  # Output slot free or being consumed.
-        xfer = Signal()                                  # A sample (+ desired symbol) is consumed this beat.
+        xfer = Signal()                         # A sample (+ desired symbol) is consumed this beat.
         self.comb += [
             adv.eq(self.source.ready | ~self.source.valid),
             self.sink.ready.eq(adv),
@@ -398,8 +398,10 @@ class LiteDSPLMSEqualizer(LiteXModule):
             accepted_count = Signal(max=9)
             update_ei = [Signal((data_width + 1, True)) for _ in range(queue_depth)]
             update_eq = [Signal((data_width + 1, True)) for _ in range(queue_depth)]
-            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(queue_depth)]
-            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)] for _ in range(queue_depth)]
+            update_xr = [[Signal((data_width, True)) for _ in range(n_taps)]
+                                                                    for _ in range(queue_depth)]
+            update_xi = [[Signal((data_width, True)) for _ in range(n_taps)]
+                                                                    for _ in range(queue_depth)]
             error_ready = Signal()
             update_step = Signal()
             self.comb += [
@@ -475,8 +477,10 @@ class LiteDSPLMSEqualizer(LiteXModule):
         else:
             for k in range(n_taps):
                 self.sync += If(update_step & self.train,
-                    wr[k].eq(saturated(wr[k] + ((update_ei*update_xr[k] + update_eq*update_xi[k]) >> mu_shift), ww)),
-                    wi[k].eq(saturated(wi[k] + ((update_eq*update_xr[k] - update_ei*update_xi[k]) >> mu_shift), ww)),
+                    wr[k].eq(saturated(wr[k] + (
+                        (update_ei*update_xr[k] + update_eq*update_xi[k]) >> mu_shift), ww)),
+                    wi[k].eq(saturated(wi[k] + (
+                        (update_eq*update_xr[k] - update_ei*update_xi[k]) >> mu_shift), ww)),
                 )
 
         # Output.
@@ -491,7 +495,8 @@ class LiteDSPLMSEqualizer(LiteXModule):
         # ----
         if with_csr:
             self._train = CSRStorage(1, reset=1, name="train",
-                description="Enable weight adaptation (0 = freeze: weights hold, filtering continues).")
+                description="Enable weight adaptation (0 = freeze: weights hold, filtering "
+                            "continues).")
             self._control = CSRStorage(fields=[
                 CSRField("mode", size=2, reset=MODE_TRAINED, values=[
                     ("0", "trained"), ("1", "cma"), ("2", "dd")],

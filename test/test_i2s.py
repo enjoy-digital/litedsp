@@ -90,7 +90,8 @@ class TestI2STransmitter(unittest.TestCase):
         self.assertEqual(set(np.diff(edges["lrck"])), {2*32*8})
 
     def test_underrun(self):
-        dut = LiteDSPI2STransmitter(data_width=24, n_channels=2, fmt="i2s", mode="master", bclk_div=4,
+        dut = LiteDSPI2STransmitter(data_width=24, n_channels=2, fmt="i2s", mode="master",
+                                    bclk_div=4,
             with_csr=False)
         seen = {}
         def driver():
@@ -115,7 +116,8 @@ class TestI2SReceiver(unittest.TestCase):
         after the falling edge; ``idle`` leading BCLK periods at the opposite LRCK level."""
         pol = i2s_params(dut.fmt, dut.sample_width, dut.slot_width)[1]
         lead = int(not pol) if pol is not None else 0
-        seq = [(0, lead)]*idle*dut.slot_width + list(zip(sdata, lrck)) + [(0, lead)]*2*dut.slot_width
+        seq = [(0, lead)]*idle*dut.slot_width + list(zip(sdata, lrck)) + [
+            (0, lead)]*2*dut.slot_width
         for s, l in seq:
             yield dut.bclk.eq(0)
             yield dut.sdata.eq(s)
@@ -138,7 +140,8 @@ class TestI2SReceiver(unittest.TestCase):
                 captured = []
                 sdata, lrck = i2s_frame_model(frames, fmt, sw, slot, n)
                 run_simulation(dut, [self.drive_lines(dut, sdata, lrck),
-                    stream_capture(dut.source, captured, 4*n, ["data", "channel"], seed=1, ready_rate=0.7)])
+                    stream_capture(dut.source, captured, 4*n, ["data", "channel"], seed=1,
+                                   ready_rate=0.7)])
                 exp = beats_for(frames, sw)
                 self.assertEqual(column(captured, "data", 24).tolist(), [b["data"] for b in exp])
                 self.assertEqual(column(captured, "channel").tolist(), [b["channel"] for b in exp])
@@ -148,23 +151,29 @@ class TestI2SReceiver(unittest.TestCase):
     # whose first frame starts before its buffer is full sends one silent frame first).
     def test_loopback(self):
         prng = random.Random(4)
-        for fmt, sw, slot, n in (("i2s", 24, 32, 2), ("left_justified", 16, 16, 2), ("tdm", 24, 32, 4), ("tdm", 16, 16, 8)):
+        for fmt, sw, slot, n in (("i2s", 24, 32, 2), ("left_justified", 16, 16, 2),
+                                 ("tdm", 24, 32, 4), ("tdm", 16, 16, 8)):
             with self.subTest(fmt=fmt, n_channels=n):
                 frames = frames_for(prng, 6, n, sw)
                 top = Module()
-                top.submodules.tx = LiteDSPI2STransmitter(data_width=24, sample_width=sw, slot_width=slot, n_channels=n,
+                top.submodules.tx = LiteDSPI2STransmitter(data_width=24, sample_width=sw,
+                                                          slot_width=slot, n_channels=n,
                     fmt=fmt, mode="master", bclk_div=8, with_csr=False)
-                top.submodules.rx = LiteDSPI2SReceiver(data_width=24, sample_width=sw, slot_width=slot, n_channels=n,
+                top.submodules.rx = LiteDSPI2SReceiver(data_width=24, sample_width=sw,
+                                                       slot_width=slot, n_channels=n,
                     fmt=fmt, mode="slave", with_csr=False)
-                top.comb += [top.rx.bclk.eq(top.tx.bclk), top.rx.lrck.eq(top.tx.lrck), top.rx.sdata.eq(top.tx.sdata)]
+                top.comb += [top.rx.bclk.eq(top.tx.bclk), top.rx.lrck.eq(top.tx.lrck),
+                             top.rx.sdata.eq(top.tx.sdata)]
                 captured = []
                 def driver():
                     yield from push(top.tx.sink, beats_for(frames, sw))
                     for _ in range(3*n*slot*8):
                         yield
                 run_simulation(top, [driver(),
-                    stream_capture(top.rx.source, captured, 5*n, ["data", "channel"], seed=2, ready_rate=0.7)])
-                got = list(zip(column(captured, "data", 24).tolist(), column(captured, "channel").tolist()))
+                    stream_capture(top.rx.source, captured, 5*n, ["data", "channel"], seed=2,
+                                   ready_rate=0.7)])
+                got = list(zip(column(captured, "data", 24).tolist(),
+                               column(captured, "channel").tolist()))
                 exp = [(b["data"], b["channel"]) for b in beats_for(frames, sw)]
                 runs = [exp[f*n:f*n + 3*n] for f in range(3)]           # 3-frame runs (the slave
                 self.assertTrue(any(got[k:k + 3*n] == run for run in runs # locks on the first LRCK
@@ -173,9 +182,12 @@ class TestI2SReceiver(unittest.TestCase):
 
     def test_overrun(self):
         top = Module()
-        top.submodules.tx = LiteDSPI2STransmitter(data_width=24, n_channels=2, fmt="i2s", mode="master", bclk_div=4, with_csr=False)
-        top.submodules.rx = LiteDSPI2SReceiver(data_width=24, n_channels=2, fmt="i2s", mode="slave", with_csr=False)
-        top.comb += [top.rx.bclk.eq(top.tx.bclk), top.rx.lrck.eq(top.tx.lrck), top.rx.sdata.eq(top.tx.sdata)]
+        top.submodules.tx = LiteDSPI2STransmitter(data_width=24, n_channels=2, fmt="i2s",
+                                                  mode="master", bclk_div=4, with_csr=False)
+        top.submodules.rx = LiteDSPI2SReceiver(data_width=24, n_channels=2, fmt="i2s", mode="slave",
+                                               with_csr=False)
+        top.comb += [top.rx.bclk.eq(top.tx.bclk), top.rx.lrck.eq(top.tx.lrck),
+                     top.rx.sdata.eq(top.tx.sdata)]
         seen = {}
         def driver():
             yield from push(top.tx.sink, beats_for(frames_for(random.Random(5), 4, 2, 24), 24))

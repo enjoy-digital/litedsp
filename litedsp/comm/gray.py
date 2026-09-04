@@ -19,7 +19,8 @@ from litedsp.common import check
 
 class _LiteDSPGray(LiteXModule):
     def __init__(self, encode, width=2, n_lanes=1, with_csr=True):
-        check(1 <= width <= 16 and 1 <= n_lanes <= 8, "expected 1 <= width <= 16, 1 <= n_lanes <= 8")
+        check(1 <= width <= 16 and 1 <= n_lanes <= 8,
+              "expected 1 <= width <= 16, 1 <= n_lanes <= 8")
         self.width   = width
         self.n_lanes = n_lanes
         self.latency = 1
@@ -45,7 +46,8 @@ class _LiteDSPGray(LiteXModule):
                 g = Cat(*bits)
             outs.append(g)
         self.sync += If(adv,
-            self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first), self.source.last.eq(self.sink.last),
+            self.source.valid.eq(self.sink.valid), self.source.first.eq(self.sink.first),
+            self.source.last.eq(self.sink.last),
             self.source.data.eq(Cat(*outs)),
         )
         if with_csr:
@@ -56,7 +58,8 @@ class _LiteDSPGray(LiteXModule):
             CSRField("width",   size=5, offset=0, description="Bits per lane."),
             CSRField("n_lanes", size=4, offset=8, description="Lanes per beat."),
         ])
-        self.comb += [self._config.fields.width.eq(self.width), self._config.fields.n_lanes.eq(self.n_lanes)]
+        self.comb += [self._config.fields.width.eq(self.width),
+                      self._config.fields.n_lanes.eq(self.n_lanes)]
 
 @ResetInserter()
 class LiteDSPGrayMapper(_LiteDSPGray):

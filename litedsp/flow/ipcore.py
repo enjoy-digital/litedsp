@@ -6,7 +6,8 @@
 
 """Wrap an assembled chain as an integratable IP core: AXI-Stream data + AXI-Lite config.
 
-``LiteDSPFlowIPCore`` takes a netlist, builds the :class:`~litedsp.flow.builder.LiteDSPFlowChain` with CSRs, and
+``LiteDSPFlowIPCore`` takes a netlist, builds the
+:class:`~litedsp.flow.builder.LiteDSPFlowChain` with CSRs, and
 adds an AXI-Lite -> CSR bridge over a :class:`~litex.soc.interconnect.csr_bus.CSRBankArray` (one
 bank per block, addressed exactly as LiteX/SoCMini would). The chain's top-level stream endpoints
 are already AXI-Stream-compatible (``valid``=tvalid, ``ready``=tready, ``last``=tlast,
@@ -106,7 +107,8 @@ class LiteDSPFlowIPCore(LiteXModule):
 def generate_ip(source, build_dir, name=None, **core_kwargs):
     """Emit the IP Verilog + register map (csv/json/h) into ``build_dir``. Returns ``(path, ip)``.
 
-    ``core_kwargs`` are forwarded to :class:`LiteDSPFlowIPCore` (``csr_base``, ``axil_address_width``, ...).
+    ``core_kwargs`` are forwarded to :class:`LiteDSPFlowIPCore`
+    (``csr_base``, ``axil_address_width``, ...).
     """
     from litedsp.flow.generate import emit_verilog
     nl   = source if isinstance(source, netlist_mod.Netlist) else netlist_mod.load(source)
@@ -114,9 +116,12 @@ def generate_ip(source, build_dir, name=None, **core_kwargs):
     name = name or (nl.name + "_ip")
     os.makedirs(build_dir, exist_ok=True)
     path = emit_verilog(ip, ip.io_signals(), name, build_dir)   # chdir so .init files land here.
-    with open(os.path.join(build_dir, "csr.csv"),  "w", encoding="utf-8") as f: f.write(ip.export_csv())
-    with open(os.path.join(build_dir, "csr.json"), "w", encoding="utf-8") as f: f.write(ip.export_json())
-    with open(os.path.join(build_dir, "csr.h"),    "w", encoding="utf-8") as f: f.write(ip.export_header())
+    with open(os.path.join(build_dir, "csr.csv"),  "w", encoding="utf-8") as f:
+        f.write(ip.export_csv())
+    with open(os.path.join(build_dir, "csr.json"), "w", encoding="utf-8") as f:
+        f.write(ip.export_json())
+    with open(os.path.join(build_dir, "csr.h"),    "w", encoding="utf-8") as f:
+        f.write(ip.export_header())
     # Block manifest: instance prefix -> registry key (exact host-driver discovery).
     import json
     with open(os.path.join(build_dir, "blocks.json"), "w", encoding="utf-8") as f:

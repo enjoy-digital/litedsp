@@ -11,7 +11,8 @@ reference numbers (``impl/budgets.json``, updated by ``impl/run.py`` sweeps).
 """
 
 def _cells(res):
-    s = f"{res.get('lut', 0):>6} {res.get('ff', 0):>6} {res.get('bram', 0):>4} {res.get('dsp', 0):>4}"
+    s = (f"{res.get('lut', 0):>6} {res.get('ff', 0):>6} "
+         f"{res.get('bram', 0):>4} {res.get('dsp', 0):>4}")
     fmax = res.get("pnr", {}).get("fmax_mhz")
     return s + (f" {fmax:>6.0f}" if fmax is not None else f" {'-':>6}")
 
@@ -57,7 +58,8 @@ _DEVICE_LABELS = {
 def budgets_markdown(budgets):
     """Render the checked-in per-block budgets as a Markdown resource table."""
     devices = sorted({d for entry in budgets.values() for d in entry})
-    hdr = ["module"] + [f"{_DEVICE_LABELS.get(d, d)} LUT/FF/BRAM/DSP/Fmax floor/target" for d in devices]
+    hdr = ["module"] + [f"{_DEVICE_LABELS.get(d, d)} LUT/FF/BRAM/DSP/Fmax floor/target"
+                        for d in devices]
     out = [
         "# Resource usage per block",
         "",
@@ -90,7 +92,8 @@ if __name__ == "__main__":
     import sys
     import json
     import argparse
-    parser = argparse.ArgumentParser(description="Regenerate doc/resources.md from impl/budgets.json.")
+    parser = argparse.ArgumentParser(description="Regenerate doc/resources.md from "
+                                                 "impl/budgets.json.")
     parser.add_argument("--check", action="store_true", help="Fail if doc/resources.md is stale (CI).")
     args = parser.parse_args()
 

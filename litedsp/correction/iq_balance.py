@@ -42,8 +42,8 @@ class LiteDSPIQBalance(LiteXModule):
         self.c1 = Signal((data_width, True), reset=0)                 # Q?.frac.
         self.c2 = Signal((data_width, True), reset=1 << coeff_frac)   # 1.0.
         acc_w   = 2*data_width + window_log2                          # Product + window bit growth.
-        self.acc_ii = Signal(acc_w)                                   # Latched sum I**2 (last window).
-        self.acc_qq = Signal(acc_w)                                   # Latched sum Q**2 (last window).
+        self.acc_ii = Signal(acc_w)                                # Latched sum I**2 (last window).
+        self.acc_qq = Signal(acc_w)                                # Latched sum Q**2 (last window).
         self.acc_iq = Signal((acc_w, True))                           # Latched sum I*Q (signed).
 
         # # #

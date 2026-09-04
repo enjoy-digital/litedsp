@@ -102,7 +102,8 @@ class LiteDSPSigmaDeltaDAC(LiteXModule):
     """PDM DAC: a TDM (or mono) sink feeding one :class:`LiteDSPSigmaDeltaModulator` per channel,
     whose bits are clocked out on ``pdm_out[c]`` at ``sys_clk / clk_div`` (``pdm_clk`` pin, the
     bit changes on its falling edge). Once streaming has started, a tick with no bit available
-    (input starved) repeats the last bit and sets the sticky ``underrun`` flag. Sink-only (``latency = None``); feed it at
+    (input starved) repeats the last bit and sets the sticky ``underrun`` flag.
+    Sink-only (``latency = None``); feed it at
     ``sys_clk / (clk_div * interpolation)`` frames per second.
     """
     def __init__(self, data_width=24, n_channels=1, interpolation=64, order=2, clk_div=16,
@@ -209,7 +210,8 @@ class LiteDSPPDMReceiver(LiteXModule):
         self.with_dc_blocker   = with_dc_blocker
         self.dc_pole_shift     = dc_pole_shift
         self.with_compensation = with_compensation
-        self.comp_coefficients = (cic_comp_coefficients(n_comp_taps, decimation, n_stages, 1, data_width)
+        self.comp_coefficients = (
+            cic_comp_coefficients(n_comp_taps, decimation, n_stages, 1, data_width)
                                   if with_compensation else None)
         self.latency = None
         self.source  = stream.Endpoint(tdm_layout(data_width, n_channels))
@@ -249,7 +251,8 @@ class LiteDSPPDMReceiver(LiteXModule):
                 fir = LiteDSPFIRFilter(n_taps=n_comp_taps, data_width=data_width, symmetric=False,
                     architecture="mac", n_macs=1)
                 self.add_module(name=f"compensation{c}", module=fir)
-                self.comb += [fir.coeffs[k].eq(self.coefficients.values[k]) for k in range(n_comp_taps)]
+                self.comb += [fir.coeffs[k].eq(self.coefficients.values[k])
+                                                                        for k in range(n_comp_taps)]
                 self.comb += last.connect(fir.sink)
                 last = fir.source
             self.comb += last.connect(self.mux.sinks[c])

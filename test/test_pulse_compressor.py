@@ -16,9 +16,11 @@ from test.common import run_stream, column
 from test.models import pulse_compressor_model
 
 def scene(prng, n, P, bandwidth, echoes, noise=300):
-    """Noise plus attenuated chirp echoes at the given (delay, amplitude) pairs, framed as one pulse."""
+    """Noise plus attenuated chirp echoes at the given (delay, amplitude) pairs, framed as one
+    pulse."""
     s = chirp_reference(P, bandwidth)
-    x = np.array([complex(prng.randint(-noise, noise), prng.randint(-noise, noise)) for _ in range(n)])
+    x = np.array(
+        [complex(prng.randint(-noise, noise), prng.randint(-noise, noise)) for _ in range(n)])
     for d, a in echoes:
         x[d:d + P] += a*s
     return [{"i": int(np.clip(v.real, -32767, 32767)), "q": int(np.clip(v.imag, -32767, 32767)),
@@ -32,10 +34,13 @@ class TestPulseCompressor(unittest.TestCase):
         for window, P in (("rect", 16), ("hamming", 16)):
             with self.subTest(window=window):
                 beats = scene(prng, 300, P, 0.5, [(40, 0.6), (120, 0.3)])
-                dut = LiteDSPPulseCompressor(pulse_len=P, bandwidth=0.5, window=window, with_csr=False)
-                cap = run_stream(dut, beats, 296, ["i", "q", "first", "last"], ["i", "q", "first", "last"],
+                dut = LiteDSPPulseCompressor(pulse_len=P, bandwidth=0.5, window=window,
+                                             with_csr=False)
+                cap = run_stream(dut, beats, 296, ["i", "q", "first", "last"],
+                                 ["i", "q", "first", "last"],
                     sink_throttle=0.2, source_ready_rate=0.7)
-                ri, rq, rf, rl = pulse_compressor_model([b["i"] for b in beats], [b["q"] for b in beats],
+                ri, rq, rf, rl = pulse_compressor_model([b["i"] for b in beats],
+                                                        [b["q"] for b in beats],
                     [b["first"] for b in beats], [b["last"] for b in beats], P, 0.5, window=window)
                 self.assertTrue(np.array_equal(column(cap, "i", 16), ri[:296]))
                 self.assertTrue(np.array_equal(column(cap, "q", 16), rq[:296]))
@@ -53,8 +58,10 @@ class TestPulseCompressor(unittest.TestCase):
             with self.subTest(window=window):
                 prng  = random.Random(3)
                 beats = scene(prng, 200, P, 0.5, [(60, 0.8)], noise=0)
-                dut   = LiteDSPPulseCompressor(pulse_len=P, bandwidth=0.5, window=window, with_csr=False)
-                cap   = run_stream(dut, beats, 196, ["i", "q", "first", "last"], ["i", "q", "first", "last"],
+                dut   = LiteDSPPulseCompressor(pulse_len=P, bandwidth=0.5, window=window,
+                                               with_csr=False)
+                cap   = run_stream(dut, beats, 196, ["i", "q", "first", "last"],
+                                   ["i", "q", "first", "last"],
                     sink_throttle=0.0, source_ready_rate=1.0)
                 mag   = np.hypot(column(cap, "i", 16), column(cap, "q", 16))
                 peak  = int(np.argmax(mag))

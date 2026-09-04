@@ -37,7 +37,8 @@ class LiteDSPNCO(LiteXModule):
         Store a single quarter-wave sine table (depth lut_depth/4 + 1) and reconstruct cos/sin
         by symmetry (4x ROM saving) at the cost of a little output mux logic.
     """
-    def __init__(self, phase_bits=32, data_width=16, lut_depth=1024, quarter_wave=False, with_csr=True):
+    def __init__(self, phase_bits=32, data_width=16, lut_depth=1024, quarter_wave=False,
+                 with_csr=True):
         self.phase_bits   = phase_bits
         self.data_width   = data_width
         self.quarter_wave = quarter_wave
@@ -71,8 +72,10 @@ class LiteDSPNCO(LiteXModule):
         # the motor-control sin/cos block).
         if not quarter_wave:
             # Full-period cos/sin ROMs.
-            cos_rom = Memory(data_width, lut_depth, init=self.build_lut(lut_depth, data_width, math.cos))
-            sin_rom = Memory(data_width, lut_depth, init=self.build_lut(lut_depth, data_width, math.sin))
+            cos_rom = Memory(data_width, lut_depth,
+                             init=self.build_lut(lut_depth, data_width, math.cos))
+            sin_rom = Memory(data_width, lut_depth,
+                             init=self.build_lut(lut_depth, data_width, math.sin))
             cos_rp  = cos_rom.get_port(has_re=True)
             sin_rp  = sin_rom.get_port(has_re=True)
             self.specials += cos_rom, sin_rom, cos_rp, sin_rp
@@ -120,7 +123,8 @@ class LiteDSPNCO(LiteXModule):
         return [int(round(func(2*math.pi*i/depth)*scale)) & mask for i in range(depth)]
 
     def add_csr(self):
-        self._phase_inc = CSRStorage(self.phase_bits, description="Phase increment (sets output frequency).")
+        self._phase_inc = CSRStorage(self.phase_bits,
+                                     description="Phase increment (sets output frequency).")
         self.comb += self.phase_inc.eq(self._phase_inc.storage)
 
 # Cos/Sin ROM Lookup -------------------------------------------------------------------------------
@@ -138,8 +142,10 @@ def sincos_rom(module, addr, ce, data_width, lut_depth, quarter_wave=False):
     cos, sin  = Signal((data_width, True)), Signal((data_width, True))
     if not quarter_wave:
         # Full-period cos/sin ROMs.
-        cos_rom = Memory(data_width, lut_depth, init=LiteDSPNCO.build_lut(lut_depth, data_width, math.cos))
-        sin_rom = Memory(data_width, lut_depth, init=LiteDSPNCO.build_lut(lut_depth, data_width, math.sin))
+        cos_rom = Memory(data_width, lut_depth,
+                         init=LiteDSPNCO.build_lut(lut_depth, data_width, math.cos))
+        sin_rom = Memory(data_width, lut_depth,
+                         init=LiteDSPNCO.build_lut(lut_depth, data_width, math.sin))
         cos_rp  = cos_rom.get_port(has_re=True)
         sin_rp  = sin_rom.get_port(has_re=True)
         module.specials += cos_rom, sin_rom, cos_rp, sin_rp

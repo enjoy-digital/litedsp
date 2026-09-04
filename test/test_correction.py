@@ -59,7 +59,8 @@ class TestIQBalance(unittest.TestCase):
         n = 5000
         t = np.arange(n)
         i = np.round(10000*np.cos(2*np.pi*0.02*t)).astype(int)
-        q = np.round(0.7*10000*np.sin(2*np.pi*0.02*t) + 0.2*10000*np.cos(2*np.pi*0.02*t)).astype(int)
+        q = np.round(0.7*10000*np.sin(2*np.pi*0.02*t)
+                                      + 0.2*10000*np.cos(2*np.pi*0.02*t)).astype(int)
         dut = LiteDSPIQBalance(data_width=16, coeff_frac=14, with_csr=False)
         # Correction to undo q' = 0.7 q_ideal + 0.2 i: c2 = 1/0.7, c1 = -0.2/0.7.
         dut.c2.reset = int(round((1/0.7)*(1 << 14)))

@@ -17,7 +17,8 @@ IN  = ["range", "doppler", "data", "hit", "first", "last"]
 OUT = ["range", "doppler", "velocity", "id", "hits", "hit", "first", "last"]
 
 def run(beats, **kwargs):
-    ref, stats = alpha_beta_tracker_model([b["range"] for b in beats], [b["doppler"] for b in beats],
+    ref, stats = alpha_beta_tracker_model([b["range"] for b in beats],
+                                          [b["doppler"] for b in beats],
         [b["hit"] for b in beats], **kwargs)
     return ref, stats
 
@@ -32,9 +33,11 @@ class TestAlphaBetaTracker(unittest.TestCase):
                 ref, stats = run(beats, emit_tentative=emit_tentative)
                 dut = LiteDSPAlphaBetaTracker(with_csr=False)
                 dut.emit_tentative.reset = emit_tentative
-                cap = run_stream(dut, beats, len(ref[0]), IN, OUT, sink_throttle=0.2, source_ready_rate=0.6)
+                cap = run_stream(dut, beats, len(ref[0]), IN, OUT, sink_throttle=0.2,
+                                 source_ready_rate=0.6)
                 for name, col in zip(OUT, ref):
-                    got = column(cap, name, len(getattr(dut.source, name)) if name == "velocity" else None)
+                    got = column(cap, name,
+                                 len(getattr(dut.source, name)) if name == "velocity" else None)
                     self.assertEqual(got.tolist(), col.tolist(), name)
                 self.assertIsNone(dut.latency)
 
@@ -72,7 +75,8 @@ class TestAlphaBetaTracker(unittest.TestCase):
     # verify-tier: bound — coasting: a target missing for two CPIs keeps its track (max_misses 2),
     # one missing for three CPIs is freed and comes back under a new id.
     def test_coasting(self):
-        beats, _ = tracker_scenario(n_cpi=14, drop=((4, 0), (5, 0), (7, 1), (8, 1), (9, 1)), false_alarms=False)
+        beats, _ = tracker_scenario(n_cpi=14, drop=((4, 0), (5, 0), (7, 1), (8, 1), (9, 1)),
+                                    false_alarms=False)
         (rng, dop, vel, ids, hits, hit, first, last), _ = run(beats)
         bursts, cur = [], []
         for k in range(len(hit)):
@@ -80,7 +84,7 @@ class TestAlphaBetaTracker(unittest.TestCase):
                 cur.append(int(ids[k]))
             else:
                 bursts.append(sorted(cur)); cur = []
-        self.assertEqual(bursts[4], [0, 1])                             # Coasting through two misses.
+        self.assertEqual(bursts[4], [0, 1])                           # Coasting through two misses.
         self.assertEqual(bursts[5], [0, 1])
         self.assertEqual(bursts[6], [0, 1])                             # Re-assigned.
         self.assertEqual(bursts[8], [0, 1])                             # Two misses: still tracked.

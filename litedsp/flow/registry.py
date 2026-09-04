@@ -68,7 +68,8 @@ from litedsp.comm.pll              import LiteDSPCarrierLoop
 from litedsp.comm.phase_detect     import LiteDSPPhaseDetect
 from litedsp.comm.cfo_est          import LiteDSPCFOEstimator
 from litedsp.comm.diff             import LiteDSPDifferentialEncoder, LiteDSPDifferentialDecoder
-from litedsp.comm.coding           import LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC, LiteDSPConvEncoder
+from litedsp.comm.coding           import (LiteDSPScrambler, LiteDSPDescrambler, LiteDSPCRC,
+                                           LiteDSPConvEncoder)
 from litedsp.comm.interleaver      import LiteDSPBlockInterleaver, LiteDSPBlockDeinterleaver
 from litedsp.comm.viterbi          import LiteDSPViterbiDecoder
 from litedsp.comm.puncture         import LiteDSPPuncturer, LiteDSPDepuncturer, PUNCTURE_3_4
@@ -97,11 +98,13 @@ from litedsp.stream.combine        import LiteDSPCombine
 from litedsp.stream.split          import LiteDSPSplit
 from litedsp.stream.delay          import LiteDSPDelay
 from litedsp.stream.buffer         import LiteDSPSkidBuffer
-from litedsp.stream.route          import LiteDSPChannelMux, LiteDSPChannelDemux, LiteDSPTDMMux, LiteDSPTDMDemux
+from litedsp.stream.route          import (LiteDSPChannelMux, LiteDSPChannelDemux, LiteDSPTDMMux,
+                                           LiteDSPTDMDemux)
 from litedsp.stream.capture        import LiteDSPCapture
 from litedsp.stream.ops            import LiteDSPConjugate, LiteDSPSwapIQ, LiteDSPNegate
 from litedsp.stream.fifo           import LiteDSPStreamFIFO
-from litedsp.stream.adapt          import LiteDSPIQPack, LiteDSPIQUnpack, LiteDSPIQClockDomainCrossing
+from litedsp.stream.adapt          import (LiteDSPIQPack, LiteDSPIQUnpack,
+                                           LiteDSPIQClockDomainCrossing)
 from litedsp.stream.csr_io         import LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPNullSink
 from litedsp.stream.framing        import LiteDSPStreamFramer, LiteDSPStreamDeframer
 from litedsp.stream.timestamp      import LiteDSPTimestamper, LiteDSPTimeUntagger
@@ -121,9 +124,11 @@ from litedsp.audio.dither          import LiteDSPDither
 from litedsp.audio.eq              import LiteDSPAudioEQ
 from litedsp.level.logdb           import LiteDSPExp2
 from litedsp.audio.dynamics        import LiteDSPCompressor
-from litedsp.audio.effects         import LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix, LiteDSPReverb
+from litedsp.audio.effects         import (LiteDSPLFO, LiteDSPDelayLine, LiteDSPWetDryMix,
+                                           LiteDSPReverb)
 from litedsp.audio.meter           import LiteDSPPeakMeter, LiteDSPLoudness
-from litedsp.audio.pdm             import LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC, LiteDSPPDMReceiver
+from litedsp.audio.pdm             import (LiteDSPSigmaDeltaModulator, LiteDSPSigmaDeltaDAC,
+                                           LiteDSPPDMReceiver)
 from litedsp.audio.i2s             import LiteDSPI2SReceiver, LiteDSPI2STransmitter
 from litedsp.comm.fm_mod           import LiteDSPFrequencyModulator, LiteDSPPhaseModulator
 from litedsp.comm.am_mod           import LiteDSPAMModulator
@@ -132,7 +137,8 @@ from litedsp.comm.ssb_mod          import LiteDSPSSBModulator
 from litedsp.comm.fsk_mod          import LiteDSPFSKModulator
 from litedsp.comm.line_code        import LiteDSPLineEncoder, LiteDSPLineDecoder
 from litedsp.comm.hamming          import LiteDSPHammingEncoder, LiteDSPHammingDecoder
-from litedsp.comm.conv_interleaver import LiteDSPConvolutionalInterleaver, LiteDSPConvolutionalDeinterleaver
+from litedsp.comm.conv_interleaver import (LiteDSPConvolutionalInterleaver,
+                                           LiteDSPConvolutionalDeinterleaver)
 from litedsp.comm.hdlc             import LiteDSPHDLCFramer, LiteDSPHDLCDeframer
 from litedsp.comm.bch              import LiteDSPBCHEncoder, LiteDSPBCHDecoder
 from litedsp.radar.timing          import LiteDSPRangeGate, LiteDSPPulseGenerator

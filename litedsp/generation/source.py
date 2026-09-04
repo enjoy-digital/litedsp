@@ -45,9 +45,12 @@ class LiteDSPChirp(LiteXModule):
         # -------------
         addr_bits = int(math.log2(lut_depth))
         scale     = (1 << (data_width - 1)) - 1
-        cos = Memory(data_width, lut_depth, init=[int(round(math.cos(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
-        sin = Memory(data_width, lut_depth, init=[int(round(math.sin(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
-        crp, srp = cos.get_port(async_read=True), sin.get_port(async_read=True)  # Async read: output follows the phase register.
+        cos = Memory(data_width, lut_depth, init=[int(round(math.cos(
+            2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
+        sin = Memory(data_width, lut_depth, init=[int(round(math.sin(
+            2*math.pi*n/lut_depth)*scale)) & ((1 << data_width)-1) for n in range(lut_depth)])
+        # Async read: output follows the phase register.
+        crp, srp = cos.get_port(async_read=True), sin.get_port(async_read=True)
         self.specials += cos, sin, crp, srp
 
         # Frequency/Phase Accumulators.
@@ -114,7 +117,8 @@ class LiteDSPNoiseSource(LiteXModule):
         # Sum n_sum independent xorshift32 streams for one axis; the Irwin-Hall
         # sum approaches a Gaussian as n_sum grows.
         def axis(base):
-            acc = Signal((data_width + n_sum.bit_length() + 1, True))  # Headroom for the n_sum-term sum.
+            # Headroom for the n_sum-term sum.
+            acc = Signal((data_width + n_sum.bit_length() + 1, True))
             terms = []
             for k in range(n_sum):
                 x  = Signal(32, reset=(seed + base*0x9E3779B1 + k*0x85EBCA77) & 0xffffffff | 1)
@@ -133,7 +137,8 @@ class LiteDSPNoiseSource(LiteXModule):
         # -------
         out_i = Signal((data_width, True))
         out_q = Signal((data_width, True))
-        self.comb += [out_i.eq(axis(0) >> shift), out_q.eq(axis(1) >> shift)]  # Shift sets the output amplitude (sigma).
+        # Shift sets the output amplitude (sigma).
+        self.comb += [out_i.eq(axis(0) >> shift), out_q.eq(axis(1) >> shift)]
         self.sync += If(ce,
             self.source.i.eq(out_i),
             self.source.q.eq(out_q),
@@ -155,7 +160,8 @@ class LiteDSPReplay(LiteXModule):
         # -------
         # One word per sample: Q packed in the high half, I in the low half.
         mask = (1 << data_width) - 1
-        mem  = Memory(2*data_width, n, init=[((q & mask) << data_width) | (i & mask) for (i, q) in samples])
+        mem  = Memory(2*data_width, n,
+                      init=[((q & mask) << data_width) | (i & mask) for (i, q) in samples])
         rp   = mem.get_port(async_read=True)
         self.specials += mem, rp
 

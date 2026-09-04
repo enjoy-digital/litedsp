@@ -37,10 +37,12 @@ class TestSigmaDeltaModulator(unittest.TestCase):
         x = [prng.randint(-FS24//2, FS24//2) for _ in range(60)]
         for order in (1, 2):
             with self.subTest(order=order):
-                dut = LiteDSPSigmaDeltaModulator(data_width=24, interpolation=8, order=order, with_csr=False)
+                dut = LiteDSPSigmaDeltaModulator(data_width=24, interpolation=8, order=order,
+                                                 with_csr=False)
                 cap = run_stream(dut, [{"data": v} for v in x], 8*len(x), ["data"], ["data"],
                     sink_throttle=0.2, source_ready_rate=0.7)
-                self.assertEqual(column(cap, "data").tolist(), sigma_delta_model(x, 8, order).tolist())
+                self.assertEqual(column(cap, "data").tolist(),
+                                 sigma_delta_model(x, 8, order).tolist())
                 self.assertEqual(dut.latency, 1)
 
     # verify-tier: bound — the bit density of a DC input tracks (1 + x)/2 within 0.5 %; a
@@ -74,13 +76,15 @@ class TestSigmaDeltaModulator(unittest.TestCase):
 
 class TestSigmaDeltaDAC(unittest.TestCase):
     # verify-tier: model — the bits sampled on the pdm_clk rising edges contain each channel's
-    # modulator model bitstream; the clock period is clk_div cycles; input starvation flags underrun.
+    # modulator model bitstream; the clock period is clk_div cycles; input starvation flags
+    # underrun.
     def test_bits_on_pins(self):
         prng   = random.Random(2)
         frames = 24
         xs     = [[prng.randint(-FS24//2, FS24//2) for _ in range(frames)] for _ in range(2)]
         beats  = [{"data": xs[c][k], "channel": c} for k in range(frames) for c in range(2)]
-        dut    = LiteDSPSigmaDeltaDAC(data_width=24, n_channels=2, interpolation=4, order=2, clk_div=4,
+        dut    = LiteDSPSigmaDeltaDAC(data_width=24, n_channels=2, interpolation=4, order=2,
+                                      clk_div=4,
             with_csr=False)
         bits, periods, seen = [[], []], [], {}
         @passive
@@ -97,7 +101,7 @@ class TestSigmaDeltaDAC(unittest.TestCase):
                 prev = clk
                 cyc += 1
                 yield
-        def driver():                                            # Inline push (stream_driver is passive).
+        def driver():                                      # Inline push (stream_driver is passive).
             for b in beats:
                 yield dut.sink.data.eq(b["data"])
                 yield dut.sink.channel.eq(b["channel"])
@@ -158,7 +162,8 @@ class TestPDMReceiver(unittest.TestCase):
         n    = 64
         bits = [[prng.randint(0, 1) for _ in range(8*n)] for _ in range(2)]
         dut  = LiteDSPPDMReceiver(data_width=24, n_channels=2, decimation=8, n_stages=2, clk_div=4,
-            dual_edge=True, with_dc_blocker=True, with_compensation=True, n_comp_taps=7, with_csr=False)
+            dual_edge=True, with_dc_blocker=True, with_compensation=True, n_comp_taps=7,
+            with_csr=False)
         data, ch = self.run_pins(dut, bits, 2*(n - 4), ready_rate=0.8)
         ref_d, ref_c = pdm_receiver_model(bits, 8, 2, 24, True, 10, dut.comp_coefficients)
         self.assertEqual(ch.tolist(), ref_c[:len(ch)].tolist())
@@ -172,13 +177,15 @@ class TestPDMReceiver(unittest.TestCase):
     def test_tone_snr(self):
         n, R = 96, 64
         cycles = (4, 7)
-        tones  = [[int(0.5*(1 << 23)*math.sin(2*math.pi*cycles[c]*k/n)) for k in range(n)] for c in range(2)]
+        tones  = [[int(0.5*(1 << 23)*math.sin(2*math.pi*cycles[c]*k/n)) for k in range(n)]
+            for c in range(2)]
         bits   = [sigma_delta_model(t, R, 2) for t in tones]
-        dut    = LiteDSPPDMReceiver(data_width=24, n_channels=2, decimation=R, n_stages=4, clk_div=4,
+        dut    = LiteDSPPDMReceiver(data_width=24, n_channels=2, decimation=R, n_stages=4,
+                                    clk_div=4,
             dual_edge=True, with_dc_blocker=True, with_csr=False)
         data, ch = self.run_pins(dut, bits, 2*(n - 4))
         for c in range(2):
-            y = data[ch == c][12:]                                   # Skip the CIC / DC-blocker fill.
+            y = data[ch == c][12:]                                 # Skip the CIC / DC-blocker fill.
             amp, res = fit_tone(y, cycles[c]*len(y)/n)
             self.assertGreaterEqual(10*math.log10(amp**2/2/res), 45.0, f"channel {c}")
 
@@ -188,12 +195,15 @@ class TestPDMReceiver(unittest.TestCase):
     def test_compensation_flattens_droop(self):
         n, R = 160, 32
         lo, hi = 3, 24
-        tone = [int(0.2*(1 << 23)*(math.sin(2*math.pi*lo*k/n) + math.sin(2*math.pi*hi*k/n))) for k in range(n)]
+        tone = [int(0.2*(1 << 23)*(math.sin(2*math.pi*lo*k/n) + math.sin(2*math.pi*hi*k/n)))
+                                                                         for k in range(n)]
         bits = [sigma_delta_model(tone, R, 2)]
         droop = {}
         for comp in (False, True):
-            dut = LiteDSPPDMReceiver(data_width=24, n_channels=1, decimation=R, n_stages=4, clk_div=4,
-                dual_edge=False, with_dc_blocker=False, with_compensation=comp, n_comp_taps=15, with_csr=False)
+            dut = LiteDSPPDMReceiver(data_width=24, n_channels=1, decimation=R, n_stages=4,
+                                     clk_div=4,
+                dual_edge=False, with_dc_blocker=False, with_compensation=comp, n_comp_taps=15,
+                with_csr=False)
             data, _ = self.run_pins(dut, bits, n - 8)
             y = data[16:]
             a_lo, _ = fit_tone(y, lo*len(y)/n)

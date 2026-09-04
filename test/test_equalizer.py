@@ -76,9 +76,10 @@ class TestLMSEqualizer(unittest.TestCase):
         sym   *= amp
         h      = np.array([1.0, 0.45, -0.25, 0.1])                                # ISI channel.
         x      = np.convolve(sym, h)[:N]
-        d      = np.concatenate([np.zeros(delay, complex), sym])[:N]              # Desired = delayed symbols.
+        d      = np.concatenate([np.zeros(delay, complex), sym])[:N]    # Desired = delayed symbols.
 
-        dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, wfrac=14, mu_shift=20, with_csr=False)
+        dut = LiteDSPLMSEqualizer(n_taps=n_taps, data_width=16, wfrac=14, mu_shift=20,
+                                  with_csr=False)
         samples = [{"i": int(round(x[k].real)), "q": int(round(x[k].imag)),
                     "d_i": int(round(d[k].real)), "d_q": int(round(d[k].imag))} for k in range(N)]
         cap = run_stream(dut, samples, N, ["i", "q", "d_i", "d_q"], ["i", "q"],

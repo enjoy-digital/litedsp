@@ -10,7 +10,8 @@ The gigasample rate-change: ``n_samples`` I/Q samples enter per beat, the integr
 is unrolled ``n_samples`` serial steps per clock (wrap-around Hogenauer arithmetic, exactly the
 serial recurrence), and with ``R`` a multiple of ``n_samples`` the decimation snapshot always
 lands on a beat's last lane — so the output is a standard *serial* I/Q stream at ``1/R`` of the
-sample rate, bit-identical to :class:`~litedsp.filter.cic.LiteDSPCICDecimator` on the flattened lanes.
+sample rate, bit-identical to
+:class:`~litedsp.filter.cic.LiteDSPCICDecimator` on the flattened lanes.
 """
 
 import math
@@ -167,7 +168,8 @@ class LiteDSPParallelCICDecimator(LiteXModule):
     def __init__(self, n_samples=4, data_width=16, decimation=8, n_stages=3, diff_delay=1,
         with_csr=True, staged=False):
         R, N, M = decimation, n_stages, diff_delay  # Literature names.
-        check(R >= 2 and N >= 1 and M >= 1, "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
+        check(R >= 2 and N >= 1 and M >= 1,
+              "expected decimation >= 2, n_stages >= 1, diff_delay >= 1")
         check(R >= n_samples and R % n_samples == 0,
             "decimation must be a multiple of n_samples (output rate <= 1 sample/cycle)")
         check(isinstance(staged, bool), "expected staged to be a bool")
@@ -247,7 +249,8 @@ class LiteDSPParallelCICDecimator(LiteXModule):
                 combq[k][m].eq(combq[k][m - 1]) for k in range(N) for m in range(1, M)
             ])
 
-            out, _ = scaled(c, growth, data_width)  # Remove the 2**growth CIC gain (round + saturate).
+            # Remove the 2**growth CIC gain (round + saturate).
+            out, _ = scaled(c, growth, data_width)
             self.sync += If(xfer & is_out, getattr(self.source, field).eq(out))
 
         # Output.

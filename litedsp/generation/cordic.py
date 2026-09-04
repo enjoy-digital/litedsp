@@ -53,7 +53,8 @@ class LiteDSPCORDIC(LiteXModule):
         "rotation" (rotate (x, y) by z, e.g. sin/cos generation) or "vectoring" (magnitude on
         ``mag`` and atan2(y, x) on ``angle``).
     """
-    def __init__(self, data_width=16, angle_width=None, stages=None, mode="rotation", with_csr=True):
+    def __init__(self, data_width=16, angle_width=None, stages=None, mode="rotation",
+                 with_csr=True):
         check(mode in ["rotation", "vectoring"], "expected mode in ['rotation', 'vectoring']")
         if angle_width is None:
             angle_width = data_width
@@ -73,11 +74,13 @@ class LiteDSPCORDIC(LiteXModule):
             self.source = stream.Endpoint([("x", (data_width, True)), ("y", (data_width, True))])
         else:
             self.sink   = stream.Endpoint([("x", (data_width, True)), ("y", (data_width, True))])
-            self.source = stream.Endpoint([("mag", (data_width + 1, True)), ("angle", (angle_width, True))])
+            self.source = stream.Endpoint(
+                [("mag", (data_width + 1, True)), ("angle", (angle_width, True))])
 
         # # #
 
-        atan = [int(round(math.atan(2.0**(-i))/(2*math.pi)*(1 << angle_width))) for i in range(stages)]
+        atan = [int(round(math.atan(2.0**(-i))/(2*math.pi)*(1 << angle_width)))
+                                                            for i in range(stages)]
         kinv = int(round((1/cordic_gain(stages))*((1 << 15) - 1)))  # 1/K in Q1.15.
 
         adv = Signal()

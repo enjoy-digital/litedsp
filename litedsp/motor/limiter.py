@@ -74,7 +74,8 @@ class LiteDSPSlewLimiter(LiteXModule):
             self.add_csr()
 
     def add_csr(self):
-        self._rate = CSRStorage(self.data_width, reset=(1 << (self.data_width - 1)) - 1, name="rate",
+        self._rate = CSRStorage(self.data_width, reset=(1 << (self.data_width - 1)) - 1,
+                                name="rate",
             description="Maximum change per sample (positive; full scale disables the limiter).")
         self.comb += self.rate.eq(self._rate.storage)
         add_bypass_csr(self)

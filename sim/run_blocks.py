@@ -88,7 +88,8 @@ def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=(
         set_valid.append(f"if (s == {s}) dut->{prefix}_valid = v;")
         get_ready.append(f"if (s == {s}) return dut->{prefix}_ready;")
         for f, w, _ in _fields(ep):
-            assert w <= 64, f"generic co-sim supports payload fields up to 64 bits ({prefix}.{f} is {w})"
+            assert w <= 64, (f"generic co-sim supports payload fields up to 64 bits "
+                             f"({prefix}.{f} is {w})")
             mask = f" & 0x{(1 << w) - 1:x}ull" if w < 64 else ""
             set_in.append(f"if (k == {n_in}) dut->{prefix}_payload_{f} = (uint64_t)v{mask};")
             n_in += 1
@@ -101,15 +102,18 @@ def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=(
     for k, signal in enumerate(controls):
         signal.name_override = f"tb_control{k}"
         width = len(signal)
-        assert width <= 64, f"generic co-sim supports controls up to 64 bits (control {k} is {width})"
+        assert width <= 64, (f"generic co-sim supports controls up to 64 bits "
+                             f"(control {k} is {width})")
         mask = f" & 0x{(1 << width) - 1:x}ull" if width < 64 else ""
         set_control.append(f"if (k == {k}) dut->tb_control{k} = (uint64_t)v{mask};")
     get_out = []
     for k, (f, w, signed) in enumerate(outs):
-        assert w <= 64, f"generic co-sim supports payload fields up to 64 bits ({src_prefix}.{f} is {w})"
+        assert w <= 64, (f"generic co-sim supports payload fields up to 64 bits "
+                         f"({src_prefix}.{f} is {w})")
         port = f"dut->{src_prefix}_payload_{f}"
         if signed or w >= 32:  # Packed wide fields use a signed host integer representation.
-            get_out.append(f"if (k == {k}) return ((int64_t)((uint64_t){port} << {64 - w})) >> {64 - w};")
+            get_out.append(f"if (k == {k}) return ((int64_t)((uint64_t){port} << {64 - w})) >> "
+                           f"{64 - w};")
         else:                  # Unsigned payload (e.g. log2): plain zero-extended read.
             get_out.append(f"if (k == {k}) return (int64_t)(uint64_t){port};")
     if source_tags:
@@ -142,7 +146,8 @@ def _ports_header(dut, top, path, sink_tags=False, source_tags=False, controls=(
 
 # Runner -------------------------------------------------------------------------------------------
 
-def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_sim", coverage=False):
+def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_sim",
+              coverage=False):
     spec = SPECS[name]()
     if len(spec) == 4:
         dut, cols, n_out, model = spec
@@ -202,11 +207,13 @@ def run_block(name, seed=1, throttle=25, ready_rate=75, build_dir="/tmp/litedsp_
                 bad = np.flatnonzero(got[:len(r0), k] != r0)
                 i0  = int(bad[0]) if len(bad) else len(r0)
                 print(f"  field {k}: {len(bad)} mismatching beat(s), first at {i0}: "
-                      f"got[{i0}:{i0 + 4}]={got[i0:i0 + 4, k].tolist()} ref={r0[i0:i0 + 4].tolist()}")
+                      f"got[{i0}:{i0 + 4}]={got[i0:i0 + 4, k].tolist()} "
+                      f"ref={r0[i0:i0 + 4].tolist()}")
     return expected
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Verilator co-simulation of LiteDSP blocks vs NumPy models.")
+    parser = argparse.ArgumentParser(description="Verilator co-simulation of LiteDSP blocks vs "
+                                                 "NumPy models.")
     parser.add_argument("blocks", nargs="*",                 help="Blocks to run (default: all table entries).")
     parser.add_argument("--seed",       default=1,  type=int, help="Backpressure randomization seed.")
     parser.add_argument("--throttle",   default=25, type=int, help="Sink valid hold-back probability (%%).")

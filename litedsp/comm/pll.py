@@ -22,7 +22,8 @@ from litedsp.control  import LiteDSPPILoop
 class LiteDSPCarrierLoop(LiteXModule):
     """Carrier recovery: derotate the input with an internal NCO driven by a PI loop.
 
-    Each sample is derotated by ``exp(-j*phase)``; the phase error feeds a :class:`LiteDSPPILoop` whose
+    Each sample is derotated by ``exp(-j*phase)``; the phase error
+    feeds a :class:`LiteDSPPILoop` whose
     output advances the NCO phase (a 2nd-order loop that locks frequency and phase). The
     derotated (baseband) signal is the output. ``decision_directed=False`` (PLL) uses the
     derotated imaginary part as the error (residual-carrier / tone). ``detector="bpsk"`` uses
@@ -92,7 +93,8 @@ class LiteDSPCarrierLoop(LiteXModule):
                      for n in range(lut_depth)]
         sin_init  = [int(round(math.sin(2*math.pi*n/lut_depth)*scale)) & ((1 << data_width) - 1)
                      for n in range(lut_depth)]
-        cos_rom, sin_rom = Memory(data_width, lut_depth, init=cos_init), Memory(data_width, lut_depth, init=sin_init)
+        cos_rom, sin_rom = Memory(data_width, lut_depth, init=cos_init), Memory(
+            data_width, lut_depth, init=sin_init)
         cos_rp, sin_rp   = cos_rom.get_port(async_read=True), sin_rom.get_port(async_read=True)
         self.specials += cos_rom, sin_rom, cos_rp, sin_rp
 

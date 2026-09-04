@@ -57,7 +57,8 @@ class TestPeakMeter(unittest.TestCase):
     def test_trajectory_bit_exact(self):
         prng  = random.Random(1)
         n     = 160
-        xs    = [[prng.choice([prng.randint(-FS24, FS24), prng.randint(-2000, 2000), FS24, -FS24 - 1])
+        xs    = [
+            [prng.choice([prng.randint(-FS24, FS24), prng.randint(-2000, 2000), FS24, -FS24 - 1])
                   for _ in range(n)] for _ in range(2)]
         beats = tdm(xs)
         dut   = LiteDSPPeakMeter(data_width=24, n_channels=2, decay_shift=3, clip_threshold=FS24,
@@ -68,14 +69,16 @@ class TestPeakMeter(unittest.TestCase):
             got_p.append((yield dut.peak[c]))
             got_h.append((yield dut.hold[c]))
         run_simulation(dut, drive(dut, beats, gap=3, prng=prng, log=log))
-        p, h, count, clip = peak_meter_model([b["data"] for b in beats], [b["channel"] for b in beats],
+        p, h, count, clip = peak_meter_model([b["data"] for b in beats],
+                                             [b["channel"] for b in beats],
             n_channels=2, decay_shift=3, clip_threshold=FS24)
         self.assertTrue(np.array_equal(got_p, p))
         self.assertTrue(np.array_equal(got_h, h))
         self.assertEqual(dut.latency, 0)
 
     # verify-tier: bound — an impulse decays geometrically, (1 - 2**-ds)**k after k silent beats
-    # (ds=6, k=63: 0.372, about e**-1 per 2**ds beats) and the log2 scan reports the LUT log2 of the peak.
+    # (ds=6, k=63: 0.372, about e**-1 per 2**ds beats) and the log2 scan reports the LUT log2 of the
+    # peak.
     def test_decay_and_log2(self):
         dut   = LiteDSPPeakMeter(data_width=24, n_channels=2, decay_shift=6, with_csr=False)
         beats = tdm([[1 << 22] + [0]*63, [0]*64])
@@ -89,7 +92,8 @@ class TestPeakMeter(unittest.TestCase):
                 seen["peak"] = (yield dut.peak[0])
         run_simulation(dut, drive(dut, beats, log=log))
         self.assertAlmostEqual(seen["peak"]/(1 << 22), (1 - 2**-6)**63, delta=0.005)
-        self.assertEqual(seen["log2"], int(log2_model(np.array([1 << 22]), in_width=24, frac_bits=8, lut=True)[0]))
+        self.assertEqual(seen["log2"], int(
+            log2_model(np.array([1 << 22]), in_width=24, frac_bits=8, lut=True)[0]))
 
     def test_clip_irq_clear(self):
         dut   = LiteDSPPeakMeter(data_width=24, n_channels=2, with_csr=False, with_irq=True)
@@ -142,7 +146,8 @@ class TestLoudness(unittest.TestCase):
                     sums.append((yield dut.sum_sq))
                 yield
         run_simulation(dut, [drive(dut, beats, gap=dut.cycles_per_sample), monitor()])
-        ref = loudness_model([b["data"] for b in beats], [b["channel"] for b in beats], dut.sections,
+        ref = loudness_model([b["data"] for b in beats], [b["channel"] for b in beats],
+                             dut.sections,
             n_channels=2, hop_samples=hop, channel_weights=dut.channel_weights)
         self.assertEqual(len(ref), 4)
         self.assertEqual(sums, ref)
@@ -201,7 +206,8 @@ class TestLoudness(unittest.TestCase):
         self.assertTrue(np.array_equal(column(cap, "data", 24), [b["data"] for b in beats]))
 
     def test_invalid(self):
-        for kwargs in ({"hop_samples": 0}, {"channel_weights": [1.0]}, {"channel_weights": [1.0, 4.0]}):
+        for kwargs in ({"hop_samples": 0}, {"channel_weights": [1.0]},
+                       {"channel_weights": [1.0, 4.0]}):
             with self.assertRaises(ValueError, msg=str(kwargs)):
                 LiteDSPLoudness(with_csr=False, **kwargs)
 

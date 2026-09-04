@@ -44,7 +44,8 @@ from litedsp.common import check
 def _check_geometry(rows, cols, width):
     check(rows >= 1, "expected rows >= 1 (CCSDS interleaving depth I)")
     check(cols >= 1, "expected cols >= 1")
-    check(rows <= 255 and cols <= 65535, "expected rows <= 255 and cols <= 65535 (CSR field widths)")
+    check(rows <= 255 and cols <= 65535,
+          "expected rows <= 255 and cols <= 65535 (CSR field widths)")
     check(rows*cols >= 2, "expected a block of at least 2 symbols")
     check(width >= 1, "expected width >= 1")
 

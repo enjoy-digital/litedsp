@@ -18,7 +18,8 @@ from litex.gen import LiteXModule
 from litedsp.common              import iq_layout
 from litedsp.stream.fifo         import LiteDSPStreamFIFO
 from litedsp.stream.adapt        import LiteDSPIQPack, LiteDSPIQUnpack
-from litedsp.stream.csr_io       import LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPCSRReader, LiteDSPNullSink
+from litedsp.stream.csr_io       import (LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPCSRReader,
+                                         LiteDSPNullSink)
 from litedsp.stream.framing      import LiteDSPStreamFramer, LiteDSPStreamDeframer
 from litedsp.generation.pattern  import LiteDSPPatternSource, PATTERN_COUNTER, PATTERN_PRBS
 from litedsp.analysis.measure    import LiteDSPErrorCounter
@@ -199,7 +200,8 @@ class TestFraming(unittest.TestCase):
         @passive
         def feed():
             for s in samples:
-                yield dut.sink.i.eq(s["i"]); yield dut.sink.q.eq(s["q"]); yield dut.sink.last.eq(s["last"])
+                yield dut.sink.i.eq(s["i"]); yield dut.sink.q.eq(s["q"]); yield dut.sink.last.eq(
+                    s["last"])
                 yield dut.sink.valid.eq(1)
                 yield
                 while (yield dut.sink.ready) == 0:

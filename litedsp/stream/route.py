@@ -45,7 +45,8 @@ class LiteDSPChannelMux(LiteXModule):
         # CSR.
         # ----
         if with_csr:
-            self._sel = CSRStorage(self.sel.nbits, name="sel", description="Selected input channel.")
+            self._sel = CSRStorage(self.sel.nbits, name="sel",
+                                   description="Selected input channel.")
             self.comb += self.sel.eq(self._sel.storage)
 
 class LiteDSPChannelDemux(LiteXModule):
@@ -78,7 +79,8 @@ class LiteDSPChannelDemux(LiteXModule):
         # CSR.
         # ----
         if with_csr:
-            self._sel = CSRStorage(self.sel.nbits, name="sel", description="Selected output channel.")
+            self._sel = CSRStorage(self.sel.nbits, name="sel",
+                                   description="Selected output channel.")
             self.comb += self.sel.eq(self._sel.storage)
 
 # TDM Mux ------------------------------------------------------------------------------------------

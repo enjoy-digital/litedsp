@@ -42,7 +42,8 @@ class TestScrambler(unittest.TestCase):
             sink_throttle=0.1, source_ready_rate=0.8)
         scrambled = list(column(cs, "data"))
         des = LiteDSPDescrambler(polynomial=taps, with_csr=False)
-        cd = run_stream(des, [{"data": int(b)} for b in scrambled], len(scrambled), ["data"], ["data"],
+        cd = run_stream(des, [{"data": int(b)} for b in scrambled], len(scrambled), ["data"],
+                        ["data"],
             sink_throttle=0.1, source_ready_rate=0.8)
         rec = list(column(cd, "data"))
         # Self-synchronizing: matches after the register fills.

@@ -49,7 +49,8 @@ class IPChain(LiteXModule):
 
         self.dcblock = LiteDSPDCBlocker(data_width=data_width, with_csr=with_csr)
         self.gain    = LiteDSPGain(data_width=data_width, with_csr=with_csr)
-        self.framer  = LiteDSPStreamFramer(length=frame_len, data_width=data_width, with_csr=with_csr)
+        self.framer  = LiteDSPStreamFramer(length=frame_len, data_width=data_width,
+                                           with_csr=with_csr)
 
         # AXI-Stream carries extra param fields (id/dest/user/keep) the DSP endpoints don't use.
         axi_only = {"id", "dest", "user", "keep"}

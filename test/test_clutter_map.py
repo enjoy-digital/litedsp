@@ -17,7 +17,8 @@ from test.models import clutter_map_model
 FIELDS = ["data", "threshold", "detect", "first", "last"]
 
 def scans(values, n):
-    return [{"data": int(v), "first": int(k % n == 0), "last": int(k % n == n - 1)} for k, v in enumerate(values)]
+    return [{"data": int(v), "first": int(k % n == 0), "last": int(k % n == n - 1)} for k,
+            v in enumerate(values)]
 
 class TestClutterMap(unittest.TestCase):
     # verify-tier: model — three 64-cell scans of exponential-like cells with a few strong
@@ -34,7 +35,8 @@ class TestClutterMap(unittest.TestCase):
             with self.subTest(learn_all=learn_all):
                 dut = LiteDSPClutterMap(n_range_bins=64, with_csr=False)
                 dut.learn_all.reset = learn_all
-                cap = run_stream(dut, beats, 3*64, ["data", "first", "last"], FIELDS, sink_throttle=0.2, source_ready_rate=0.7)
+                cap = run_stream(dut, beats, 3*64, ["data", "first", "last"], FIELDS,
+                                 sink_throttle=0.2, source_ready_rate=0.7)
                 ref = clutter_map_model(x, first, last, 64, alpha=1024, learn_all=learn_all)
                 for name, col in zip(FIELDS, ref):
                     self.assertEqual(column(cap, name).tolist(), col.tolist(), name)
@@ -54,7 +56,8 @@ class TestClutterMap(unittest.TestCase):
         beats = scans(x, 64)
         dut = LiteDSPClutterMap(n_range_bins=64, with_csr=False)
         dut.alpha.reset = int(round(2.5*256))
-        cap = run_stream(dut, beats, 16*64, ["data", "first", "last"], FIELDS, sink_throttle=0.0, source_ready_rate=1.0,
+        cap = run_stream(dut, beats, 16*64, ["data", "first", "last"], FIELDS, sink_throttle=0.0,
+                         source_ready_rate=1.0,
             extra=[self._freeze_at(dut, beats, 13*64)])
         det = column(cap, "detect").reshape(16, 64)
         self.assertEqual(int(det[8:12].sum()), 0)

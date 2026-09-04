@@ -82,7 +82,8 @@ class LiteDSPVolume(LiteXModule):
         g_next  = Signal(GW)
         self.comb += [
             g_cur.eq(Array(applied)[ch]),
-            target.eq(Mux(Array([self.mute[c] for c in range(n_channels)])[ch], 0, Array(self.gains)[ch])),
+            target.eq(Mux(Array([self.mute[c] for c in range(n_channels)])[ch], 0,
+                          Array(self.gains)[ch])),
             delta.eq(target - g_cur),
             step.eq(Mux(delta == 0, 0,
                     Mux((delta >> ramp_shift) != 0, delta >> ramp_shift, Mux(delta[-1], -1, 1)))),
@@ -122,7 +123,8 @@ class LiteDSPVolume(LiteXModule):
     def add_csr(self):
         for c, g in enumerate(self.gains):
             csr = CSRStorage(self.gain_width, reset=1 << self.gain_frac, name=f"gain{c}",
-                description=f"Channel {c} gain (unsigned Q5.{self.gain_frac}, 1.0 = 2**{self.gain_frac}).")
+                description=f"Channel {c} gain (unsigned Q5.{self.gain_frac}, 1.0 = "
+                            f"2**{self.gain_frac}).")
             setattr(self, f"_gain{c}", csr)
             self.comb += g.eq(csr.storage)
         self._control = CSRStorage(fields=[
@@ -245,9 +247,11 @@ class LiteDSPStereoMatrix(LiteXModule):
             ),
         )
         fsm.act("MAC0", op_x.eq(l_in), op_k.eq(self.a), NextValue(acc_l, prod), NextState("MAC1"))
-        fsm.act("MAC1", op_x.eq(r_in), op_k.eq(self.b), NextValue(acc_l, acc_l + prod), NextState("MAC2"))
+        fsm.act("MAC1", op_x.eq(r_in), op_k.eq(self.b), NextValue(acc_l, acc_l + prod),
+                NextState("MAC2"))
         fsm.act("MAC2", op_x.eq(l_in), op_k.eq(self.c), NextValue(acc_r, prod), NextState("MAC3"))
-        fsm.act("MAC3", op_x.eq(r_in), op_k.eq(self.d), NextValue(acc_r, acc_r + prod), NextState("OUT_L"))
+        fsm.act("MAC3", op_x.eq(r_in), op_k.eq(self.d), NextValue(acc_r, acc_r + prod),
+                NextState("OUT_L"))
         fsm.act("OUT_L",
             eng_valid.eq(1), eng_data.eq(out_l), eng_ch.eq(0), eng_first.eq(first_l),
             If(self.source.ready,

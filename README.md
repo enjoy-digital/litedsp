@@ -100,6 +100,7 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7 + Artix UltraScale+): see `
 | Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7/Artix UltraScale+) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
 | Formal (`formal/`) | SymbiYosys proof of the stream fabric: no sample loss/duplication under arbitrary backpressure, stability while stalled | `python3 formal/run_formal.py` |
 | Char (`char/`)     | Quality characterization: SFDR/ENOB, ripple/attenuation, CIC droop error, image rejection, IMD3, settling — measured on the golden models, gated on quality budgets | `python3 char/run_char.py` |
+| Tools (`tools/`)   | LiteX coding-style checker (header, separators, imports, CSR style, line length) | `python3 tools/check_style.py` |
 | Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |
 
 [> Getting started

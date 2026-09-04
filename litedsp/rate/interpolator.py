@@ -44,8 +44,11 @@ class LiteDSPInterpolator(LiteXModule):
                 n_stages=n_stages, with_csr=with_csr)
         else:
             n_taps = n_taps or (8*interpolation + 1)  # ~8 taps per polyphase branch.
-            coeffs = firwin_lowpass(n_taps, cutoff/interpolation, data_width=data_width, gain=interpolation)  # Cutoff at the output (high) rate.
-            self.core = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=interpolation, data_width=data_width,
+            # Cutoff at the output (high) rate.
+            coeffs = firwin_lowpass(n_taps, cutoff/interpolation, data_width=data_width,
+                                    gain=interpolation)
+            self.core = LiteDSPFIRInterpolator(n_taps=n_taps, interpolation=interpolation,
+                                               data_width=data_width,
                 coefficients=coeffs, with_csr=with_csr, architecture=fir_architecture)
         self.latency = self.core.latency
         self.comb += [

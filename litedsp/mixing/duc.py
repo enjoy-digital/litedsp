@@ -28,13 +28,15 @@ class LiteDSPDUC(LiteXModule):
         self.data_width    = data_width
         self.interpolation = interpolation
         self.sink   = stream.Endpoint(iq_layout(data_width))  # Baseband I/Q input.
-        self.source = stream.Endpoint(iq_layout(data_width))  # High-rate I/Q output (rate*interpolation).
+        # High-rate I/Q output (rate*interpolation).
+        self.source = stream.Endpoint(iq_layout(data_width))
 
         # # #
 
         # Submodules.
         # -----------
-        self.interp = LiteDSPInterpolator(data_width=data_width, interpolation=interpolation, method=method,
+        self.interp = LiteDSPInterpolator(data_width=data_width, interpolation=interpolation,
+                                          method=method,
             with_csr=with_csr, fir_architecture=fir_architecture)
         self.nco    = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer  = LiteDSPMixer(data_width=data_width, with_csr=False)  # Mode hardwired below.

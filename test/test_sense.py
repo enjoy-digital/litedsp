@@ -93,7 +93,8 @@ class TestSigmaDeltaFilter(unittest.TestCase):
             while True:
                 yield
 
-        got = run_sense(dut, bits, n_out - 2, ["data"], throttle=0.0, ready_rate=1.0, extra=[ctrl()])
+        got = run_sense(dut, bits, n_out - 2, ["data"], throttle=0.0, ready_rate=1.0,
+                        extra=[ctrl()])
         self.assertEqual(seen[0], 1)
         self.assertEqual(seen[1], 0)                                    # Cleared (re-trips later).
         self.assertTrue(np.all(got["data"][2:] == FS))                  # 100 % density = +FS.
@@ -129,7 +130,7 @@ class TestOvercurrentTrip(unittest.TestCase):
         ra, rb, rc, rf = overcurrent_trip_model(a, b, c, thr)
         for f, r in (("a", ra), ("b", rb), ("c", rc)):
             self.assertTrue(np.array_equal(column(cap, f, 16), r), f)
-        m = min(len(faults), n)                                       # Sim ends on the last capture.
+        m = min(len(faults), n)                                      # Sim ends on the last capture.
         self.assertGreaterEqual(m, n - 1)
         self.assertTrue(np.array_equal(np.array(faults[:m]), rf.astype(int)[:m]))
         self.assertEqual(dut.latency, 0)

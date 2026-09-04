@@ -17,7 +17,8 @@ from test.common import run_stream, column
 from test.models import tvg_model
 
 def frames(i, q, n):
-    return [{"i": int(a), "q": int(b), "first": int(k % n == 0), "last": int(k % n == n - 1)} for k, (a, b) in enumerate(zip(i, q))]
+    return [{"i": int(a), "q": int(b), "first": int(k % n == 0), "last": int(k % n == n - 1)} for k,
+            (a, b) in enumerate(zip(i, q))]
 
 class TestTVG(unittest.TestCase):
     # verify-tier: model — two 64-bin pulses of random samples with a 30 dB/decade + absorption
@@ -32,8 +33,10 @@ class TestTVG(unittest.TestCase):
         for bypass in (0, 1):
             with self.subTest(bypass=bypass):
                 dut = LiteDSPTVG(n_range_bins=64, with_csr=False)
-                dut.g0.reset, dut.k_log.reset, dut.k_lin.reset, dut.bypass.reset = g0, k_log, k_lin, bypass
-                cap = run_stream(dut, beats, 2*64, ["i", "q", "first", "last"], ["i", "q", "first", "last"],
+                (dut.g0.reset, dut.k_log.reset, dut.k_lin.reset,
+                 dut.bypass.reset) = g0, k_log, k_lin, bypass
+                cap = run_stream(dut, beats, 2*64, ["i", "q", "first", "last"],
+                                 ["i", "q", "first", "last"],
                     sink_throttle=0.2, source_ready_rate=0.7)
                 ri, rq = tvg_model(i, q, first, 64, g0, k_log, k_lin, bypass=bypass)
                 self.assertEqual(column(cap, "i", 16).tolist(), ri.tolist())
@@ -51,14 +54,16 @@ class TestTVG(unittest.TestCase):
         g0, k_log, k_lin = tvg_coefficients(20.0, 0.0, 0.0)
         dut = LiteDSPTVG(n_range_bins=N, with_csr=False)
         dut.g0.reset, dut.k_log.reset, dut.k_lin.reset = g0, k_log, k_lin
-        cap = run_stream(dut, beats, N, ["i", "q", "first", "last"], ["i", "q"], sink_throttle=0.0, source_ready_rate=1.0)
+        cap = run_stream(dut, beats, N, ["i", "q", "first", "last"], ["i", "q"], sink_throttle=0.0,
+                         source_ready_rate=1.0)
         y = column(cap, "i", 16).astype(float)
         for r in range(4, N):
             self.assertLessEqual(abs(20*math.log10(y[r]/100.0) - 20*math.log10(r)), 0.2, r)
         g0, k_log, k_lin = tvg_coefficients(60.0, 0.0, 0.0)
         dut = LiteDSPTVG(n_range_bins=N, with_csr=False)
         dut.g0.reset, dut.k_log.reset, dut.k_lin.reset = g0, k_log, k_lin
-        cap = run_stream(dut, frames([30000]*N, [0]*N, N), N, ["i", "q", "first", "last"], ["i", "q"],
+        cap = run_stream(dut, frames([30000]*N, [0]*N, N), N, ["i", "q", "first", "last"],
+                         ["i", "q"],
             sink_throttle=0.0, source_ready_rate=1.0, extra=[self._read_sat(dut)])
         self.assertEqual(self.sat, 1)
         self.assertEqual(int(column(cap, "i", 16).max()), 32767)

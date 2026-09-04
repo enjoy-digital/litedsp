@@ -114,6 +114,9 @@ jobs:
           pip install git+https://github.com/enjoy-digital/litedram.git
           pip install git+https://github.com/enjoy-digital/liteeth.git
 
+      - name: Coding style (tools/check_style.py)
+        run: python3 tools/check_style.py
+
       - name: Check generated docs are in sync
         run: |
           python3 -m litedsp.flow.docgen --check

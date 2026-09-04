@@ -34,7 +34,8 @@ class LiteDSPEnergyDetector(LiteXModule):
         Detection threshold as a power-of-two ratio over the noise floor: detect when
         power > floor * 2**threshold_log2 (~3 dB per step).
     """
-    def __init__(self, data_width=16, avg_shift=10, threshold_log2=3, with_csr=True, with_irq=False):
+    def __init__(self, data_width=16, avg_shift=10, threshold_log2=3, with_csr=True,
+                 with_irq=False):
         self.threshold_log2 = threshold_log2
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
@@ -71,7 +72,8 @@ class LiteDSPEnergyDetector(LiteXModule):
 
     def add_irq(self):
         self.ev        = EventManager()
-        self.ev.detect = EventSourceProcess(edge="rising", description="Signal detected (power above floor).")
+        self.ev.detect = EventSourceProcess(edge="rising",
+                                            description="Signal detected (power above floor).")
         self.ev.finalize()
         self.comb += self.ev.detect.trigger.eq(self.detect)
 
@@ -117,7 +119,8 @@ class LiteDSPFrequencyEstimator(LiteXModule):
         self.comb += better.eq(self.sink.first | (self.sink.data > best_val))
 
         self.sync += [
-            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),  # Held until consumed.
+            # Held until consumed.
+            If(self.source.valid & self.source.ready, self.source.valid.eq(0)),
             If(xfer,
                 prev.eq(self.sink.data),
                 If(cap_right, best_right.eq(self.sink.data), cap_right.eq(0)),

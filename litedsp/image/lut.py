@@ -52,7 +52,8 @@ class LiteDSPPixelLUT(LiteXModule):
             wp  = mem.get_port(write_capable=True)
             self.specials += mem, wp
             self.comb += [wp.adr.eq(self.lut_addr), wp.dat_w.eq(self.lut_data),
-                          wp.we.eq(self.lut_we & ((self.lut_channel == 3) | (self.lut_channel == t)))]
+                          wp.we.eq(
+                              self.lut_we & ((self.lut_channel == 3) | (self.lut_channel == t)))]
             tables.append(mem)
         self.sync += If(self.lut_we, self.lut_addr.eq(self.lut_addr + 1))
         adv = Signal()
@@ -60,11 +61,14 @@ class LiteDSPPixelLUT(LiteXModule):
         for c, f in enumerate(fields):
             rp = tables[0 if shared else c].get_port(has_re=True)
             self.specials += rp
-            self.comb += [rp.adr.eq(getattr(self.sink, f)), rp.re.eq(adv), getattr(self.source, f).eq(rp.dat_r)]
+            self.comb += [rp.adr.eq(getattr(self.sink, f)), rp.re.eq(adv),
+                          getattr(self.source, f).eq(rp.dat_r)]
         eol_r = Signal()                                                # Payload fields are all
         self.sync += If(adv,                                            # combinational (the RAM
             self.source.valid.eq(self.sink.valid),                      # read is registered) so the
-            self.source.first.eq(self.sink.first), eol_r.eq(self.sink.eol), self.source.last.eq(self.sink.last),   # bypass mux can be too.
+            # bypass mux can be too.
+            self.source.first.eq(self.sink.first), eol_r.eq(self.sink.eol),
+            self.source.last.eq(self.sink.last),
         )
         self.comb += self.source.eol.eq(eol_r)
         add_bypass(self, output_registered=False)
@@ -76,14 +80,16 @@ class LiteDSPPixelLUT(LiteXModule):
 
     def add_csr(self):
         DW = self.data_width
-        self._lut_addr = CSRStorage(DW, name="lut_addr", description="Table address (auto-increments on a data write).")
+        self._lut_addr = CSRStorage(DW, name="lut_addr",
+                                    description="Table address (auto-increments on a data write).")
         self._lut_data = CSRStorage(fields=[
             CSRField("data",    size=DW, offset=0,  description="Writing stores the entry at lut_addr."),
             CSRField("channel", size=2,  offset=16, reset=3, description="Table 0..2, 3 = all."),
         ])
         self.sync += If(self._lut_addr.re, self.lut_addr.eq(self._lut_addr.storage))
         self.comb += [
-            self.lut_data.eq(self._lut_data.fields.data), self.lut_channel.eq(self._lut_data.fields.channel),
+            self.lut_data.eq(self._lut_data.fields.data),
+            self.lut_channel.eq(self._lut_data.fields.channel),
             self.lut_we.eq(self._lut_data.re),
         ]
         add_bypass_csr(self)

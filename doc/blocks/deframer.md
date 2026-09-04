@@ -6,7 +6,8 @@ latency: 0 samples · CSR: yes · bypass: no
 
 ## Overview
 
-Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each frame.
+Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each
+frame.
 
 ## Parameters
 

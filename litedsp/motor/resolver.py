@@ -100,7 +100,8 @@ class LiteDSPResolverDigital(LiteXModule):
         is_end = Signal()
         self.comb += [
             is_end.eq(phase == D - 1),
-            adv.eq((self.source_exc.ready | ~self.source_exc.valid) & (~is_end | cordic.sink.ready)),
+            adv.eq(
+                (self.source_exc.ready | ~self.source_exc.valid) & (~is_end | cordic.sink.ready)),
             self.sink.ready.eq(adv),
             xfer.eq(self.sink.valid & adv),
         ]
@@ -171,7 +172,8 @@ class LiteDSPResolverDigital(LiteXModule):
         ])
         self._speed     = CSRStatus(len(self.speed), name="speed",
             description="Tracked speed (angle units per excitation period, Q.frac_bits).")
-        self._raw_angle = CSRStatus(self.angle_width, name="raw_angle", description="Last demodulated angle.")
+        self._raw_angle = CSRStatus(self.angle_width, name="raw_angle",
+                                    description="Last demodulated angle.")
         self._raw_mag   = CSRStatus(len(self.raw_mag), name="raw_mag",
             description="Demodulated amplitude (maximize with phase_offset).")
         self.comb += [

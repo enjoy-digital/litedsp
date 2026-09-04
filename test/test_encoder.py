@@ -109,10 +109,12 @@ class TestQuadratureDecoder(unittest.TestCase):
                 ref = quadrature_decoder_model(a, b, np.zeros(n), counts_per_rev=cpr, pole_pairs=2,
                     angle_scale=(1 << (AW + 16))//cpr, angle_offset=1234)
                 strobes = np.nonzero(sample[:n - 1])[0]
-                self.assertTrue(np.array_equal(np.array(angles[:len(strobes)]), ref["angle"][strobes]))
+                self.assertTrue(
+                    np.array_equal(np.array(angles[:len(strobes)]), ref["angle"][strobes]))
                 epos  = ref["epos"][strobes - 1]
                 truth = (epos*(1 << AW)/cpr + 1234) % (1 << AW)
-                err   = (np.array(angles[:len(strobes)]) - truth + (1 << (AW - 1))) % (1 << AW) - (1 << (AW - 1))
+                err   = (np.array(angles[:len(strobes)]) - truth + (1 << (AW - 1))) % (1 << AW) - (
+                    1 << (AW - 1))
                 self.assertLessEqual(np.max(np.abs(err)), 1.0)
 
     def test_index_zeroing_and_irq(self):

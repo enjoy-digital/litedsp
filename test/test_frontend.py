@@ -12,7 +12,8 @@ from migen import run_simulation, passive
 
 from litex.gen import LiteXModule
 
-from litedsp.frontend.converter import LiteDSPADCInterface, LiteDSPDACInterface, LiteDSPBitstreamInterface
+from litedsp.frontend.converter import (LiteDSPADCInterface, LiteDSPDACInterface,
+                                        LiteDSPBitstreamInterface)
 from litedsp.frontend.packet    import LiteDSPIQPacketizer, LiteDSPIQDepacketizer
 
 from test.common import stream_driver, stream_capture
@@ -65,7 +66,8 @@ class TestConverter(unittest.TestCase):
 class TestPacket(unittest.TestCase):
     def test_packetizer_words_and_last(self):
         # ratio=2 (64-bit words), 4 samples/packet -> 2 words/packet, last on every 2nd word.
-        dut = LiteDSPIQPacketizer(data_width=16, word_width=64, samples_per_packet=4, with_csr=False)
+        dut = LiteDSPIQPacketizer(data_width=16, word_width=64, samples_per_packet=4,
+                                  with_csr=False)
         samples = [{"i": k + 1, "q": -(k + 1)} for k in range(8)]
         cap = []
         run_simulation(dut, [
@@ -127,7 +129,8 @@ class TestUDP(unittest.TestCase):
         from litedsp.frontend.udp import LiteDSPUDPIQReceiver
 
         port = LiteEthUDPUserPort(32)
-        dut  = LiteDSPUDPIQReceiver(port, udp_port=6000, data_width=16, word_width=32, with_csr=False)
+        dut  = LiteDSPUDPIQReceiver(port, udp_port=6000, data_width=16, word_width=32,
+                                    with_csr=False)
         samples = [(5*k + 1, 5*k + 2) for k in range(8)]
         words   = [{"data": (i & 0xFFFF) | (q & 0xFFFF) << 16, "last": int(k % 4 == 3),
                     "dst_port": 6000} for k, (i, q) in enumerate(samples)]

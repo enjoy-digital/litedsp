@@ -49,7 +49,8 @@ def _cfar_window(self, T, G, adv):
     for k in range(1, L):
         shift += [cells[k].eq(cells[k - 1]), real[k].eq(real[k - 1]),
                   firsts[k].eq(firsts[k - 1]), lasts[k].eq(lasts[k - 1])]
-    clear = [c.eq(0) for c in cells] + [r.eq(0) for r in real] + [f.eq(0) for f in firsts] + [l.eq(0) for l in lasts]
+    clear = [c.eq(0) for c in cells] + [r.eq(0) for r in real] + [f.eq(0) for f in firsts] + [
+        l.eq(0) for l in lasts]
     flush_cnt = Signal(max=H + 2)
     self.fsm  = fsm = FSM(reset_state="RUN")
     fsm.act("RUN",
@@ -77,7 +78,8 @@ def _cfar_window(self, T, G, adv):
     w.lag  = cells[H + G + 1:H + G + 1 + T]
     w.cut1, w.cut1_v, w.first1, w.last1 = Signal(dw), Signal(), Signal(), Signal()
     self.sync += If(adv,
-        w.cut1.eq(cells[H]), w.cut1_v.eq(step & real[H]), w.first1.eq(firsts[H]), w.last1.eq(lasts[H]),
+        w.cut1.eq(cells[H]), w.cut1_v.eq(step & real[H]), w.first1.eq(firsts[H]),
+        w.last1.eq(lasts[H]),
     )
     return w
 
@@ -105,8 +107,10 @@ def _cfar_output(self, w, adv, stat, recip):
     ]
     self.sync += [
         If(adv,
-            p1.eq(stat*self.alpha), cut2.eq(w.cut1), cut2_v.eq(w.cut1_v), first2.eq(w.first1), last2.eq(w.last1),
-            p2.eq(p1*recip),        cut3.eq(cut2),   cut3_v.eq(cut2_v),   first3.eq(first2),   last3.eq(last2),
+            p1.eq(stat*self.alpha), cut2.eq(w.cut1), cut2_v.eq(w.cut1_v), first2.eq(w.first1),
+            last2.eq(w.last1),
+            p2.eq(p1*recip),        cut3.eq(cut2),   cut3_v.eq(cut2_v),   first3.eq(first2),
+            last3.eq(last2),
             self.source.valid.eq(cut3_v),
             self.source.data.eq(cut3),
             self.source.threshold.eq(thr),
@@ -132,7 +136,8 @@ class LiteDSPCACFAR(LiteXModule):
     computed as ``sum * alpha * round(2**16 / (2*n_train))``, rounded and floored at the runtime
     ``threshold_min`` (the zero-padded edges see smaller training sums). Frames are
     zero-padded: ``first`` clears the window, and after ``last`` the block flushes the trailing
-    cells with zero neighbours (``n_train + n_guard + 1`` cycles ``sink.ready`` low), so the output has exactly one
+    cells with zero neighbours (``n_train + n_guard + 1`` cycles
+    ``sink.ready`` low), so the output has exactly one
     beat per input cell with the same framing. Output: the cell, its threshold and the
     decision on :func:`~litedsp.common.cell_layout`. ``latency = None`` (the flush); nominal
     delay ``n_train + n_guard + 4`` cycles.
@@ -180,7 +185,8 @@ class LiteDSPCACFAR(LiteXModule):
         self.comb += [
             mx.eq(Mux(lead > lag, lead, lag)),
             mn.eq(Mux(lead > lag, lag, lead)),
-            stat.eq(Mux(self.mode == CFAR_GO, mx << 1, Mux(self.mode == CFAR_SO, mn << 1, lead + lag))),
+            stat.eq(
+                Mux(self.mode == CFAR_GO, mx << 1, Mux(self.mode == CFAR_SO, mn << 1, lead + lag))),
         ]
         _cfar_output(self, w, adv, stat, recip=int(round((1 << 16)/(2*T))))
 
@@ -191,7 +197,8 @@ class LiteDSPCACFAR(LiteXModule):
 
     def add_csr(self):
         self._alpha = CSRStorage(self.alpha_width, reset=self.alpha.reset.value, name="alpha",
-            description=f"Threshold factor on the training mean (unsigned Q.{self.threshold_frac}).")
+            description=f"Threshold factor on the training mean (unsigned "
+                        f"Q.{self.threshold_frac}).")
         self._control = CSRStorage(fields=[
             CSRField("mode", size=2, offset=0, description="0: cell averaging, 1: greatest-of, 2: smallest-of."),
         ])
@@ -201,7 +208,8 @@ class LiteDSPCACFAR(LiteXModule):
             CSRField("frac",    size=8, offset=16, description="Fractional bits of alpha."),
         ])
         self._threshold_min = CSRStorage(self.data_width, name="threshold_min",
-            description="Threshold floor (unsigned cell units): guards the zero-padded edges and notches.")
+            description="Threshold floor (unsigned cell units): guards the zero-padded edges and "
+                        "notches.")
         self._detections = CSRStatus(32, name="detections", description="Detections since reset.")
         self.comb += [
             self.alpha.eq(self._alpha.storage),
@@ -228,7 +236,8 @@ class LiteDSPOSCFAR(LiteXModule):
     at ``threshold_min``; ``rank`` resets to ``round(0.75 * 2T) - 1`` (the usual 3/4 quantile).
     Output on :func:`~litedsp.common.cell_layout`; ``latency = None`` (the flush).
     """
-    def __init__(self, n_train=4, n_guard=2, rank=None, data_width=17, alpha_width=16, threshold_frac=8,
+    def __init__(self, n_train=4, n_guard=2, rank=None, data_width=17, alpha_width=16,
+                 threshold_frac=8,
         with_csr=True):
         check(1 <= n_train <= 8, "expected 1 <= n_train <= 8")
         check(0 <= n_guard <= 8, "expected 0 <= n_guard <= 8")
@@ -263,11 +272,13 @@ class LiteDSPOSCFAR(LiteXModule):
         sel   = Signal(data_width)
         counts = []
         for j, vj in enumerate(train):
-            below = [Mux((vi < vj) | ((vi == vj) & (i < j)), 1, 0) for i, vi in enumerate(train) if i != j]
+            below = [Mux((vi < vj) | ((vi == vj) & (i < j)), 1, 0) for i,
+                     vi in enumerate(train) if i != j]
             c = Signal(max=K)
             self.comb += c.eq(reduce(add, below) if below else 0)
             counts.append(c)
-        self.comb += sel.eq(reduce(lambda a, b: a | b, [Mux(counts[j] == self.rank, train[j], 0) for j in range(K)]))
+        self.comb += sel.eq(reduce(lambda a, b: a | b,
+                                   [Mux(counts[j] == self.rank, train[j], 0) for j in range(K)]))
         self.sync += If(adv, stat.eq(sel))
         _cfar_output(self, w, adv, stat, recip=1 << 16)
 
@@ -278,7 +289,8 @@ class LiteDSPOSCFAR(LiteXModule):
 
     def add_csr(self):
         self._alpha = CSRStorage(self.alpha_width, reset=self.alpha.reset.value, name="alpha",
-            description=f"Threshold factor on the ranked training cell (unsigned Q.{self.threshold_frac}).")
+            description=f"Threshold factor on the ranked training cell (unsigned "
+                        f"Q.{self.threshold_frac}).")
         self._control = CSRStorage(fields=[
             CSRField("rank", size=len(self.rank), offset=0, reset=self.rank.reset.value,
                 description="0-based rank of the training cell used as the noise estimate."),

@@ -134,7 +134,7 @@ class LiteDSPTimestamper(LiteXModule):
         self.source = stream.Endpoint(stream.EndpointDescription(
             payload_layout=iq_layout(data_width),
             param_layout=time_param_layout(width)))
-        self.time      = Signal(width)                # Current time (connect LiteDSPTimeCore.count).
+        self.time      = Signal(width)               # Current time (connect LiteDSPTimeCore.count).
         self.stream_id = Signal(8, reset=stream_id)   # Stream identifier tag.
 
         # # #

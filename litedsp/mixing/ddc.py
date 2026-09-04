@@ -28,7 +28,8 @@ class LiteDSPDDC(LiteXModule):
         self.data_width = data_width
         self.decimation = decimation
         self.sink   = stream.Endpoint(iq_layout(data_width))  # High-rate I/Q input.
-        self.source = stream.Endpoint(iq_layout(data_width))  # Baseband I/Q output (rate/decimation).
+        # Baseband I/Q output (rate/decimation).
+        self.source = stream.Endpoint(iq_layout(data_width))
 
         # # #
 

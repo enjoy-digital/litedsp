@@ -26,7 +26,8 @@ def run_resolver(dut, sin_in, cos_in, n_out, throttle=0.2, exc_ready=0.7, ready_
     run_simulation(dut, [
         stream_driver(dut.sink, [{"i": int(s), "q": int(c)} for s, c in zip(sin_in, cos_in)],
             ["i", "q"], seed=1, throttle=throttle),
-        stream_capture(dut.source_exc, exc, len(sin_in) - 8, ["data"], seed=2, ready_rate=exc_ready),
+        stream_capture(dut.source_exc, exc, len(sin_in) - 8, ["data"], seed=2,
+                       ready_rate=exc_ready),
         stream_capture(dut.source, ang, n_out, ["angle"], seed=3, ready_rate=ready_rate),
     ] + (extra or []))
     return column(exc, "data", 16), column(ang, "angle", AW)
@@ -61,7 +62,8 @@ class TestResolverDigital(unittest.TestCase):
         dut   = LiteDSPResolverDigital(data_width=16, angle_width=AW, decimation=D, with_csr=False)
         dut.phase_offset.reset = D - delay
         _, ang = run_resolver(dut, s, c, n_per - 2, throttle=0.0, exc_ready=1.0, ready_rate=1.0)
-        truth = np.round(theta.reshape(n_per, D).mean(axis=1)/(2*np.pi)*TURN).astype(np.int64)[:len(ang)]
+        truth = np.round(theta.reshape(n_per, D).mean(axis=1)/(2*np.pi)*TURN).astype(np.int64)[
+            :len(ang)]
         err   = ((ang % TURN) - (truth % TURN) + TURN//2) % TURN - TURN//2
         self.assertLess(np.max(np.abs(err[-100:]))/TURN*360, 0.5)
 
@@ -76,7 +78,8 @@ class TestResolverDigital(unittest.TestCase):
         s, c  = resolver_stimulus(theta, D, delay=delay)
         mags  = {}
         for offset in (D - delay, 0):
-            dut = LiteDSPResolverDigital(data_width=16, angle_width=AW, decimation=D, with_csr=False)
+            dut = LiteDSPResolverDigital(data_width=16, angle_width=AW, decimation=D,
+                                         with_csr=False)
             dut.phase_offset.reset = offset
             seen = []
 

@@ -179,7 +179,8 @@ def measure_lag(reference, measured, max_lag=None):
 # Image harness ------------------------------------------------------------------------------------
 
 def np_clamped(value, out_width):
-    """Unsigned clamp of a NumPy array / int to ``[0, 2**out_width - 1]`` (mirror of ``clamped``)."""
+    """Unsigned clamp of a NumPy array / int to ``[0, 2**out_width - 1]`` (mirror of
+    ``clamped``)."""
     return np.clip(np.asarray(value, np.int64), 0, (1 << out_width) - 1)
 
 def raster_beats(img, n_channels=1):
@@ -190,7 +191,8 @@ def raster_beats(img, n_channels=1):
     beats = []
     for y in range(h):
         for x in range(w):
-            beat = {"eol": int(x == w - 1), "first": int(x == 0 and y == 0), "last": int(x == w - 1 and y == h - 1)}
+            beat = {"eol": int(x == w - 1), "first": int(x == 0 and y == 0),
+                    "last": int(x == w - 1 and y == h - 1)}
             if n_channels == 1:
                 beat["data"] = int(img[y, x])
             else:
@@ -204,7 +206,8 @@ def beats_to_image(beats, width, height, n_channels=1, field=None):
     if n_channels == 1:
         f = field or "data"
         return np.array([b[f] for b in beats[:width*height]], np.int64).reshape(height, width)
-    return np.array([[b["r"], b["g"], b["b"]] for b in beats[:width*height]], np.int64).reshape(height, width, 3)
+    return np.array([[b["r"], b["g"], b["b"]] for b in beats[:width*height]],
+                    np.int64).reshape(height, width, 3)
 
 def run_frames(dut, frames, n_out, n_channels=1, source_fields=None, **kwargs):
     """Drive ``frames`` (list of images) as framed raster beats through ``dut`` and capture

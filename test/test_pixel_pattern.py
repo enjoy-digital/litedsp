@@ -22,22 +22,28 @@ class TestPixelPattern(unittest.TestCase):
             nc = 1 if mode == "bayer" else 3
             w  = 20 if mode == "bars" else 16
             with self.subTest(mode=mode):
-                dut = LiteDSPPixelPattern(n_channels=nc, width=w, height=12, mode=mode, with_csr=False)
+                dut = LiteDSPPixelPattern(n_channels=nc, width=w, height=12, mode=mode,
+                                          with_csr=False)
                 dut.enable.reset = 1
                 fields = (["data"] if nc == 1 else ["r", "g", "b"]) + ["eol", "first", "last"]
                 cap = run_stream(dut, None, 2*w*12, [], fields, source_ready_rate=0.7)
                 ref = pixel_pattern_model(mode, w, 12, 8, nc)
                 for k in range(2):
-                    self.assertTrue(np.array_equal(beats_to_image(cap[k*w*12:], w, 12, nc), ref), f"frame {k}")
-                self.assertEqual([b["first"] for b in cap], [int(k % (w*12) == 0) for k in range(2*w*12)])
-                self.assertEqual([b["eol"] for b in cap], [int(k % w == w - 1) for k in range(2*w*12)])
-                self.assertEqual([b["last"] for b in cap], [int(k % (w*12) == w*12 - 1) for k in range(2*w*12)])
+                    self.assertTrue(np.array_equal(beats_to_image(cap[k*w*12:], w, 12, nc), ref),
+                                    f"frame {k}")
+                self.assertEqual([b["first"] for b in cap],
+                                 [int(k % (w*12) == 0) for k in range(2*w*12)])
+                self.assertEqual([b["eol"] for b in cap],
+                                 [int(k % w == w - 1) for k in range(2*w*12)])
+                self.assertEqual([b["last"] for b in cap],
+                                 [int(k % (w*12) == w*12 - 1) for k in range(2*w*12)])
 
     # verify-tier: bound — trigger sends exactly one frame then the source idles; the frame
     # counter and busy flag follow; invalid geometry.
     def test_trigger(self):
         dut = LiteDSPPixelPattern(n_channels=1, width=16, height=4, mode="counter", with_csr=False)
-        cap = run_stream(dut, None, 16*4, [], ["data", "last"], source_ready_rate=1.0, extra=[self._pulse(dut)])
+        cap = run_stream(dut, None, 16*4, [], ["data", "last"], source_ready_rate=1.0,
+                         extra=[self._pulse(dut)])
         self.assertEqual(cap[-1]["last"], 1)
         self.assertEqual(self.frames, 1)
         self.assertEqual(self.extra_beats, 0)
@@ -45,7 +51,7 @@ class TestPixelPattern(unittest.TestCase):
             LiteDSPPixelPattern(width=4, with_csr=False)
 
     def _pulse(self, dut):
-        def gen():                                                      # Active: keeps the simulation
+        def gen():                                                    # Active: keeps the simulation
             yield dut.trigger.eq(1)                                     # running after the capture.
             yield
             yield dut.trigger.eq(0)

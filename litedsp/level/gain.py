@@ -39,8 +39,8 @@ class LiteDSPGain(LiteXModule):
         self.source = stream.Endpoint(iq_layout(data_width))
         self.gain      = Signal((data_width, True), reset=(1 << gain_frac))  # Q2.(N-2), 1.0.
         self.shift     = Signal(2)                                           # Extra /1, /2, /4, /8.
-        self.bypass    = Signal()                                            # Passthrough (no gain).
-        self.clear_sat = Signal()                                            # Clear sticky sat flag.
+        self.bypass    = Signal()                                           # Passthrough (no gain).
+        self.clear_sat = Signal()                                           # Clear sticky sat flag.
         self.sat       = Signal()                                            # Sticky overflow.
 
         # # #

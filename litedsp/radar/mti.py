@@ -80,7 +80,7 @@ class LiteDSPMTICanceller(LiteXModule):
                 wp.adr.eq(addr1), wp.we.eq(adv & x1_v), wp.dat_w.eq(prev),
             ]
             hist.append(rp.dat_r)
-            prev = rp.dat_r                                             # RAM k+1 <- old RAM k value.
+            prev = rp.dat_r                                            # RAM k+1 <- old RAM k value.
         mode3 = self.mode if order == 3 else Constant(0)
         for c, xi in (("i", xi1), ("q", xq1)):
             sl  = slice(0, data_width) if c == "i" else slice(data_width, W)
@@ -89,7 +89,8 @@ class LiteDSPMTICanceller(LiteXModule):
             diff = Signal((data_width + 2, True))
             if order == 3:
                 x2i = Signal((data_width, True))
-                self.comb += [x2i.eq(hist[1][sl]), diff.eq(Mux(mode3, xi - (x1i << 1) + x2i, xi - x1i))]
+                self.comb += [x2i.eq(hist[1][sl]),
+                              diff.eq(Mux(mode3, xi - (x1i << 1) + x2i, xi - x1i))]
             else:
                 self.comb += diff.eq(xi - x1i)
             if shift is None:

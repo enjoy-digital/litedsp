@@ -185,7 +185,7 @@
 | [CSR sink](csr_sink.md) | `LiteDSPCSRSink` | var | 0 | Always-ready sink that latches the last I/Q sample and counts transfers (CSR-readable). |
 | [Null sink](null_sink.md) | `LiteDSPNullSink` | var | 0 | Always-ready drain that counts consumed samples (CSR-readable). Terminates a branch. |
 | [Framer](framer.md) | `LiteDSPStreamFramer` | 0 | 0 | Pass I/Q through, asserting ``first`` at sample 0 and ``last`` at sample ``length-1``. |
-| [Deframer](deframer.md) | `LiteDSPStreamDeframer` | 0 | — | Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each frame. |
+| [Deframer](deframer.md) | `LiteDSPStreamDeframer` | 0 | — | Pass I/Q through, counting frames (on ``last``) and re-deriving ``first`` after each |
 | [Timestamper](timestamper.md) | `LiteDSPTimestamper` | 0 | — | Tag the I/Q stream with its ingress time (``timestamp``/``stream_id`` params, latency 0). |
 | [Time untagger](time_untagger.md) | `LiteDSPTimeUntagger` | 0 | — | Strip the ``timestamp``/``stream_id`` params: tagged I/Q -> plain I/Q (latency 0). |
 

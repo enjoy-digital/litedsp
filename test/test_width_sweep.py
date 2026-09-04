@@ -49,8 +49,10 @@ class TestWidthSweep(unittest.TestCase):
             dut = LiteDSPMixer(data_width=dw, with_csr=False)     # mode=0: down.
             cap = []
             run_simulation(dut, [
-                stream_driver(dut.sink_a, [{"i": i, "q": q} for (i, q) in a], ("i", "q"), throttle=0.2),
-                stream_driver(dut.sink_b, [{"i": i, "q": q} for (i, q) in b], ("i", "q"), throttle=0.3, seed=3),
+                stream_driver(dut.sink_a, [{"i": i, "q": q} for (i, q) in a], ("i", "q"),
+                              throttle=0.2),
+                stream_driver(dut.sink_b, [{"i": i, "q": q} for (i, q) in b], ("i", "q"),
+                              throttle=0.3, seed=3),
                 stream_capture(dut.source, cap, n, ("i", "q"), ready_rate=0.7),
             ])
             ri, rq = mixer_model(np.array([s[0] for s in a]), np.array([s[1] for s in a]),

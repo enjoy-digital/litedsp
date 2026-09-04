@@ -26,7 +26,8 @@ class TestExamples(unittest.TestCase):
                 with tempfile.TemporaryDirectory() as tmp:
                     verilog_path, ip = generate_core(path, output_dir=tmp)
                     self.assertTrue(os.path.exists(verilog_path))
-                    self.assertTrue(os.path.exists(os.path.join(os.path.dirname(verilog_path), "csr.csv")))
+                    self.assertTrue(
+                        os.path.exists(os.path.join(os.path.dirname(verilog_path), "csr.csv")))
 
 class TestAppNoteExamples(unittest.TestCase):
     """Headless CI smoke of the app-note example scripts: run end-to-end, exit 0.

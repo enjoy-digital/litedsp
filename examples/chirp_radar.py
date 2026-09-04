@@ -43,10 +43,11 @@ from test.common import run_stream, column
 # Parameters ---------------------------------------------------------------------------------------
 
 P       = 48                                  # Chirp pulse length (samples) = matched-filter taps.
-SHIFT   = 20                                  # Matched-filter rescale (peak ~ a * P * FS / 2**SHIFT).
-TARGETS = [(60, 0.7), (200, 0.5), (205, 0.4)]  # (delay, attenuation); last two closer than 1/B_narrow.
+SHIFT   = 20                                # Matched-filter rescale (peak ~ a * P * FS / 2**SHIFT).
+# (delay, attenuation); last two closer than 1/B_narrow.
+TARGETS = [(60, 0.7), (200, 0.5), (205, 0.4)]
 CONFIGS = [("wide", 0.50), ("narrow", 0.125)]  # (label, chirp bandwidth as a fraction of fs).
-N_RX    = 340                                 # Received-channel length (covers last pulse + sidelobes).
+N_RX    = 340                             # Received-channel length (covers last pulse + sidelobes).
 
 # Chirp Pulse Capture ------------------------------------------------------------------------------
 

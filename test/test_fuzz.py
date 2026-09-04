@@ -129,7 +129,8 @@ class TestResetFuzz(unittest.TestCase):
                 gi = column(got, "i", 16)
                 gq = column(got, "q", 16)
                 self.assertTrue(np.array_equal(gi, np.asarray(ri)[:n_out]),
-                    f"{name}: post-reset I diverges from fresh-run model (state off the reset tree?)")
+                    f"{name}: post-reset I diverges from fresh-run model (state off the reset "
+                    f"tree?)")
                 self.assertTrue(np.array_equal(gq, np.asarray(rq)[:n_out]),
                     f"{name}: post-reset Q diverges from fresh-run model")
 

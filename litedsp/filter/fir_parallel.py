@@ -89,7 +89,8 @@ class LiteDSPParallelFIRFilter(LiteXModule):
 
 @ResetInserter()
 class LiteDSPParallelFIRFilterComplex(LiteXModule):
-    """Complex parallel FIR: identical :class:`LiteDSPParallelFIRFilter` on I and Q, shared coefficients.
+    """Complex parallel FIR: identical
+    :class:`LiteDSPParallelFIRFilter` on I and Q, shared coefficients.
 
     The multi-sample ``i``/``q`` fields are the concatenated lanes, so they map one-to-one onto
     the real filters' multi-sample ``data`` fields. Coefficients are shared/CSR-reloadable via
@@ -108,9 +109,11 @@ class LiteDSPParallelFIRFilterComplex(LiteXModule):
 
         self.coeffs = LiteDSPFIRCoefficients(n_taps=n_taps, data_width=data_width,
             coefficients=coefficients, with_csr=with_csr)
-        self.fir_i  = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
+        self.fir_i  = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps,
+                                               data_width=data_width,
             shift=shift)
-        self.fir_q  = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps, data_width=data_width,
+        self.fir_q  = LiteDSPParallelFIRFilter(n_samples=n_samples, n_taps=n_taps,
+                                               data_width=data_width,
             shift=shift)
         self.latency = self.fir_i.latency
 

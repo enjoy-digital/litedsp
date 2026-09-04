@@ -254,10 +254,12 @@ def main():
     # Assertions.
     assert peaks == sorted(TONE_BINS), f"tone bins {sorted(TONE_BINS)} not recovered: {peaks}"
     assert maxhold_db[band].min() >= floor_db + 10, "max-hold lost the chirp transient"
-    assert delta >= 6, f"max-hold does not stand out of the average in the chirp band ({delta:.1f} dB)"
+    assert delta >= 6, (f"max-hold does not stand out of the average in the chirp band "
+                        f"({delta:.1f} dB)")
     # Onset row covers the true burst start within one row of slack.
     lo, hi = (onset - 1)*ROW_STEP, onset*ROW_STEP + STEP + N
-    assert lo <= CHIRP_TIME[0] < hi, f"chirp onset row {onset} does not cover sample {CHIRP_TIME[0]}"
+    assert lo <= CHIRP_TIME[0] < hi, (f"chirp onset row {onset} does not cover sample "
+                                      f"{CHIRP_TIME[0]}")
     print("  PASS: tones within a bin, max-hold captures the chirp the average smears, "
           "onset located in absolute time")
 

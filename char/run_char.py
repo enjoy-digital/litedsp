@@ -103,7 +103,8 @@ def markdown(results, budget_data):
 # Main ---------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteDSP quality characterization (measure + budget gate).")
+    parser = argparse.ArgumentParser(description="LiteDSP quality characterization (measure + "
+                                                 "budget gate).")
     parser.add_argument("--block",        default=None,         help="Single block name (default: all).")
     parser.add_argument("--update",       action="store_true",  help="Rewrite the budget baseline from this run.")
     parser.add_argument("--no-gate",      action="store_true",  help="Don't fail on budget violations (measure only).")
@@ -115,7 +116,8 @@ def main():
         content = markdown(load_results(), budgets.load())
         current = open(REPORT_PATH, encoding="utf-8").read() if os.path.exists(REPORT_PATH) else ""
         if current != content:
-            print("doc/characterization.md is stale — regenerate with python3 char/run_char.py --report")
+            print("doc/characterization.md is stale — regenerate with python3 char/run_char.py "
+                  "--report")
             return 1
         print("doc/characterization.md is up to date.")
         return 0

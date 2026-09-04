@@ -168,7 +168,8 @@ class LiteDSPQuadratureDecoder(LiteXModule):
                 self.epos.eq(0),
             ).Elif(step_up,
                 self.position.eq(Mux(self.position == cpr_m1, 0, self.position + 1)),
-                self.epos.eq(Mux(epos_up >= self.counts_per_rev, epos_up - self.counts_per_rev, epos_up)),
+                self.epos.eq(
+                    Mux(epos_up >= self.counts_per_rev, epos_up - self.counts_per_rev, epos_up)),
                 self.direction.eq(0),
             ).Elif(step_down,
                 self.position.eq(Mux(self.position == 0, cpr_m1, self.position - 1)),
@@ -228,7 +229,8 @@ class LiteDSPQuadratureDecoder(LiteXModule):
     def add_csr(self):
         self._counts_per_rev = CSRStorage(self.position_width, reset=4096, name="counts_per_rev",
             description="Encoder counts per mechanical turn (4x decoded).")
-        self._pole_pairs   = CSRStorage(8, reset=1, name="pole_pairs", description="Motor pole pairs.")
+        self._pole_pairs   = CSRStorage(8, reset=1, name="pole_pairs",
+                                        description="Motor pole pairs.")
         self._angle_scale  = CSRStorage(len(self.angle_scale), reset=self.angle_scale.reset.value,
             name="angle_scale",
             description=f"round(2**{self.angle_width + self.scale_frac} / counts_per_rev).")
@@ -241,8 +243,10 @@ class LiteDSPQuadratureDecoder(LiteXModule):
             CSRField("index_enable", size=1, offset=1, description="Z pulse zeroes the position."),
             CSRField("clear",        size=1, offset=2, pulse=True, description="Clear error/index/overrun."),
         ])
-        self._position = CSRStatus(self.position_width, name="position", description="Mechanical count.")
-        self._speed    = CSRStatus(self.speed_width, name="speed", description="Signed counts per window.")
+        self._position = CSRStatus(self.position_width, name="position",
+                                   description="Mechanical count.")
+        self._speed    = CSRStatus(self.speed_width, name="speed",
+                                   description="Signed counts per window.")
         self._status   = CSRStatus(fields=[
             CSRField("direction",  size=1, offset=0, description="Last step was negative."),
             CSRField("index_seen", size=1, offset=1, description="Index pulse seen since clear."),
@@ -268,7 +272,7 @@ class LiteDSPQuadratureDecoder(LiteXModule):
 
 # Hall Decoder -------------------------------------------------------------------------------------
 
-HALL_SECTORS = {0b001: 0, 0b011: 1, 0b010: 2, 0b110: 3, 0b100: 4, 0b101: 5}   # 120-degree placement.
+HALL_SECTORS = {0b001: 0, 0b011: 1, 0b010: 2, 0b110: 3, 0b100: 4, 0b101: 5}  # 120-degree placement.
 
 @ResetInserter()
 class LiteDSPHallDecoder(LiteXModule):
@@ -409,7 +413,7 @@ class LiteDSPHallDecoder(LiteXModule):
                     ),
                 ),
             )
-            frac = Signal(NUM_W)                                      # Position inside the sector, Q.FRAC.
+            frac = Signal(NUM_W)                               # Position inside the sector, Q.FRAC.
             lim  = Constant((SECTOR - 1) << FRAC, NUM_W)
             self.sync += If(sector_edge,
                 frac.eq(0),
@@ -421,7 +425,8 @@ class LiteDSPHallDecoder(LiteXModule):
             pos = Signal(angle_width)
             self.comb += [
                 pos.eq(frac[FRAC:]),
-                angle.eq(Mux(self.direction, base + SECTOR - 1 - pos, base + pos) + self.angle_offset),
+                angle.eq(Mux(self.direction, base + SECTOR - 1 - pos, base + pos)
+                             + self.angle_offset),
                 self.speed.eq(Mux(self.direction, -inc, inc)),
             ]
 
@@ -439,7 +444,8 @@ class LiteDSPHallDecoder(LiteXModule):
     def add_irq(self):
         self.ev       = EventManager()
         self.ev.error = EventSourceProcess(edge="rising", description="Invalid Hall code (0 or 7).")
-        self.ev.stall = EventSourceProcess(edge="rising", description="Sector timer saturated (rotor stalled).")
+        self.ev.stall = EventSourceProcess(edge="rising",
+                                           description="Sector timer saturated (rotor stalled).")
         self.ev.finalize()
         self.comb += [self.ev.error.trigger.eq(self.error), self.ev.stall.trigger.eq(self.stall)]
 
@@ -450,8 +456,10 @@ class LiteDSPHallDecoder(LiteXModule):
             CSRField("invert", size=1, offset=0, description="Swap the direction convention."),
             CSRField("clear",  size=1, offset=1, pulse=True, description="Clear error/stall/overrun."),
         ])
-        self._period = CSRStatus(self.timer_width, name="period", description="Cycles per sector (last edge).")
-        self._speed  = CSRStatus(len(self.speed), name="speed", description="Signed angle units per cycle (Q.8).")
+        self._period = CSRStatus(self.timer_width, name="period",
+                                 description="Cycles per sector (last edge).")
+        self._speed  = CSRStatus(len(self.speed), name="speed",
+                                 description="Signed angle units per cycle (Q.8).")
         self._status = CSRStatus(fields=[
             CSRField("sector",    size=3, offset=0, description="Current sector (0..5)."),
             CSRField("direction", size=1, offset=3, description="Running backwards."),

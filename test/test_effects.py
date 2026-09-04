@@ -35,7 +35,8 @@ class TestLFO(unittest.TestCase):
                 dut = LiteDSPLFO(with_csr=False)
                 dut.phase_inc.reset, dut.shape.reset, dut.amplitude.reset = inc, shape, 20000
                 cap = run_stream(dut, None, n, None, ["data"], source_ready_rate=0.7)
-                self.assertTrue(np.array_equal(column(cap, "data", 16), lfo_model(inc, n, shape, 20000)))
+                self.assertTrue(
+                    np.array_equal(column(cap, "data", 16), lfo_model(inc, n, shape, 20000)))
                 self.assertEqual(dut.latency, 1)
 
     # verify-tier: bound — the frequency is phase_inc * f_s / 2**32: a 1/64-rate triangle has
@@ -61,7 +62,8 @@ class TestDelayLine(unittest.TestCase):
         fields = ["data", "channel"] if dut.n_channels > 1 else ["data"]
         captured = []
         gens = [stream_driver(dut.sink, beats, fields, seed=1, throttle=throttle),
-                stream_capture(dut.source, captured, len(beats), fields, seed=3, ready_rate=ready_rate)]
+                stream_capture(dut.source, captured, len(beats), fields, seed=3,
+                               ready_rate=ready_rate)]
         if mods is not None:
             gens.append(stream_driver(dut.sink_mod, [{"data": int(m)} for m in mods], ["data"],
                 seed=2, throttle=0.3))
@@ -79,7 +81,8 @@ class TestDelayLine(unittest.TestCase):
         dut.wet.reset, dut.dry.reset = int(0.7*FS16), int(0.4*FS16)
         got = self.run_delay(dut, beats)
         ref = delay_line_model([b["data"] for b in beats], [b["channel"] for b in beats], 9,
-            feedback=int(0.6*FS16), damping=8000, wet=int(0.7*FS16), dry=int(0.4*FS16), max_delay=64)
+            feedback=int(0.6*FS16), damping=8000, wet=int(0.7*FS16), dry=int(0.4*FS16),
+            max_delay=64)
         self.assertTrue(np.array_equal(got, ref))
         self.assertEqual((dut.cycles_per_sample, dut.latency), (8, 7))
 
@@ -91,7 +94,8 @@ class TestDelayLine(unittest.TestCase):
         chans = [[prng.randint(-FS24//2, FS24//2) for _ in range(n_fr)] for _ in range(2)]
         beats = tdm(chans)
         mods  = lfo_model((1 << 32)//20, n_fr, shape=0, amplitude=FS16)
-        dut   = LiteDSPDelayLine(data_width=24, n_channels=2, max_delay=64, modulation=True, with_csr=False)
+        dut   = LiteDSPDelayLine(data_width=24, n_channels=2, max_delay=64, modulation=True,
+                                 with_csr=False)
         dut.delay.reset, dut.mod_depth.reset, dut.feedback.reset = 20, 6, int(0.3*FS16)
         got = self.run_delay(dut, beats, mods)
         ref = delay_line_model([b["data"] for b in beats], [b["channel"] for b in beats], 20,
