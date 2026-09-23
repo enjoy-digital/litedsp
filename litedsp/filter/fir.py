@@ -63,8 +63,13 @@ class LiteDSPFIRCoefficientsPort(LiteXModule):
     per-tap CSR bank can make the bus write decode the design's critical path and bloats the
     register map. ``index`` auto-increments on each ``value`` write, so loading a filter is:
     write ``index = 0``, then stream the taps in order.
+
+    ``with_readback`` adds a ``readback`` status returning the coefficient at ``index``, so a load
+    can be verified: write ``index = t``, read ``readback``. Over an unacknowledged bus (Etherbone
+    over UDP) one lost ``value`` write otherwise shifts every later tap by one, silently.
     """
-    def __init__(self, n_taps=32, data_width=16, coefficients=None, with_csr=True):
+    def __init__(self, n_taps=32, data_width=16, coefficients=None, with_csr=True,
+        with_readback=False):
         self.n_taps     = n_taps
         self.data_width = data_width
         self.values     = Array([Signal((data_width, True)) for _ in range(n_taps)])
@@ -76,13 +81,16 @@ class LiteDSPFIRCoefficientsPort(LiteXModule):
             self.values[i].reset = coefficients[i]
 
         if with_csr:
-            self.add_csr()
+            self.add_csr(with_readback=with_readback)
 
-    def add_csr(self):
+    def add_csr(self, with_readback=False):
         self._index = CSRStorage(bits_for(self.n_taps - 1),
             description="Coefficient index; auto-increments on each value write.")
         self._value = CSRStorage(self.data_width,
             description="Write the indexed FIR coefficient (signed Qm.n).")
+        if with_readback:
+            self._readback = CSRStatus(self.data_width,
+                description="The coefficient at index (registered), to verify a load.")
         index = Signal(bits_for(self.n_taps - 1))
         self.sync += [
             If(self._index.re,
@@ -93,6 +101,9 @@ class LiteDSPFIRCoefficientsPort(LiteXModule):
                 index.eq(index + 1),
             ),
         ]
+        if with_readback:
+            # Registered: the n_taps-way mux stays off the CSR read path.
+            self.sync += self._readback.status.eq(self.values[index])
 
 # FIR Filter (real) --------------------------------------------------------------------------------
 

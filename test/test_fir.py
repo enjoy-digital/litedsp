@@ -185,3 +185,34 @@ class TestFIRCoefficientsPort(unittest.TestCase):
         self.assertEqual(got[0], (1 << 15) - 1)     # Unit-impulse reset retained.
         self.assertEqual(got[1], 0)
         self.assertEqual(got[2:], taps[2:])
+
+    def test_readback_verifies_a_load(self):
+        from migen import run_simulation
+        n_taps = 8
+        taps   = [100*(i + 1)*(1 if i % 2 == 0 else -1) for i in range(n_taps)]
+        dut    = LiteDSPFIRCoefficientsPort(n_taps=n_taps, data_width=16, with_readback=True)
+        got    = []
+
+        def write(csr, value):
+            yield csr.storage.eq(value & 0xffff)
+            yield csr.re.eq(1)
+            yield
+            yield csr.re.eq(0)
+
+        def gen():
+            yield from write(dut._index, 0)
+            for t in taps:
+                yield from write(dut._value, t)
+            for i in range(n_taps):                 # Read each one back at its index.
+                yield from write(dut._index, i)
+                yield                               # The index lands...
+                yield                               # ...then the registered readback.
+                v = (yield dut._readback.status)
+                got.append(v - (1 << 16) if v & 0x8000 else v)
+
+        run_simulation(dut, [gen()])
+        self.assertEqual(got, taps)
+
+    def test_readback_is_opt_in(self):
+        dut = LiteDSPFIRCoefficientsPort(n_taps=8, data_width=16)
+        self.assertFalse(hasattr(dut, "_readback"))
