@@ -21,7 +21,8 @@ class LiteDSPDDC(LiteXModule):
     """Digital down-converter: NCO + complex mixer (down) + decimator.
 
     Tunes a band centered at the NCO frequency down to baseband and decimates. The tuning word
-    is the NCO ``phase_inc`` CSR (set it to ``-f_tune`` in phase units). Canonical RX front-end.
+    is the NCO ``phase_inc`` CSR: the mixer computes ``sink * conj(nco)``, so set it to
+    ``+f_tune`` in phase units to bring ``f_tune`` to DC. Canonical RX front-end.
     """
     def __init__(self, data_width=16, decimation=8, method="cic", phase_bits=32, with_csr=True,
         fir_architecture="classic"):

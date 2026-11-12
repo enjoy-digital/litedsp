@@ -29,7 +29,8 @@ class LiteDSPParallelDDC(LiteXModule):
     :class:`LiteDSPParallelCICDecimator` (``decimation`` a multiple of
     ``n_samples``) brings the rate back to at most one sample per cycle — the output is a
     standard serial I/Q stream, bit-identical to the serial NCO -> Mixer -> CIC chain. The
-    tuning word is the NCO ``phase_inc`` CSR (set it to ``-f_tune`` in phase units).
+    tuning word is the NCO ``phase_inc`` CSR: the mixer computes ``sink * conj(nco)``, so set
+    it to ``+f_tune`` in phase units to bring ``f_tune`` to DC.
     """
     def __init__(self, n_samples=4, data_width=16, decimation=8, cic_stages=3, phase_bits=32,
         with_csr=True):

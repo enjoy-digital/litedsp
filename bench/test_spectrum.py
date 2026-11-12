@@ -48,11 +48,12 @@ def main():
     print(f"{bus.constants.config_ident}: clk={clk_freq/1e6:.1f}MHz, capture={depth}, "
           f"fs_bb={fs_bb/1e6:.3f}MHz")
 
-    # Tune: test tone at +tone_freq, DDC LO at -tune_freq (down-conversion).
+    # Tune: test tone at +tone_freq, DDC LO at +tune_freq (the DDC mixes by conj(LO), so the
+    # tone lands at tone_freq - tune_freq).
     tone = NCODriver(bus, "nco",     clk_freq=clk_freq)
     lo   = NCODriver(bus, "ddc_nco", clk_freq=clk_freq)
     tone.set_frequency(args.tone_freq)
-    lo.set_frequency(-args.tune_freq)
+    lo.set_frequency(args.tune_freq)
 
     # Trigger a capture and drain the buffer (memory-mapped window if the SoC has one).
     capture = CaptureDriver(bus, "capture")
