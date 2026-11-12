@@ -8,6 +8,10 @@ latency: variable (data-dependent) · CSR: yes · bypass: no
 
 I/Q test-pattern generator (constant / counter ramp / PRBS / impulse).
 
+The impulse pattern emits its full-scale sample on the first output after reset, after
+each change of ``mode`` and after each ``rearm`` pulse (a write of the ``control`` register
+with the CSRs), then zeros.
+
 ## Parameters
 
 | Parameter | Default | Type | Description |
@@ -29,7 +33,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 | Bits | Field | Reset | Description |
 |---|---|---|---|
-| `[1:0]` | `mode` | `1` | Pattern select. 0: const; 1: counter; 2: prbs; 3: impulse |
+| `[1:0]` | `mode` | `1` | Pattern select (a write re-arms the impulse). 0: const; 1: counter; 2: prbs; 3: impulse |
 
 ### `const` (read-write, 32 bits)
 
