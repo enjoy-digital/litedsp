@@ -23,7 +23,8 @@ class LiteDSPAlphaBlend(LiteXModule):
 
     ``sink_a`` and ``sink_b`` (and the mono ``sink_alpha`` with ``with_alpha_sink``, its full
     scale mapping to 256) are joined; the framing comes from ``sink_a``. ``alpha`` is a 9-bit
-    runtime value (256 = 1.0) when no alpha stream is used. Latency 1.
+    runtime value (256 = 1.0, larger values saturate to 1.0) when no alpha stream is used.
+    Latency 1.
     """
     def __init__(self, data_width=8, n_channels=3, alpha=128, with_alpha_sink=False, with_csr=True):
         check(0 <= alpha <= 256, "expected 0 <= alpha <= 256")
@@ -57,7 +58,7 @@ class LiteDSPAlphaBlend(LiteXModule):
             self.comb += a.eq(Mux(self.sink_alpha.data == full, 256, self.sink_alpha.data[DW - 8:]
                 if DW >= 8 else (self.sink_alpha.data << (8 - DW))))
         else:
-            self.comb += a.eq(self.alpha)
+            self.comb += a.eq(Mux(self.alpha > 256, 256, self.alpha))  # Saturate to 1.0.
         ia = Signal(9)
         self.comb += ia.eq(256 - a)
         for f in fields:
@@ -77,8 +78,8 @@ class LiteDSPAlphaBlend(LiteXModule):
 
     def add_csr(self):
         self._alpha = CSRStorage(9, reset=self.alpha.reset.value, name="alpha",
-                                 description="Blend factor (256 = 1.0, unused with an alpha "
-                                             "stream).")
+                                 description="Blend factor (256 = 1.0, above saturates to 1.0, "
+                                             "unused with an alpha stream).")
         self.comb += self.alpha.eq(self._alpha.storage)
 
 def reduce_and(terms):

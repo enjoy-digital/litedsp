@@ -10,7 +10,8 @@ latency: 1 sample · CSR: yes · bypass: no
 
 ``sink_a`` and ``sink_b`` (and the mono ``sink_alpha`` with ``with_alpha_sink``, its full
 scale mapping to 256) are joined; the framing comes from ``sink_a``. ``alpha`` is a 9-bit
-runtime value (256 = 1.0) when no alpha stream is used. Latency 1.
+runtime value (256 = 1.0, larger values saturate to 1.0) when no alpha stream is used.
+Latency 1.
 
 ## Parameters
 
@@ -36,7 +37,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 ### `alpha` (read-write, 9 bits, reset `0x80`)
 
-Blend factor (256 = 1.0, unused with an alpha stream).
+Blend factor (256 = 1.0, above saturates to 1.0, unused with an alpha stream).
 
 ## FPGA Resources
 

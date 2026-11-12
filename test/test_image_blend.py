@@ -82,6 +82,13 @@ class TestAlphaBlend(unittest.TestCase):
             np.array_equal(beats_to_image(out, 16, 12, 3), alpha_blend_model(a, b, mask)))
         with self.assertRaises(ValueError):
             LiteDSPAlphaBlend(alpha=300, with_csr=False)
+        # A runtime alpha above 256 (9-bit register) saturates to 1.0 instead of wrapping 256 - a.
+        dut = LiteDSPAlphaBlend(alpha=256, with_csr=False)
+        dut.alpha.reset = 300
+        out = simulate_join(dut, {"sink_a": raster_beats(a, 3), "sink_b": raster_beats(b, 3)}, 192,
+            ["r", "g", "b"], rates=(0.8, 0.6))
+        self.assertTrue(
+            np.array_equal(beats_to_image(out, 16, 12, 3), alpha_blend_model(a, b, 256)))
 
 class TestBoxOverlay(unittest.TestCase):
     # verify-tier: model — three overlapping boxes (one partly outside) with thickness 2 on RGB
