@@ -42,8 +42,8 @@ Per block, with reset asserted at cycle 0 (standard sby setup):
    transfers, and (where architecturally possible) of a source stall with `valid` high — an
    over-constrained setup fails the cover task instead of silently proving nothing.
 
-Multi-endpoint blocks also get lockstep/exclusivity assertions: `split`'s sources see exactly
-the same transfers, `combine`'s sinks are consumed together, `channel_mux` never drains an
+Multi-endpoint blocks also get lockstep/exclusivity assertions: `split` counts tokens per source
+(each source sees every sink transfer exactly once), `combine`'s sinks are consumed together, `channel_mux` never drains an
 unselected sink, `channel_demux` never asserts valid to an unselected source.
 
 ## Results (per block)
@@ -60,7 +60,7 @@ fill/drain/refill rounds of these 1-2-entry buffers). Diff bounds are the *prove
 | `stream_fifo`   | depth=2                       | 1:1 | [0, +2]  | bmc 30   | PASS |
 | `delay_d1`      | depth=1 (regressed once)      | 1:1 | [0, +1]  | bmc 30   | PASS |
 | `delay_d2`      | depth=2                       | 1:1 | [0, +2]  | bmc 30   | PASS |
-| `split`         | n=2, atomic fan-out           | 1:1 | [0, 0]   | prove    | PASS |
+| `split`         | n=2, eager fan-out            | 1:1 | [-1, 0]  | bmc 30   | PASS |
 | `combine`       | n_channels=2, enable=0b11     | 1:1 | [0, +1]  | bmc 30   | PASS |
 | `channel_mux`   | n=2, sel anyconst             | 1:1 | [0, 0]   | prove    | PASS |
 | `channel_demux` | n=2, sel anyconst             | 1:1 | [0, 0]   | prove    | PASS |
@@ -116,11 +116,12 @@ confirming the properties catch it:
 - **`delay`, `combine`, `downsampler`, `upsampler` do not propagate `first`/`last`** (sample
   streams carry no framing; Migen emits those source ports as undriven). They are excluded from
   those blocks' stability vector — a *finding* documented here, not a hidden waiver.
-- **`split` asserts valid only when all sinks are ready** (atomic fan-out: valid depends on
-  ready). This is why its source-stall cover is skipped (unreachable by construction). It
-  composes fine with LiteX-style consumers, but a consumer that waits for `valid` before raising
-  `ready` on *another* branch could deadlock — a documented property of atomic fan-out, now
-  formally pinned down rather than folklore.
+- **`split` is an eager fan-out**: a source's `valid` does not depend on any `ready`; a source
+  that takes the sample before the others drops `valid` until the sink sample is consumed, so a
+  source may be one transfer ahead of the sink (diff bound `[-1, 0]`, one token count per
+  source). A consumer that waits for `valid` before raising `ready`, or branches that join again,
+  cannot deadlock it. The per-source counts do not close by k-induction (the internal "taken"
+  flags are not visible to the monitor), so it is checked by BMC.
 
 Runtime: full suite ~25 s on a desktop. The runner prefers `bitwuzla` and falls back to an
 installed `z3`, `yices`, or `boolector` smtbmc engine; `--solver` selects one explicitly.

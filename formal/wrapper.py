@@ -76,6 +76,7 @@ def _spec(dut, sinks, sources,
     tie_first_last = False,  # Tie sink first/last low (packet framing out of scope, see doc).
     cover_stall    = True,   # Cover a source stall (valid && !ready) to de-vacuate stability.
     extra          = (),     # Raw extra assertion lines (lockstep, unselected-channel quiet).
+    per_source     = False,  # One token count per source (fan-out: each sees every input).
     mode           = "bmc",  # "prove" where k-induction closes, else "bmc" (see run_formal.py).
     ):
     return {
@@ -92,6 +93,7 @@ def _spec(dut, sinks, sources,
         "tie_first_last" : tie_first_last,
         "cover_stall"    : cover_stall,
         "extra"          : tuple(extra),
+        "per_source"     : per_source,
         "mode"           : mode,
     }
 
@@ -119,20 +121,16 @@ def delay_d2():
         max_diff=2, spurious=True)
 
 def split():
-    # Atomic comb fan-out: both sources transfer exactly when the sink does (f_diff pinned to 0).
-    # Note: gates valid on all-ready (valid depends on ready), so a source-side stall with valid
-    # high is unreachable by construction — cover_stall is off (stability is vacuous here).
+    # Eager fan-out: each source takes every sink sample exactly once, possibly one cycle ahead
+    # of the sink transfer (a source that took it waits, valid low, for the others), so the
+    # per-source difference is in [-1, 0]. Source valid does not depend on ready, so a source
+    # stall with valid high is reachable (cover_stall on).
     d = LiteDSPSplit(n=2, data_width=DATA_WIDTH)
     for k, s in enumerate(d.sources):
         _pin(s, f"sources{k}")
     return _spec(d, [("sink", d.sink)],
         [(f"sources{k}", s) for k, s in enumerate(d.sources)],
-        cover_stall=False, mode="prove",
-        extra=(
-            "// Lockstep fan-out: both sources see exactly the same transfers.",
-            "always @(*) if (!rst) assert ((sources0_valid && sources0_ready)"
-            " == (sources1_valid && sources1_ready));",
-        ))
+        min_diff=-1, max_diff=0, per_source=True)
 
 def combine():
     # Synchronous join, 1 output register: both sinks consumed together, f_diff in [0, 1].
@@ -365,16 +363,24 @@ def emit_formal_top(name, spec, path, dirs):
         "    // Token conservation (no loss / no duplication).",
         f"    wire f_in_transfer  = {in_tx};",
         f"    wire f_out_transfer = {out_tx};",
-        f"    stream_tokens #(",
-        f"        .IN_WEIGHT({spec['in_weight']}), .OUT_WEIGHT({spec['out_weight']}),",
-        f"        .MIN_DIFF({spec['min_diff']}), .MAX_DIFF({spec['max_diff']}),",
-        f"        .CHECK_SPURIOUS({1 if spec['spurious'] else 0})",
-        f"    ) f_tokens (",
-        f"        .clk(clk), .rst(rst),",
-        f"        .in_transfer(f_in_transfer), .out_transfer(f_out_transfer),",
-        f"        .source_valid({any_sv})",
-        "    );",
     ]
+    if spec["per_source"]:
+        monitors = [(f"f_tokens_{p}", f"({p}_valid && {p}_ready)", f"{p}_valid")
+            for p, _ in sources]
+    else:
+        monitors = [("f_tokens", "f_out_transfer", any_sv)]
+    for inst, out_transfer, source_valid in monitors:
+        lines += [
+            f"    stream_tokens #(",
+            f"        .IN_WEIGHT({spec['in_weight']}), .OUT_WEIGHT({spec['out_weight']}),",
+            f"        .MIN_DIFF({spec['min_diff']}), .MAX_DIFF({spec['max_diff']}),",
+            f"        .CHECK_SPURIOUS({1 if spec['spurious'] else 0})",
+            f"    ) {inst} (",
+            f"        .clk(clk), .rst(rst),",
+            f"        .in_transfer(f_in_transfer), .out_transfer({out_transfer}),",
+            f"        .source_valid({source_valid})",
+            "    );",
+        ]
 
     # Block-specific extras.
     if spec["extra"]:
