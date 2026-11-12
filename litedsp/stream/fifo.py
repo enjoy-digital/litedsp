@@ -41,7 +41,7 @@ class LiteDSPStreamFIFO(LiteXModule):
         self.sink   = stream.Endpoint(layout)
         self.source = stream.Endpoint(layout)
         self.level    = Signal(max=depth + 1)   # Current occupancy.
-        self.overflow = Signal()                # Sticky: a sample was dropped (sink stalled).
+        self.overflow = Signal()                # Sticky: FIFO full, upstream stalled (no drop).
         self.latency = 0  # Elastic: no sample-index offset.
 
         # # #
@@ -68,7 +68,7 @@ class LiteDSPStreamFIFO(LiteXModule):
     def add_csr(self):
         self._status = CSRStatus(fields=[
             CSRField("level",    size=self.level.nbits, description="Current FIFO occupancy."),
-            CSRField("overflow", size=1, offset=16,     description="A sample was dropped (sticky)."),
+            CSRField("overflow", size=1, offset=16,     description="FIFO full, upstream stalled (sticky)."),
         ])
         self.comb += [
             self._status.fields.level.eq(self.level),

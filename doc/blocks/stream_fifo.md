@@ -32,7 +32,7 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 | Bits | Field | Reset | Description |
 |---|---|---|---|
 | `[4:0]` | `level` | `0` | Current FIFO occupancy. |
-| `[16]` | `overflow` | `0` | A sample was dropped (sticky). |
+| `[16]` | `overflow` | `0` | FIFO full, upstream stalled (sticky). |
 
 ## FPGA Resources
 
