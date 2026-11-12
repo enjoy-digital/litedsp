@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="260" viewBox="0 0 760 260">
+<defs>
+  <marker id="arrow-ctrl" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-ctrl-rev" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" refX="1" refY="4" orient="auto">
+    <path d="M8,0 L0,4 L8,8 Z" fill="#5b5b5b"/></marker>
+  <marker id="arrow-stream" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#606060"/></marker>
+  <marker id="arrow-accent" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="9" refY="4.5" orient="auto">
+    <path d="M0,0 L9,4.5 L0,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-accent-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#2eaadc"/></marker>
+  <marker id="arrow-stream-rev" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" refX="0" refY="4.5" orient="auto">
+    <path d="M9,0 L0,4.5 L9,9 Z" fill="#606060"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<polyline points="170,14 170,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="240,14 240,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="310,14 310,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="380,14 380,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="450,14 450,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="520,14 520,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="590,14 590,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="660,14 660,245" fill="none" stroke="#c8c8c8" stroke-width="1.0" stroke-dasharray="2,3"/>
+<polyline points="170,43 170,27 205,27 205,43 240,43 240,27 275,27 275,43 310,43 310,27 345,27 345,43 380,43 380,27 415,27 415,43 450,43 450,27 485,27 485,43 520,43 520,27 555,27 555,43 590,43 590,27 625,27 625,43 660,43" fill="none" stroke="#5b5b5b" stroke-width="1.0"/>
+<polyline points="170,88 240,88 240,72 520,72 520,88 660,88" fill="none" stroke="#5b5b5b" stroke-width="1.0"/>
+<polyline points="170,183 240,183 240,167 310,167 310,183 660,183" fill="none" stroke="#5b5b5b" stroke-width="1.0"/>
+<polyline points="170,228 450,228 450,212 520,212 520,228 660,228" fill="none" stroke="#5b5b5b" stroke-width="1.0"/>
+<g fill="#bfe6f5" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="240" y="115" width="70" height="24" rx="0" ry="0"/>
+</g>
+<text x="275" y="127" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="275" dy="0">s0</tspan></text>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="310" y="115" width="70" height="24" rx="0" ry="0"/>
+</g>
+<text x="345" y="127" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="345" dy="0">s1</tspan></text>
+<g fill="#e6f5fb" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="380" y="115" width="70" height="24" rx="0" ry="0"/>
+</g>
+<text x="415" y="127" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="415" dy="0">s2</tspan></text>
+<g fill="#bfe6f5" stroke="#5b5b5b" stroke-width="0.9" stroke-linejoin="round">
+<rect x="450" y="115" width="70" height="24" rx="0" ry="0"/>
+</g>
+<text x="485" y="127" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="middle" dominant-baseline="central"><tspan x="485" dy="0">s3</tspan></text>
+<text x="158" y="35" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="158" dy="0">clk</tspan></text>
+<text x="158" y="80" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="158" dy="0">valid</tspan></text>
+<text x="158" y="127" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="158" dy="0">data</tspan></text>
+<text x="158" y="175" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="158" dy="0">first</tspan></text>
+<text x="158" y="220" font-family="Carlito, Calibri, &#x27;Liberation Sans&#x27;, Arial, sans-serif" font-size="13" fill="#000000" text-anchor="end" dominant-baseline="central"><tspan x="158" dy="0">last</tspan></text>
+</svg>
