@@ -27,6 +27,7 @@ from litex.soc.interconnect      import csr_bus
 from litex.soc.interconnect.axi  import AXILiteInterface, AXILite2CSR
 from litex.soc.integration.soc   import SoCCSRRegion
 
+from litedsp.common       import check
 from litedsp.flow.builder import LiteDSPFlowChain
 from litedsp.flow import netlist as netlist_mod
 
@@ -55,6 +56,12 @@ def _name_axilite(axil, prefix="s_axil"):
 class LiteDSPFlowIPCore(LiteXModule):
     def __init__(self, nl, reg=None, csr_data_width=32, axil_address_width=16, csr_base=0):
         assert csr_data_width == 32
+        # The AXI-Lite slave decodes only the low axil_address_width address bits, so the
+        # exported register map (csr_base + bank offsets) matches the decode only when csr_base
+        # has no bit inside the decoded window.
+        check(csr_base % (1 << axil_address_width) == 0,
+            f"expected csr_base to be a multiple of 2**axil_address_width "
+            f"(0x{1 << axil_address_width:x}), got 0x{csr_base:x}")
         self.netlist            = nl
         self.csr_data_width     = csr_data_width
         self.csr_base           = csr_base

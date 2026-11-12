@@ -64,7 +64,8 @@ def _port(direction, width, name):
     return f"    {direction} wire{shape} {name}"
 
 
-def _wrapper_verilog(core_name, wrapper_name, interfaces):
+def _wrapper_verilog(core_name, wrapper_name, interfaces, axil_address_width=16,
+    axil_data_width=32):
     ports = [
         _port("input", 1, "aclk"),
         _port("input", 1, "aresetn"),
@@ -89,12 +90,13 @@ def _wrapper_verilog(core_name, wrapper_name, interfaces):
             ]
 
     # Canonical AXI4-Lite slave.
+    aw, dw = axil_address_width, axil_data_width
     axil_widths = {
-        "awvalid": 1, "awready": 1, "awaddr": 16,
-        "wvalid": 1, "wready": 1, "wdata": 32, "wstrb": 4,
+        "awvalid": 1, "awready": 1, "awaddr": aw,
+        "wvalid": 1, "wready": 1, "wdata": dw, "wstrb": dw//8,
         "bvalid": 1, "bready": 1, "bresp": 2,
-        "arvalid": 1, "arready": 1, "araddr": 16,
-        "rvalid": 1, "rready": 1, "rdata": 32, "rresp": 2,
+        "arvalid": 1, "arready": 1, "araddr": aw,
+        "rvalid": 1, "rready": 1, "rdata": dw, "rresp": 2,
     }
     slave_inputs = {"awvalid", "awaddr", "wvalid", "wdata", "wstrb", "bready",
                     "arvalid", "araddr", "rready"}
@@ -356,7 +358,8 @@ def package_vivado(ip, verilog_path, package_dir, name=None, part=DEFAULT_PART, 
 
     wrapper_path = os.path.join(hdl_dir, wrapper_name + ".v")
     with open(wrapper_path, "w", encoding="utf-8") as f:
-        f.write(_wrapper_verilog(core_name, wrapper_name, interfaces))
+        f.write(_wrapper_verilog(core_name, wrapper_name, interfaces,
+            axil_address_width=ip.axil_address_width, axil_data_width=ip.csr_data_width))
     script_path = os.path.join(package_dir, "package_ip.tcl")
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(_package_tcl(name, wrapper_name, part, ip.netlist.clock_ns, interfaces))
