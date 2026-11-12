@@ -465,6 +465,7 @@ class FOCDriver(Driver):
     regs       = ("dq_setpoint_d", "dq_setpoint_q", "dq_kp_d", "dq_ki_d", "dq_kp_q", "dq_ki_q",
                   "dq_limit", "dq_voltage_d", "dq_voltage_q", "dq_control", "dq_status")
     data_width = 16
+    gain_width = 16
     gain_frac  = 12
 
     def _pu(self, x):
@@ -472,7 +473,10 @@ class FOCDriver(Driver):
         return int(round(max(-1.0, min(1.0, x))*fs)) & ((1 << self.data_width) - 1)
 
     def _gain(self, g):
-        return int(round(g*(1 << self.gain_frac))) & 0xFFFF
+        # Signed Q(gain_width-gain_frac).gain_frac: saturate instead of wrapping to a negative gain.
+        g_max = (1 << (self.gain_width - 1)) - 1
+        g_int = max(-g_max - 1, min(g_max, int(round(g*(1 << self.gain_frac)))))
+        return g_int & ((1 << self.gain_width) - 1)
 
     def set_setpoints(self, i_d, i_q):
         """Current setpoints in per-unit (1.0 = base current)."""

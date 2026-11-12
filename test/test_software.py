@@ -165,6 +165,8 @@ class TestMotorDrivers(unittest.TestCase):
         self.assertEqual(regs["foc_dq_setpoint_q"].value, 16384)
         drv.set_gains(1.5, 0.02)
         self.assertEqual((regs["foc_dq_kp_d"].value, regs["foc_dq_ki_q"].value), (6144, 82))
+        drv.set_gains(8.0, -9.0)                                   # Out of Q4.12: saturate.
+        self.assertEqual((regs["foc_dq_kp_d"].value, regs["foc_dq_ki_q"].value), (0x7FFF, 0x8000))
         drv.set_open_loop(True, v_q=0.5)
         self.assertEqual(regs["foc_dq_voltage_q"].value, 16384)
         self.assertEqual(regs["foc_dq_control"].value & 1, 1)
