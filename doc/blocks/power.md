@@ -10,7 +10,7 @@ Average power meter: passes the I/Q stream through and measures mean ``I**2 + Q*
 
 The instantaneous power is accumulated over ``2**window_log2`` accepted samples, then the
 block average (accumulator >> window_log2) is latched into ``power`` and ``update`` pulses.
-Unlike the original tetra ``LiteDSPPower``, the averaging window is actually implemented.
+Unlike an earlier version of this block, the averaging window is actually implemented.
 
 ## Parameters
 

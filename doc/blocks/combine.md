@@ -9,8 +9,8 @@ latency: 1 sample · CSR: yes · bypass: no
 Sum ``n_channels`` complex I/Q streams into one, with per-channel enable and saturation.
 
 The internal accumulator grows to fit the worst-case sum (``data_width + ceil(log2(N))``)
-so it never wraps, then the result is saturated back to ``data_width`` — unlike the
-original tetra ``Sum`` which could silently overflow. All enabled inputs are consumed
+so it never wraps, then the result is saturated back to ``data_width`` — unlike a
+plain adder, which could silently overflow. All enabled inputs are consumed
 together (synchronous join); output appears after a fixed 1-cycle latency.
 
 ## Parameters
