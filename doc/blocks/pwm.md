@@ -21,11 +21,15 @@ previous duties are held and the sticky ``missed`` flag is set.
 valley), ``pwm_l[k]`` is its complement; on every edge both outputs stay low for
 ``dead_time`` cycles. ``enable`` gates the outputs; a ``fault``
 input (over-current comparator, driver
-fault) switches all six outputs off within one cycle and latches ``fault_latched`` until
+fault) switches all six outputs off two clock cycles after it rises (``fault`` is registered
+into ``fault_latched``, then the gate output registers) and latches ``fault_latched`` until
 ``fault_clear`` (with ``with_irq=True``: ``ev.fault``; ``ev.period`` fires every valley
-for a CPU-driven loop). ``trigger`` pulses when the carrier passes ``trigger_count`` on the
-``trigger_direction`` slope (0: at/after the valley while counting down, 1: while counting
-up) -- the sample point for shunt current measurement in the zero vector.
+for a CPU-driven loop). ``trigger`` pulses when the carrier equals ``trigger_count`` on the
+``trigger_direction`` slope (0: while counting down, down to the valley; 1: while counting
+up, up to the peak). Since ``pwm_h`` is high around the valley, the zero vector at the
+valley is the high-side one (all ``pwm_h`` high); the low-side zero vector (all ``pwm_l``
+high), where low-side shunts carry the phase currents, is at the carrier peak:
+``trigger_count = period``, ``trigger_direction = 1``.
 
 ## Parameters
 
