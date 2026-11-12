@@ -159,12 +159,13 @@ class LiteDSPBeamformer(LiteXModule):
 
     def add_csr(self):
         WW = self.weight_width
+        IM = max(16, WW)  # im at bit 16 up to 16-bit weights (default layout), above re beyond.
         self._weight_index = CSRStorage(len(self.weight_index), name="weight_index",
                                         description="Shadow weight index (beam * n_elements + "
                                                     "element).")
         self._weight = CSRStorage(fields=[
             CSRField("re", size=WW, offset=0,  description=f"Weight real part (signed Q2.{self.weight_frac})."),
-            CSRField("im", size=WW, offset=16, description="Weight imaginary part."),
+            CSRField("im", size=WW, offset=IM, description="Weight imaginary part."),
         ], description="Writing loads the shadow weight at weight_index.")
         self._control = CSRStorage(fields=[
             CSRField("commit", size=1, offset=0, pulse=True, description="Copy the shadow weights between samples."),
@@ -178,6 +179,7 @@ class LiteDSPBeamformer(LiteXModule):
             CSRField("n_elements",  size=5, offset=0, description="Array elements."),
             CSRField("n_beams",     size=4, offset=8, description="Beams per sample."),
             CSRField("weight_frac", size=5, offset=16, description="Weight fractional bits."),
+            CSRField("weight_width", size=6, offset=24, description="Weight width (bits)."),
         ])
         self.comb += [
             self.weight_index.eq(self._weight_index.storage),
@@ -189,6 +191,7 @@ class LiteDSPBeamformer(LiteXModule):
             self._config.fields.n_elements.eq(self.n_elements),
             self._config.fields.n_beams.eq(self.n_beams),
             self._config.fields.weight_frac.eq(self.weight_frac),
+            self._config.fields.weight_width.eq(self.weight_width),
         ]
 
 # Monopulse ----------------------------------------------------------------------------------------

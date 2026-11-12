@@ -402,6 +402,11 @@ class TestRadarDrivers(unittest.TestCase):
         self.assertEqual(len(regs["bf_weight"].writes), 4)
         drv.commit()
         self.assertEqual(regs["bf_control"].value, 1)
+        # 20-bit weights (config weight_width = 20): im packed at bit 20, no 16-bit truncation.
+        regs["bf_config"].value = 4 | (1 << 8) | (18 << 16) | (20 << 24)
+        drv.set_weights(0, [-3, 0x1FFFF], [0x2ABCD, -1])
+        self.assertEqual(regs["bf_weight"].writes[-2], 0xFFFFD | (0x2ABCD << 20))
+        self.assertEqual(regs["bf_weight"].writes[-1], 0x1FFFF | (0xFFFFF << 20))
 
     def test_tvg(self):
         from litedsp.radar.design import tvg_coefficients

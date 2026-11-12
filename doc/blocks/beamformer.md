@@ -72,13 +72,14 @@ Writing loads the shadow weight at weight_index.
 | `[0]` | `commit_pending` | `0` | A commit waits for the sample boundary. |
 | `[1]` | `saturated` | `0` | Sticky: a beam output saturated. |
 
-### `config` (read-only, 21 bits)
+### `config` (read-only, 30 bits)
 
 | Bits | Field | Reset | Description |
 |---|---|---|---|
 | `[4:0]` | `n_elements` | `0` | Array elements. |
 | `[11:8]` | `n_beams` | `0` | Beams per sample. |
 | `[20:16]` | `weight_frac` | `0` | Weight fractional bits. |
+| `[29:24]` | `weight_width` | `0` | Weight width (bits). |
 
 ## FPGA Resources
 
