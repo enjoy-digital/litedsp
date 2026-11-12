@@ -496,6 +496,25 @@ class TestIPCore(unittest.TestCase):
         self.assertEqual(res["nco"], 0x0abcdef0)
         self.assertEqual(rb, 0x0abcdef0)
 
+    def test_csr_base_matches_axilite_decode(self):
+        # The exported register map adds csr_base; the AXI-Lite decode sees only the low
+        # axil_address_width bits, so the exported address of a register must reach it.
+        from migen import run_simulation
+        from litedsp.flow.ipcore import LiteDSPFlowIPCore
+        ip     = LiteDSPFlowIPCore(self._ddc(), csr_base=0x40000)
+        origin = ip.csr_regions()["lo"].origin
+        self.assertEqual(origin, 0x40800)
+        res = {}
+        def tb():
+            yield from ip.axil.write(origin & 0xffff, 0x01234567)
+            yield
+            res["nco"] = (yield ip.chain.lo.phase_inc)
+        run_simulation(ip, [tb()])
+        self.assertEqual(res["nco"], 0x01234567)
+        # A base inside the decoded window would shift every exported address: rejected.
+        with self.assertRaises(ValueError):
+            LiteDSPFlowIPCore(self._ddc(), csr_base=0x800)
+
 
 class TestVivadoIPPackage(unittest.TestCase):
     def _package(self, config, name):
@@ -538,6 +557,24 @@ class TestVivadoIPPackage(unittest.TestCase):
         self.assertIn("assign_bd_address", validation)
         self.assertIn("validate_bd_design", validation)
         self.assertIn("launch_runs synth_1", validation)
+
+    def test_axilite_widths_follow_the_core(self):
+        import tempfile
+        from litedsp.flow.ipcore import generate_ip
+        from litedsp.flow.vivado import package_vivado
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        root = tempfile.mkdtemp(prefix="litedsp_vivado_")
+        nl   = nlmod.load(os.path.join(here, "litedsp", "flow", "examples", "ddc.json"))
+        path, ip = generate_ip(nl, os.path.join(root, "core"), name="ddc_aw20",
+            axil_address_width=20)
+        component = package_vivado(ip, path, os.path.join(root, "ip"), run_vivado=False)
+        wrapper_path = os.path.join(os.path.dirname(component), "hdl", "ddc_aw20_vivado.v")
+        with open(wrapper_path, encoding="utf-8") as f:
+            wrapper = f.read()
+        self.assertIn("input wire [19:0] s_axi_awaddr", wrapper)
+        self.assertIn("input wire [19:0] s_axi_araddr", wrapper)
+        self.assertIn("input wire [31:0] s_axi_wdata", wrapper)
+        self.assertIn("input wire [3:0] s_axi_wstrb", wrapper)
 
     def test_symbol_stream_is_byte_padded_and_keeps_first_last(self):
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
