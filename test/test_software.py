@@ -105,6 +105,9 @@ class TestFIRDriver(unittest.TestCase):
         self.assertEqual(bus.regs.fir_coeff_0.writes, [1])
         self.assertEqual(bus.regs.fir_coeff_1.writes, [-1 & 0xFFFF])
         self.assertEqual(bus.regs.fir_coeff_2.writes, [1 << 14])
+        fir.load([1.0, -1.0, 2.0, -2.0])                         # Floats saturate to Q1.15.
+        self.assertEqual([getattr(bus.regs, f"fir_coeff_{k}").writes[-1] for k in range(4)],
+            [0x7FFF, 0x8000, 0x7FFF, 0x8000])
 
     def test_set_lowpass(self):
         from litedsp.filter.design import firwin_lowpass

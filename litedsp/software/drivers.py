@@ -313,10 +313,12 @@ class FIRDriver(Driver):
     def load(self, taps):
         """Load integer (or float, scaled to Q1.(N-1)) coefficients."""
         assert len(taps) == self.n_taps, f"expected {self.n_taps} taps"
-        mask = (1 << self.data_width) - 1
+        mask  = (1 << self.data_width) - 1
+        t_max = (1 << (self.data_width - 1)) - 1
         for csr, t in zip(self.coeffs, taps):
             if isinstance(t, float):
-                t = int(round(t * (1 << (self.data_width - 1))))
+                # Saturate to Q1.(N-1): 1.0 gives the largest code, not a wrap to -1.0.
+                t = max(-t_max - 1, min(t_max, int(round(t * (1 << (self.data_width - 1))))))
             csr.write(t & mask)
 
     def _design_taps(self, n_taps):
