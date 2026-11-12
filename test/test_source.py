@@ -11,6 +11,7 @@ import numpy as np
 from litedsp.generation.source import LiteDSPChirp, LiteDSPNoiseSource, LiteDSPReplay
 
 from test.common import run_stream, column, to_signed
+from test.models import noise_source_model
 
 class TestChirp(unittest.TestCase):
     def test_frequency_ramps(self):
@@ -39,6 +40,18 @@ class TestNoiseSource(unittest.TestCase):
         # Approximately Gaussian: kurtosis near 3 (CLT of summed PRNGs is only approximate).
         k = ((i - i.mean())**4).mean()/(i.var()**2)
         self.assertLess(abs(k - 3.0), 1.0)
+
+    def test_saturates(self):
+        # Bit-exact against the model: the tails clamp at full scale instead of wrapping.
+        n   = 500
+        dut = LiteDSPNoiseSource(data_width=16, n_sum=16, shift=2, with_csr=False)
+        cap = run_stream(dut, None, n, None, ["i", "q"], source_ready_rate=1.0)
+        i   = to_signed(column(cap, "i"), 16)
+        q   = to_signed(column(cap, "q"), 16)
+        mi, mq = noise_source_model(n)
+        self.assertTrue(np.array_equal(i, mi))
+        self.assertTrue(np.array_equal(q, mq))
+        self.assertGreater(np.sum(np.abs(mi) == 32767), 0)  # The stimulus does reach the clamp.
 
 class TestReplay(unittest.TestCase):
     def test_loops(self):
