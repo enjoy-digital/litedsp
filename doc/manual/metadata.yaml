@@ -1,0 +1,16 @@
+---
+# Project metadata of the manual (title page, headers, document properties). The theme (colours,
+# fonts, LaTeX options) is in theme.yaml; build.py merges both and replaces @DATE@.
+title: "RF & Signal Processing Blocks"
+project: "LiteDSP"
+subtitle: "Reference manual of the LiteX DSP library: fixed-point streams, filters, NCO/mixers/FFT, communications and application families"
+author: [Enjoy-Digital]
+date: "@DATE@"
+license: "Copyright © 2025-2026 Enjoy-Digital. Licensed under the BSD-2-Clause license."
+license-short: "BSD-2-Clause"
+contact: "hello@enjoy-digital.fr"
+website: "enjoy-digital.fr"
+subject: "LiteDSP"
+lang: en-US
+header-right: "BSD-2-Clause · \\href{mailto:hello@enjoy-digital.fr}{hello@enjoy-digital.fr}"
+---

@@ -1,0 +1,40 @@
+# Manual of this project: output name and chapters, in order (read by build.py; the pandoc defaults
+# files and the theme are generic, from the manual kit).
+name: litedsp_manual
+chapters:
+  - 00_front.md
+  - 01_introduction.md
+  - 02_dsp_primer.md
+  - 03_stream_primer.md
+  - 04_filter_primer.md
+  - 05_spectral_primer.md
+  - 06_comm_primer.md
+  - 07_architecture.md
+  - 08_generation_mixing.md
+  - 09_filters_rate.md
+  - 10_level_analysis.md
+  - 11_comm.md
+  - 12_stream_frontend.md
+  - 13_tooling.md
+  - 14_getting_started.md
+  - 15_integration.md
+  - 16_examples.md
+  - 17_boards.md
+  - 18_verification.md
+  - 19_debugging.md
+  - 20_apps_introduction.md
+  - 21_motor_primer.md
+  - 22_audio_primer.md
+  - 23_radar_primer.md
+  - 24_image_primer.md
+  - 25_motor.md
+  - 26_audio.md
+  - 27_radar.md
+  - 28_image.md
+  - 29_apps_using.md
+  - Z_appendix.md
+  - A_registers.md
+  - B_build_options.md
+  - C_glossary.md
+  - D_performance.md
+  - E_maintenance.md
