@@ -2,7 +2,7 @@
 
 `LiteDSPChannelizer` — `litedsp.mixing.channelizer` — category `mixing`
 
-latency: 34 samples · CSR: no · bypass: no
+latency: 36 samples · CSR: no · bypass: no
 
 ## Overview
 

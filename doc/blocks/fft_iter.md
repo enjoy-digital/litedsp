@@ -2,7 +2,7 @@
 
 `LiteDSPFFTIter` — `litedsp.analysis.fft_iter` — category `analysis`
 
-latency: 704 samples · CSR: yes · bypass: no
+latency: 641 samples · CSR: yes · bypass: no
 
 ## Overview
 
@@ -28,9 +28,9 @@ Streams follow the LiteX `valid`/`ready` contract (see `doc/interfaces.md`).
 
 ## Register Map
 
-### `latency` (read-only, 32 bits, reset `0x2c0`)
+### `latency` (read-only, 32 bits, reset `0x281`)
 
-Iterative FFT burst latency (cycles).
+Iterative FFT latency (cycles, first input to first output).
 
 ## FPGA Resources
 

@@ -7,7 +7,7 @@
 """Compact iterative (memory-based) radix-2 FFT.
 
 A single radix-2 butterfly works in place on synchronous-read RAM, processing an N-sample burst
-in ~N + 1.5*N*log2(N) + N cycles. Each I/Q sample memory is one true-dual-port block RAM (two
+in ~N + 1.5*N*log2(N) + 2*N cycles. Each I/Q sample memory is one true-dual-port block RAM (two
 R/W ports, synchronous read), so the design maps to BRAM rather than fabric LUTs. DIT in-place:
 the input is written bit-reversed, log2(N) stages of butterflies run (each butterfly = read,
 twiddle-product register, write — one multiply level per cycle), then the result is read out in
@@ -66,8 +66,10 @@ class LiteDSPFFTIter(LiteXModule):
         self.data_width = data_width
         self.registered_butterfly = registered_butterfly
         butterfly_cycles = 4 if registered_butterfly else 3
-        self.latency = N + (butterfly_cycles*N*S)//2 + N
-        self.cycles_per_frame = self.latency
+        # N load cycles, butterflies, then 2 cycles (read, emit) per unloaded sample. Latency:
+        # first input beat accepted -> first output beat (same contract as LiteDSPFFT).
+        self.latency          = (N - 1) + (butterfly_cycles*N*S)//2 + 2
+        self.cycles_per_frame = N + (butterfly_cycles*N*S)//2 + 2*N
         self.sink   = stream.Endpoint(iq_layout(data_width))
         self.source = stream.Endpoint(iq_layout(data_width))
 
@@ -201,4 +203,4 @@ class LiteDSPFFTIter(LiteXModule):
         # ----
         if with_csr:
             self._latency = CSRStatus(32, reset=self.latency, name="latency",
-                description="Iterative FFT burst latency (cycles).")
+                description="Iterative FFT latency (cycles, first input to first output).")

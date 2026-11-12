@@ -2,7 +2,7 @@
 
 `LiteDSPViterbiDecoder` — `litedsp.comm.viterbi` — category `comm`
 
-latency: 1 sample · CSR: yes · bypass: no
+latency: 56 samples · CSR: yes · bypass: no
 
 ## Overview
 
