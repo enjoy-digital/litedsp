@@ -40,7 +40,7 @@ class LiteDSPDUC(LiteXModule):
             with_csr=with_csr, fir_architecture=fir_architecture)
         self.nco    = LiteDSPNCO(phase_bits=phase_bits, data_width=data_width, with_csr=with_csr)
         self.mixer  = LiteDSPMixer(data_width=data_width, with_csr=False)  # Mode hardwired below.
-        self.latency = self.interp.latency
+        self.latency = self.interp.latency + self.mixer.latency
 
         # Datapath.
         # ---------

@@ -2,7 +2,7 @@
 
 `LiteDSPDDC` — `litedsp.mixing.ddc` — category `mixing`
 
-latency: 1 sample · CSR: yes · bypass: no
+latency: 3 samples · CSR: yes · bypass: no
 
 ## Overview
 

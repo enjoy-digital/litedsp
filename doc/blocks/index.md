@@ -18,9 +18,9 @@
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
 | [Mixer (complex)](mixer.md) | `LiteDSPMixer` | 2 | 4 | Complex mixer with runtime up/down mode and bypass. |
-| [DDC](ddc.md) | `LiteDSPDDC` | 1 | 6 | Digital down-converter: NCO + complex mixer (down) + decimator. |
-| [DUC](duc.md) | `LiteDSPDUC` | 1 | 6 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
-| [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 34 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
+| [DDC](ddc.md) | `LiteDSPDDC` | 3 | 6 | Digital down-converter: NCO + complex mixer (down) + decimator. |
+| [DUC](duc.md) | `LiteDSPDUC` | 3 | 6 | Digital up-converter: interpolator + complex mixer (up) + NCO. |
+| [Channelizer](channelizer.md) | `LiteDSPChannelizer` | 36 | 24 | Split a wide band into ``n_channels`` uniformly-spaced sub-channels. |
 | [PFB channelizer (scalable)](pfb_channelizer.md) | `LiteDSPPFBChannelizer` | 60 | 11 | Uniform filter bank (polyphase FIR + scalable direct/FFT transform). |
 
 ## Filtering (`filter/`)
@@ -107,7 +107,7 @@
 | [Descrambler (LFSR)](descrambler.md) | `LiteDSPDescrambler` | 1 | — | Inverse of :class:`LiteDSPScrambler` ``x = y ^ y[-t1] ^ y[-t2] ...`` (self-synchronizing). |
 | [CRC](crc.md) | `LiteDSPCRC` | 1 | — | Bit-serial MSB-first CRC; passes ``data`` through and updates the ``crc`` register. |
 | [Convolutional encoder](conv_encoder.md) | `LiteDSPConvEncoder` | 1 | — | Rate-1/2 convolutional encoder (default K=7, G=[0o171, 0o133]). |
-| [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 1 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, selectable survivor architecture). |
+| [Viterbi decoder](viterbi_decoder.md) | `LiteDSPViterbiDecoder` | 56 | 0 | Hard/soft-decision Viterbi decoder (rate 1/n, selectable survivor architecture). |
 | [Puncturer](puncturer.md) | `LiteDSPPuncturer` | var | 0 | TX puncturer: drops coded bits of the rate-1/n stream per the puncturing matrix. |
 | [Depuncturer (LLR)](depuncturer.md) | `LiteDSPDepuncturer` | var | 0 | RX depuncturer: reassembles full soft symbols, reinserting erasures (LLR 0) per pattern. |
 | [Block interleaver](block_interleaver.md) | `LiteDSPBlockInterleaver` | var | 0 | TX block interleaver: rows x cols symbols in row-wise, out column-wise. |
@@ -148,7 +148,7 @@
 |---|---|---|---|---|
 | [Window](window.md) | `LiteDSPWindow` | 2 | 2 | Apply a length-``n`` window to a complex I/Q stream, framed every ``n`` samples. |
 | [FFT (SDF)](fft.md) | `LiteDSPFFT` | 63 | 28 | Streaming radix-2 SDF FFT, ``N`` points (power of two). |
-| [FFT (iterative)](fft_iter.md) | `LiteDSPFFTIter` | 704 | 4 | Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped). |
+| [FFT (iterative)](fft_iter.md) | `LiteDSPFFTIter` | 641 | 4 | Iterative in-place radix-2 FFT, ``N`` points, natural-order output (BRAM-mapped). |
 | [FFT (parallel, P samples/clk)](parallel_fft.md) | `LiteDSPParallelFFT` | 76 | — | Streaming ``N``-point FFT at P samples/cycle (super-sample-rate wideband path). |
 | [PSD](psd.md) | `LiteDSPPSD` | var | 2 | Power-spectral-density accumulator for a streaming FFT. |
 | [Welch PSD](welch.md) | `LiteDSPWelchPSD` | var | — | Windowed, averaged power spectral density: Window -> FFT -> PSD, with segment overlap. |
