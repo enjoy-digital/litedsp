@@ -57,7 +57,7 @@ class TestFFTIter(unittest.TestCase):
             outputs.append(column(cap, "i", 16) + 1j*column(cap, "q", 16))
         np.testing.assert_array_equal(outputs[1], outputs[0])
         self.assertEqual(LiteDSPFFTIter(N, with_csr=False,
-            registered_butterfly=True).cycles_per_frame, 2*N + 2*N*int(np.log2(N)))
+            registered_butterfly=True).cycles_per_frame, 3*N + 2*N*int(np.log2(N)))
 
 if __name__ == "__main__":
     unittest.main()
