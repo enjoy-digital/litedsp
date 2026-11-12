@@ -4120,3 +4120,29 @@ def bch_decode_model(bits, m=4, t=2):
             out += cw[:k]; flags.append((0, 1)); continue
         out += fixed[:k]; flags.append((1, 0))
     return np.array(out, np.int64), flags
+
+# Noise Source -------------------------------------------------------------------------------------
+
+def noise_source_model(n, data_width=16, n_sum=16, shift=2, seed=0x1234567):
+    """Bit-exact reference for litedsp.generation.source.LiteDSPNoiseSource: ``n`` (i, q) pairs.
+
+    Per axis, ``n_sum`` xorshift32 streams (13/17/5) whose top ``data_width`` bits are summed as
+    signed samples, arithmetic-shifted right by ``shift`` and saturated to ``data_width``.
+    """
+    mask = 0xffffffff
+    def step(x):
+        a = (x ^ (x << 13)) & mask
+        b = a ^ (a >> 17)
+        return (b ^ (b << 5)) & mask
+    def axis(base):
+        state = [((seed + base*0x9E3779B1 + k*0x85EBCA77) & mask) | 1 for k in range(n_sum)]
+        out   = []
+        for _ in range(n):
+            acc = 0
+            for x in state:
+                v    = x >> (32 - data_width)
+                acc += v - (1 << data_width) if v >> (data_width - 1) else v
+            out.append(acc >> shift)
+            state = [step(x) for x in state]
+        return np_saturated(out, data_width)
+    return axis(0), axis(1)

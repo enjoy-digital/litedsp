@@ -17,7 +17,7 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import check, iq_layout
+from litedsp.common import check, iq_layout, saturated
 
 # Chirp (Linear FM) --------------------------------------------------------------------------------
 
@@ -97,6 +97,10 @@ class LiteDSPNoiseSource(LiteXModule):
     n_sum : int
         Independent xorshift32 streams summed per axis (>= 1); larger values make the
         distribution more Gaussian at the cost of one 32-bit PRNG each (registers + XORs).
+    shift : int
+        Right shift of the sum, sets the output standard deviation (about
+        ``sqrt(n_sum/3)*2**(data_width - 1)/2**shift``). Samples beyond full scale saturate
+        (about 8.6 % of them with the defaults).
     seed : int
         Base seed from which every PRNG's initial state is derived; the noise sequence is
         deterministic and reproducible for a given seed.
@@ -137,8 +141,11 @@ class LiteDSPNoiseSource(LiteXModule):
         # -------
         out_i = Signal((data_width, True))
         out_q = Signal((data_width, True))
-        # Shift sets the output amplitude (sigma).
-        self.comb += [out_i.eq(axis(0) >> shift), out_q.eq(axis(1) >> shift)]
+        # Shift sets the output amplitude (sigma); the tails saturate at full scale.
+        self.comb += [
+            out_i.eq(saturated(axis(0) >> shift, data_width)),
+            out_q.eq(saturated(axis(1) >> shift, data_width)),
+        ]
         self.sync += If(ce,
             self.source.i.eq(out_i),
             self.source.q.eq(out_q),

@@ -17,7 +17,7 @@ so the output approaches a normal distribution (Irwin-Hall). For BER/AWGN testbe
 |---|---|---|---|
 | `data_width` | `16` | int | Sample width in bits (signed Qm.n; default Q1.15). |
 | `n_sum` | `16` | int | Independent xorshift32 streams summed per axis (>= 1); larger values make the distribution more Gaussian at the cost of one 32-bit PRNG each (registers + XORs). |
-| `shift` | `2` | int | Output rescale shift (defaults to data_width - 1). |
+| `shift` | `2` | int | Right shift of the sum, sets the output standard deviation (about ``sqrt(n_sum/3)*2**(data_width - 1)/2**shift``). Samples beyond full scale saturate (about 8.6 % of them with the defaults). |
 | `seed` | `19088743` | int | Base seed from which every PRNG's initial state is derived; the noise sequence is deterministic and reproducible for a given seed. |
 
 ## Ports
