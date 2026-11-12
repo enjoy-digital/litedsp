@@ -173,5 +173,16 @@ class TestBeamformer(unittest.TestCase):
             with self.assertRaises(ValueError, msg=str(kwargs)):
                 LiteDSPBeamformer(with_csr=False, **kwargs)
 
+    # Weights wider than 16 bits: the im field moves above re (the CSR fields used to overlap and
+    # the block failed to build with CSRs); the default 16-bit layout is unchanged.
+    def test_weight_csr_layout(self):
+        for ww, im_offset in ((20, 20), (16, 16), (12, 16)):
+            dut    = LiteDSPBeamformer(weight_width=ww, weight_frac=ww - 2)
+            fields = {f.name: f for f in dut._weight.fields.fields}
+            self.assertEqual((fields["re"].offset, fields["re"].size), (0, ww))
+            self.assertEqual((fields["im"].offset, fields["im"].size), (im_offset, ww))
+            config = {f.name: f.offset for f in dut._config.fields.fields}
+            self.assertEqual(config["weight_width"], 24)
+
 if __name__ == "__main__":
     unittest.main()

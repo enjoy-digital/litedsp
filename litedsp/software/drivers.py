@@ -1011,11 +1011,18 @@ class BeamformerDriver(Driver):
         # (n_elements, n_beams, weight_frac).
         return cfg & 0x1F, (cfg >> 8) & 0xF, (cfg >> 16) & 0x1F
 
+    @property
+    def weight_width(self):
+        # Reported in config[29:24]; 0 on gateware that predates the field (16-bit weights).
+        return ((self.config.read() >> 24) & 0x3F) or 16
+
     def set_weights(self, beam, real, imag):
         n, _, _ = self.geometry
+        ww   = self.weight_width
+        mask = (1 << ww) - 1
         for e, (re, im) in enumerate(zip(real, imag)):
             self.weight_index.write(beam*n + e)
-            self.weight.write((int(re) & 0xFFFF) | ((int(im) & 0xFFFF) << 16))
+            self.weight.write((int(re) & mask) | ((int(im) & mask) << max(16, ww)))
 
     def set_steering(self, beam, angle_deg, d_over_lambda=0.5, taper="rect"):
         from litedsp.radar.design import steering_weights
