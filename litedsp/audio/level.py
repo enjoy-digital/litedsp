@@ -22,10 +22,12 @@ class LiteDSPVolume(LiteXModule):
 
     Each channel has an unsigned Q5.``gain_frac`` gain (1.0 = ``2**gain_frac``, up to +30 dB)
     and a mute bit; the applied gain slews toward its target by ``delta >> ramp_shift`` per
-    sample of that channel (at least one LSB, so it converges exactly): a step of ``D`` in
-    the target is reached in ``~ramp_shift*ln(2)*log2(D)`` samples without zipper noise, a
-    mute fades to exact zero. ``ramp_enable=0`` applies targets immediately. The product is
-    rounded once and saturated (sticky ``sat``). ``n_channels=1`` is a mono block on
+    sample of that channel (at least one LSB, so it converges exactly): an exponential slew
+    with a time constant of ``2**ramp_shift`` samples, so a step of ``D`` in the target is
+    reached in about ``2**ramp_shift*(ln(D/2**ramp_shift) + 1)`` samples without zipper noise
+    (ramp_shift 8, D = 4096: about 1100 samples), a mute fades to exact zero.
+    ``ramp_enable=0`` applies targets immediately. The product is rounded once and saturated
+    (sticky ``sat``). ``n_channels=1`` is a mono block on
     ``real_layout``. Latency 2, one multiplier.
 
     Parameters
