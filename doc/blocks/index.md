@@ -166,7 +166,7 @@
 | Block | Class | Latency | DSP | Description |
 |---|---|---|---|---|
 | [Combine (sum)](combine.md) | `LiteDSPCombine` | 1 | 0 | Sum ``n_channels`` complex I/Q streams into one, with per-channel enable and saturation. |
-| [Split (fan-out)](split.md) | `LiteDSPSplit` | 0 | — | Fan-out one stream to ``n`` identical sources (all consumed together). |
+| [Split (fan-out)](split.md) | `LiteDSPSplit` | 0 | — | Fan-out one stream to ``n`` identical sources (every source sees every sample). |
 | [Delay](delay.md) | `LiteDSPDelay` | 1 | — | Delay a stream by ``depth`` cycles (payload and valid travel together). |
 | [Skid buffer](skid_buffer.md) | `LiteDSPSkidBuffer` | 0 | — | Elastic timing-slack buffer for an I/Q stream (registers both valid and ready paths). |
 | [Channel mux](channel_mux.md) | `LiteDSPChannelMux` | 0 | — | Route one of ``n`` sinks to a single source, selected by ``sel`` (runtime). |
