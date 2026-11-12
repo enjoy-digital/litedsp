@@ -31,7 +31,7 @@ Typical shifts:
 
 ## Why this matters
 
-The original tetra blocks truncated (`mixer >> 15`, `acc[15:32]`) and let the multi-channel
+Earlier versions of these blocks truncated (`mixer >> 15`, `acc[15:32]`) and let the multi-channel
 sum wrap. Truncation adds a DC bias and ~6 dB more quantization noise than rounding; wrapping
 turns a loud sum into garbage. Centralizing round+saturate makes every block consistent,
 testable against a NumPy reference, and free of these defects.

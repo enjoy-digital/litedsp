@@ -58,7 +58,7 @@ new block.
 
 ## Control
 
-The control pattern generalizes the tetra `with_csr` convention and is mandatory:
+The control pattern follows the LiteX `with_csr` convention and is mandatory:
 
 - Constructors take `with_csr=True`. Hardware logic reads **plain control Signals**
   (`self.bypass`, `self.gain`, `self.phase_inc`, `self.factor`, …).

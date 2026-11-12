@@ -11,7 +11,7 @@ M). Integrators and combs use full-width **wrap-around** two's-complement arithm
 intentional Hogenauer property whereby integrator overflow is cancelled by the combs as long
 as the registers are wide enough (``data_width + ceil(N*log2(R*M))``). The output is rescaled
 (round + saturate) by the CIC processing gain. R, N, M are build-time constants for exact
-gain normalization. These replace the Xilinx CIC IP from the tetra design.
+gain normalization. No vendor CIC IP core is needed.
 """
 
 import math
