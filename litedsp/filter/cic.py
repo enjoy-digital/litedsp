@@ -325,7 +325,7 @@ class LiteDSPCICDecimatorRuntime(LiteXModule):
     ``staged=False`` retains the one-cycle compatibility architecture (the whole integrator
     cascade, comb chain and dynamic rescale shift form a single combinational cone -- fine in
     simulation and at low clocks, but it misses e.g. 125 MHz on a Zynq 7020 by ~18 ns).
-    ``staged=True`` uses the timing-friendly architecture proven on that hardware:
+    ``staged=True`` uses the timing-friendly architecture:
     register-chained integrators (pure group delay), then comb chain + rescale pipelined at the
     decimated rate (two cycles per comb stage + bias/shift/saturate cycles, ``2N+3`` cycles per
     output). It requires ``rate >= 2*n_stages + 4`` so an output drains before the next window
