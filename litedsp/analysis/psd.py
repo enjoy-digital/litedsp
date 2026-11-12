@@ -23,7 +23,7 @@ PSD_MODE_MIN    = 3  # Min-hold: acc = min(acc, inst) per bin (persists).
 class LiteDSPPSD(LiteXModule):
     """Power-spectral-density accumulator for a streaming FFT.
 
-    Consumes the (bit-reversed, framed) output of :class:`litedsp.analysis.fft.FFT`, combines
+    Consumes the (bit-reversed, framed) output of :class:`litedsp.analysis.fft.LiteDSPFFT`, combines
     ``|X[k]|**2 = I**2 + Q**2`` per bin over ``2**avg_log2`` frames, then emits the resulting
     spectrum (``N`` values, **natural** bin order, framed with first/last). While emitting, it
     backpressures the FFT, so no samples are lost.
