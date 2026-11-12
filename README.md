@@ -14,7 +14,7 @@
 
 [![](https://github.com/enjoy-digital/litedsp/workflows/ci/badge.svg)](https://github.com/enjoy-digital/litedsp/actions) ![License](https://img.shields.io/badge/License-BSD%202--Clause-orange.svg) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/enjoy-digital/litedsp)
 
-**🚧 Work In Progress**: LiteDSP is under active development — block interfaces, parameter names
+**🚧 Work In Progress**: LiteDSP is under active development: block interfaces, parameter names
 and repository layout can still move/change until the first stable release. Feedback is very
 welcome!
 
@@ -99,7 +99,7 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7 + Artix UltraScale+): see `
 | Sim (`sim/`)       | Verilator (real HDL) co-simulation vs the NumPy models + full-registry lint sweep | `python3 sim/run_blocks.py` |
 | Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7/Artix UltraScale+) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
 | Formal (`formal/`) | SymbiYosys proof of the stream fabric: no sample loss/duplication under arbitrary backpressure, stability while stalled | `python3 formal/run_formal.py` |
-| Char (`char/`)     | Quality characterization: SFDR/ENOB, ripple/attenuation, CIC droop error, image rejection, IMD3, settling — measured on the golden models, gated on quality budgets | `python3 char/run_char.py` |
+| Char (`char/`)     | Quality characterization: SFDR/ENOB, ripple/attenuation, CIC droop error, image rejection, IMD3, settling, measured on the golden models, gated on quality budgets | `python3 char/run_char.py` |
 | Tools (`tools/`)   | LiteX coding-style checker (header, separators, imports, CSR style, line length) | `python3 tools/check_style.py` |
 | Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |
 
@@ -131,26 +131,36 @@ Assembled-chain demos live in `examples/`.
 
 [> Documentation
 ----------------
+The **RF & Signal Processing Blocks manual** is the reference of LiteDSP: a nightly
+[PDF](https://github.com/enjoy-digital/litedsp/releases/download/manual-nightly/litedsp_manual.pdf)
+and [HTML page](https://github.com/enjoy-digital/litedsp/releases/download/manual-nightly/litedsp_manual.html)
+are published on the [manual-nightly](https://github.com/enjoy-digital/litedsp/releases/tag/manual-nightly)
+release. Sources in [doc/manual](doc/manual/README.md) (build: `python3 doc/manual/build.py`, outputs in
+`build/doc/`):
 
-| Document                  | Content                                                    |
-|---------------------------|------------------------------------------------------------|
-| `doc/blocks/index.md`     | **Block catalog**: one generated datasheet per block (parameters, ports, register map, resources) |
-| `doc/interfaces.md`       | The block contract: streaming, control, conventions checklist |
-| `doc/fixed_point.md`      | Qm.n conventions, rounding/saturation rules                 |
-| `doc/timestamps.md`       | Timestamped streams: edge tagging, latency back-computation, packet header |
-| `doc/motor_control.md`    | Motor-control family: per-unit conventions, PWM-paced loop, bring-up, protection |
-| `doc/audio.md`            | Audio family: channel-tagged TDM streams, serial engines and clock budgets, converters, host math |
-| `doc/radar.md`            | Radar / sonar family: stream kinds and framing (cells, target and track bursts), zero padding and flush, units, host math |
-| `doc/image.md`            | Image / video family: pixel framing, geometry rule, line-buffered 2-D blocks, fixed point, LiteX video interop, control loops |
-| `doc/litex_integration.md`| Using blocks/chains in a LiteX SoC and in non-LiteX flows   |
-| `doc/flow.md`             | Netlist format, flow/GUI usage, IP core generation          |
-| `doc/resources.md`        | Per-block LUT/FF/BRAM/DSP + fmax table (generated)          |
-| `doc/characterization.md` | Per-block quality metrics: measured + guaranteed (generated)|
-| `doc/implementation.md`   | The impl/ flows and budget gating                           |
-| `doc/formal.md`           | What is formally proven per plumbing block, and the honest scope |
-| `doc/timing_architecture.md` | Recurrence-limited blocks: classic vs pipelined architectures, ECP5 P&R results |
-| `doc/app_notes/`          | Application notes AN001 to AN013 (simulated example designs, see `examples/README.md`) |
-| `CONTRIBUTING.md`         | New-block checklist, tests, commit conventions              |
+- **Understand**: [introduction](doc/manual/01_introduction.md), primers on [sampled signals and fixed point](doc/manual/02_dsp_primer.md),
+  [streams, latency and rates](doc/manual/03_stream_primer.md), [digital filters](doc/manual/04_filter_primer.md),
+  [oscillators, mixers and the FFT](doc/manual/05_spectral_primer.md), [digital communications](doc/manual/06_comm_primer.md).
+- **The core**: [block contract](doc/manual/07_architecture.md), [generation, mixing and correction](doc/manual/08_generation_mixing.md),
+  [filters and rate change](doc/manual/09_filters_rate.md), [level control and analysis](doc/manual/10_level_analysis.md),
+  [communications](doc/manual/11_comm.md), [stream utilities and host links](doc/manual/12_stream_frontend.md),
+  [flow, generator, GUI and host software](doc/manual/13_tooling.md).
+- **Use it**: [getting started](doc/manual/14_getting_started.md), [integration](doc/manual/15_integration.md),
+  [examples and application notes](doc/manual/16_examples.md), [benches](doc/manual/17_boards.md), [verification](doc/manual/18_verification.md),
+  [debugging](doc/manual/19_debugging.md).
+- **Application families**: [introduction](doc/manual/20_apps_introduction.md), [motor control](doc/manual/25_motor.md),
+  [audio](doc/manual/26_audio.md), [radar and sonar](doc/manual/27_radar.md), [image and video](doc/manual/28_image.md)
+  (each with its primer), [using the families](doc/manual/29_apps_using.md).
+- **Appendices**: [registers](doc/manual/A_registers.md), [build options](doc/manual/B_build_options.md),
+  [glossary](doc/manual/C_glossary.md), [performance and resources](doc/manual/D_performance.md).
+
+The **block catalogue** stays online: one generated datasheet per block (parameters, ports, register map,
+resources) in [doc/blocks/index.md](doc/blocks/index.md) (`python3 -m litedsp.flow.docgen`).
+
+The repository also keeps generated and reference pages that the manual draws on:
+[resources](doc/resources.md) and [characterization](doc/characterization.md) (generated tables),
+[timing architecture](doc/timing_architecture.md) (classic vs pipelined architectures) and the
+[application notes](doc/app_notes/) AN001 to AN013 (simulated example designs, see `examples/README.md`).
 
 [> Tests
 --------

@@ -32,6 +32,9 @@ HEADER = ("#\n"
 SHEBANG    = "#!/usr/bin/env python3\n"
 MAX_COLS   = 100
 SKIP_DIRS  = {".git", "build", "__pycache__", ".eggs", "dist"}
+# The manual and its figures (doc/manual, doc/diagrams) follow the conventions of the LiteX manual
+# kit, whose files are shared by every core and checksummed (doc/manual/KIT).
+SKIP_TREES = [("doc", "manual"), ("doc", "diagrams")]
 HDL_ORDER  = ["from migen import", "from litex.gen import", "from litex.build",
               "from litex.soc.interconnect", "from litex.soc", "from litedsp"]
 
@@ -45,13 +48,18 @@ TABLE_LINE = re.compile(
     r"^\s*\"[\w]+\":\s*_v\(|"                      # Verification-spec rows.
     r"https?://")                                  # URLs cannot wrap.
 
+def _in_tree(path, tree):
+    parts = path.resolve().parts
+    return any(parts[i:i + len(tree)] == tree for i in range(len(parts) - len(tree) + 1))
+
 def _iter_files(paths):
     for path in paths:
         path = Path(path)
         if path.is_dir():
             for p in sorted(path.rglob("*.py")):
-                if not SKIP_DIRS & set(p.parts):
-                    yield p
+                if SKIP_DIRS & set(p.parts) or any(_in_tree(p, t) for t in SKIP_TREES):
+                    continue
+                yield p
         elif path.suffix == ".py":
             yield path
 

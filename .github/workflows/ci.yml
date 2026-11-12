@@ -123,6 +123,15 @@ jobs:
           python3 impl/report.py --check
           python3 char/run_char.py --check-report
 
+      - name: Check Register Appendix
+        run: python3 doc/manual/registers.py --check
+
+      - name: Check Performance Appendix
+        run: python3 doc/manual/performance.py --check
+
+      - name: Check Build Options Appendix
+        run: python3 doc/manual/build_options.py --check
+
   package:
     runs-on: ubuntu-latest
     steps:
