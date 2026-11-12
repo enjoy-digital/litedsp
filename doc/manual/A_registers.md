@@ -443,7 +443,7 @@ Without registers: [Clarke (abc -> ab)][r157], [Inverse Clarke][r158], [Inverse 
 |----------------------------|--------------------------------------------------------|
 | [2-D CA-CFAR detector][r181] | `alpha` rw 16, `control` rw 1, `config` ro 25, `status` ro 1, `threshold_min` rw 17, `detections` ro 32 |
 | [Alpha-beta tracker][r182] | `gains` rw 25, `gates` rw 32, `control` rw 10, `status` ro 13, `config` ro 20, `dropped` ro 32, `cpi_count` ro 32 |
-| [Beamformer][r183] | `weight_index` rw 2, `weight` rw 32, `control` rw 2, `status` ro 2, `config` ro 21 |
+| [Beamformer][r183] | `weight_index` rw 2, `weight` rw 32, `control` rw 2, `status` ro 2, `config` ro 30 |
 | [CA-CFAR detector][r184] | `alpha` rw 16, `control` rw 2, `config` ro 24, `threshold_min` rw 17, `detections` ro 32 |
 | [Clutter map][r185] | `alpha` rw 16, `threshold_min` rw 17, `control` rw 3, `config` ro 32, `detections` ro 32, `scans` ro 32 |
 | [Corner turn (fast to slow time)][r186] | `config` ro 32, `control` rw 1, `status` ro 10 |
