@@ -33,7 +33,8 @@ Additional contracts introduced with the harmonization:
 - Constructors raise `ValueError` with an actionable message on invalid parameters
   (`litedsp.common.check`); validation survives `python -O`.
 - The coding/FEC and OFDM blocks (scrambler, CRC, convolutional encoder, Viterbi decoder,
-  CP insert/remove) are now registered in the flow/GUI palette (117 blocks total).
+  CP insert/remove) are now registered in the flow/GUI palette (229 blocks in total, listed in
+  `doc/blocks/index.md`).
 
 - Portable RF/DSP block toolbox, pure Migen/LiteX (no vendor IP): `generation/` (NCO/DDS,
   CORDIC, chirp, noise, replay, patterns), `mixing/` (mixer, DDC/DUC, DDC-bank and
