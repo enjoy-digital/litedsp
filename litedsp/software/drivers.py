@@ -778,12 +778,20 @@ class LoudnessDriver(Driver):
         self.data_width  = (cfg >> 4) & 0x3F
         self.hop_samples = (cfg >> 10) & 0x1FFFFF
         self.hops        = []
+        self.hop_last    = 0  # Hardware hop count at the last append.
+        self.hops_missed = 0  # Hops latched between two polls and not seen by the driver.
 
     def read_hop(self):
-        """Poll: append the latest hop sum when a new one was latched; returns the hop count."""
+        """Poll: append the latest hop sum when a new one was latched; returns the hop count.
+
+        Only the latest hop sum is readable: hops latched between two polls are counted in
+        ``hops_missed`` (poll faster than one hop to see them all), never appended twice.
+        """
         count = self.hop_count.read()
-        if count != len(self.hops):
+        if count != self.hop_last:
             self.hops.append(self.sum_sq.read())
+            self.hops_missed += max(0, count - self.hop_last - 1)
+            self.hop_last     = count
         return count
 
     def _lkfs(self, mean_sq):
@@ -821,7 +829,9 @@ class LoudnessDriver(Driver):
         return self._lkfs(sum(gated)/len(gated))
 
     def clear(self):
-        self.hops = []
+        self.hops        = []
+        self.hop_last    = 0
+        self.hops_missed = 0
         self.control.write(1)
 
 # Radar drivers ------------------------------------------------------------------------------------

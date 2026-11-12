@@ -271,6 +271,14 @@ class TestAudioDrivers(unittest.TestCase):
         lu.read_hop()
         self.assertAlmostEqual(lu.momentary(), -17.68, places=2)
         self.assertAlmostEqual(lu.integrated(), -17.68, places=2)
+        # Two hops latched between polls: the latest one is appended once, the gap is counted.
+        lu.clear()
+        regs["lu_hop_count"].value = 2
+        regs["lu_sum_sq"].value    = 200
+        lu.read_hop()
+        lu.read_hop()
+        self.assertEqual(lu.hops, [200])
+        self.assertEqual(lu.hops_missed, 1)
 
 class TestCommExtraDrivers(unittest.TestCase):
     def test_angle_modulators(self):
