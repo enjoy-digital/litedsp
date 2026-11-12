@@ -18,12 +18,24 @@ from litex.gen import *
 from litex.soc.interconnect.csr import *
 from litex.soc.interconnect     import stream
 
-from litedsp.common import iq_layout
+from litedsp.common import check, iq_layout
 
 PATTERN_CONST   = 0  # Fixed I/Q value (CSR-set).
 PATTERN_COUNTER = 1  # Incrementing ramp (I = cnt, Q = ~cnt).
 PATTERN_PRBS    = 2  # Maximal-length LFSR.
 PATTERN_IMPULSE = 3  # Single full-scale sample, then zeros.
+
+# Maximal-length LFSR feedback masks (shift left, XOR the mask in when the MSB shifts out): bit k
+# set for each x**k term of a primitive polynomial of degree data_width (Xilinx XAPP052 taps),
+# so the period is 2**data_width - 1.
+PRBS_MASKS = {
+     3: 0x5,         4: 0x9,         5: 0x9,         6: 0x21,        7: 0x41,
+     8: 0x71,        9: 0x21,       10: 0x81,       11: 0x201,      12: 0x53,
+    13: 0x1b,       14: 0x2b,       15: 0x4001,     16: 0xa011,     17: 0x4001,
+    18: 0x801,      19: 0x47,       20: 0x20001,    21: 0x80001,    22: 0x200001,
+    23: 0x40001,    24: 0xc20001,   25: 0x400001,   26: 0x47,       27: 0x27,
+    28: 0x2000001,  29: 0x8000001,  30: 0x53,       31: 0x10000001, 32: 0x400007,
+}
 
 # Pattern Source -----------------------------------------------------------------------------------
 
@@ -37,6 +49,7 @@ class LiteDSPPatternSource(LiteXModule):
         the all-zero state locks the LFSR); makes the sequence reproducible for BER tests.
     """
     def __init__(self, data_width=16, seed=0x1, with_csr=True):
+        check(data_width in PRBS_MASKS, "expected 3 <= data_width <= 32")
         self.data_width = data_width
         self.source  = stream.Endpoint(iq_layout(data_width))
         self.mode    = Signal(2, reset=PATTERN_COUNTER)  # Pattern select (PATTERN_*).
@@ -56,9 +69,9 @@ class LiteDSPPatternSource(LiteXModule):
 
         # LFSR.
         # -----
-        # Maximal-length Fibonacci LFSR: shift left, XOR the tap mask back in when the MSB is set.
+        # Maximal-length Galois LFSR: shift left, XOR the tap mask back in when the MSB is set.
         fb        = lfsr[-1]
-        taps      = {16: 0xB400, 12: 0xE08, 8: 0xB8}.get(data_width, 0xB400)
+        taps      = PRBS_MASKS[data_width]
         lfsr_next = (lfsr << 1) ^ Mux(fb, Constant(taps, data_width), 0)
 
         # Pattern Select.

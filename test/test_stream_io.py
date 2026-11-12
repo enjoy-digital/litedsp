@@ -21,7 +21,8 @@ from litedsp.stream.adapt        import LiteDSPIQPack, LiteDSPIQUnpack
 from litedsp.stream.csr_io       import (LiteDSPCSRSource, LiteDSPCSRSink, LiteDSPCSRReader,
                                          LiteDSPNullSink)
 from litedsp.stream.framing      import LiteDSPStreamFramer, LiteDSPStreamDeframer
-from litedsp.generation.pattern  import LiteDSPPatternSource, PATTERN_COUNTER, PATTERN_PRBS
+from litedsp.generation.pattern  import (LiteDSPPatternSource, PATTERN_COUNTER, PATTERN_PRBS,
+                                         PRBS_MASKS)
 from litedsp.analysis.measure    import LiteDSPErrorCounter
 
 from test.common import run_stream, column
@@ -78,6 +79,29 @@ class TestPatternSource(unittest.TestCase):
         cap = run_stream(dut, None, 64, [], ["i"], source_ready_rate=1.0, extra=[setup()])
         vals = column(cap, "i", 16)
         self.assertGreater(len(set(vals.tolist())), 32)   # PRBS visits many distinct values.
+
+    def test_prbs_masks_maximal_length(self):
+        # Software mirror of the LFSR rule: every mask gives the 2**n - 1 period.
+        for n in range(3, 21):
+            mask, x, period = PRBS_MASKS[n], 1, 0
+            while True:
+                x = ((x << 1) & ((1 << n) - 1)) ^ (mask if x >> (n - 1) else 0)
+                period += 1
+                if x == 1 or period > (1 << n):
+                    break
+            self.assertEqual(period, (1 << n) - 1, f"data_width={n}")
+
+    def test_prbs_period(self):
+        for data_width, n in [(8, 300), (16, 1000)]:
+            dut = LiteDSPPatternSource(data_width=data_width, seed=0xACE1, with_csr=False)
+            dut.mode.reset = PATTERN_PRBS
+            cap  = run_stream(dut, None, n, [], ["i"], source_ready_rate=1.0)
+            vals = column(cap, "i").tolist()
+            period = min((1 << data_width) - 1, n)
+            self.assertEqual(len(set(vals[:period])), period, f"data_width={data_width}")
+            self.assertTrue(any(v & 1 for v in vals))     # Low bit not stuck at 0.
+            if period < n:
+                self.assertEqual(vals[period:], vals[:n - period])
 
 
 class TestCSRSourceSink(unittest.TestCase):
