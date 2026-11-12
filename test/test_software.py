@@ -336,6 +336,11 @@ class TestRadarDrivers(unittest.TestCase):
         regs["cfar_config"].value = 68 | (8 << 16) | (1 << 24)    # 2-D box: n_training direct.
         drv.set_pfa(1e-3)
         self.assertEqual(regs["cfar_alpha"].value, cfar_alpha(1e-3, 68, "power", frac_bits=8))
+        # 2-D CFAR: control bit 0 is the clear pulse, set_mode must not write it.
+        writes = len(regs["cfar_control"].writes)
+        with self.assertRaises(ValueError):
+            drv.set_mode("go")
+        self.assertEqual(len(regs["cfar_control"].writes), writes)
 
     def test_os_cfar_and_clutter(self):
         regs = {f"os_{r}": MockCSR() for r in OSCFARDriver.regs}

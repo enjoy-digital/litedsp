@@ -874,7 +874,14 @@ class CFARDriver(Driver):
             n_train_cells = self.n_training
         self.alpha.write(cfar_alpha(pfa, n_train_cells, domain, frac_bits=self.frac_bits))
 
+    @property
+    def two_d(self):
+        return bool((self.config.read() >> 24) & 1)
+
     def set_mode(self, mode):
+        # The 2-D CFAR has no mode: its control bit 0 is the frame-error clear pulse.
+        if self.two_d:
+            raise ValueError("set_mode: the 2-D CFAR has no CA/GO/SO mode")
         self.control.write({"ca": 0, "go": 1, "so": 2}[mode] if isinstance(mode, str)
                                                                            else int(mode))
 
