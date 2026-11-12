@@ -105,6 +105,9 @@ class TestFIRDriver(unittest.TestCase):
         self.assertEqual(bus.regs.fir_coeff_0.writes, [1])
         self.assertEqual(bus.regs.fir_coeff_1.writes, [-1 & 0xFFFF])
         self.assertEqual(bus.regs.fir_coeff_2.writes, [1 << 14])
+        fir.load([1.0, -1.0, 2.0, -2.0])                         # Floats saturate to Q1.15.
+        self.assertEqual([getattr(bus.regs, f"fir_coeff_{k}").writes[-1] for k in range(4)],
+            [0x7FFF, 0x8000, 0x7FFF, 0x8000])
 
     def test_set_lowpass(self):
         from litedsp.filter.design import firwin_lowpass
@@ -165,6 +168,8 @@ class TestMotorDrivers(unittest.TestCase):
         self.assertEqual(regs["foc_dq_setpoint_q"].value, 16384)
         drv.set_gains(1.5, 0.02)
         self.assertEqual((regs["foc_dq_kp_d"].value, regs["foc_dq_ki_q"].value), (6144, 82))
+        drv.set_gains(8.0, -9.0)                                   # Out of Q4.12: saturate.
+        self.assertEqual((regs["foc_dq_kp_d"].value, regs["foc_dq_ki_q"].value), (0x7FFF, 0x8000))
         drv.set_open_loop(True, v_q=0.5)
         self.assertEqual(regs["foc_dq_voltage_q"].value, 16384)
         self.assertEqual(regs["foc_dq_control"].value & 1, 1)
@@ -269,6 +274,14 @@ class TestAudioDrivers(unittest.TestCase):
         lu.read_hop()
         self.assertAlmostEqual(lu.momentary(), -17.68, places=2)
         self.assertAlmostEqual(lu.integrated(), -17.68, places=2)
+        # Two hops latched between polls: the latest one is appended once, the gap is counted.
+        lu.clear()
+        regs["lu_hop_count"].value = 2
+        regs["lu_sum_sq"].value    = 200
+        lu.read_hop()
+        lu.read_hop()
+        self.assertEqual(lu.hops, [200])
+        self.assertEqual(lu.hops_missed, 1)
 
 class TestCommExtraDrivers(unittest.TestCase):
     def test_angle_modulators(self):
@@ -336,6 +349,11 @@ class TestRadarDrivers(unittest.TestCase):
         regs["cfar_config"].value = 68 | (8 << 16) | (1 << 24)    # 2-D box: n_training direct.
         drv.set_pfa(1e-3)
         self.assertEqual(regs["cfar_alpha"].value, cfar_alpha(1e-3, 68, "power", frac_bits=8))
+        # 2-D CFAR: control bit 0 is the clear pulse, set_mode must not write it.
+        writes = len(regs["cfar_control"].writes)
+        with self.assertRaises(ValueError):
+            drv.set_mode("go")
+        self.assertEqual(len(regs["cfar_control"].writes), writes)
 
     def test_os_cfar_and_clutter(self):
         regs = {f"os_{r}": MockCSR() for r in OSCFARDriver.regs}

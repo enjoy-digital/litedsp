@@ -313,10 +313,12 @@ class FIRDriver(Driver):
     def load(self, taps):
         """Load integer (or float, scaled to Q1.(N-1)) coefficients."""
         assert len(taps) == self.n_taps, f"expected {self.n_taps} taps"
-        mask = (1 << self.data_width) - 1
+        mask  = (1 << self.data_width) - 1
+        t_max = (1 << (self.data_width - 1)) - 1
         for csr, t in zip(self.coeffs, taps):
             if isinstance(t, float):
-                t = int(round(t * (1 << (self.data_width - 1))))
+                # Saturate to Q1.(N-1): 1.0 gives the largest code, not a wrap to -1.0.
+                t = max(-t_max - 1, min(t_max, int(round(t * (1 << (self.data_width - 1))))))
             csr.write(t & mask)
 
     def _design_taps(self, n_taps):
@@ -465,6 +467,7 @@ class FOCDriver(Driver):
     regs       = ("dq_setpoint_d", "dq_setpoint_q", "dq_kp_d", "dq_ki_d", "dq_kp_q", "dq_ki_q",
                   "dq_limit", "dq_voltage_d", "dq_voltage_q", "dq_control", "dq_status")
     data_width = 16
+    gain_width = 16
     gain_frac  = 12
 
     def _pu(self, x):
@@ -472,7 +475,10 @@ class FOCDriver(Driver):
         return int(round(max(-1.0, min(1.0, x))*fs)) & ((1 << self.data_width) - 1)
 
     def _gain(self, g):
-        return int(round(g*(1 << self.gain_frac))) & 0xFFFF
+        # Signed Q(gain_width-gain_frac).gain_frac: saturate instead of wrapping to a negative gain.
+        g_max = (1 << (self.gain_width - 1)) - 1
+        g_int = max(-g_max - 1, min(g_max, int(round(g*(1 << self.gain_frac)))))
+        return g_int & ((1 << self.gain_width) - 1)
 
     def set_setpoints(self, i_d, i_q):
         """Current setpoints in per-unit (1.0 = base current)."""
@@ -774,12 +780,20 @@ class LoudnessDriver(Driver):
         self.data_width  = (cfg >> 4) & 0x3F
         self.hop_samples = (cfg >> 10) & 0x1FFFFF
         self.hops        = []
+        self.hop_last    = 0  # Hardware hop count at the last append.
+        self.hops_missed = 0  # Hops latched between two polls and not seen by the driver.
 
     def read_hop(self):
-        """Poll: append the latest hop sum when a new one was latched; returns the hop count."""
+        """Poll: append the latest hop sum when a new one was latched; returns the hop count.
+
+        Only the latest hop sum is readable: hops latched between two polls are counted in
+        ``hops_missed`` (poll faster than one hop to see them all), never appended twice.
+        """
         count = self.hop_count.read()
-        if count != len(self.hops):
+        if count != self.hop_last:
             self.hops.append(self.sum_sq.read())
+            self.hops_missed += max(0, count - self.hop_last - 1)
+            self.hop_last     = count
         return count
 
     def _lkfs(self, mean_sq):
@@ -817,7 +831,9 @@ class LoudnessDriver(Driver):
         return self._lkfs(sum(gated)/len(gated))
 
     def clear(self):
-        self.hops = []
+        self.hops        = []
+        self.hop_last    = 0
+        self.hops_missed = 0
         self.control.write(1)
 
 # Radar drivers ------------------------------------------------------------------------------------
@@ -874,7 +890,14 @@ class CFARDriver(Driver):
             n_train_cells = self.n_training
         self.alpha.write(cfar_alpha(pfa, n_train_cells, domain, frac_bits=self.frac_bits))
 
+    @property
+    def two_d(self):
+        return bool((self.config.read() >> 24) & 1)
+
     def set_mode(self, mode):
+        # The 2-D CFAR has no mode: its control bit 0 is the frame-error clear pulse.
+        if self.two_d:
+            raise ValueError("set_mode: the 2-D CFAR has no CA/GO/SO mode")
         self.control.write({"ca": 0, "go": 1, "so": 2}[mode] if isinstance(mode, str)
                                                                            else int(mode))
 
