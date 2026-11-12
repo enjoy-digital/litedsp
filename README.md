@@ -65,7 +65,7 @@ client-specific requirements.
 | `generation/`   | `LiteDSPNCO` (DDS), `LiteDSPCORDIC`, `LiteDSPChirp` (linear FM), `LiteDSPNoiseSource` (AWGN), `LiteDSPReplay` (RAM AWG), `LiteDSPPatternSource` (const/counter/PRBS/impulse) |
 | `mixing/`       | `LiteDSPMixer` (complex, runtime up/down), `LiteDSPDDC`, `LiteDSPDUC`, `LiteDSPChannelizer` (DDC bank), `LiteDSPPFBChannelizer` (critical/2x-oversampled polyphase filter bank, auto direct/FFT transform) |
 | `filter/`       | `LiteDSPFIRFilter`/`LiteDSPFIRFilterComplex` (direct & symmetric), `LiteDSPFIRDecimator`/`LiteDSPFIRInterpolator` (polyphase), `LiteDSPCICDecimator`/`LiteDSPCICInterpolator` (+ runtime-rate), `LiteDSPHalfbandDecimator`/`LiteDSPHalfbandInterpolator`, `LiteDSPIIRBiquad`/`LiteDSPIIRBiquadCascade` (DF2T), `LiteDSPDCBlocker`, `LiteDSPMovingAverage`, `LiteDSPHilbert`, `LiteDSPPulseShaper` (RRC), `LiteDSPFarrowInterpolator`, `LiteDSPRationalResampler`, `LiteDSPArbResampler`, `LiteDSPNotch`, `LiteDSPCombFilter`, `LiteDSPAllpass`, `LiteDSPLMSEqualizer` (delayed LMS; trained/CMA/decision-directed), `design.py` (coefficients) |
-| `rate/`         | `LiteDSPDownsampler`, `LiteDSPUpsampler` (naive), `LiteDSPDecimator`, `LiteDSPInterpolator` (CIC/FIR) |
+| `rate/`         | `LiteDSPDownsampler`, `LiteDSPUpsampler` (naive), `LiteDSPDecimator`, `LiteDSPInterpolator` (CIC/FIR), `LiteDSPResamplerFarm` (decimating complex FIR, `n_channels` streams on one serial MAC) |
 | `level/`        | `LiteDSPGain`, `LiteDSPPower`, `LiteDSPSaturate`, `LiteDSPClipper`, `LiteDSPEnvelopeDetector`, `LiteDSPSquelch`, `LiteDSPAGC`, `LiteDSPDPD` (predistortion actuator, host-adapted complex-gain LUTs), `LiteDSPCFR` (crest-factor reduction, peak cancellation), `LiteDSPRMS`, `LiteDSPLog2`/`LiteDSPLogPower` (dB) |
 | `correction/`   | `LiteDSPDCOffset`, `LiteDSPIQBalance`, `LiteDSPDerotator` (CFO)               |
 | `comm/`         | `LiteDSPFMDemod`, `LiteDSPAMDemod`, `LiteDSPPhaseDetect`, `LiteDSPSlicer`, `LiteDSPSymbolMapper`, `LiteDSPDifferentialEncoder`/`Decoder`, `LiteDSPScrambler`/`LiteDSPDescrambler`, `LiteDSPCRC`, `LiteDSPConvEncoder`, `LiteDSPViterbiDecoder` (hard/soft-decision, LLR input), `LiteDSPPuncturer`/`LiteDSPDepuncturer` (DVB-S rate puncturing), `LiteDSPRSEncoder`/`LiteDSPRSDecoder` (Reed-Solomon RS(255,k) over GF(2^8), t up to 16, full Berlekamp-Massey/Chien/Forney decoder), `LiteDSPBlockInterleaver`/`LiteDSPBlockDeinterleaver` (CCSDS-style depth-I byte interleaving, ping-pong buffered), `LiteDSPLDPCEncoder`/`LiteDSPLDPCDecoder` (IEEE 802.11n rate-1/2 n=648 QC-LDPC: back-substitution encoder, row-layered normalized min-sum decoder with early termination), `LiteDSPCorrelator`, `LiteDSPFrameSync` (CFAR preamble detect + frame alignment), `LiteDSPCFOEstimator` (coarse CFO, delay-conjugate-multiply + CORDIC), `LiteDSPPLL`/`LiteDSPCostas`, `LiteDSPTimingRecovery` (M&M or Gardner TED), `LiteDSPCPInsert`/`LiteDSPCPRemove` (OFDM cyclic prefix), `LiteDSPOFDMEqualizer` (OFDM LS channel estimation + divider-free one-tap equalization, per-bin CSI) Extras: `LiteDSPFrequencyModulator`/`LiteDSPPhaseModulator`, `LiteDSPAMModulator`, `LiteDSPSSBModulator`, `LiteDSPFSKModulator` (GFSK / GMSK), `LiteDSPGrayMapper`/`Demapper`, `LiteDSPLineEncoder`/`Decoder` (NRZI, Manchester), `LiteDSPConvolutionalInterleaver`/`Deinterleaver`, `LiteDSPHammingEncoder`/`Decoder` (SECDED), `LiteDSPBCHEncoder`/`Decoder`, `LiteDSPHDLCFramer`/`Deframer`; code design in `litedsp.comm.design` |
@@ -106,7 +106,7 @@ Per-block FPGA resource/fmax numbers (ECP5 + Artix-7 + Artix UltraScale+): see `
 [> Getting started
 ------------------
 
-1. Install Python 3.7+ and Verilator (for HDL co-simulation).
+1. Install Python 3.9+ (CI tests 3.9 and 3.11) and Verilator (for HDL co-simulation).
 2. Install LiteX and its ecosystem by following the LiteX Wiki [installation guide](https://github.com/enjoy-digital/litex/wiki/Installation).
 3. Install LiteDSP:
 ```sh
@@ -148,6 +148,8 @@ Assembled-chain demos live in `examples/`.
 | `doc/characterization.md` | Per-block quality metrics: measured + guaranteed (generated)|
 | `doc/implementation.md`   | The impl/ flows and budget gating                           |
 | `doc/formal.md`           | What is formally proven per plumbing block, and the honest scope |
+| `doc/timing_architecture.md` | Recurrence-limited blocks: classic vs pipelined architectures, ECP5 P&R results |
+| `doc/app_notes/`          | Application notes AN001 to AN013 (simulated example designs, see `examples/README.md`) |
 | `CONTRIBUTING.md`         | New-block checklist, tests, commit conventions              |
 
 [> Tests
