@@ -121,7 +121,8 @@ class LiteDSPPatternSource(LiteXModule):
         ])
         self._const = CSRStorage(fields=[
             CSRField("i", size=self.data_width, description="Constant I."),
-            CSRField("q", size=self.data_width, offset=16, description="Constant Q."),
+            CSRField("q", size=self.data_width, offset=max(16, self.data_width),
+                description="Constant Q."),
         ])
         self.comb += [
             self.mode.eq(self._control.fields.mode),

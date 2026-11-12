@@ -118,6 +118,13 @@ class TestPatternSource(unittest.TestCase):
         vals = column(cap, "i", 16).tolist()
         self.assertEqual(vals.count(0x7fff), 2)
 
+    def test_wide_data_builds(self):
+        dut    = LiteDSPPatternSource(data_width=24)
+        fields = {f.name: f for f in dut._const.fields.fields}
+        self.assertEqual(fields["q"].offset, 24)
+        dut = LiteDSPPatternSource(data_width=16)
+        self.assertEqual({f.name: f.offset for f in dut._const.fields.fields}, {"i": 0, "q": 16})
+
 
 class TestCSRSourceSink(unittest.TestCase):
     def test_push_and_count(self):
