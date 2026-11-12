@@ -425,7 +425,8 @@ class LiteDSPViterbiDecoder(LiteXModule):
         self.traceback_cycles = 2*(traceback - 1) if decision_memory else 0
         self.cycles_per_output = ((2*traceback + 2 + 2*(self.acs_phases - 1))
             if decision_memory else 1)
-        self.latency = None if decision_memory else 1
+        # Register exchange: decoded bit k leaves `traceback` cycles after coded symbol k.
+        self.latency = None if decision_memory else traceback
         if llr_bits is None:
             self.sink = stream.Endpoint([("data", n_bits)])
         else:
