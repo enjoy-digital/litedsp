@@ -21,10 +21,10 @@ setup(
     test_suite                    = "test",
     license                       = "BSD",
     python_requires               = "~=3.7",
-    install_requires              = ["migen", "litex", "pyyaml"],
+    install_requires              = ["migen", "litex", "numpy", "pyyaml"],
     extras_require                = {
         "develop": ["setuptools", "hypothesis"],
-        "design":  ["numpy"],      # Filter coefficient design (litedsp/filter/design.py).
+        "design":  [],             # Kept for compatibility: numpy is now in install_requires.
         "gui":     ["dearpygui"],  # Flow-graph editor (litedsp/gui).
     },
     packages                      = find_packages(
