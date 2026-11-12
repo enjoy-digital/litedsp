@@ -144,10 +144,9 @@ accepts the same `symmetric`, `architecture` and `n_macs` parameters. Its coeffi
 in the bank of the block. The default is a unit impulse (tap 0 at full scale), a transparent
 filter; `coefficients` preloads a design.
 
-The complex FIR has its own `bypass` register, which drives the bypass of its two real FIRs: the
-bypassed path keeps the latency of the filter and the select travels with its beat, so it can
-switch under traffic. With `architecture="mac"` a bypassed sample takes 2 clocks, as in the real
-MAC filter.
+The complex FIR has its own `bypass` register. Bypassed, it connects its input straight to its
+output with no latency, so switching `bypass` while samples are in flight can reorder beats: switch
+it while the stream is idle ([Known issues](#intro-known-issues)).
 
 A filter bank with many taps per filter makes one register per tap expensive: the register map
 grows and the bus write decode can become the critical path. `LiteDSPFIRCoefficientsPort` holds

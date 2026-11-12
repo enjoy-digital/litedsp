@@ -182,10 +182,11 @@ output, so a toggle lands on an exact beat boundary.
 
 The DC blocker, the moving average, the comb filter, the IIR biquad and the DC offset canceller
 differ: they have the `bypass` signal but no bypass register, even with `with_csr=True`. The
-complex FIR filter drives the `bypass` of its two real filters, so it keeps their delay matching.
+complex FIR filter connects its input straight to its output when bypassed, with no delay
+matching ([Known issues](#intro-known-issues)).
 
 `test/test_bypass.py` checks, under random stalls, that each listed block is an exact passthrough
-when bypassed, and switches the complex FIR under traffic. The mixer's `bypass` is 2 bits wide and
+when bypassed. The mixer's `bypass` is 2 bits wide and
 selects which input passes instead of the product.
 
 ## Reset and interrupts {#arch-reset-irq}

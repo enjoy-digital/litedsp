@@ -86,7 +86,7 @@ registry: its golden model, how its latency is checked, its rate, and whether it
 | `test_registry_meta.py` | Every registry block has a `VSPEC` row; every row names a real model |
 | `test_metadata_policy.py` | Parameters have defaults, approved names, `ValueError` on bad values, latency classified |
 | `test_latency.py` | The published `self.latency` matches the measured cycle latency |
-| `test_bypass.py` | With `bypass` set, every bypass-capable block is an exact passthrough; the complex FIR is also switched under traffic |
+| `test_bypass.py` | With `bypass` set, every bypass-capable block is an exact passthrough |
 | `test_width_sweep.py` | Representative blocks stay bit-exact at 12, 18 and 24 bits |
 | `test_hypothesis.py` | Sampled constructor parameters build, elaborate and match the model |
 | `test_style.py` | The LiteX coding style of `tools/check_style.py` |

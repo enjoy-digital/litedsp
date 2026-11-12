@@ -120,12 +120,11 @@ A bypass lets a block pass its input through unchanged, to compare a chain with 
 run time. Most in-line blocks that keep their layout have a `bypass` control; [Bypass](#arch-bypass)
 lists which have a register.
 
-In the blocks built with the shared `add_bypass` helper, the complex FIR included (it passes the
-control to its two real FIRs), the bypass path is delay-matched: the
+In the blocks built with the shared `add_bypass` helper, the bypass path is delay-matched: the
 sample comes out with the same latency as a processed one, and the bypass select travels with its
 beat. A beat accepted while `bypass` is set comes out unprocessed, whatever the control does while
 it is in flight, so the switch lands on an exact beat boundary. The figure below shows the switch
-on a block of latency 1.
+on a block of latency 1. The complex FIR is the exception ([Known issues](#intro-known-issues)).
 
 ![Delay-matched bypass of a block of latency 1 (`add_bypass`). Beats x0 and x1, accepted with
 bypass low, come out processed; beats x2 onwards, accepted with bypass high, come out unchanged one
