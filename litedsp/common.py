@@ -215,7 +215,8 @@ Q15 = Qmn(1, 15)
 # Fixed-Point Helpers ------------------------------------------------------------------------------
 #
 # These return Migen expressions (use inside self.comb / self.sync). They mirror the NumPy
-# reference helpers in test/models.py so simulation matches the golden model bit-for-bit.
+# reference helpers in test/common.py (np_rounded/np_saturated/np_scaled) so simulation
+# matches the golden model bit-for-bit.
 
 def rounded(value, shift):
     """Arithmetic right-shift of signed ``value`` by ``shift`` bits, rounding half up.
@@ -249,7 +250,7 @@ def overflow(value, out_width):
     return (value > hi) | (value < lo)
 
 def saturated(value, out_width):
-    """Clamp signed ``value`` to the signed ``out_width`` range (symmetric two's-complement).
+    """Clamp signed ``value`` to the signed ``out_width`` range ``[-2**(w-1), 2**(w-1) - 1]``.
 
     See :func:`overflow` for the backend requirement on the ``value < lo`` compare and the
     ``lo`` clamp arm (both need negative signed constants emitted as signed expressions).

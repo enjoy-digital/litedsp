@@ -237,7 +237,7 @@ class LiteDSPFIRFilter(LiteXModule):
         """Serial MAC datapath: accept one sample, scan the taps in ``ceil(n_taps/n_macs)``
         cycles (each MAC owns a contiguous chunk), pairwise-sum the partials one registered
         level per cycle, rescale, present. ``self.bypass`` passes samples through unfiltered
-        (2 cycles/sample). Proven on hardware (Zynq 7020, 125 MHz)."""
+        (2 cycles/sample)."""
         self.n_macs = n_macs
         self.chunk  = chunk = (n_taps + n_macs - 1)//n_macs
         levels      = (n_macs - 1).bit_length()          # Pairwise sum-tree depth.

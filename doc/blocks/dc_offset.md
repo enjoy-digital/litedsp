@@ -8,7 +8,8 @@ latency: 1 sample · CSR: no · bypass: yes
 
 Estimate and remove a DC offset per I/Q with a leaky-integrator mean.
 
-``mean += (x - mean) >> mu`` (pole ``1 - 2**-mu``); output ``x - round(mean)``. Larger
+``mean += (x - mean) >> mu`` (pole ``1 - 2**-mu``); output ``x - floor(mean)`` (the
+accumulator holds ``mean`` with ``mu`` fractional bits, read by an arithmetic shift). Larger
 ``mu`` = slower/finer estimate. The current estimates are exposed (``mean_i``/``mean_q``)
 for monitoring; this is the adaptive cousin of the multiplier-free DC blocker.
 

@@ -71,7 +71,9 @@ The control pattern follows the LiteX `with_csr` convention and is mandatory:
   uniform boolean `self.bypass` (delay-matched passthrough, via `litedsp.common.add_bypass`;
   verified by `test/test_bypass.py`). Rate changers, transforms and sources/sinks have no
   bypass; the mixer's 2-bit `bypass` selects which input to pass instead.
-- Blocks are wrapped with `@ResetInserter()` for per-instance reset.
+- Most blocks are wrapped with `@ResetInserter()` for per-instance reset (`block.reset`).
+  Blocks built without it (several stream utilities, transforms and composites such as the
+  DDC/DUC) have no `reset` input: check `hasattr(block, "reset")`.
 - Trigger-type blocks (Squelch, EnergyDetector, Capture, AGC) additionally take
   `with_irq=True` / `add_irq()`: a LiteX `EventManager` (`self.ev`) with edge-triggered event
   sources on their status signals, so a SoC can route them to CPU interrupts

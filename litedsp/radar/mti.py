@@ -24,9 +24,10 @@ class LiteDSPMTICanceller(LiteXModule):
     Range bin ``r`` of the previous ``order - 1`` pulses is kept in ``order - 1`` RAMs indexed
     by a range counter that ``first`` resets. Runtime ``mode`` 0 subtracts the previous pulse
     (``y = x - x1``), mode 1 the three-pulse binomial (``y = x - 2 x1 + x2``, needs
-    ``order == 3``); the difference is rescaled by ``shift`` (default ``mode + 1``, the
-    canceller's DC gain, so the output never saturates). Stationary clutter cancels exactly;
-    a target moving ``f`` cycles per pulse is weighted ``|2 sin(pi f)|`` (``4 sin^2(pi f)``).
+    ``order == 3``); the difference is rescaled by ``shift`` (default ``mode + 1``, the log2
+    of the canceller's peak gain, 2 or 4 at half the PRF, so the output never saturates).
+    Stationary clutter cancels exactly; a target moving ``f`` cycles per pulse is weighted
+    ``|2 sin(pi f)|`` (``4 sin^2(pi f)``).
     Latency 2 (the history RAMs' registered read); ``bypass`` passes pulses through unchanged.
     """
     def __init__(self, n_range_bins=64, data_width=16, order=3, shift=None, with_csr=True):

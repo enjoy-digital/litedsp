@@ -19,7 +19,8 @@ from litedsp.common import iq_layout, saturated, add_bypass
 class LiteDSPDCOffset(LiteXModule):
     """Estimate and remove a DC offset per I/Q with a leaky-integrator mean.
 
-    ``mean += (x - mean) >> mu`` (pole ``1 - 2**-mu``); output ``x - round(mean)``. Larger
+    ``mean += (x - mean) >> mu`` (pole ``1 - 2**-mu``); output ``x - floor(mean)`` (the
+    accumulator holds ``mean`` with ``mu`` fractional bits, read by an arithmetic shift). Larger
     ``mu`` = slower/finer estimate. The current estimates are exposed (``mean_i``/``mean_q``)
     for monitoring; this is the adaptive cousin of the multiplier-free DC blocker.
 
@@ -57,7 +58,7 @@ class LiteDSPDCOffset(LiteXModule):
         for field, mean in [("i", self.mean_i), ("q", self.mean_q)]:
             x   = getattr(self.sink, field)
             est = Signal((data_width, True))
-            self.comb += est.eq(mean >> self.mu)                 # round-toward-zero estimate.
+            self.comb += est.eq(mean >> self.mu)                 # Floor estimate (arith shift).
             # Estimate tracks accepted samples only.
             self.sync += If(xfer, mean.eq(mean + (x - est)))
             self.sync += If(adv,

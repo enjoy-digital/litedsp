@@ -27,7 +27,8 @@ class LiteDSPResolverDigital(LiteXModule):
     The excitation sine (``source_exc``, one sample per accepted input, period ``decimation``
     samples -- ``f_exc = f_s/decimation``) drives the resolver primary; the ADCs sample the sine
     and cosine windings (``sink``: i = sine, q = cosine) at the same rate. Each winding is
-    multiplied by the reference delayed by ``phase_offset`` samples (analog loop delay) and
+    multiplied by the reference read ``phase_offset`` samples ahead, modulo one excitation
+    period (an analog loop delay of ``k`` samples needs ``phase_offset = decimation - k``) and
     integrated exactly over one excitation period (a boxcar of ``decimation`` samples cancels
     the carrier ripple), the two sums are vectored by a CORDIC (``atan2(sin_sum, cos_sum)``)
     and the resulting raw angle, one per period (rate ``1/decimation``), is smoothed by an
@@ -62,7 +63,7 @@ class LiteDSPResolverDigital(LiteXModule):
         self.sink       = stream.Endpoint(iq_layout(data_width))       # Sine / cosine windings.
         self.source_exc = stream.Endpoint(real_layout(data_width))     # Excitation sample.
         self.source     = stream.Endpoint(angle_layout(angle_width))   # Tracked angle.
-        self.phase_offset = Signal(max=D)                              # Demodulation delay.
+        self.phase_offset = Signal(max=D)                              # Reference advance.
         self.raw_angle    = Signal((angle_width, True))                # Last demodulated angle.
         self.raw_mag      = Signal((AW, True))                         # Demodulated amplitude.
 

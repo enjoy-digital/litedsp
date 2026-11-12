@@ -7,9 +7,9 @@
 """Per-block characterization plans: stimulus + measurement -> datasheet quality metrics.
 
 All measurements run on the NumPy golden models from ``test/models.py`` (except the CORDIC,
-which has no standalone model and is measured through a Migen simulation via
-``test/common.py``). The golden models are held bit-exact — or SNR-equivalent where rounding
-legitimately differs — against the RTL by the co-simulation tests in ``test/`` and
+which is measured through a Migen simulation via ``test/common.py``, with the same stimulus as
+``test_cordic``). The golden models are held bit-exact (or SNR-equivalent where rounding
+legitimately differs) against the RTL by the co-simulation tests in ``test/`` and
 ``sim/``, so the numbers measured here characterize the gateware itself while keeping the
 characterization sweep fast and deterministic (pure NumPy, fixed stimulus, no toolchain).
 
