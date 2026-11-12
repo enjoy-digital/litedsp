@@ -139,5 +139,83 @@ class TestLatency(unittest.TestCase):
                 checked += 1
         self.assertGreaterEqual(checked, 10, f"latency check covered too few blocks ({checked})")
 
+def first_output_cycles(dut, n_out, sink_fields=("i", "q")):
+    """Cycles of input acceptances and output beats under free flow (constant input)."""
+    in_cycles, out_cycles = [], []
+
+    @passive
+    def driver():
+        cycle = 0
+        yield dut.sink.valid.eq(1)
+        for f in sink_fields:
+            yield getattr(dut.sink, f).eq(1000)
+        while True:
+            yield
+            if (yield dut.sink.ready):
+                in_cycles.append(cycle)
+            cycle += 1
+
+    def capture():
+        cycle = 0
+        yield dut.source.ready.eq(1)
+        while len(out_cycles) < n_out:
+            yield
+            if (yield dut.source.valid):
+                out_cycles.append(cycle)
+            cycle += 1
+
+    run_simulation(dut, [driver(), capture()])
+    return in_cycles, out_cycles
+
+class TestExcludedBlockLatency(unittest.TestCase):
+    """Declared latency of blocks the generic check above cannot measure."""
+
+    def test_viterbi_register_exchange(self):
+        from litedsp.comm.viterbi import LiteDSPViterbiDecoder
+        # Decoded bit k leaves `traceback` cycles after coded symbol k was accepted.
+        for kwargs in ({}, {"traceback": 16}, {"llr_bits": 4}):
+            with self.subTest(**kwargs):
+                dut    = LiteDSPViterbiDecoder(with_csr=False, **kwargs)
+                deltas = measure_cycle_latency(dut, payload_fields(dut.sink), n=dut.traceback + 48)
+                self.assertEqual(deltas, {dut.latency})
+
+    def test_fft_iter(self):
+        from litedsp.analysis.fft_iter import LiteDSPFFTIter
+        # Same contract as LiteDSPFFT: first input beat accepted -> first output beat.
+        for N in (4, 16, 64):
+            for registered_butterfly in (False, True):
+                with self.subTest(N=N, registered_butterfly=registered_butterfly):
+                    dut = LiteDSPFFTIter(N, with_csr=False,
+                        registered_butterfly=registered_butterfly)
+                    ins, outs = first_output_cycles(dut, 2*N + 1)
+                    self.assertEqual(outs[0] - ins[0], dut.latency)
+                    self.assertEqual(outs[N] - outs[0], dut.cycles_per_frame)
+
+    def test_ddc_duc_include_the_mixer(self):
+        from litedsp.mixing.ddc        import LiteDSPDDC
+        from litedsp.mixing.duc        import LiteDSPDUC
+        from litedsp.mixing.channelizer import LiteDSPChannelizer
+        from litedsp.rate.decimator    import LiteDSPDecimator
+        from litedsp.rate.interpolator import LiteDSPInterpolator
+        # The composite adds the mixer's cycles to the rate changer's: the first composite
+        # output leaves `latency - core.latency` cycles after the first bare rate-changer one.
+        for method in ("cic", "fir"):
+            with self.subTest(block="ddc", method=method):
+                ddc  = LiteDSPDDC(decimation=4, method=method, with_csr=False)
+                core = LiteDSPDecimator(decimation=4, method=method, with_csr=False)
+                delta = first_output_cycles(ddc, 4)[1][0] - first_output_cycles(core, 4)[1][0]
+                self.assertEqual(delta, ddc.latency - core.latency)
+                self.assertEqual(delta, ddc.mixer.latency)
+            with self.subTest(block="duc", method=method):
+                duc  = LiteDSPDUC(interpolation=4, method=method, with_csr=False)
+                core = LiteDSPInterpolator(interpolation=4, method=method, with_csr=False)
+                delta = first_output_cycles(duc, 4)[1][0] - first_output_cycles(core, 4)[1][0]
+                self.assertEqual(delta, duc.latency - core.latency)
+                self.assertEqual(delta, duc.mixer.latency)
+        channelizer = LiteDSPChannelizer(n_channels=2, with_csr=False)
+        self.assertEqual(channelizer.latency, channelizer.ddcs[0].latency)
+        self.assertEqual(channelizer.latency,
+            channelizer.ddcs[0].mixer.latency + channelizer.ddcs[0].decim.latency)
+
 if __name__ == "__main__":
     unittest.main()
