@@ -42,6 +42,10 @@ PRBS_MASKS = {
 class LiteDSPPatternSource(LiteXModule):
     """I/Q test-pattern generator (constant / counter ramp / PRBS / impulse).
 
+    The impulse pattern emits its full-scale sample on the first output after reset, after
+    each change of ``mode`` and after each ``rearm`` pulse (a write of the ``control`` register
+    with the CSRs), then zeros.
+
     Parameters
     ----------
     seed : int
@@ -55,6 +59,7 @@ class LiteDSPPatternSource(LiteXModule):
         self.mode    = Signal(2, reset=PATTERN_COUNTER)  # Pattern select (PATTERN_*).
         self.const_i = Signal((data_width, True))        # Constant I (PATTERN_CONST).
         self.const_q = Signal((data_width, True))        # Constant Q (PATTERN_CONST).
+        self.rearm   = Signal()                          # Re-arm the impulse (pulse).
 
         # # #
 
@@ -64,8 +69,13 @@ class LiteDSPPatternSource(LiteXModule):
         cnt   = Signal(data_width)               # Ramp counter (counter pattern).
         # Seed forced non-zero (all-zero locks the LFSR).
         lfsr  = Signal(data_width, reset=seed & ((1 << data_width) - 1) or 1)
-        first = Signal(reset=1)                  # Distinguishes the impulse's first sample.
-        self.comb += adv.eq(self.source.ready | ~self.source.valid)
+        last_mode = Signal(3, reset=4)           # Mode of the last output (4: none since reset).
+        armed     = Signal()                     # Impulse re-armed by a rearm pulse.
+        first     = Signal()                     # Next output is the impulse's first sample.
+        self.comb += [
+            adv.eq(self.source.ready | ~self.source.valid),
+            first.eq(armed | (last_mode != self.mode)),
+        ]
 
         # LFSR.
         # -----
@@ -93,8 +103,10 @@ class LiteDSPPatternSource(LiteXModule):
             self.source.q.eq(q_pat),
             cnt.eq(cnt + 1),
             lfsr.eq(lfsr_next),
-            first.eq(0),
+            last_mode.eq(self.mode),
+            armed.eq(0),
         )
+        self.sync += If(self.rearm, armed.eq(1))
 
         # CSR.
         # ----
@@ -105,7 +117,7 @@ class LiteDSPPatternSource(LiteXModule):
         self._control = CSRStorage(fields=[
             CSRField("mode", size=2, reset=PATTERN_COUNTER, values=[
                 ("0", "const"), ("1", "counter"), ("2", "prbs"), ("3", "impulse")],
-                description="Pattern select."),
+                description="Pattern select (a write re-arms the impulse)."),
         ])
         self._const = CSRStorage(fields=[
             CSRField("i", size=self.data_width, description="Constant I."),
@@ -113,6 +125,7 @@ class LiteDSPPatternSource(LiteXModule):
         ])
         self.comb += [
             self.mode.eq(self._control.fields.mode),
+            self.rearm.eq(self._control.re),
             self.const_i.eq(self._const.fields.i),
             self.const_q.eq(self._const.fields.q),
         ]

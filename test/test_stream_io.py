@@ -22,7 +22,7 @@ from litedsp.stream.csr_io       import (LiteDSPCSRSource, LiteDSPCSRSink, LiteD
                                          LiteDSPNullSink)
 from litedsp.stream.framing      import LiteDSPStreamFramer, LiteDSPStreamDeframer
 from litedsp.generation.pattern  import (LiteDSPPatternSource, PATTERN_COUNTER, PATTERN_PRBS,
-                                         PRBS_MASKS)
+                                         PATTERN_IMPULSE, PRBS_MASKS)
 from litedsp.analysis.measure    import LiteDSPErrorCounter
 
 from test.common import run_stream, column
@@ -102,6 +102,21 @@ class TestPatternSource(unittest.TestCase):
             self.assertTrue(any(v & 1 for v in vals))     # Low bit not stuck at 0.
             if period < n:
                 self.assertEqual(vals[period:], vals[:n - period])
+
+    def test_impulse_rearm(self):
+        dut = LiteDSPPatternSource(data_width=16, with_csr=False)
+        def control():
+            for _ in range(8):
+                yield
+            yield dut.mode.eq(PATTERN_IMPULSE)  # Mode change arms the impulse.
+            for _ in range(20):
+                yield
+            yield dut.rearm.eq(1)               # Re-arm in the same mode.
+            yield
+            yield dut.rearm.eq(0)
+        cap = run_stream(dut, None, 48, [], ["i"], source_ready_rate=1.0, extra=[control()])
+        vals = column(cap, "i", 16).tolist()
+        self.assertEqual(vals.count(0x7fff), 2)
 
 
 class TestCSRSourceSink(unittest.TestCase):
