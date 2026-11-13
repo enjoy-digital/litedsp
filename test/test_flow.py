@@ -515,6 +515,23 @@ class TestIPCore(unittest.TestCase):
         with self.assertRaises(ValueError):
             LiteDSPFlowIPCore(self._ddc(), csr_base=0x800)
 
+    def test_csr_base_from_netlist(self):
+        # The csr.base_address of the netlist is the default csr_base of the core; an explicit
+        # csr_base (YAML key of the standalone core generator) takes precedence.
+        from litedsp.flow.ipcore import LiteDSPFlowIPCore
+        self.assertEqual(LiteDSPFlowIPCore(self._ddc()).csr_base, 0)
+        nl = self._ddc()
+        nl.csr_base = 0x40000
+        nl = nlmod.loads(nlmod.dumps(nl))                        # Through the JSON csr section.
+        ip = LiteDSPFlowIPCore(nl)
+        self.assertEqual(ip.csr_base, 0x40000)
+        self.assertEqual(ip.csr_regions()["lo"].origin, 0x40800)
+        self.assertEqual(LiteDSPFlowIPCore(nl, csr_base=0x80000).csr_base, 0x80000)
+        self.assertEqual(LiteDSPFlowIPCore(nl, csr_base=0).csr_base, 0)
+        nl.csr_base = 0x800                                      # Same check as csr_base.
+        with self.assertRaises(ValueError):
+            LiteDSPFlowIPCore(nl)
+
 
 class TestVivadoIPPackage(unittest.TestCase):
     def _package(self, config, name):

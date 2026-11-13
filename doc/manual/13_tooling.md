@@ -220,7 +220,8 @@ the register data width is 32 bits. A block without registers, such as a delay, 
 
 The core decodes only the low `axil_address_width` bits of the address, so `csr_base` must be a
 multiple of `2**axil_address_width`, the window the core occupies in the system address map; the
-core refuses another value with a `ValueError`.
+core refuses another value with a `ValueError`. Without a `csr_base` key, the core takes the
+`base_address` of the `csr` section of the netlist, 0 when the netlist has none.
 
 The generator writes the files of the table below in its output directory. Software drives the
 core from the register map; the block manifest lets the host drivers recognize each block

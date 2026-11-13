@@ -54,8 +54,11 @@ def _name_axilite(axil, prefix="s_axil"):
 # IP core ------------------------------------------------------------------------------------------
 
 class LiteDSPFlowIPCore(LiteXModule):
-    def __init__(self, nl, reg=None, csr_data_width=32, axil_address_width=16, csr_base=0):
+    def __init__(self, nl, reg=None, csr_data_width=32, axil_address_width=16, csr_base=None):
         assert csr_data_width == 32
+        # csr_base: base of the exported register map; default: csr.base_address of the netlist.
+        if csr_base is None:
+            csr_base = getattr(nl, "csr_base", 0)
         # The AXI-Lite slave decodes only the low axil_address_width address bits, so the
         # exported register map (csr_base + bank offsets) matches the decode only when csr_base
         # has no bit inside the decoded window.
