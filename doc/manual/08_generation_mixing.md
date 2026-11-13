@@ -258,9 +258,6 @@ The tuning word is the NCO increment, exposed as `nco_phase_inc`. Because the mi
 `test/test_ddc_duc.py` sets the increment to the frequency of the input tone and checks that the
 output is a constant. In the NCO formula, `fs` is the input sample rate.
 
-The docstring of the class says to set `-f_tune`; the hardware and the test follow `+f_tune`
-(fix pending, PR #13).
-
 The decimator is `LiteDSPDecimator`, described in [Rate wrappers](#fr-rate-wrappers):
 
 | Parameter | Default | Effect |

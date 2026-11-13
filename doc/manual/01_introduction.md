@@ -141,9 +141,6 @@ work around it. The chapters describe the same behaviour where the block is docu
 
 | Block or tool | Behaviour on the default branch | Workaround, details |
 |----------------------|------------------------------------------------|------------------------------------------|
-| DDC docstrings | Say to set `phase_inc` to `-f_tune`; the down mixer brings `+f_tune` to DC; fix pending (PR #13) | Use `+f_tune`; [DDC](#gm-ddc) |
-| Bench scripts | `test_spectrum.py` and `test_stream.py` tune the DDC to `-tune`: the tone lands at tone + tune and the check fails with the defaults; fix pending (PR #13) | Tune to `+tune`; [Spectrum bench](#brd-spectrum) |
-| PWM | Docstring and `PWMDriver.set_trigger` default sample at the valley; low-side shunts conduct at the peak. A fault drops the gates two clocks later, not one, as the docstring says; fix pending (PR #16) | Trigger at `period`, direction 1; [PWM](#mot-pwm), [Protection](#mot-protection) |
 | Complex FIR | Bypassed, connects input to output with no latency: switching `bypass` under traffic can reorder beats; fix pending (PR #10) | Switch `bypass` while the stream is idle; [FIR filters](#fr-fir) |
 | RMS meter | A result is lost when the consumer stalls past the next window or the window is short | Keep the consumer ready; [Power, RMS](#lvl-measure) |
 | Capture | Read only through the Wishbone window, it stays in readout and ignores the next trigger | Drain its `source` or reset it; [Capture](#str-capture) |

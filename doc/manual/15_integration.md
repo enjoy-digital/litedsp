@@ -40,8 +40,7 @@ class MySoC(SoCCore):
 Here the DDC registers are `ddc_nco_phase_inc`, the tuning word of its oscillator, and the
 configuration status of its decimator; [Register reference](#reg-mixing) lists them. The DDC
 shifts the band at the NCO frequency down to baseband: set the tuning word to the frequency to
-receive, in phase units. The docstring of `LiteDSPDDC` says the opposite; the gateware follows
-this manual; the fix is pending (PR #13, [Known issues](#intro-known-issues)).
+receive, in phase units.
 
 Three conventions hold for every block; [the block contract](#architecture) gives the details:
 

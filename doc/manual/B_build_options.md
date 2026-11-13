@@ -114,7 +114,7 @@ The host scripts `bench/test_spectrum.py` and `bench/test_stream.py`:
 | Option | Default | Effect |
 |--------------------------|-----------------------|----------------------------------------|
 | `--tone-freq` | `1e6` | Test tone frequency in Hz |
-| `--tune-freq` | `1e6` | DDC tuning frequency in Hz; the scripts write its opposite, fix pending (PR #13) ([known issues](#intro-known-issues)) |
+| `--tune-freq` | `1e6` | DDC tuning frequency in Hz |
 | `--csr-csv` | `csr.csv` | Register map of the build |
 | `--samples` | `65536` | Samples to collect, `test_stream.py` only |
 
