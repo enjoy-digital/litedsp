@@ -65,7 +65,7 @@ def main():
 
     # Tune over Etherbone while the stream runs.
     NCODriver(bus, "nco",     clk_freq=clk_freq).set_frequency(args.tone_freq)
-    NCODriver(bus, "ddc_nco", clk_freq=clk_freq).set_frequency(-args.tune_freq)
+    NCODriver(bus, "ddc_nco", clk_freq=clk_freq).set_frequency(args.tune_freq)
     bus.close()
 
     samples, elapsed = receive_samples(udp_port, args.samples)
