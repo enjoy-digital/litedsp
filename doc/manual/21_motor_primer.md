@@ -159,8 +159,8 @@ peak. At the peak all the low-side transistors conduct: the zero vector.
 The zero vector is the best time to sample shunt currents. Low-side shunt resistors carry the
 phase current only while the low-side transistor conducts, and the switching noise is away from
 the peak. A drive with low-side shunts therefore triggers its ADC at a fixed carrier value near
-the peak. The trigger of `LiteDSPPWM` and its host driver default to the valley, which suits
-high-side or in-line sensing only; fix pending (PR #16, [Known issues](#intro-known-issues)).
+the peak. The trigger register of `LiteDSPPWM` resets to the valley, which suits high-side or
+in-line sensing only; the host driver selects the peak ([PWM](#mot-pwm)).
 
 The PWM period is the natural control period. The controller computes one new set of duties per
 period from the sampled currents; the PWM accepts them at a valley and applies them at the next

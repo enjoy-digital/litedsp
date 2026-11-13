@@ -137,13 +137,14 @@ flag (while the outputs are enabled). The high-side output is high while the car
 compare value, which centres the pulse on the valley; the low-side output is its complement, with
 the dead time inserted on every edge.
 
-The `trigger` output pulses when the carrier passes the programmed value on the programmed slope.
+The `trigger` output pulses when the carrier equals the programmed value on the programmed slope.
 Direction 1 with the count set to `period` is the carrier peak, the sample point of low-side
 shunts ([sample point](#mpri-pwm)); direction 0 near the valley suits high-side or in-line
-sensing. The block docstring and `PWMDriver.set_trigger()` default to direction 0 and call it the
-low-side sample point, which it is not; fix pending (PR #16, [Known issues](#intro-known-issues)). With
-`with_irq=True`, the PWM adds a `fault` event and a `period` event that fires every valley, for a
-loop run by a CPU.
+sensing. The register resets to count 0 and direction 0, the valley. Called without a count,
+`PWMDriver.set_trigger()` reads `period` and selects the peak.
+
+With `with_irq=True`, the PWM adds a `fault` event and a `period` event that fires every valley,
+for a loop run by a CPU.
 
 ## Current sensing and over-current trip {#mot-sensing}
 
@@ -168,8 +169,7 @@ magnitude sets the sticky `fault`, records which phase tripped and increments `c
 the `fault` input of the PWM. The PWM switches all six gate signals off two clock cycles later
 (the fault is latched, then the registered gate outputs fall) and holds `fault_latched` until the
 host pulses `fault_clear`. Every latch has an event with `with_irq=True`: `ev.fault` on the PWM
-and the trip, `ev.overcurrent` on the current sense. The docstrings of the PWM and of the trip
-still say "within one cycle" (fix pending, PR #16, [Known issues](#intro-known-issues)).
+and the trip, `ev.overcurrent` on the current sense.
 
 ## Position and speed {#mot-position}
 

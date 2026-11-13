@@ -90,21 +90,18 @@ python3 bench/test_spectrum.py --tone-freq=1e6 --tune-freq=1e6
 in the current directory; the host script reads it and the two constants. Run the host script
 from the directory of the build, or give it `--csr-csv`.
 
-`bench/test_spectrum.py` sets the test tone to `--tone-freq` and the DDC oscillator to minus
-`--tune-freq`. It forces a capture, reads the buffer through the memory window when the SoC has
-one and through `LiteDSPCSRReader` otherwise, applies a Hann window and computes the spectrum.
+`bench/test_spectrum.py` sets the test tone to `--tone-freq` and the DDC oscillator to
+`--tune-freq`, so the tone lands at their difference after down-conversion. It forces a capture,
+reads the buffer through the memory window when the SoC has one and through `LiteDSPCSRReader`
+otherwise, applies a Hann window and computes the spectrum.
 
 **What to look for.** The script prints the SoC identifier with the clock, the capture depth and
 the baseband rate, an ASCII spectrum, then the frequency of the peak and the expected one,
 `--tone-freq` minus `--tune-freq`. It prints `PASS` when the peak is within two bins of the
 expected frequency, `FAIL` otherwise.
 
-**Known issue.** The DDC mixes down, so its oscillator must be set to plus the frequency to
-receive ([Generation and mixing](#generation-mixing)). With the oscillator at minus
-`--tune-freq`, the tone lands at the sum of the two frequencies, 2 MHz with the defaults, instead
-of the expected DC, and the script prints `FAIL`; the fix is pending (PR #13,
-[Known issues](#intro-known-issues)). The
-peak line shows where the tone landed.
+With the default frequencies, the expected frequency is zero: the tone lands at DC. The peak
+line shows where the tone landed.
 
 ## Streaming bench {#brd-stream}
 
@@ -148,9 +145,7 @@ rate at which they arrive and computes their spectrum.
 
 **What to look for.** The script prints the received sample count with the measured rate in
 MS/s and as a percentage of the baseband rate, an ASCII spectrum, then the peak and the expected
-frequency. It prints `PASS` when the peak is within 16 bins of the expected frequency. The
-script sets the DDC to minus `--tune-freq`, like the spectrum bench: with the defaults the tone
-lands at 2 MHz, outside the 625 kHz baseband, and the run fails; fix pending (PR #13). The rate
+frequency. It prints `PASS` when the peak is within 16 bins of the expected frequency. The rate
 is timed from the first packet received, so it measures the sustained stream, not the start.
 
 ## Bringing up another board {#brd-port}
