@@ -34,74 +34,64 @@ The core can be used as a LiteX library or can be integrated with your standard 
 generating the Verilog RTL that you will use as a standard core (see the Generator and Flow
 tooling below).
 
-It is meant both as a ready-to-use library for RF processing on FPGA (mixers, NCO, filters,
-rate conversion, gain/AGC, power, corrections, analysis), motor control (field-oriented
-control, PWM, sensor interfaces, observers), radar/sonar processing (pulse compression, MTI, Doppler, CFAR, tracking), image/video processing (line-buffered kernels, demosaic, colour, statistics), audio processing (I2S/PDM converters, EQ,
-dynamics, effects, metering, dither) and as a clean base to customize from for
-client-specific requirements.
+It covers RF processing (mixers, NCO, filters, rate conversion, gain/AGC, corrections, analysis),
+digital communications, motor control, radar/sonar, image/video and audio processing, and is a
+clean base to customize from.
 
 [> Features
 -----------
 
-- **Portable-only**: pure Migen/LiteX, fully simulatable, FPGA-vendor agnostic.
-- **Standardized interfaces**: LiteX `stream.Endpoint` streaming with full valid/ready
-  backpressure; the `with_csr=True` / `add_csr()` control pattern everywhere; uniform
-  `bypass`; each block exposes its `latency`. See `doc/interfaces.md`.
-- **Fixed-point rigor**: parameterized Qm.n format (default Q1.15 / 16-bit), shared
-  rounding / saturation / scaling helpers used at every downsizing point. See
-  `doc/fixed_point.md`.
-- **Tested**: numerical datapaths have NumPy golden reference models; simulation output is
-  compared bit-exact or against an SNR threshold under `unittest` and CI. The generic Verilator
-  harness additionally co-simulates 186 representative RTL configurations under randomized
-  backpressure.
+- **Portable**: pure Migen/LiteX, no vendor IP, fully simulatable.
+- **One interface**: LiteX streams with valid/ready backpressure, the same CSR control pattern
+  (`with_csr=True`), `bypass` and a declared `latency` on every block.
+- **Fixed point**: parameterized Qm.n format (Q1.15 by default), shared rounding, saturation and
+  scaling helpers.
+- **Tested**: NumPy golden models, bit-exact or SNR checks, Verilator co-simulation under
+  randomized backpressure.
 
 ![LiteDSP architecture](doc/images/architecture.png)
 
 [> Blocks
 ---------
+About 230 blocks, all named `LiteDSP<Name>`. One datasheet per block (parameters, ports, registers,
+resources) in the [block catalogue](doc/blocks/index.md).
 
-| Category        | Blocks                                                                      |
-|-----------------|-----------------------------------------------------------------------------|
-| `generation/`   | `LiteDSPNCO` (DDS), `LiteDSPCORDIC`, `LiteDSPChirp` (linear FM), `LiteDSPNoiseSource` (AWGN), `LiteDSPReplay` (RAM AWG), `LiteDSPPatternSource` (const/counter/PRBS/impulse) |
-| `mixing/`       | `LiteDSPMixer` (complex, runtime up/down), `LiteDSPDDC`, `LiteDSPDUC`, `LiteDSPChannelizer` (DDC bank), `LiteDSPPFBChannelizer` (critical/2x-oversampled polyphase filter bank, auto direct/FFT transform) |
-| `filter/`       | `LiteDSPFIRFilter`/`LiteDSPFIRFilterComplex` (direct & symmetric), `LiteDSPFIRDecimator`/`LiteDSPFIRInterpolator` (polyphase), `LiteDSPCICDecimator`/`LiteDSPCICInterpolator` (+ runtime-rate), `LiteDSPHalfbandDecimator`/`LiteDSPHalfbandInterpolator`, `LiteDSPIIRBiquad`/`LiteDSPIIRBiquadCascade` (DF2T), `LiteDSPDCBlocker`, `LiteDSPMovingAverage`, `LiteDSPHilbert`, `LiteDSPPulseShaper` (RRC), `LiteDSPFarrowInterpolator`, `LiteDSPRationalResampler`, `LiteDSPArbResampler`, `LiteDSPNotch`, `LiteDSPCombFilter`, `LiteDSPAllpass`, `LiteDSPLMSEqualizer` (delayed LMS; trained/CMA/decision-directed), `design.py` (coefficients) |
-| `rate/`         | `LiteDSPDownsampler`, `LiteDSPUpsampler` (naive), `LiteDSPDecimator`, `LiteDSPInterpolator` (CIC/FIR), `LiteDSPResamplerFarm` (decimating complex FIR, `n_channels` streams on one serial MAC) |
-| `level/`        | `LiteDSPGain`, `LiteDSPPower`, `LiteDSPSaturate`, `LiteDSPClipper`, `LiteDSPEnvelopeDetector`, `LiteDSPSquelch`, `LiteDSPAGC`, `LiteDSPDPD` (predistortion actuator, host-adapted complex-gain LUTs), `LiteDSPCFR` (crest-factor reduction, peak cancellation), `LiteDSPRMS`, `LiteDSPLog2`/`LiteDSPLogPower` (dB) |
-| `correction/`   | `LiteDSPDCOffset`, `LiteDSPIQBalance`, `LiteDSPDerotator` (CFO)               |
-| `comm/`         | `LiteDSPFMDemod`, `LiteDSPAMDemod`, `LiteDSPPhaseDetect`, `LiteDSPSlicer`, `LiteDSPSymbolMapper`, `LiteDSPDifferentialEncoder`/`Decoder`, `LiteDSPScrambler`/`LiteDSPDescrambler`, `LiteDSPCRC`, `LiteDSPConvEncoder`, `LiteDSPViterbiDecoder` (hard/soft-decision, LLR input), `LiteDSPPuncturer`/`LiteDSPDepuncturer` (DVB-S rate puncturing), `LiteDSPRSEncoder`/`LiteDSPRSDecoder` (Reed-Solomon RS(255,k) over GF(2^8), t up to 16, full Berlekamp-Massey/Chien/Forney decoder), `LiteDSPBlockInterleaver`/`LiteDSPBlockDeinterleaver` (CCSDS-style depth-I byte interleaving, ping-pong buffered), `LiteDSPLDPCEncoder`/`LiteDSPLDPCDecoder` (IEEE 802.11n rate-1/2 n=648 QC-LDPC: back-substitution encoder, row-layered normalized min-sum decoder with early termination), `LiteDSPCorrelator`, `LiteDSPFrameSync` (CFAR preamble detect + frame alignment), `LiteDSPCFOEstimator` (coarse CFO, delay-conjugate-multiply + CORDIC), `LiteDSPPLL`/`LiteDSPCostas`, `LiteDSPTimingRecovery` (M&M or Gardner TED), `LiteDSPCPInsert`/`LiteDSPCPRemove` (OFDM cyclic prefix), `LiteDSPOFDMEqualizer` (OFDM LS channel estimation + divider-free one-tap equalization, per-bin CSI) Extras: `LiteDSPFrequencyModulator`/`LiteDSPPhaseModulator`, `LiteDSPAMModulator`, `LiteDSPSSBModulator`, `LiteDSPFSKModulator` (GFSK / GMSK), `LiteDSPGrayMapper`/`Demapper`, `LiteDSPLineEncoder`/`Decoder` (NRZI, Manchester), `LiteDSPConvolutionalInterleaver`/`Deinterleaver`, `LiteDSPHammingEncoder`/`Decoder` (SECDED), `LiteDSPBCHEncoder`/`Decoder`, `LiteDSPHDLCFramer`/`Deframer`; code design in `litedsp.comm.design` |
-| `analysis/`     | `LiteDSPWindow`, `LiteDSPFFT` (radix-2 SDF, `inverse=`), `LiteDSPFFTIter`, `LiteDSPPSD`, `LiteDSPWelchPSD`, `LiteDSPMagnitude` (approx/CORDIC), `LiteDSPGoertzel`, `LiteDSPStats`, `LiteDSPHistogram`, `LiteDSPPeakBin`, `LiteDSPEnergyDetector`, `LiteDSPFrequencyEstimator`, `LiteDSPErrorCounter` (SER/BER) |
-| `stream/`       | `LiteDSPCombine`, `LiteDSPSplit`, `LiteDSPDelay`, `LiteDSPChannelMux`/`LiteDSPChannelDemux`, `LiteDSPConjugate`/`LiteDSPSwapIQ`/`LiteDSPNegate`/`LiteDSPIQAdd`, offset-binary converters, `LiteDSPIQClockDomainCrossing`, `LiteDSPSkidBuffer`, `LiteDSPStreamFIFO`, `LiteDSPIQPack`/`LiteDSPIQUnpack`, `LiteDSPCapture` (scope, CSR or memory-mapped readout), `LiteDSPCSRSource`/`LiteDSPCSRSink`/`LiteDSPCSRReader`/`LiteDSPNullSink`, `LiteDSPStreamFramer`/`LiteDSPStreamDeframer` (`tlast`), `LiteDSPTimeCore`/`LiteDSPTimestamper`/`LiteDSPTimeUntagger` (timestamped streams, see `doc/timestamps.md`), `LiteDSPDMACapture`/`LiteDSPDMAReplay` (Wishbone or LiteDRAM DMA) |
-| `frontend/`     | `LiteDSPADCInterface`/`LiteDSPDACInterface` (raw converter words), `LiteDSPBitstreamInterface` (sigma-delta / PDM modulator clock + data pins), `LiteDSPIQPacketizer`/`LiteDSPIQDepacketizer` (framed host-link words, LitePCIe-ready, optional timestamp header), `LiteDSPUDPIQStreamer`/`LiteDSPUDPIQReceiver` (I/Q packets over LiteEth UDP) |
-| `motor/`        | `LiteDSPClarke`/`LiteDSPInverseClarke`, `LiteDSPPark`/`LiteDSPInversePark` (complex-mixer rotation), `LiteDSPSinCos`, `LiteDSPAngleRamp`, `LiteDSPPIController` (anti-windup, feed-forward, setpoint stream), `LiteDSPDQController` (d/q current loops, decoupling), `LiteDSPSlewLimiter`, `LiteDSPSVPWM` (min/max injection), `LiteDSPPWM` (center-aligned 3-phase, dead time, fault latch, ADC trigger), `LiteDSPQuadratureDecoder`, `LiteDSPHallDecoder` (interpolated), `LiteDSPSigmaDeltaFilter` (sinc³ current sense + fast over-current path), `LiteDSPOvercurrentTrip`, `LiteDSPAngleTracker` (type-II angle PLL), `LiteDSPSMObserver` (sensorless sliding-mode back-EMF), `LiteDSPResolverDigital`, `LiteDSPFOC` composite; shared `LiteDSPBitstreamDecimator` in `filter/`. See `doc/motor_control.md` |
-| `audio/`        | `LiteDSPI2SReceiver`/`LiteDSPI2STransmitter` (I2S, left/right-justified, TDM; master or slave), `LiteDSPPDMReceiver` (PDM microphones: clocked bitstream interface, sinc decimators, DC blocking, droop compensation), `LiteDSPSigmaDeltaModulator`/`LiteDSPSigmaDeltaDAC`, `LiteDSPAudioEQ` (time-multiplexed DF1 biquad cascade with error feedback, shadow coefficient set), `LiteDSPCompressor` (compressor / limiter / gate presets, log-domain gain computer, lookahead), `LiteDSPVolume` (ramped per-channel gains, mute), `LiteDSPStereoMatrix`, `LiteDSPDither` (TPDF, 1st/2nd-order noise shaping), `LiteDSPLFO`, `LiteDSPDelayLine` (echo / chorus with modulation), `LiteDSPReverb` (Freeverb-style combs + allpasses), `LiteDSPWetDryMix`, `LiteDSPPeakMeter`, `LiteDSPLoudness` (BS.1770 K-weighting); channel-tagged TDM streams (`tdm_layout`), `LiteDSPTDMMux`/`LiteDSPTDMDemux` in `stream/`. See `doc/audio.md` |
-| `radar/`        | `LiteDSPRangeGate` (PRI/CPI timer, gated framed receive window), `LiteDSPPulseCompressor` (chirp matched filter on two complex FIRs, tag re-alignment), `LiteDSPMTICanceller` (2/3-pulse), `LiteDSPCornerTurn` (fast-time to slow-time RAM), `LiteDSPDopplerProcessor` (window, FFT, magnitude/power, natural order), `LiteDSPCACFAR` (CA/GO/SO), `LiteDSPCFAR2D` (box CFAR on map rows), `LiteDSPPeakExtractor` (local maxima, sub-bin centroids, per-CPI target bursts), `LiteDSPTargetList` (CSR readback), `LiteDSPAlphaBetaTracker` / `LiteDSPKalmanTracker` (gated association, alpha-beta / Kalman tracks), `LiteDSPOSCFAR`, `LiteDSPClutterMap`, `LiteDSPBeamformer`, `LiteDSPMonopulse`, `LiteDSPPulseGenerator`, `LiteDSPTVG` (sonar); `LiteDSPBitReverse` in `analysis/`; design helpers (`litedsp.radar.design`: CFAR alpha, Kalata gains, units) and chirp helpers (`litedsp.radar.waveform`). See `doc/radar.md` |
-| `image/`        | `LiteDSPPixelPattern` (test frames), `LiteDSPPixelFromVideo`/`LiteDSPPixelToVideo` (LiteX video interop), `LiteDSPPixelPack`/`LiteDSPPixelUnpack` (framebuffer words), `LiteDSPLineBuffer` (K x K windows with borders), `LiteDSPPixelFIFO`, `LiteDSPKernel2D` (presets: Gaussian, sharpen, Laplacian, Sobel...), `LiteDSPSobel`, `LiteDSPRankFilter` (median / erode / dilate), `LiteDSPDebayer`, `LiteDSPThreshold` (hysteresis), `LiteDSPPixelGain` (white balance / brightness / contrast), `LiteDSPPixelLUT` (gamma, equalisation), `LiteDSPColorMatrix` (BT.601 / 709 / JPEG), `LiteDSPDownscaler`, `LiteDSPCrop`, `LiteDSPPixelStats`, `LiteDSPPixelHistogram`, `LiteDSPAlphaBlend`, `LiteDSPBoxOverlay`; pixel layouts (`pixel_layout`, `window_layout`, `video_layout`), design helpers (`litedsp.image.design`). See `doc/image.md` |
-| parallel (*)    | `LiteDSPParallelNCO`, `LiteDSPParallelMixer`, `LiteDSPParallelFIRFilter`/`LiteDSPParallelFIRFilterComplex`, `LiteDSPParallelCICDecimator`, `LiteDSPParallelFFT` (radix-2 DIF split, 2 samples/clk), `LiteDSPParallelDDC` composite + `LiteDSPIQSerialToParallel`/`LiteDSPIQParallelToSerial` adapters |
-| misc            | `LiteDSPISqrt` (`numeric.py`), `LiteDSPPILoop` (`control.py`)                 |
+| Family        | Content                                                                        |
+|---------------|--------------------------------------------------------------------------------|
+| `generation/` | NCO/DDS, CORDIC, chirp, noise, replay and test pattern sources                 |
+| `mixing/`     | Complex mixer, DDC, DUC, channelizers (DDC bank, polyphase filter bank)        |
+| `filter/`     | FIR, CIC, half-band, IIR biquads, resamplers, Hilbert, pulse shaper, equalizer |
+| `rate/`       | Downsampler, upsampler, decimator, interpolator, multi-channel resampler       |
+| `level/`      | Gain, AGC, power, RMS, log, saturation, clipper, squelch, DPD, CFR             |
+| `correction/` | DC offset, I/Q balance, frequency offset derotator                             |
+| `comm/`       | Modulators and demodulators, mappers, coding (Viterbi, Reed-Solomon, LDPC, BCH), synchronization (PLL, Costas, timing recovery, frame sync), OFDM |
+| `analysis/`   | Window, FFT, PSD, Goertzel, statistics, histogram, peak and frequency estimators, error counter |
+| `stream/`     | Combine, split, delay, FIFO, clock domain crossing, framing, timestamps, capture, DMA |
+| `frontend/`   | ADC/DAC and bitstream interfaces, I/Q packets for LitePCIe and LiteEth UDP      |
+| `motor/`      | Clarke/Park, PI and d/q controllers, SVPWM, PWM, encoders, observers, FOC      |
+| `audio/`      | I2S/TDM, PDM, sigma-delta, EQ, compressor, volume, effects, meters, dither     |
+| `radar/`      | Range gate, pulse compression, MTI, Doppler, CFAR, peak extraction, trackers, beamformer |
+| `image/`      | Line buffers, 2D kernels, Sobel, rank filters, debayer, colour, scaling, statistics, overlay |
 
-(*) Multi-sample-per-cycle datapaths (N samples/clk for rates above the fabric clock, e.g. a
-gigasample RX front-end), bit-identical to their serial counterparts. The parallel variants
-live next to their serial versions (`generation/nco_parallel.py`, ...).
-
-Per-block FPGA resource/fmax numbers (ECP5 + Artix-7 + Artix UltraScale+): see `doc/resources.md`.
+Several blocks also exist as parallel variants (`LiteDSPParallel<Name>`): N samples per clock, for
+sample rates above the fabric clock, bit-identical to the serial blocks.
 
 [> Tooling
 ----------
 
-| Tool               | What it does                                                       | Run |
-|--------------------|--------------------------------------------------------------------|-----|
-| Flow (`flow/`)     | JSON netlist → chain Verilog + CSR map + AXI-Stream/AXI-Lite IP core | `litedsp_flow flow.json` |
-| GUI (`gui/`)       | DearPyGui node editor for flow netlists (GNU-Radio-Companion style), with **live mode**: connect to a running SoC and tune NCOs/gains/FIR taps, watch the PSD | `litedsp_gui` |
-| Generator (`gen.py`) | Standalone core in the LiteX-ecosystem style: YAML → Verilog core + `csr.csv`/`csr.json`/`csr.h` | `litedsp_gen config.yml` |
-| Software (`software/`) | Host-side drivers over `litex_server`: tune in Hz, reload taps, drain captures to NumPy, run DMA windows; register-map auto-discovery | `litedsp_cli info` |
-| Examples (`examples/`) | Assembled chains: DDC/DUC, spectrum analyzer, FM receiver, QPSK RX, wideband RX, PRBS loopback BER, AXI IP preview; YAML configs for the generator | `python3 examples/fm_receiver.py` |
-| Tests (`test/`)    | Golden-model harness: NumPy reference models, bit-exact/SNR checks under randomized backpressure | `python3 -m unittest discover -s test` |
-| Sim (`sim/`)       | Verilator (real HDL) co-simulation vs the NumPy models + full-registry lint sweep | `python3 sim/run_blocks.py` |
-| Impl (`impl/`)     | Yosys/nextpnr (ECP5) + Vivado (Artix-7/Artix UltraScale+) synth/P&R gated on resource + fmax budgets | `python3 impl/run.py --device ecp5` |
-| Formal (`formal/`) | SymbiYosys proof of the stream fabric: no sample loss/duplication under arbitrary backpressure, stability while stalled | `python3 formal/run_formal.py` |
-| Char (`char/`)     | Quality characterization: SFDR/ENOB, ripple/attenuation, CIC droop error, image rejection, IMD3, settling, measured on the golden models, gated on quality budgets | `python3 char/run_char.py` |
-| Tools (`tools/`)   | LiteX coding-style checker (header, separators, imports, CSR style, line length) | `python3 tools/check_style.py` |
-| Bench (`bench/`)   | Hardware proof points on litex-boards targets (Arty, Colorlight 5A-75B): CSR-controlled spectrum bench, Etherbone + UDP I/Q streaming bench | `python3 bench/spectrum.py --board=arty --build` |
+| Tool                  | What it does                                              | Run |
+|-----------------------|-----------------------------------------------------------|-----|
+| Flow (`flow/`)        | JSON netlist to chain Verilog, CSR map and AXI IP core    | `litedsp_flow flow.json` |
+| GUI (`gui/`)          | Node editor for flow netlists, live tuning of a running SoC | `litedsp_gui` |
+| Generator (`gen.py`)  | YAML to standalone Verilog core and CSR maps              | `litedsp_gen config.yml` |
+| Software (`software/`) | Host drivers over `litex_server`                         | `litedsp_cli info` |
+| Examples (`examples/`) | Assembled chains (DDC/DUC, spectrum analyzer, FM/QPSK receivers) | `python3 examples/fm_receiver.py` |
+| Sim (`sim/`)          | Verilator co-simulation against the NumPy models          | `python3 sim/run_blocks.py` |
+| Impl (`impl/`)        | Synthesis and P&R (ECP5, Artix-7, Artix UltraScale+) against budgets | `python3 impl/run.py --device ecp5` |
+| Formal (`formal/`)    | SymbiYosys proof of the stream fabric                     | `python3 formal/run_formal.py` |
+| Char (`char/`)        | Quality characterization (SFDR, ripple, rejection) against budgets | `python3 char/run_char.py` |
+| Tools (`tools/`)      | LiteX coding-style checker                                | `python3 tools/check_style.py` |
+| Bench (`bench/`)      | Hardware benches on Arty and Colorlight 5A-75B            | `python3 bench/spectrum.py --board=arty --build` |
 
 [> Getting started
 ------------------
@@ -114,7 +104,7 @@ git clone https://github.com/enjoy-digital/litedsp
 cd litedsp
 python3 setup.py develop --user
 ```
-4. Compose blocks in a LiteX SoC (see `doc/litex_integration.md`):
+4. Compose blocks in a LiteX SoC:
 ```python
 from litedsp.generation.nco import LiteDSPNCO
 from litedsp.mixing.mixer   import LiteDSPMixer
@@ -131,36 +121,13 @@ Assembled-chain demos live in `examples/`.
 
 [> Documentation
 ----------------
-The **RF & Signal Processing Blocks manual** is the reference of LiteDSP: a nightly
-[PDF](https://github.com/enjoy-digital/litedsp/releases/download/manual-nightly/litedsp_manual.pdf)
-and [HTML page](https://github.com/enjoy-digital/litedsp/releases/download/manual-nightly/litedsp_manual.html)
-are published on the [manual-nightly](https://github.com/enjoy-digital/litedsp/releases/tag/manual-nightly)
-release. Sources in [doc/manual](doc/manual/README.md) (build: `python3 doc/manual/build.py`, outputs in
-`build/doc/`):
+The **RF & Signal Processing Blocks manual** is the reference of the project, from the primers to the integration,
+the examples, the debugging and the registers:
 
-- **Understand**: [introduction](doc/manual/01_introduction.md), primers on [sampled signals and fixed point](doc/manual/02_dsp_primer.md),
-  [streams, latency and rates](doc/manual/03_stream_primer.md), [digital filters](doc/manual/04_filter_primer.md),
-  [oscillators, mixers and the FFT](doc/manual/05_spectral_primer.md), [digital communications](doc/manual/06_comm_primer.md).
-- **The core**: [block contract](doc/manual/07_architecture.md), [generation, mixing and correction](doc/manual/08_generation_mixing.md),
-  [filters and rate change](doc/manual/09_filters_rate.md), [level control and analysis](doc/manual/10_level_analysis.md),
-  [communications](doc/manual/11_comm.md), [stream utilities and host links](doc/manual/12_stream_frontend.md),
-  [flow, generator, GUI and host software](doc/manual/13_tooling.md).
-- **Use it**: [getting started](doc/manual/14_getting_started.md), [integration](doc/manual/15_integration.md),
-  [examples and application notes](doc/manual/16_examples.md), [benches](doc/manual/17_boards.md), [verification](doc/manual/18_verification.md),
-  [debugging](doc/manual/19_debugging.md).
-- **Application families**: [introduction](doc/manual/20_apps_introduction.md), [motor control](doc/manual/25_motor.md),
-  [audio](doc/manual/26_audio.md), [radar and sonar](doc/manual/27_radar.md), [image and video](doc/manual/28_image.md)
-  (each with its primer), [using the families](doc/manual/29_apps_using.md).
-- **Appendices**: [registers](doc/manual/A_registers.md), [build options](doc/manual/B_build_options.md),
-  [glossary](doc/manual/C_glossary.md), [performance and resources](doc/manual/D_performance.md).
-
-The **block catalogue** stays online: one generated datasheet per block (parameters, ports, register map,
-resources) in [doc/blocks/index.md](doc/blocks/index.md) (`python3 -m litedsp.flow.docgen`).
-
-The repository also keeps generated and reference pages that the manual draws on:
-[resources](doc/resources.md) and [characterization](doc/characterization.md) (generated tables),
-[timing architecture](doc/timing_architecture.md) (classic vs pipelined architectures) and the
-[application notes](doc/app_notes/) AN001 to AN013 (simulated example designs, see `examples/README.md`).
+- Read it: [PDF](https://github.com/enjoy-digital/litedsp/releases/download/manual-nightly/litedsp_manual.pdf) or
+  [HTML](https://github.com/enjoy-digital/litedsp/releases/download/manual-nightly/litedsp_manual.html) (rebuilt nightly).
+- Sources and local build: [doc/manual](doc/manual/README.md).
+- One datasheet per block (parameters, ports, registers, resources): [doc/blocks](doc/blocks/index.md).
 
 [> Tests
 --------
