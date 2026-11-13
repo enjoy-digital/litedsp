@@ -206,10 +206,13 @@ def simulate(sensor, n_periods, log):
             yield foc.dq.voltage_q.eq(q15(0.25))       # V/f start: 0.25 pu vector.
             yield top.ramp.phase_inc.eq(int(0.25*WB_TS/(2*np.pi)*(1 << 32)))   # 0.25 pu speed.
             yield top.mux.sel.eq(0)
-        yield pwm.trigger_count.eq(0)
+        # ADC trigger at the carrier peak (low-side zero vector, where low-side shunts carry the
+        # phase currents).
+        yield pwm.trigger_count.eq(PERIOD)
+        yield pwm.trigger_direction.eq(1)
         for k in range(n_periods):
-            # Wait for the carrier valley (ADC sample point), then apply the accepted duties and
-            # step the plant over the period that just started.
+            # Wait for the carrier peak (ADC sample point), then apply the duties accepted at the
+            # last valley and step the plant over one period.
             while not (yield pwm.trigger):
                 yield
             plant.apply_duties(*state["duties"])

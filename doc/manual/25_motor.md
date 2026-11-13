@@ -333,9 +333,9 @@ sensorless build, from a mux that switches from the angle ramp to the observer a
 tracker.](mot_an009.svg)
 
 The PWM's one-sample-per-period acceptance paces the simulation as it paces hardware. The plant
-waits for the carrier valley, integrates the period that just started with the duties the PWM
-accepted, and hands the new currents to the controller. The controller output reaches the PWM
-before the next valley.
+waits for the carrier peak, the trigger point of low-side shunts ([PWM](#mot-pwm)). It then
+integrates one period with the duties the PWM accepted at the last valley and hands the new
+currents to the controller. The controller output reaches the PWM before the next valley.
 
 ### Models and loops {#mot-an009-models}
 

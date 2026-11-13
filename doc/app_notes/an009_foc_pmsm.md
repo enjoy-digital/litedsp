@@ -14,10 +14,10 @@ speed loop settles within 2 % of its target, the d-axis current stays below 0.08
 encoder angle error RMS is below 3° electrical and the sensorless angle error RMS below 10°.
 
 The PWM's one-sample-per-period acceptance paces the loop through backpressure alone — the
-plant generator waits for the carrier valley (the ADC trigger), integrates the period that
-just started with the duties the PWM accepted, and hands the new currents to the controller;
-the controller's output reaches the PWM before the next valley (one period of control delay,
-as on hardware).
+plant generator waits for the carrier peak (the ADC trigger, the sample point of low-side
+shunts), integrates one period with the duties the PWM accepted at the last valley, and hands
+the new currents to the controller; the controller's output reaches the PWM before the next
+valley (one period of control delay, as on hardware).
 
 ## Block diagram
 
