@@ -29,7 +29,7 @@ The keys below are read by `litedsp/gen.py`. A number may be given as a string, 
 | `flow` | none | Inline netlist ([Netlist keys](#opt-netlist)); exactly one of `flow` and `netlist` |
 | `netlist` | none | Path of a netlist JSON, relative to the YAML file |
 | `name` | netlist `name` + `_core` | Core name; `--name` takes precedence |
-| `csr_base` | `0` | Address of the first register bank; a multiple of `2**axil_address_width` |
+| `csr_base` | netlist `base_address` | Address of the first register bank; a multiple of `2**axil_address_width` |
 | `axil_address_width` | `16` | Width of the AXI-Lite byte address |
 | `csr_data_width` | `32` | Register data width; only 32 is accepted |
 
@@ -46,11 +46,12 @@ of a YAML file. [Netlist format](#tool-netlist) explains them.
 | `inputs`, `outputs` | empty | Top-level ports: `id`, and `layout` (default `iq`) |
 | `blocks` | empty | Blocks: `id`, `type` (a registry key), `params` |
 | `connections` | empty | Port references: `from`, `to` |
-| `csr` | none | `base_address`, kept on load and save |
+| `csr` | none | `base_address` (default `0`): base of the register banks of the IP core |
 | `editor` | none | Node positions of the editor, ignored by code generation |
 
-The `base_address` of the `csr` section is not used by the IP core: the base of the register
-banks is the `csr_base` key of the YAML file.
+The `base_address` of the `csr` section is the default base of the register banks of the IP
+core. The `csr_base` key of the YAML file takes precedence when it is present; both follow the
+same rule, a multiple of `2**axil_address_width`.
 
 ## Flow generator command line {#opt-flow-cli}
 
