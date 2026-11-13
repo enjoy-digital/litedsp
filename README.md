@@ -55,7 +55,7 @@ client-specific requirements.
   harness additionally co-simulates 186 representative RTL configurations under randomized
   backpressure.
 
-![LiteDSP architecture](doc/architecture.svg)
+![LiteDSP architecture](doc/images/architecture.png)
 
 [> Blocks
 ---------
