@@ -27,7 +27,7 @@ decoupling constants are `L_pu = ω_b·L·I_b/V_b` and `ψ_pu = ω_b·ψ/V_b`; t
 `LiteDSPPWM` accepts exactly one duty sample per carrier period (at the valley) and applies it
 at the next valley (double buffering). Feeding it from `LiteDSPFOC` therefore runs the whole
 chain at the PWM rate through backpressure alone: no sample counters, no clock-enable tree.
-Its `trigger` output marks the ADC sample point (carrier value + slope, e.g. the valley for
+Its `trigger` output marks the ADC sample point (carrier value + slope, e.g. the peak for
 low-side shunt sampling); a `LiteDSPQuadratureDecoder`/`LiteDSPHallDecoder` emits its angle
 on the same strobe, and the `LiteDSPSigmaDeltaFilter` produces its currents at `1/rate` of the
 modulator bit rate (set the rate so that one sample lands per period).
