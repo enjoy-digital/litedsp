@@ -304,9 +304,10 @@ and register words. Each driver binds the registers `<prefix>_<name>` of one blo
 outside the Q4.12 range saturates (just under 8.0).
 `PWMDriver` takes a frequency in hertz and a dead time in seconds, which needs `clk_freq`.
 `QuadratureDecoderDriver.configure()` computes `angle_scale` from the counts per turn, as the
-block expects. `PWMDriver.set_trigger()` and `QuadratureDecoderDriver.get_speed_rpm()` assume the
-default `period_width` and `speed_width` of 16 bits. The driver chapter is [Using the application
-families](#apps-using).
+block expects. `PWMDriver.set_trigger()` and `QuadratureDecoderDriver.get_speed_rpm()` follow the
+`period_width` and `speed_width` attributes of their driver, 16 bits as in the blocks: set the
+attribute on the driver for a block built with another width. The driver chapter is [Using the
+application families](#apps-using).
 
 ## Verification {#mot-verification}
 

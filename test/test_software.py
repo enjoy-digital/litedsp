@@ -190,6 +190,21 @@ class TestMotorDrivers(unittest.TestCase):
         self.assertEqual(regs["pwm_trigger"].value, 2500 | (1 << 16))
         self.assertEqual(regs["pwm_control"].value & 1, 1)
 
+    def test_pwm_trigger_period_width(self):
+        # The trigger packs the count on period_width bits, then the direction bit (16 bits by
+        # default, the driver's period_width attribute for another LiteDSPPWM period_width).
+        regs = {f"pwm_{r}": MockCSR() for r in PWMDriver.regs}
+        drv  = PWMDriver(MockBus(regs), "pwm", clk_freq=100e6)
+        drv.period_width = 20
+        drv.set_frequency(100)                                     # period = 500000 (> 16 bits).
+        drv.set_trigger()
+        self.assertEqual(regs["pwm_trigger"].value, 500000 | (1 << 20))
+        drv.set_trigger(70000, 0)
+        self.assertEqual(regs["pwm_trigger"].value, 70000)
+        drv.period_width = 8
+        drv.set_trigger(24, 1)
+        self.assertEqual(regs["pwm_trigger"].value, 24 | (1 << 8))
+
     def test_quadrature_decoder_rpm(self):
         regs = {f"enc_{r}": MockCSR() for r in QuadratureDecoderDriver.regs}
         regs["enc_speed"].value = 100
@@ -198,6 +213,14 @@ class TestMotorDrivers(unittest.TestCase):
         self.assertEqual(regs["enc_angle_scale"].value, 1 << 20)
         # 100 counts per 10 ms window at 4096 counts/turn: 100/4096*100/s = 2.44 turns/s = 146 rpm.
         self.assertAlmostEqual(drv.get_speed_rpm(), 100/4096*100*60, places=6)
+        regs["enc_speed"].value = (-100) & 0xFFFF                  # Reverse (16-bit register).
+        self.assertAlmostEqual(drv.get_speed_rpm(), -100/4096*100*60, places=6)
+        # Another speed_width of the block: the driver's speed_width attribute.
+        drv.speed_width = 24
+        regs["enc_speed"].value = 40000
+        self.assertAlmostEqual(drv.get_speed_rpm(), 40000/4096*100*60, places=6)
+        regs["enc_speed"].value = (-40000) & 0xFFFFFF
+        self.assertAlmostEqual(drv.get_speed_rpm(), -40000/4096*100*60, places=6)
 
 class TestAudioDrivers(unittest.TestCase):
     def test_volume_db_mute(self):
