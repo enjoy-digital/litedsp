@@ -11,7 +11,10 @@ import unittest
 
 import numpy as np
 
+from migen import run_simulation
+
 from litedsp.flow import registry
+from litedsp.filter.fir import LiteDSPFIRFilterComplex
 from litedsp.flow.metadata import _accepts_with_csr
 
 from test.common import run_stream, column
@@ -60,6 +63,36 @@ class TestBypass(unittest.TestCase):
                     got = column(cap, f, width if signed else None)
                     self.assertTrue(np.array_equal(got, [d[f] for d in data]),
                         f"{key}: {f} not passed through under bypass")
+
+    def test_fir_complex_switch_under_traffic(self):
+        # Toggle bypass while a free-flowing stream runs: every beat keeps its order and the
+        # processing latency, filtered (tap 0.5) or passed through as selected at its input.
+        for architecture in ("classic", "pipelined"):
+            with self.subTest(architecture=architecture):
+                dut = LiteDSPFIRFilterComplex(n_taps=4, coefficients=[16384, 0, 0, 0],
+                    architecture=architecture, with_csr=False)
+                ins, outs = [], []
+                def gen():
+                    n = 1
+                    yield dut.source.ready.eq(1)
+                    for cycle in range(60):
+                        bypass = int(8 <= cycle < 14 or 20 <= cycle < 21)
+                        yield dut.bypass.eq(bypass)
+                        yield dut.sink.valid.eq(int(n <= 40))
+                        yield dut.sink.i.eq(100*n)
+                        yield dut.sink.q.eq(-100*n)
+                        yield
+                        if (yield dut.sink.valid) and (yield dut.sink.ready):
+                            ins.append((cycle, n, bypass))
+                            n += 1
+                        if (yield dut.source.valid) and (yield dut.source.ready):
+                            outs.append((cycle, (yield dut.source.i), (yield dut.source.q)))
+                run_simulation(dut, gen())
+                self.assertEqual(len(outs), len(ins))
+                for (c_in, n, bypass), (c_out, i, q) in zip(ins, outs):
+                    scale = 100 if bypass else 50
+                    self.assertEqual((i, q), (scale*n, -scale*n), f"beat {n}")
+                    self.assertEqual(c_out - c_in, dut.latency, f"beat {n}")
 
 if __name__ == "__main__":
     unittest.main()
