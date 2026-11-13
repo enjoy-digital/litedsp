@@ -186,6 +186,8 @@ class TestMotorDrivers(unittest.TestCase):
         self.assertEqual(regs["pwm_period"].value, 2500)
         self.assertEqual(regs["pwm_dead_time"].value, 50)
         self.assertEqual(regs["pwm_trigger"].value, 1 << 16)
+        drv.set_trigger()                                          # Default: carrier peak.
+        self.assertEqual(regs["pwm_trigger"].value, 2500 | (1 << 16))
         self.assertEqual(regs["pwm_control"].value & 1, 1)
 
     def test_quadrature_decoder_rpm(self):

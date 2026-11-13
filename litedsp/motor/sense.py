@@ -179,8 +179,9 @@ class LiteDSPOvercurrentTrip(LiteXModule):
 
     Any accepted sample with ``|phase| > threshold`` sets ``fault`` (sticky), the ``phase``
     bit(s) that tripped and increments ``count``; ``clear`` releases them. Wire ``fault`` to
-    :class:`~litedsp.motor.pwm.LiteDSPPWM`'s ``fault`` input to switch the inverter off within
-    one cycle. ``with_irq=True`` adds ``ev.fault``. Latency 0.
+    :class:`~litedsp.motor.pwm.LiteDSPPWM`'s ``fault`` input to switch the inverter off two
+    clock cycles after ``fault`` rises (the PWM registers the fault, then its gate outputs).
+    ``with_irq=True`` adds ``ev.fault``. Latency 0.
     """
     def __init__(self, data_width=16, with_csr=True, with_irq=False):
         check(data_width >= 4, "expected data_width >= 4")

@@ -528,8 +528,15 @@ class PWMDriver(Driver):
     def clear_fault(self):
         self.control.write(self.control.read() | (1 << 1))
 
-    def set_trigger(self, count, direction=0):
-        """ADC trigger point: carrier value and slope (0: down/valley, 1: up/peak)."""
+    def set_trigger(self, count=None, direction=0):
+        """ADC trigger point: carrier value and slope (0: counting down, 1: counting up).
+
+        Without ``count``, trigger at the carrier peak (``count = period``, counting up): the
+        low-side zero vector, where low-side shunts carry the phase currents. The valley
+        (``count = 0``) is the high-side zero vector.
+        """
+        if count is None:
+            count, direction = self.period.read(), 1
         self.trigger.write((count & 0xFFFF) | ((direction & 1) << 16))
 
     @property

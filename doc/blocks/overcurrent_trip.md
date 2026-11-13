@@ -10,8 +10,9 @@ Window comparator on a three-phase stream: combinational passthrough + sticky tr
 
 Any accepted sample with ``|phase| > threshold`` sets ``fault`` (sticky), the ``phase``
 bit(s) that tripped and increments ``count``; ``clear`` releases them. Wire ``fault`` to
-:class:`~litedsp.motor.pwm.LiteDSPPWM`'s ``fault`` input to switch the inverter off within
-one cycle. ``with_irq=True`` adds ``ev.fault``. Latency 0.
+:class:`~litedsp.motor.pwm.LiteDSPPWM`'s ``fault`` input to switch the inverter off two
+clock cycles after ``fault`` rises (the PWM registers the fault, then its gate outputs).
+``with_irq=True`` adds ``ev.fault``. Latency 0.
 
 ## Parameters
 
