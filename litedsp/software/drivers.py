@@ -510,8 +510,12 @@ class FOCDriver(Driver):
         return self.dq_status.read() & 0b11
 
 class PWMDriver(Driver):
-    """Three-phase PWM: frequency / dead time in seconds, enable, fault handling, trigger."""
-    regs = ("period", "dead_time", "control", "trigger", "status")
+    """Three-phase PWM: frequency / dead time in seconds, enable, fault handling, trigger.
+
+    ``period_width`` is the ``period_width`` of the block (layout of the ``trigger`` register).
+    """
+    regs         = ("period", "dead_time", "control", "trigger", "status")
+    period_width = 16
 
     def set_frequency(self, f_pwm):
         """PWM frequency in Hz (carrier half period = clk / (2 f_pwm) cycles)."""
@@ -537,17 +541,22 @@ class PWMDriver(Driver):
         """
         if count is None:
             count, direction = self.period.read(), 1
-        self.trigger.write((count & 0xFFFF) | ((direction & 1) << 16))
+        mask = (1 << self.period_width) - 1
+        self.trigger.write((count & mask) | ((direction & 1) << self.period_width))
 
     @property
     def fault(self):
         return bool(self.status.read() & 0b1)
 
 class QuadratureDecoderDriver(Driver):
-    """Incremental encoder: geometry setup and position / speed readback."""
+    """Incremental encoder: geometry setup and position / speed readback.
+
+    ``angle_width``, ``scale_frac`` and ``speed_width`` are the parameters of the block.
+    """
     regs = ("counts_per_rev", "pole_pairs", "angle_scale", "angle_offset", "window", "control",
             "position", "speed", "status")
     angle_width, scale_frac = 16, 16
+    speed_width             = 16
 
     def configure(self, counts_per_rev, pole_pairs, window_cycles=1 << 16, invert=False,
         index_enable=True):
@@ -564,7 +573,7 @@ class QuadratureDecoderDriver(Driver):
     def get_speed_rpm(self):
         """Mechanical speed in rpm from the windowed count (needs clk_freq and configure())."""
         assert self.clk_freq is not None, "clk_freq required for rpm"
-        counts = to_signed(self.speed.read(), 16)
+        counts = to_signed(self.speed.read(), self.speed_width)
         return counts/self._cpr*(self.clk_freq/self._window)*60.0
 
 class AngleTrackerDriver(Driver):

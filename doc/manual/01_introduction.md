@@ -145,7 +145,6 @@ work around it. The chapters describe the same behaviour where the block is docu
 | RMS meter | A result is lost when the consumer stalls past the next window or the window is short | Keep the consumer ready; [Power, RMS](#lvl-measure) |
 | Capture | Read only through the Wishbone window, it stays in readout and ignores the next trigger | Drain its `source` or reset it; [Capture](#str-capture) |
 | Wishbone DMA capture | Ends a non-looping transfer at the `last` of a framed stream | Strip the framing or use `loop`; [DMA](#str-dma) |
-| Host drivers | The PWM driver packs a 16-bit trigger count (`set_trigger`); the quadrature driver reads a 16-bit speed (`get_speed_rpm`) | Keep `period_width` and `speed_width` at 16 |
 | DDC chain example | In `examples/ddc_chain.py` the rejected tone folds onto DC, so the printed rejection is the division floor | Read the in-band result only; [First chain](#gs-chain) |
 
 ## What it is not {#intro-limits}
