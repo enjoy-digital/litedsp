@@ -368,11 +368,11 @@ class LiteDSPFIRFilterComplex(LiteXModule):
             [self.fir_i.coeffs[i].eq(self.coeffs.values[i]) for i in range(n_taps)],
             [self.fir_q.coeffs[i].eq(self.coeffs.values[i]) for i in range(n_taps)],
         ]
-        self.comb += If(self.bypass,
-            self.sink.connect(self.source),
-            self.fir_i.sink.valid.eq(0),
-            self.fir_q.sink.valid.eq(0),
-        ).Else(
+        # Bypass is delegated to the real FIRs: their bypass is delay-matched (the select rides
+        # along with its beat), so switching it under traffic keeps the latency and beat order.
+        self.comb += [
+            self.fir_i.bypass.eq(self.bypass),
+            self.fir_q.bypass.eq(self.bypass),
             self.fir_i.sink.valid.eq(self.sink.valid),
             self.fir_q.sink.valid.eq(self.sink.valid),
             self.fir_i.sink.data.eq(self.sink.i),
@@ -383,7 +383,7 @@ class LiteDSPFIRFilterComplex(LiteXModule):
             self.source.q.eq(self.fir_q.source.data),
             self.fir_i.source.ready.eq(self.source.ready),
             self.fir_q.source.ready.eq(self.source.ready),
-        )
+        ]
 
         if with_csr:
             self.add_csr()
