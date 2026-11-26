@@ -116,7 +116,7 @@ and in `doc/resources.md`.
 | nco_parallel_x2 | 85 / 52 / 4 / 0 | 272.9 | synth | synth |
 | nco_parallel_x4 | 222 / 71 / 8 / 2 | 197.0 | synth | synth |
 | nco_qw | 663 / 52 / 0 / 0 | 257.2 | synth | synth |
-| pattern_source | 114 / 65 / 0 / 0 | 545.0 | synth | synth |
+| pattern_source | 180 / 68 / 0 / 0 | 545.0 | synth | synth |
 
 ### Mixing {#perf-mixing}
 

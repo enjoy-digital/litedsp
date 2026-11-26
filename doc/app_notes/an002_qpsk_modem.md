@@ -83,7 +83,7 @@ each (not separately characterized).
 | **Indicative total** | | **≈ 1.5 k LUT / 0.5 k FF / 0 BRAM / 20 DSP** |
 
 On hardware the PRBS source and the error counter also exist as blocks —
-[`pattern_source`](../blocks/pattern_source.md) (114/65/0/0) and
+[`pattern_source`](../blocks/pattern_source.md) (180/68/0/0) and
 [`error_counter`](../blocks/error_counter.md) (97/64/0/0) — used from the bus for on-FPGA
 self-test (see `examples/loopback_ber.py`). Here the bits are generated and scored on the host
 because the M&M acquisition slips make the RX/reference alignment data-dependent; a real modem

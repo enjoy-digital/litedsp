@@ -5188,47 +5188,47 @@
     "ecp5": {
       "bram": 0,
       "dsp": 0,
-      "ff": 65,
+      "ff": 68,
       "fmax_mhz": 545.0,
       "fmax_min": 463.2,
-      "lut": 114,
+      "lut": 180,
       "pnr": {
         "bram": 0,
         "dsp": 0,
-        "ff": 65,
+        "ff": 68,
         "fmax_mhz": 545.0,
         "fmax_min": 463.2,
-        "lut": 114
+        "lut": 180
       },
       "synth": {
         "bram": 0,
         "dsp": 0,
-        "ff": 65,
-        "lut": 114
+        "ff": 68,
+        "lut": 176
       }
     },
     "xilinx": {
       "bram": 0,
       "dsp": 0,
-      "ff": 65,
-      "lut": 36,
+      "ff": 68,
+      "lut": 40,
       "synth": {
         "bram": 0,
         "dsp": 0,
-        "ff": 65,
-        "lut": 36
+        "ff": 68,
+        "lut": 40
       }
     },
     "xilinx_au": {
       "bram": 0,
       "dsp": 0,
-      "ff": 65,
-      "lut": 36,
+      "ff": 68,
+      "lut": 39,
       "synth": {
         "bram": 0,
         "dsp": 0,
-        "ff": 65,
-        "lut": 36
+        "ff": 68,
+        "lut": 39
       }
     }
   },
