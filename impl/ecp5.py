@@ -21,14 +21,21 @@ def have_nextpnr(): return shutil.which("nextpnr-ecp5") is not None
 # Synthesis (out of context) -----------------------------------------------------------------------
 
 def _parse_stat(text):
-    """Parse the cell counts from the last yosys ``stat`` table."""
-    chunks = text.split("Number of cells:")
+    """Parse the cell counts from the last yosys ``stat`` table.
+
+    Older Yosys releases print ``Number of cells: N`` then ``<cell> <count>`` lines, newer ones
+    (0.5x and later) print ``N cells`` then ``<count> <cell>`` lines.
+    """
+    chunks = re.split(r"Number of cells:|^\s+\d+ cells$", text, flags=re.MULTILINE)
     cells  = {}
     if len(chunks) > 1:
         for line in chunks[-1].splitlines()[1:]:
             m = re.match(r"\s+(\S+)\s+(\d+)\s*$", line)
+            n = re.match(r"\s+(\d+)\s+(\S+)\s*$", line)
             if m:
                 cells[m.group(1)] = int(m.group(2))
+            elif n:
+                cells[n.group(2)] = int(n.group(1))
             elif line.strip() == "" and cells:
                 break
     return {
