@@ -145,7 +145,7 @@ updates `impl/budgets.json`; CI checks new results against these budgets.
 | `os_cfar` | 1744/445/0/1/- | - | - |
 | `overcurrent_trip` | 375/36/0/0/- | - | - |
 | `park` | 784/189/0/4/- | - | - |
-| `pattern_source` | 114/65/0/0/463.2 | 36/65/0/0/- | 36/65/0/0/- |
+| `pattern_source` | 180/68/0/0/463.2 | 40/68/0/0/- | 39/68/0/0/- |
 | `pdm_rx` | 1244/675/0/0/- | - | - |
 | `peak_extractor` | 1006/427/0/0/- | - | - |
 | `peak_meter` | 1109/188/0/0/- | - | - |
