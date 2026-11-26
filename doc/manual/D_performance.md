@@ -147,7 +147,7 @@ and in `doc/resources.md`.
 | dc_blocker_real | 321 / 89 / 0 / 0 | synth | not run | not run |
 | farrow | 808 / 922 / 0 / 16 | 125.1 | synth | 267.3 |
 | fir | 2815 / 1555 / 0 / 32 | synth | synth | synth |
-| fir_complex | 209 / 106 / 0 / 2 | 211.7 | no fmax | 255.7 |
+| fir_complex | 174 / 208 / 0 / 2 | 209.1 | 140.7 | 267.7 |
 | fir_decimator | 550 / 217 / 0 / 2 | 184.9 | 207.0 | 368.3 |
 | fir_interpolator | 336 / 86 / 0 / 2 | 128.7 | synth | synth |
 | fir_parallel_x2 | 5628 / 2611 / 0 / 64 | synth | synth | synth |

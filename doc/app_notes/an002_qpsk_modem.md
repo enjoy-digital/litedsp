@@ -78,7 +78,7 @@ each (not separately characterized).
 | [`diff_encoder`](../blocks/diff_encoder.md) / [`diff_decoder`](../blocks/diff_decoder.md) | DQPSK phase (de)accumulation | negligible |
 | [`symbol_mapper`](../blocks/symbol_mapper.md) / [`slicer`](../blocks/slicer.md) | constellation map / hard decision | negligible |
 | [`pulse_shaper`](../blocks/pulse_shaper.md) ([`fir_interpolator`](../blocks/fir_interpolator.md) core) | TX RRC, 2 sps | 338/86/0/2 |
-| [`fir_complex`](../blocks/fir_complex.md) | RX matched RRC | 181/106/0/2 |
+| [`fir_complex`](../blocks/fir_complex.md) | RX matched RRC | 174/208/0/2 |
 | [`timing_recovery`](../blocks/timing_recovery.md) | M&M symbol sync | 1030/292/0/16 |
 | **Indicative total** | | **≈ 1.5 k LUT / 0.5 k FF / 0 BRAM / 20 DSP** |
 
